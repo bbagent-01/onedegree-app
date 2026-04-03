@@ -1,6 +1,11 @@
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+export const runtime = "edge";
 
-export default function Home() {
+import { auth } from "@clerk/nextjs/server";
+import { SignInButton, UserButton } from "@clerk/nextjs";
+
+export default async function Home() {
+  const { userId } = await auth();
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 bg-surface-light">
       <div className="text-center">
@@ -12,20 +17,18 @@ export default function Home() {
         </p>
       </div>
 
-      <SignedOut>
+      {!userId ? (
         <SignInButton mode="modal">
           <button className="px-6 py-3 bg-brand-purple text-white rounded-lg font-medium hover:bg-brand-purple-dark transition-colors">
             Sign In
           </button>
         </SignInButton>
-      </SignedOut>
-
-      <SignedIn>
+      ) : (
         <div className="flex items-center gap-4">
-          <UserButton afterSignOutUrl="/" />
+          <UserButton />
           <p className="text-text-secondary">You&apos;re signed in!</p>
         </div>
-      </SignedIn>
+      )}
     </main>
   );
 }

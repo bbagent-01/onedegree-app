@@ -1,7 +1,9 @@
+export const runtime = "edge";
+
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
     const email = email_addresses?.[0]?.email_address;
     const name = [first_name, last_name].filter(Boolean).join(" ") || "User";
 
-    const { error } = await supabaseAdmin.from("users").upsert(
+    const { error } = await getSupabaseAdmin().from("users").upsert(
       {
         clerk_id: id,
         name,
