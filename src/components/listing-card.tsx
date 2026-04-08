@@ -38,7 +38,7 @@ export function ListingCard({ listing, className }: ListingCardProps) {
         {/* Price overlay */}
         <div className="absolute bottom-3 left-3">
           <div className="flex items-baseline gap-1">
-            <span className="font-mono text-2xl font-bold text-white">
+            <span className="font-display text-3xl font-bold text-white">
               ${listing.pricePerNight}
             </span>
             <span className="text-sm text-white/70">/night</span>
@@ -53,7 +53,7 @@ export function ListingCard({ listing, className }: ListingCardProps) {
 
       {/* Content */}
       <div className="p-4">
-        <h3 className="font-display text-lg text-foreground leading-tight">
+        <h3 className="font-display text-2xl text-foreground leading-tight">
           {listing.title}
         </h3>
         <p className="mt-0.5 text-xs text-foreground-secondary">{listing.area}</p>
