@@ -8,17 +8,17 @@ export default async function Home() {
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-center gap-8 bg-background overflow-hidden">
-      {/* Subtle radial glow */}
-      <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-emerald-500/[0.04] blur-3xl" />
+      {/* Subtle purple radial glow */}
+      <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full opacity-40 blur-3xl" style={{ background: 'radial-gradient(ellipse, rgba(139,92,246,0.14), transparent 65%)' }} />
 
       <div className="relative text-center space-y-3">
-        <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-          <span className="font-mono text-xl font-bold text-primary-foreground">1</span>
+        <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-top to-primary-bot shadow-lg shadow-purple-500/20">
+          <span className="font-mono text-xl font-bold text-white">1</span>
         </div>
-        <h1 className="text-5xl font-bold tracking-tight text-foreground">
+        <h1 className="font-display text-5xl text-foreground">
           One Degree
         </h1>
-        <p className="text-lg text-muted-foreground">
+        <p className="text-lg text-foreground-secondary">
           Private home rentals through trusted connections
         </p>
       </div>
@@ -26,7 +26,7 @@ export default async function Home() {
       <div className="relative">
         {!userId ? (
           <SignInButton mode="modal">
-            <button className="group inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/20">
+            <button className="group inline-flex items-center gap-2 rounded-full bg-background px-6 py-3 text-sm font-semibold text-primary border-[1.5px] border-primary-border shadow-md shadow-purple-500/10 transition-all hover:shadow-lg hover:shadow-purple-500/20 hover:-translate-y-0.5">
               Sign In
               <svg
                 className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
@@ -42,13 +42,10 @@ export default async function Home() {
         ) : (
           <div className="flex items-center gap-4">
             <UserButton />
-            <p className="text-sm text-muted-foreground">You&apos;re signed in!</p>
+            <p className="text-sm text-foreground-secondary">You&apos;re signed in!</p>
           </div>
         )}
       </div>
-
-      {/* Bottom border accent */}
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
     </main>
   );
 }

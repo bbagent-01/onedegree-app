@@ -24,10 +24,10 @@ function getTrustColorClass(score: number): string {
 }
 
 function getTrustBgClass(score: number): string {
-  if (score >= 81) return "bg-cyan-500/10 border-cyan-500/20";
-  if (score >= 61) return "bg-emerald-500/10 border-emerald-500/20";
-  if (score >= 31) return "bg-amber-500/10 border-amber-500/20";
-  return "bg-red-500/10 border-red-500/20";
+  if (score >= 81) return "bg-purple-50 border-purple-200";
+  if (score >= 61) return "bg-emerald-50 border-emerald-200";
+  if (score >= 31) return "bg-amber-50 border-amber-200";
+  return "bg-red-50 border-red-200";
 }
 
 interface TrustScoreBadgeProps {
@@ -56,7 +56,7 @@ export function TrustScoreBadge({
     return (
       <div
         className={cn(
-          "inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5",
+          "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 backdrop-blur-md",
           bgClass,
           className
         )}
@@ -80,7 +80,7 @@ export function TrustScoreBadge({
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
-              className="text-muted/50"
+              className="text-background-dark"
             />
             <circle
               cx="22"
@@ -94,7 +94,7 @@ export function TrustScoreBadge({
               strokeLinecap="round"
               className="transition-all duration-700 ease-out"
               style={{
-                filter: score >= 81 ? `drop-shadow(0 0 4px ${color})` : undefined,
+                filter: score >= 81 ? `drop-shadow(0 0 6px ${color})` : undefined,
               }}
             />
           </svg>
@@ -111,7 +111,7 @@ export function TrustScoreBadge({
             {label}
           </span>
           {vouchCount !== undefined && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-foreground-secondary">
               {vouchCount} vouch{vouchCount !== 1 ? "es" : ""}
             </span>
           )}
@@ -132,7 +132,7 @@ export function TrustScoreBadge({
             fill="none"
             stroke="currentColor"
             strokeWidth="3"
-            className="text-muted/50"
+            className="text-background-dark"
           />
           <circle
             cx="22"
@@ -146,7 +146,7 @@ export function TrustScoreBadge({
             strokeLinecap="round"
             className="transition-all duration-700 ease-out"
             style={{
-              filter: score >= 81 ? `drop-shadow(0 0 3px ${color})` : undefined,
+              filter: score >= 81 ? `drop-shadow(0 0 4px ${color})` : undefined,
             }}
           />
         </svg>
@@ -160,7 +160,7 @@ export function TrustScoreBadge({
         <div className="flex flex-col">
           <span className={cn("text-xs font-medium", colorClass)}>{label}</span>
           {vouchCount !== undefined && (
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[10px] text-foreground-secondary">
               {vouchCount} vouches
             </span>
           )}

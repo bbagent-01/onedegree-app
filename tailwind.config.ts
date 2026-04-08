@@ -1,7 +1,6 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,15 +9,32 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
+        display: ["'Instrument Serif'", "Georgia", "serif"],
+        sans: ["'DM Sans'", "-apple-system", "sans-serif"],
+        mono: ["'JetBrains Mono'", "ui-monospace", "monospace"],
       },
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
-        card: { DEFAULT: "var(--card)", foreground: "var(--card-foreground)" },
+        background: {
+          DEFAULT: "var(--background)",
+          mid: "var(--background-mid)",
+          dark: "var(--background-dark)",
+        },
+        foreground: {
+          DEFAULT: "var(--foreground)",
+          secondary: "var(--foreground-secondary)",
+          tertiary: "var(--foreground-tertiary)",
+        },
+        card: { DEFAULT: "var(--card)", solid: "var(--card-solid)", foreground: "var(--card-foreground)" },
         popover: { DEFAULT: "var(--popover)", foreground: "var(--popover-foreground)" },
-        primary: { DEFAULT: "var(--primary)", foreground: "var(--primary-foreground)" },
+        primary: {
+          DEFAULT: "var(--primary)",
+          top: "var(--primary-top)",
+          bot: "var(--primary-bot)",
+          light: "var(--primary-light)",
+          border: "var(--primary-border)",
+          dark: "var(--primary-dark)",
+          foreground: "var(--primary-foreground)",
+        },
         secondary: { DEFAULT: "var(--secondary)", foreground: "var(--secondary-foreground)" },
         muted: { DEFAULT: "var(--muted)", foreground: "var(--muted-foreground)" },
         accent: { DEFAULT: "var(--accent)", foreground: "var(--accent-foreground)" },
@@ -42,19 +58,12 @@ const config: Config = {
           solid: "var(--trust-solid)",
           exceptional: "var(--trust-exceptional)",
         },
-        emerald: {
-          50: "var(--emerald-50)",
-          100: "var(--emerald-100)",
-          400: "var(--emerald-400)",
-          500: "var(--emerald-500)",
-          600: "var(--emerald-600)",
-          900: "var(--emerald-900)",
-        },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        DEFAULT: "var(--radius)",
+        lg: "var(--radius-lg)",
+        xl: "var(--radius-xl)",
+        "2xl": "var(--radius-2xl)",
       },
     },
   },
