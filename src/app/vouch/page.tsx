@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
 import { Search, UserCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VouchModal } from "@/components/vouch/VouchModal";
-import { getSupabase } from "@/lib/supabase";
 
 interface UserRow {
   id: string;
@@ -16,41 +14,26 @@ interface UserRow {
 }
 
 export default function VouchPage() {
-  const { user: clerkUser } = useUser();
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<UserRow[]>([]);
-  const [currentDbUserId, setCurrentDbUserId] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [modalTarget, setModalTarget] = useState<UserRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Get current user's database ID
-  useEffect(() => {
-    if (!clerkUser) return;
-    async function fetchCurrentUser() {
-      const supabase = getSupabase();
-      const { data } = await supabase
-        .from("users")
-        .select("id")
-        .eq("clerk_id", clerkUser!.id)
-        .single();
-      if (data) setCurrentDbUserId(data.id);
-    }
-    fetchCurrentUser();
-  }, [clerkUser]);
-
-  // Search users
+  // Search users via API route
   async function handleSearch() {
     if (!search.trim()) return;
     setSearching(true);
-    const supabase = getSupabase();
-    const { data } = await supabase
-      .from("users")
-      .select("id, clerk_id, name, email, avatar_url")
-      .ilike("name", `%${search}%`)
-      .limit(10);
-    setUsers(data || []);
-    setSearching(false);
+    try {
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(search)}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setUsers(data);
+    } catch {
+      setUsers([]);
+    } finally {
+      setSearching(false);
+    }
   }
 
   // Toast auto-dismiss
@@ -125,7 +108,6 @@ export default function VouchPage() {
                 <Button
                   size="sm"
                   onClick={() => setModalTarget(u)}
-                  disabled={u.id === currentDbUserId}
                 >
                   <UserCheck className="size-3.5 mr-1" />
                   Vouch
@@ -143,11 +125,10 @@ export default function VouchPage() {
       </div>
 
       {/* Modal */}
-      {modalTarget && currentDbUserId && (
+      {modalTarget && (
         <VouchModal
           targetUserId={modalTarget.id}
           targetName={modalTarget.name}
-          currentUserId={currentDbUserId}
           onClose={() => setModalTarget(null)}
           onSuccess={(points) => {
             setModalTarget(null);

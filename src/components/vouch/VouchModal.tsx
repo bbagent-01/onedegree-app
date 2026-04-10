@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { X, Star, Shield, AlertCircle, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { getSupabase } from "@/lib/supabase";
 import {
   VOUCH_TYPE_POINTS,
   YEARS_KNOWN_BUCKETS,
@@ -15,7 +14,6 @@ import {
 interface VouchModalProps {
   targetUserId: string;
   targetName: string;
-  currentUserId: string;
   onClose: () => void;
   onSuccess: (points: number) => void;
 }
@@ -23,7 +21,6 @@ interface VouchModalProps {
 export function VouchModal({
   targetUserId,
   targetName,
-  currentUserId,
   onClose,
   onSuccess,
 }: VouchModalProps) {
@@ -39,24 +36,23 @@ export function VouchModal({
   // Load existing vouch if any
   useEffect(() => {
     async function loadExisting() {
-      const supabase = getSupabase();
-      const { data } = await supabase
-        .from("vouches")
-        .select("vouch_type, years_known_bucket, reputation_stake_confirmed")
-        .eq("voucher_id", currentUserId)
-        .eq("vouchee_id", targetUserId)
-        .maybeSingle();
-
-      if (data) {
-        setVouchType(data.vouch_type as VouchType);
-        setYearsBucket(data.years_known_bucket as YearsKnownBucket);
-        setStakeConfirmed(data.reputation_stake_confirmed);
-        setIsUpdate(true);
+      try {
+        const res = await fetch(`/api/vouches?targetId=${targetUserId}`);
+        if (!res.ok) throw new Error();
+        const { vouch } = await res.json();
+        if (vouch) {
+          setVouchType(vouch.vouch_type as VouchType);
+          setYearsBucket(vouch.years_known_bucket as YearsKnownBucket);
+          setStakeConfirmed(vouch.reputation_stake_confirmed);
+          setIsUpdate(true);
+        }
+      } catch {
+        // No existing vouch — that's fine
       }
       setLoading(false);
     }
     loadExisting();
-  }, [currentUserId, targetUserId]);
+  }, [targetUserId]);
 
   // Calculate points
   const basePoints = vouchType ? VOUCH_TYPE_POINTS[vouchType] : 0;
@@ -69,10 +65,6 @@ export function VouchModal({
     setError(null);
     setStakeWarning(false);
 
-    if (currentUserId === targetUserId) {
-      setError("You can't vouch for yourself.");
-      return;
-    }
     if (!vouchType || !yearsBucket) {
       setError("Please complete all fields.");
       return;
@@ -84,40 +76,28 @@ export function VouchModal({
 
     setSubmitting(true);
     try {
-      const supabase = getSupabase();
-      const { error: upsertError } = await supabase.from("vouches").upsert(
-        {
-          voucher_id: currentUserId,
-          vouchee_id: targetUserId,
-          vouch_type: vouchType,
-          years_known_bucket: yearsBucket,
-          reputation_stake_confirmed: true,
-        },
-        { onConflict: "voucher_id,vouchee_id" }
-      );
-
-      if (upsertError) throw upsertError;
-
-      // Refresh vouch_power
-      await supabase.rpc("calculate_vouch_power", {
-        p_user_id: currentUserId,
+      const res = await fetch("/api/vouches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetUserId,
+          vouchType,
+          yearsKnownBucket: yearsBucket,
+        }),
       });
 
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to save vouch");
+      }
+
       onSuccess(totalPoints);
-    } catch {
-      setError("Something went wrong. Try again.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Try again.");
     } finally {
       setSubmitting(false);
     }
-  }, [
-    currentUserId,
-    targetUserId,
-    vouchType,
-    yearsBucket,
-    stakeConfirmed,
-    totalPoints,
-    onSuccess,
-  ]);
+  }, [targetUserId, vouchType, yearsBucket, stakeConfirmed, totalPoints, onSuccess]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
