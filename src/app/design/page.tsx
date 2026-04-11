@@ -49,12 +49,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function DesignPage() {
   return (
-    <AppShell
-      user={{
-        name: "Alex Rivera",
-        email: "alex@onedegreebnb.com",
-      }}
-    >
+    <AppShell>
       <div className="space-y-12">
         {/* Header */}
         <div>
@@ -149,7 +144,6 @@ export default function DesignPage() {
                     key={score}
                     score={score}
                     size="md"
-                    showLabel
                     vouchCount={score > 60 ? 12 : 3}
                   />
                 ))}

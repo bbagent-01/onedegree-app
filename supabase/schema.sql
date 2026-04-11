@@ -1,6 +1,6 @@
--- One Degree BNB — Full Schema (post CC-6a migration)
+-- One Degree BNB — Full Schema (post CC-8 migration)
 -- This reflects the canonical state of the database.
--- For the migration that got here, see migrations/001_align_schema_with_plan.sql
+-- For migration history, see supabase/migrations/
 
 -- ============================================================
 -- ENUMS
@@ -46,15 +46,20 @@ CREATE TABLE IF NOT EXISTS vouches (
   CHECK (voucher_id != vouchee_id)
 );
 
--- Invites (separate from vouches)
+-- Invites (pre-vouch invite flow — CC-7)
 CREATE TABLE IF NOT EXISTS invites (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  inviter_id  UUID REFERENCES users(id) ON DELETE CASCADE,
-  email       TEXT NOT NULL,
-  phone       TEXT DEFAULT NULL,
-  token       TEXT UNIQUE NOT NULL,
-  status      TEXT CHECK (status IN ('pending', 'accepted')) DEFAULT 'pending',
-  created_at  TIMESTAMPTZ DEFAULT now()
+  id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inviter_id                UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  invitee_email             TEXT,
+  invitee_phone             TEXT,
+  token                     TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(32), 'hex'),
+  vouch_type                vouch_type_enum NOT NULL,
+  years_known_bucket        years_known_bucket_enum NOT NULL,
+  reputation_stake_confirmed BOOLEAN DEFAULT false,
+  claimed_by                UUID REFERENCES users(id),
+  claimed_at                TIMESTAMPTZ,
+  expires_at                TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '7 days'),
+  created_at                TIMESTAMPTZ DEFAULT now()
 );
 
 -- Listings
@@ -81,6 +86,10 @@ CREATE TABLE IF NOT EXISTS listings (
   min_trust_score        INTEGER DEFAULT 0,
   specific_user_ids      UUID[] DEFAULT '{}',
 
+  -- Rating aggregates (CC-8)
+  avg_listing_rating     DECIMAL(3,2) DEFAULT NULL,
+  listing_review_count   INTEGER DEFAULT 0,
+
   is_active              BOOLEAN DEFAULT true,
   created_at             TIMESTAMPTZ DEFAULT now(),
   updated_at             TIMESTAMPTZ DEFAULT now()
@@ -97,32 +106,43 @@ CREATE TABLE IF NOT EXISTS listing_photos (
   created_at    TIMESTAMPTZ DEFAULT now()
 );
 
--- Contact requests
+-- Contact requests (CC-8)
 CREATE TABLE IF NOT EXISTS contact_requests (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  listing_id  UUID REFERENCES listings(id),
-  guest_id    UUID REFERENCES users(id),
-  message     TEXT,
-  check_in    DATE,
-  check_out   DATE,
-  status      TEXT CHECK (status IN ('pending', 'accepted', 'declined')) DEFAULT 'pending',
-  created_at  TIMESTAMPTZ DEFAULT now()
+  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  listing_id              UUID NOT NULL REFERENCES listings(id),
+  guest_id                UUID NOT NULL REFERENCES users(id),
+  host_id                 UUID NOT NULL REFERENCES users(id),
+  message                 TEXT NOT NULL,
+  check_in                DATE,
+  check_out               DATE,
+  guest_count             INTEGER DEFAULT 1,
+  status                  TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'accepted', 'declined', 'cancelled')),
+  host_response_message   TEXT,
+  responded_at            TIMESTAMPTZ,
+  created_at              TIMESTAMPTZ DEFAULT now()
 );
 
--- Stay confirmations
+-- Stay confirmations (CC-8)
 CREATE TABLE IF NOT EXISTS stay_confirmations (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  listing_id      UUID REFERENCES listings(id),
-  host_id         UUID REFERENCES users(id),
-  guest_id        UUID REFERENCES users(id),
-  host_confirmed  BOOLEAN DEFAULT false,
-  guest_confirmed BOOLEAN DEFAULT false,
-  host_rating     INTEGER CHECK (host_rating BETWEEN 1 AND 5),
-  guest_rating    INTEGER CHECK (guest_rating BETWEEN 1 AND 5),
-  listing_rating  INTEGER CHECK (listing_rating BETWEEN 1 AND 5),
-  review_text     TEXT DEFAULT NULL,
-  notes           TEXT,
-  created_at      TIMESTAMPTZ DEFAULT now()
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  contact_request_id    UUID REFERENCES contact_requests(id),
+  listing_id            UUID NOT NULL REFERENCES listings(id),
+  host_id               UUID NOT NULL REFERENCES users(id),
+  guest_id              UUID NOT NULL REFERENCES users(id),
+  check_in              DATE,
+  check_out             DATE,
+  host_confirmed        BOOLEAN DEFAULT false,
+  guest_confirmed       BOOLEAN DEFAULT false,
+  guest_rating          INTEGER CHECK (guest_rating BETWEEN 1 AND 5),
+  host_rating           INTEGER CHECK (host_rating BETWEEN 1 AND 5),
+  listing_rating        INTEGER CHECK (listing_rating BETWEEN 1 AND 5),
+  guest_review_text     TEXT,
+  host_review_text      TEXT,
+  listing_review_text   TEXT,
+  review_text           TEXT DEFAULT NULL,
+  notes                 TEXT,
+  created_at            TIMESTAMPTZ DEFAULT now()
 );
 
 -- Incidents (data collection only — no auto-scoring)
@@ -137,6 +157,39 @@ CREATE TABLE IF NOT EXISTS incidents (
   created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- House manuals (CC-8 Tools)
+CREATE TABLE IF NOT EXISTS house_manuals (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  listing_id  UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  host_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content     JSONB NOT NULL DEFAULT '{}',
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  updated_at  TIMESTAMPTZ DEFAULT now()
+);
+
+-- Rental agreements (CC-8 Tools)
+CREATE TABLE IF NOT EXISTS rental_agreements (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stay_confirmation_id  UUID REFERENCES stay_confirmations(id),
+  listing_id            UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  host_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content               JSONB NOT NULL DEFAULT '{}',
+  created_at            TIMESTAMPTZ DEFAULT now(),
+  updated_at            TIMESTAMPTZ DEFAULT now()
+);
+
+-- Security deposits (CC-8 Tools)
+CREATE TABLE IF NOT EXISTS security_deposits (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stay_confirmation_id  UUID REFERENCES stay_confirmations(id),
+  listing_id            UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  host_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount                INTEGER,
+  terms                 JSONB NOT NULL DEFAULT '{}',
+  created_at            TIMESTAMPTZ DEFAULT now(),
+  updated_at            TIMESTAMPTZ DEFAULT now()
+);
+
 -- ============================================================
 -- INDEXES
 -- ============================================================
@@ -144,12 +197,23 @@ CREATE TABLE IF NOT EXISTS incidents (
 CREATE INDEX IF NOT EXISTS idx_vouches_voucher ON vouches(voucher_id);
 CREATE INDEX IF NOT EXISTS idx_vouches_vouchee ON vouches(vouchee_id);
 CREATE INDEX IF NOT EXISTS idx_listings_host ON listings(host_id);
-CREATE INDEX IF NOT EXISTS idx_invites_email ON invites(email);
+CREATE INDEX IF NOT EXISTS idx_listings_active ON listings(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_invites_invitee_email ON invites(invitee_email) WHERE invitee_email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_invites_invitee_phone ON invites(invitee_phone) WHERE invitee_phone IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_invites_token ON invites(token);
+CREATE INDEX IF NOT EXISTS idx_invites_inviter ON invites(inviter_id);
 CREATE INDEX IF NOT EXISTS idx_contact_requests_listing ON contact_requests(listing_id);
+CREATE INDEX IF NOT EXISTS idx_contact_requests_host ON contact_requests(host_id);
+CREATE INDEX IF NOT EXISTS idx_contact_requests_guest ON contact_requests(guest_id);
+CREATE INDEX IF NOT EXISTS idx_stay_confirmations_host ON stay_confirmations(host_id);
+CREATE INDEX IF NOT EXISTS idx_stay_confirmations_guest ON stay_confirmations(guest_id);
+CREATE INDEX IF NOT EXISTS idx_stay_confirmations_listing ON stay_confirmations(listing_id);
 CREATE INDEX IF NOT EXISTS idx_incidents_reporter ON incidents(reporter_id);
 CREATE INDEX IF NOT EXISTS idx_incidents_reported_user ON incidents(reported_user_id);
 CREATE INDEX IF NOT EXISTS idx_incidents_stay ON incidents(stay_confirmation_id);
-CREATE INDEX IF NOT EXISTS idx_listings_active ON listings(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_house_manuals_listing ON house_manuals(listing_id);
+CREATE INDEX IF NOT EXISTS idx_rental_agreements_listing ON rental_agreements(listing_id);
+CREATE INDEX IF NOT EXISTS idx_security_deposits_listing ON security_deposits(listing_id);
 
 -- ============================================================
 -- ROW LEVEL SECURITY
@@ -163,6 +227,9 @@ ALTER TABLE listing_photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stay_confirmations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE incidents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE house_manuals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rental_agreements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE security_deposits ENABLE ROW LEVEL SECURITY;
 
 -- Users: anyone can read (needed for trust network lookups), own row update
 CREATE POLICY "Users are viewable by authenticated users"
@@ -218,20 +285,21 @@ CREATE POLICY "Hosts can manage own listing photos"
     )
   );
 
--- Contact requests: viewable by host or guest
+-- Contact requests: viewable by host or guest, insertable by guest, updatable by host
 CREATE POLICY "Contact requests viewable by participants"
   ON contact_requests FOR SELECT TO authenticated
   USING (
     guest_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub')
-    OR listing_id IN (
-      SELECT id FROM listings
-      WHERE host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub')
-    )
+    OR host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub')
   );
 
 CREATE POLICY "Guests can create contact requests"
   ON contact_requests FOR INSERT TO authenticated
   WITH CHECK (guest_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+CREATE POLICY "Hosts can update contact requests"
+  ON contact_requests FOR UPDATE TO authenticated
+  USING (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
 
 -- Stay confirmations: viewable by host or guest
 CREATE POLICY "Stay confirmations viewable by participants"
@@ -261,6 +329,45 @@ CREATE POLICY "reporters_read_own" ON incidents FOR SELECT TO authenticated
 
 CREATE POLICY "reporters_insert" ON incidents FOR INSERT TO authenticated
   WITH CHECK (reporter_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+-- House manuals: host can CRUD own
+CREATE POLICY "Hosts can read own house manuals"
+  ON house_manuals FOR SELECT TO authenticated
+  USING (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+CREATE POLICY "Hosts can insert own house manuals"
+  ON house_manuals FOR INSERT TO authenticated
+  WITH CHECK (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+CREATE POLICY "Hosts can update own house manuals"
+  ON house_manuals FOR UPDATE TO authenticated
+  USING (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+-- Rental agreements: host can CRUD own
+CREATE POLICY "Hosts can read own rental agreements"
+  ON rental_agreements FOR SELECT TO authenticated
+  USING (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+CREATE POLICY "Hosts can insert own rental agreements"
+  ON rental_agreements FOR INSERT TO authenticated
+  WITH CHECK (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+CREATE POLICY "Hosts can update own rental agreements"
+  ON rental_agreements FOR UPDATE TO authenticated
+  USING (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+-- Security deposits: host can CRUD own
+CREATE POLICY "Hosts can read own security deposits"
+  ON security_deposits FOR SELECT TO authenticated
+  USING (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+CREATE POLICY "Hosts can insert own security deposits"
+  ON security_deposits FOR INSERT TO authenticated
+  WITH CHECK (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+CREATE POLICY "Hosts can update own security deposits"
+  ON security_deposits FOR UPDATE TO authenticated
+  USING (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
 
 -- ============================================================
 -- FUNCTIONS & TRIGGERS

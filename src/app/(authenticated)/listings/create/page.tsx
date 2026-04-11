@@ -2,8 +2,6 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
-import { getSupabase } from "@/lib/supabase";
 import {
   Home,
   Building2,
@@ -16,6 +14,9 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 const PROPERTY_TYPES = [
@@ -71,7 +72,6 @@ interface PhotoState {
 
 export default function CreateListingPage() {
   const router = useRouter();
-  const { userId } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -88,7 +88,8 @@ export default function CreateListingPage() {
   const [amenities, setAmenities] = useState<string[]>([]);
   const [previewVisibility, setPreviewVisibility] = useState("anyone");
   const [fullVisibility, setFullVisibility] = useState("vouched");
-  const [minTrustScore, setMinTrustScore] = useState("50");
+  const [previewMinTrustScore, setPreviewMinTrustScore] = useState("50");
+  const [fullMinTrustScore, setFullMinTrustScore] = useState("50");
   const [specificUserIds, setSpecificUserIds] = useState("");
 
   // Photos
@@ -109,12 +110,11 @@ export default function CreateListingPage() {
     const newPhotos: PhotoState[] = files.map((file) => ({
       file,
       previewUrl: URL.createObjectURL(file),
-      isPreview: photos.length === 0 && files.indexOf(file) === 0, // First photo auto-marked as preview
+      isPreview: photos.length === 0 && files.indexOf(file) === 0,
       uploading: false,
       uploaded: false,
     }));
     setPhotos((prev) => [...prev, ...newPhotos]);
-    // Reset input so same file can be re-selected
     e.target.value = "";
   }
 
@@ -130,7 +130,6 @@ export default function CreateListingPage() {
   function togglePhotoPreview(idx: number) {
     setPhotos((prev) => {
       const updated = [...prev];
-      // Count current preview photos
       const previewCount = updated.filter((p) => p.isPreview).length;
       if (updated[idx].isPreview) {
         updated[idx] = { ...updated[idx], isPreview: false };
@@ -144,8 +143,6 @@ export default function CreateListingPage() {
   async function uploadPhotos(): Promise<
     { public_url: string; storage_path: string; is_preview: boolean; sort_order: number }[]
   > {
-    if (!userId) throw new Error("Not authenticated");
-    const supabase = getSupabase();
     const uploaded: { public_url: string; storage_path: string; is_preview: boolean; sort_order: number }[] = [];
 
     for (let i = 0; i < photos.length; i++) {
@@ -166,18 +163,20 @@ export default function CreateListingPage() {
         return u;
       });
 
-      const ext = photo.file.name.split(".").pop() || "jpg";
-      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const formData = new FormData();
+      formData.append("file", photo.file);
 
-      const { error: uploadErr } = await supabase.storage
-        .from("listing-photos")
-        .upload(path, photo.file, { contentType: photo.file.type });
+      const res = await fetch("/api/photos/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-      if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Upload failed");
+      }
 
-      const { data: urlData } = supabase.storage
-        .from("listing-photos")
-        .getPublicUrl(path);
+      const { public_url, storage_path } = await res.json();
 
       setPhotos((prev) => {
         const u = [...prev];
@@ -185,15 +184,15 @@ export default function CreateListingPage() {
           ...u[i],
           uploading: false,
           uploaded: true,
-          publicUrl: urlData.publicUrl,
-          storagePath: path,
+          publicUrl: public_url,
+          storagePath: storage_path,
         };
         return u;
       });
 
       uploaded.push({
-        public_url: urlData.publicUrl,
-        storage_path: path,
+        public_url,
+        storage_path,
         is_preview: photo.isPreview,
         sort_order: i,
       });
@@ -206,7 +205,6 @@ export default function CreateListingPage() {
     e.preventDefault();
     setError(null);
 
-    // Validation
     if (!propertyType) return setError("Select a property type.");
     if (!title.trim()) return setError("Title is required.");
     if (!areaName.trim()) return setError("Area name is required.");
@@ -217,10 +215,8 @@ export default function CreateListingPage() {
     setSubmitting(true);
 
     try {
-      // Upload photos to Storage
       const uploadedPhotos = await uploadPhotos();
 
-      // Create listing via API
       const res = await fetch("/api/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -238,10 +234,10 @@ export default function CreateListingPage() {
           amenities,
           preview_visibility: previewVisibility,
           full_visibility: fullVisibility,
-          min_trust_score:
-            fullVisibility === "trusted" || previewVisibility === "trusted"
-              ? parseInt(minTrustScore) || 0
-              : 0,
+          min_trust_score: Math.max(
+            previewVisibility === "trusted" ? parseInt(previewMinTrustScore) || 0 : 0,
+            fullVisibility === "trusted" ? parseInt(fullMinTrustScore) || 0 : 0
+          ),
           specific_user_ids:
             specificUserIds
               .split(",")
@@ -265,11 +261,6 @@ export default function CreateListingPage() {
     }
   }
 
-  const inputClass =
-    "w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all";
-
-  const labelClass = "block text-sm font-medium text-foreground mb-1.5";
-
   return (
     <main className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto p-8">
@@ -283,9 +274,9 @@ export default function CreateListingPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* ── Property Type ── */}
+          {/* Property Type */}
           <section>
-            <label className={labelClass}>Property Type *</label>
+            <Label className="mb-3 block">Property Type *</Label>
             <div className="grid grid-cols-4 gap-2">
               {PROPERTY_TYPES.map((pt) => (
                 <button
@@ -306,57 +297,57 @@ export default function CreateListingPage() {
             </div>
           </section>
 
-          {/* ── Basic Info ── */}
+          {/* Basic Info */}
           <section className="space-y-4">
             <div>
-              <label className={labelClass}>Title *</label>
-              <input
+              <Label htmlFor="title" className="mb-1.5 block">Title *</Label>
+              <Input
+                id="title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Sunny Loft in Park Slope"
-                className={inputClass}
               />
             </div>
 
             <div>
-              <label className={labelClass}>Area *</label>
-              <input
+              <Label htmlFor="area" className="mb-1.5 block">Area *</Label>
+              <Input
+                id="area"
                 type="text"
                 value={areaName}
                 onChange={(e) => setAreaName(e.target.value)}
                 placeholder="e.g. Park Slope, Brooklyn"
-                className={inputClass}
               />
             </div>
 
             <div>
-              <label className={labelClass}>Description</label>
-              <textarea
+              <Label htmlFor="description" className="mb-1.5 block">Description</Label>
+              <Textarea
+                id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
                 placeholder="Tell guests about your space..."
-                className={inputClass}
               />
             </div>
           </section>
 
-          {/* ── Price Range ── */}
+          {/* Price Range */}
           <section>
-            <label className={labelClass}>Price Range (USD / night)</label>
+            <Label className="mb-1.5 block">Price Range (USD / night)</Label>
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-foreground-tertiary">
                   $
                 </span>
-                <input
+                <Input
                   type="number"
                   value={priceMin}
                   onChange={(e) => setPriceMin(e.target.value)}
                   placeholder="Min"
                   min={0}
-                  className={cn(inputClass, "pl-7")}
+                  className="pl-7"
                 />
               </div>
               <span className="text-foreground-tertiary">–</span>
@@ -364,21 +355,21 @@ export default function CreateListingPage() {
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-foreground-tertiary">
                   $
                 </span>
-                <input
+                <Input
                   type="number"
                   value={priceMax}
                   onChange={(e) => setPriceMax(e.target.value)}
                   placeholder="Max"
                   min={0}
-                  className={cn(inputClass, "pl-7")}
+                  className="pl-7"
                 />
               </div>
             </div>
           </section>
 
-          {/* ── Availability ── */}
+          {/* Availability */}
           <section className="space-y-3">
-            <label className={labelClass}>Availability</label>
+            <Label className="block">Availability</Label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -392,38 +383,38 @@ export default function CreateListingPage() {
             </label>
             {!flexDates && (
               <div className="flex items-center gap-3">
-                <input
+                <Input
                   type="date"
                   value={availStart}
                   onChange={(e) => setAvailStart(e.target.value)}
-                  className={cn(inputClass, "flex-1")}
+                  className="flex-1"
                 />
                 <span className="text-foreground-tertiary">to</span>
-                <input
+                <Input
                   type="date"
                   value={availEnd}
                   onChange={(e) => setAvailEnd(e.target.value)}
-                  className={cn(inputClass, "flex-1")}
+                  className="flex-1"
                 />
               </div>
             )}
           </section>
 
-          {/* ── House Rules ── */}
+          {/* House Rules */}
           <section>
-            <label className={labelClass}>House Rules</label>
-            <textarea
+            <Label htmlFor="rules" className="mb-1.5 block">House Rules</Label>
+            <Textarea
+              id="rules"
               value={houseRules}
               onChange={(e) => setHouseRules(e.target.value)}
               rows={3}
               placeholder="Any rules or expectations for guests..."
-              className={inputClass}
             />
           </section>
 
-          {/* ── Amenities ── */}
+          {/* Amenities */}
           <section>
-            <label className={labelClass}>Amenities</label>
+            <Label className="mb-1.5 block">Amenities</Label>
             <div className="flex flex-wrap gap-2">
               {AMENITIES.map((a) => (
                 <button
@@ -443,21 +434,21 @@ export default function CreateListingPage() {
             </div>
           </section>
 
-          {/* ── Visibility Settings ── */}
-          <section className="space-y-4 rounded-xl border border-border bg-white/60 p-5">
+          {/* Visibility Settings */}
+          <section className="space-y-4 rounded-xl border border-border bg-white p-5">
             <h2 className="text-sm font-semibold text-foreground">
               Visibility Settings
             </h2>
 
             <div>
-              <label className={labelClass}>Preview Visibility</label>
+              <Label className="mb-1.5 block">Preview Visibility</Label>
               <p className="text-xs text-foreground-tertiary mb-2">
                 Who can see the area, price range, and preview photos.
               </p>
               <select
                 value={previewVisibility}
                 onChange={(e) => setPreviewVisibility(e.target.value)}
-                className={inputClass}
+                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
               >
                 {VISIBILITY_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -465,17 +456,32 @@ export default function CreateListingPage() {
                   </option>
                 ))}
               </select>
+              {previewVisibility === "trusted" && (
+                <div className="mt-2">
+                  <Label className="text-xs">
+                    Min trust score for preview (0–100)
+                  </Label>
+                  <Input
+                    type="number"
+                    value={previewMinTrustScore}
+                    onChange={(e) => setPreviewMinTrustScore(e.target.value)}
+                    min={0}
+                    max={100}
+                    className="w-32 mt-1"
+                  />
+                </div>
+              )}
             </div>
 
             <div>
-              <label className={labelClass}>Full Listing Visibility</label>
+              <Label className="mb-1.5 block">Full Listing Visibility</Label>
               <p className="text-xs text-foreground-tertiary mb-2">
                 Who can see the full listing, host identity, and contact you.
               </p>
               <select
                 value={fullVisibility}
                 onChange={(e) => setFullVisibility(e.target.value)}
-                className={inputClass}
+                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
               >
                 {VISIBILITY_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -483,57 +489,53 @@ export default function CreateListingPage() {
                   </option>
                 ))}
               </select>
+              {fullVisibility === "trusted" && (
+                <div className="mt-2">
+                  <Label className="text-xs">
+                    Min trust score for full access (0–100)
+                  </Label>
+                  <Input
+                    type="number"
+                    value={fullMinTrustScore}
+                    onChange={(e) => setFullMinTrustScore(e.target.value)}
+                    min={0}
+                    max={100}
+                    className="w-32 mt-1"
+                  />
+                </div>
+              )}
             </div>
-
-            {(previewVisibility === "trusted" ||
-              fullVisibility === "trusted") && (
-              <div>
-                <label className={labelClass}>
-                  Minimum Trust Score (0–100)
-                </label>
-                <input
-                  type="number"
-                  value={minTrustScore}
-                  onChange={(e) => setMinTrustScore(e.target.value)}
-                  min={0}
-                  max={100}
-                  className={cn(inputClass, "w-32")}
-                />
-              </div>
-            )}
 
             {(previewVisibility === "specific" ||
               fullVisibility === "specific") && (
               <div>
-                <label className={labelClass}>Specific User IDs</label>
+                <Label className="mb-1.5 block">Specific User IDs</Label>
                 <p className="text-xs text-foreground-tertiary mb-2">
                   Comma-separated user IDs. User search coming in CC-6d.
                 </p>
-                <input
+                <Input
                   type="text"
                   value={specificUserIds}
                   onChange={(e) => setSpecificUserIds(e.target.value)}
                   placeholder="user-id-1, user-id-2"
-                  className={inputClass}
                 />
               </div>
             )}
           </section>
 
-          {/* ── Photos ── */}
+          {/* Photos */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className={labelClass}>Photos *</label>
+              <Label>Photos *</Label>
               <span className="text-xs text-foreground-tertiary">
                 {photos.filter((p) => p.isPreview).length}/3 preview photos
               </span>
             </div>
 
-            {/* Upload area */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-white/40 py-8 text-sm text-foreground-secondary transition-all hover:border-primary hover:bg-primary-light/30"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-8 text-sm text-foreground-secondary transition-all hover:border-primary hover:bg-primary-light/30"
             >
               <Upload className="size-4" />
               Click to upload photos
@@ -547,7 +549,6 @@ export default function CreateListingPage() {
               className="hidden"
             />
 
-            {/* Photo grid */}
             {photos.length > 0 && (
               <div className="grid grid-cols-3 gap-3">
                 {photos.map((photo, idx) => (
@@ -560,11 +561,7 @@ export default function CreateListingPage() {
                       alt={`Photo ${idx + 1}`}
                       className="h-full w-full object-cover"
                     />
-
-                    {/* Overlay controls */}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
-
-                    {/* Remove button */}
                     <button
                       type="button"
                       onClick={() => removePhoto(idx)}
@@ -572,8 +569,6 @@ export default function CreateListingPage() {
                     >
                       <X className="size-3" />
                     </button>
-
-                    {/* Preview toggle */}
                     <button
                       type="button"
                       onClick={() => togglePhotoPreview(idx)}
@@ -587,8 +582,6 @@ export default function CreateListingPage() {
                       <Eye className="size-3" />
                       {photo.isPreview ? "Preview" : "Set preview"}
                     </button>
-
-                    {/* Upload status */}
                     {photo.uploading && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                         <Loader2 className="size-5 animate-spin text-white" />
@@ -605,14 +598,14 @@ export default function CreateListingPage() {
             )}
           </section>
 
-          {/* ── Error ── */}
+          {/* Error */}
           {error && (
             <div className="rounded-lg border border-red-border bg-red-light px-4 py-3 text-sm text-red">
               {error}
             </div>
           )}
 
-          {/* ── Submit ── */}
+          {/* Submit */}
           <Button
             type="submit"
             disabled={submitting}

@@ -6,15 +6,14 @@ import {
   ArrowLeft,
   Lock,
   Star,
-  Shield,
   CalendarDays,
   MapPin,
   DollarSign,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ContactRequestForm } from "@/components/contact-request-form";
 import type { ListingWithAccess, ListingPhoto } from "@/lib/listing-data";
 
 const AMENITY_LABELS: Record<string, string> = {
@@ -82,7 +81,14 @@ function PhotoGallery({ photos }: { photos: ListingPhoto[] }) {
   );
 }
 
-function PreviewOnlyBanner() {
+function LockedBanner({
+  viewerScore,
+  requiredScore,
+}: {
+  viewerScore: number;
+  requiredScore: number;
+}) {
+  const needsMore = requiredScore > 0 ? requiredScore - viewerScore : 0;
   return (
     <div className="rounded-xl border border-primary-border bg-primary-light p-5">
       <div className="flex items-start gap-3">
@@ -92,8 +98,22 @@ function PreviewOnlyBanner() {
             Preview Only
           </p>
           <p className="text-sm text-foreground-secondary mt-1">
-            Get vouched to see the full listing and contact this host. Ask an
-            existing member to vouch for you on the{" "}
+            {needsMore > 0 ? (
+              <>
+                You need{" "}
+                <span className="font-semibold text-primary">{needsMore}</span>{" "}
+                more trust points to see this listing. Your current score vs.
+                this host is{" "}
+                <span className="font-mono font-semibold">{viewerScore}</span>{" "}
+                (threshold: {requiredScore}).
+              </>
+            ) : (
+              <>
+                Get vouched by someone connected to this host to unlock full
+                details.
+              </>
+            )}{" "}
+            Ask a member on the{" "}
             <Link href="/vouch" className="text-primary underline">
               Vouch page
             </Link>
@@ -111,7 +131,7 @@ function HostCard({
   host: NonNullable<ListingWithAccess["host"]>;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-white/60 p-5">
+    <div className="rounded-xl border border-border bg-white p-5">
       <div className="flex items-center gap-3 mb-4">
         {host.avatar_url ? (
           <img
@@ -156,8 +176,14 @@ function HostCard({
 
 export function ListingDetailClient({
   listing,
+  viewerId,
+  viewerScore = 0,
+  requiredScore = 0,
 }: {
   listing: ListingWithAccess;
+  viewerId?: string;
+  viewerScore?: number;
+  requiredScore?: number;
 }) {
   const { access } = listing;
   const [toast, setToast] = useState<string | null>(null);
@@ -167,10 +193,7 @@ export function ListingDetailClient({
     ? listing.photos
     : listing.photos.filter((p) => p.is_preview);
 
-  function handleRequestBook() {
-    setToast("Booking coming soon");
-    setTimeout(() => setToast(null), 3000);
-  }
+  const isOwnListing = viewerId === listing.host_id;
 
   const priceLabel =
     listing.price_min && listing.price_max
@@ -219,8 +242,31 @@ export function ListingDetailClient({
             </div>
           </div>
 
-          {/* Preview-only banner */}
-          {!access.canSeeFull && <PreviewOnlyBanner />}
+          {/* Availability (shown in both preview and full) */}
+          {(listing.availability_start || listing.availability_flexible) && (
+            <section className="flex items-center gap-2 text-sm text-foreground-secondary">
+              <CalendarDays className="size-4" />
+              {listing.availability_flexible ? (
+                <span>Flexible dates</span>
+              ) : (
+                <span>
+                  {new Date(listing.availability_start!).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                  {" — "}
+                  {listing.availability_end
+                    ? new Date(listing.availability_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+                    : "Open-ended"}
+                </span>
+              )}
+            </section>
+          )}
+
+          {/* Locked banner */}
+          {!access.canSeeFull && (
+            <LockedBanner
+              viewerScore={viewerScore}
+              requiredScore={requiredScore}
+            />
+          )}
 
           {/* ── Full listing content ── */}
           {access.canSeeFull && (
@@ -232,20 +278,6 @@ export function ListingDetailClient({
                   <p className="text-sm text-foreground-secondary whitespace-pre-wrap">
                     {listing.description}
                   </p>
-                </section>
-              )}
-
-              {/* Availability */}
-              {(listing.availability_start || listing.availability_flexible) && (
-                <section className="flex items-center gap-2 text-sm text-foreground-secondary">
-                  <CalendarDays className="size-4" />
-                  {listing.availability_flexible ? (
-                    <span>Flexible dates</span>
-                  ) : (
-                    <span>
-                      {listing.availability_start} — {listing.availability_end}
-                    </span>
-                  )}
                 </section>
               )}
 
@@ -280,10 +312,17 @@ export function ListingDetailClient({
               {listing.host && <HostCard host={listing.host} />}
 
               {/* Request to Book */}
-              <Button onClick={handleRequestBook} size="lg" className="w-full">
-                <Shield className="size-4 mr-2" />
-                Request to Book
-              </Button>
+              {!isOwnListing && (
+                <ContactRequestForm
+                  listingId={listing.id}
+                  listingTitle={listing.title}
+                  hostName={listing.host?.name || "the host"}
+                  onSuccess={() => {
+                    setToast("Request sent!");
+                    setTimeout(() => setToast(null), 3000);
+                  }}
+                />
+              )}
             </>
           )}
         </div>

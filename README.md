@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# One Degree BNB
+
+Private home rentals through trusted connections.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create `.env.local` with:
 
-## Learn More
+```
+NEXT_PUBLIC_SUPABASE_URL=your-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your-clerk-key
+CLERK_SECRET_KEY=your-clerk-secret
+CLERK_WEBHOOK_SECRET=your-webhook-secret
+SIGNUP_MODE=invite-only
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Signup Mode
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The `SIGNUP_MODE` env var controls whether new users can sign up directly:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **`invite-only`** (default): Users can only sign up via an invite link from an existing member. Visiting `/sign-up` directly shows an "invite only" message.
+- **`open`**: Anyone can sign up directly. Invite links still work and apply pre-vouches.
 
-## Deploy on Vercel
+## Seed Data
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Populate the database with test users, vouches, listings, and stays:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+# Basic seed (no Loren connection)
+npx tsx scripts/seed.ts
+
+# Connect to your Clerk account
+npx tsx scripts/seed.ts --loren-email you@example.com
+
+# Wipe and re-seed
+npx tsx scripts/seed.ts --clean --loren-email you@example.com
+```
+
+The seed creates 8 fictional users with `@seed.1db` emails, 9 vouches, 5 listings, and 3 completed stays with reviews. See `scripts/seed.ts` for details.
+
+## Component Library
+
+- **shadcn/ui** installed (base-nova style). Components live in `src/components/ui/`.
+- All new UI should use shadcn primitives. Do not hand-roll buttons, inputs, cards, modals, or badges.
+- Custom Badge variants added for trust score colors: `warning` (orange), `success` (green), `purple`.
+- Design tokens defined in `src/app/globals.css` — do not override.
+- Light mode only. No dark mode configuration.
+- Installed components: Button, Card, Dialog, Input, Label, Select, Textarea, Tabs, Badge, Avatar, Separator, Dropdown Menu, Tooltip, Sheet, Scroll Area.
+
+## Stack
+
+- **Next.js 15** (App Router)
+- **Clerk v7** (authentication)
+- **Supabase** (database + storage)
+- **Tailwind CSS 3.4** + **shadcn/ui**
+- **Cloudflare Pages** (hosting)
+
+## Deployment
+
+Push to `main` — GitHub Actions deploys to Cloudflare Pages automatically.

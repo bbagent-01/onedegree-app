@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { targetUserId, vouchType, yearsKnownBucket } = body;
+  const { targetUserId, vouchType, yearsKnownBucket, stayConfirmationId } = body;
 
   if (!targetUserId || !vouchType || !yearsKnownBucket) {
     return new Response("Missing fields", { status: 400 });
@@ -70,6 +70,14 @@ export async function POST(req: Request) {
     return Response.json({ error: "You can't vouch for yourself." }, { status: 400 });
   }
 
+  // Post-stay vouches must use lt1yr bucket
+  if (stayConfirmationId && yearsKnownBucket !== "lt1yr") {
+    return Response.json(
+      { error: "Post-stay vouches must use the <1 year bucket." },
+      { status: 400 }
+    );
+  }
+
   const { error: upsertError } = await supabase.from("vouches").upsert(
     {
       voucher_id: currentUser.id,
@@ -77,6 +85,7 @@ export async function POST(req: Request) {
       vouch_type: vouchType,
       years_known_bucket: yearsKnownBucket,
       reputation_stake_confirmed: true,
+      ...(stayConfirmationId ? { stay_confirmation_id: stayConfirmationId } : {}),
     },
     { onConflict: "voucher_id,vouchee_id" }
   );

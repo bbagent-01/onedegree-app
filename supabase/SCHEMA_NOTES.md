@@ -1,19 +1,22 @@
 # Schema Notes — One Degree BNB
 
-> Last updated: CC-6c (April 10, 2026)
+> Last updated: CC-8 (April 11, 2026)
 
-## Tables (8)
+## Tables (11)
 
 | Table | Purpose |
 |-------|---------|
 | users | Synced from Clerk webhook. Stores ratings, vouch_power, phone. |
 | vouches | Directed trust edges. vouch_type + years_known_bucket → point value. |
-| invites | Invite tokens for invite-only signup. Email or phone. |
+| invites | Pre-vouch invites. Stores vouch data; converts to real vouch on signup. |
 | listings | Host properties with visibility controls. |
 | listing_photos | Photos per listing with preview flag and sort order. |
 | contact_requests | Guest → host booking requests. |
 | stay_confirmations | Mutual confirmation + 3 ratings (host, guest, listing) + review text. |
 | incidents | Reporter-filed incident records. Data collection only, no auto-scoring. |
+| house_manuals | JSONB house manual content per listing. Host-owned. |
+| rental_agreements | JSONB rental agreement content per listing/stay. Host-owned. |
+| security_deposits | Security deposit terms per listing/stay. Host-owned. |
 
 ## Enums
 
@@ -44,13 +47,69 @@
 | reputation_stake_confirmed | BOOLEAN | User checked the "I understand" box |
 | stay_confirmation_id | UUID (nullable) | Links post-stay vouches to the stay |
 
-### stay_confirmations
+### invites (CC-7)
 | Column | Type | Notes |
 |--------|------|-------|
+| inviter_id | UUID NOT NULL | FK → users. Who sent the invite |
+| invitee_email | TEXT (nullable) | Can invite by email OR phone |
+| invitee_phone | TEXT (nullable) | Can invite by phone OR email |
+| token | TEXT UNIQUE | Auto-generated 32-byte hex token |
+| vouch_type | vouch_type_enum | Pre-vouch: standard or inner_circle |
+| years_known_bucket | years_known_bucket_enum | Pre-vouch: how long inviter knows invitee |
+| reputation_stake_confirmed | BOOLEAN | Pre-vouch: inviter accepted stake |
+| claimed_by | UUID (nullable) | FK → users. Set when invitee signs up |
+| claimed_at | TIMESTAMPTZ (nullable) | When the invite was claimed |
+| expires_at | TIMESTAMPTZ | Default: 7 days from creation |
+
+### contact_requests (CC-8)
+| Column | Type | Notes |
+|--------|------|-------|
+| host_id | UUID NOT NULL | Denormalized from listings for fast host queries |
+| guest_count | INTEGER | Default 1 |
+| status | TEXT | pending/accepted/declined/cancelled |
+| host_response_message | TEXT | Host's response when accepting/declining |
+| responded_at | TIMESTAMPTZ | When host responded |
+
+### stay_confirmations (CC-8)
+| Column | Type | Notes |
+|--------|------|-------|
+| contact_request_id | UUID | FK → contact_requests. Links to originating request |
+| check_in | DATE | Actual stay dates |
+| check_out | DATE | Actual stay dates |
 | host_rating | INTEGER 1-5 | Guest rates the host |
 | guest_rating | INTEGER 1-5 | Host rates the guest |
 | listing_rating | INTEGER 1-5 | Guest rates the listing |
-| review_text | TEXT | Optional written review |
+| guest_review_text | TEXT | Host's written review of guest |
+| host_review_text | TEXT | Guest's written review of host |
+| listing_review_text | TEXT | Guest's written review of listing |
+
+### listings (CC-8 additions)
+| Column | Type | Notes |
+|--------|------|-------|
+| avg_listing_rating | DECIMAL(3,2) | Running average from stay reviews |
+| listing_review_count | INTEGER | Number of reviews |
+
+### house_manuals (CC-8 Tools)
+| Column | Type | Notes |
+|--------|------|-------|
+| listing_id | UUID NOT NULL | FK → listings |
+| host_id | UUID NOT NULL | FK → users |
+| content | JSONB | Sections: wifi, keyAccess, appliances, neighborhood, emergency, checkout |
+
+### rental_agreements (CC-8 Tools)
+| Column | Type | Notes |
+|--------|------|-------|
+| stay_confirmation_id | UUID (nullable) | FK → stay_confirmations |
+| listing_id | UUID NOT NULL | FK → listings |
+| content | JSONB | Agreement details: address, names, dates, terms |
+
+### security_deposits (CC-8 Tools)
+| Column | Type | Notes |
+|--------|------|-------|
+| stay_confirmation_id | UUID (nullable) | FK → stay_confirmations |
+| listing_id | UUID NOT NULL | FK → listings |
+| amount | INTEGER | Deposit amount in USD |
+| terms | JSONB | Payment method, refund conditions, timeline |
 
 ## Functions
 

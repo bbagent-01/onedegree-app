@@ -28,5 +28,22 @@ export default async function ListingDetailPage({ params }: Props) {
     redirect("/listings?error=not_found");
   }
 
-  return <ListingDetailClient listing={listing} />;
+  // Get trust score vs this host for locked state messaging
+  let viewerScore = 0;
+  if (listing.host_id !== viewer.id) {
+    const { data: scores } = await supabase.rpc(
+      "calculate_one_degree_scores",
+      { p_viewer_id: viewer.id, p_target_ids: [listing.host_id] }
+    );
+    viewerScore = scores?.[0]?.score ?? 0;
+  }
+
+  return (
+    <ListingDetailClient
+      listing={listing}
+      viewerId={viewer.id}
+      viewerScore={viewerScore}
+      requiredScore={listing.min_trust_score}
+    />
+  );
 }
