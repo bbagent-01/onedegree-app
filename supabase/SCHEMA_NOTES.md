@@ -1,6 +1,6 @@
 # Schema Notes — One Degree BNB
 
-> Last updated: CC-6a (April 10, 2026)
+> Last updated: CC-6c (April 10, 2026)
 
 ## Tables (8)
 
@@ -202,6 +202,85 @@ SELECT * FROM calculate_one_degree_scores(
 DELETE FROM vouches WHERE voucher_id IN (SELECT id FROM users WHERE email LIKE '%@test.1db');
 DELETE FROM users WHERE email LIKE '%@test.1db';
 ```
+
+## Listings (CC-6c Updates)
+
+### listings table changes (migration 002)
+| Column | Type | Notes |
+|--------|------|-------|
+| property_type | TEXT | Required. apartment/house/room/other |
+| title | TEXT | Required listing title |
+| area_name | TEXT | Required. e.g. "Park Slope, Brooklyn" |
+| price_min | INTEGER | Per night, USD (nullable) |
+| price_max | INTEGER | Per night, USD (nullable) |
+| availability_flexible | BOOLEAN | Default false. When true, ignore date range |
+| preview_visibility | TEXT | anyone/vouched/trusted/inner_circle/specific (default: anyone) |
+| full_visibility | TEXT | anyone/vouched/trusted/inner_circle/specific (default: vouched) |
+| min_trust_score | INTEGER | Applies when tier = 'trusted'. Default 0 |
+| specific_user_ids | UUID[] | Applies when tier = 'specific'. Default empty |
+| updated_at | TIMESTAMPTZ | Auto-set on insert |
+
+### listing_photos table changes (migration 002)
+| Column | Type | Notes |
+|--------|------|-------|
+| storage_path | TEXT | Supabase Storage path (nullable, for legacy) |
+| public_url | TEXT | Was `url`, renamed to `public_url` |
+
+### Visibility tiers (CC-6c)
+- **anyone** — no restrictions
+- **vouched** — viewer must have ≥1 vouch received
+- **trusted** — viewer's 1° score vs host must meet min_trust_score
+- **inner_circle** — host must have given viewer an inner_circle vouch
+- **specific** — viewer's user ID must be in specific_user_ids array
+
+Preview visibility gates the area, price, and preview photos.
+Full visibility gates the description, host identity, full gallery, and contact.
+
+## Supabase Storage — listing-photos Bucket
+
+### Setup (manual via Supabase Dashboard)
+
+1. Go to **Storage** in the Supabase Dashboard
+2. Create a new **public** bucket named `listing-photos`
+3. Enable RLS on the bucket with these policies:
+
+**Read policy (public read for all authenticated):**
+```sql
+-- Bucket: listing-photos, operation: SELECT
+CREATE POLICY "Authenticated users can read listing photos"
+  ON storage.objects FOR SELECT
+  TO authenticated
+  USING (bucket_id = 'listing-photos');
+```
+
+**Upload policy (users upload to their own prefix):**
+```sql
+-- Bucket: listing-photos, operation: INSERT
+CREATE POLICY "Users can upload to own prefix"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'listing-photos'
+    AND (storage.foldername(name))[1] = auth.jwt() ->> 'sub'
+  );
+```
+
+**Delete policy (users delete their own files):**
+```sql
+-- Bucket: listing-photos, operation: DELETE
+CREATE POLICY "Users can delete own photos"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'listing-photos'
+    AND (storage.foldername(name))[1] = auth.jwt() ->> 'sub'
+  );
+```
+
+### Upload path convention
+Files are uploaded to: `{clerk_user_id}/{uuid}.{ext}`
+
+This ensures RLS works correctly — each user can only upload/delete within their own folder prefix.
 
 ## Deploying from Scratch
 

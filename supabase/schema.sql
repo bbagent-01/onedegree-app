@@ -59,32 +59,42 @@ CREATE TABLE IF NOT EXISTS invites (
 
 -- Listings
 CREATE TABLE IF NOT EXISTS listings (
-  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  host_id             UUID REFERENCES users(id) ON DELETE CASCADE,
-  title               TEXT NOT NULL,
-  description         TEXT,
-  area_name           TEXT,
-  address             TEXT,
-  price_per_night     NUMERIC,
-  preview_visibility  TEXT CHECK (preview_visibility IN ('open', 'network', 'strong', 'invite')) DEFAULT 'open',
-  full_visibility     TEXT CHECK (full_visibility IN ('open', 'network', 'strong', 'invite')) DEFAULT 'network',
-  min_trust_score     INTEGER,
-  house_rules         TEXT,
-  amenities           TEXT[],
-  availability_start  DATE,
-  availability_end    DATE,
-  is_active           BOOLEAN DEFAULT true,
-  created_at          TIMESTAMPTZ DEFAULT now()
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  host_id                UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  property_type          TEXT NOT NULL CHECK (property_type IN ('apartment','house','room','other')),
+  title                  TEXT NOT NULL,
+  area_name              TEXT NOT NULL,
+  description            TEXT,
+  price_min              INTEGER,
+  price_max              INTEGER,
+  availability_start     DATE,
+  availability_end       DATE,
+  availability_flexible  BOOLEAN DEFAULT false,
+  house_rules            TEXT,
+  amenities              TEXT[] DEFAULT '{}',
+
+  -- Visibility controls
+  preview_visibility     TEXT NOT NULL DEFAULT 'anyone'
+    CHECK (preview_visibility IN ('anyone','vouched','trusted','inner_circle','specific')),
+  full_visibility        TEXT NOT NULL DEFAULT 'vouched'
+    CHECK (full_visibility IN ('anyone','vouched','trusted','inner_circle','specific')),
+  min_trust_score        INTEGER DEFAULT 0,
+  specific_user_ids      UUID[] DEFAULT '{}',
+
+  is_active              BOOLEAN DEFAULT true,
+  created_at             TIMESTAMPTZ DEFAULT now(),
+  updated_at             TIMESTAMPTZ DEFAULT now()
 );
 
 -- Listing photos
 CREATE TABLE IF NOT EXISTS listing_photos (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  listing_id  UUID REFERENCES listings(id) ON DELETE CASCADE,
-  url         TEXT NOT NULL,
-  is_preview  BOOLEAN DEFAULT false,
-  sort_order  INTEGER DEFAULT 0,
-  created_at  TIMESTAMPTZ DEFAULT now()
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  listing_id    UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  storage_path  TEXT,
+  public_url    TEXT NOT NULL,
+  is_preview    BOOLEAN DEFAULT false,
+  sort_order    INTEGER DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT now()
 );
 
 -- Contact requests
@@ -139,6 +149,7 @@ CREATE INDEX IF NOT EXISTS idx_contact_requests_listing ON contact_requests(list
 CREATE INDEX IF NOT EXISTS idx_incidents_reporter ON incidents(reporter_id);
 CREATE INDEX IF NOT EXISTS idx_incidents_reported_user ON incidents(reported_user_id);
 CREATE INDEX IF NOT EXISTS idx_incidents_stay ON incidents(stay_confirmation_id);
+CREATE INDEX IF NOT EXISTS idx_listings_active ON listings(is_active) WHERE is_active = true;
 
 -- ============================================================
 -- ROW LEVEL SECURITY
