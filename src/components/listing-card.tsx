@@ -38,7 +38,7 @@ export function ListingCard({ listing, className }: ListingCardProps) {
         {/* Price overlay */}
         <div className="absolute bottom-3 left-3">
           <div className="flex items-baseline gap-1">
-            <span className="font-display text-3xl font-bold text-white">
+            <span className="font-display text-3xl text-white">
               ${listing.pricePerNight}
             </span>
             <span className="text-sm text-white/70">/night</span>

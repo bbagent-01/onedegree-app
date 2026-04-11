@@ -74,7 +74,7 @@ export default function HouseManualPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+        <h1 className="font-sans text-2xl font-semibold text-foreground flex items-center gap-2">
           <BookOpen className="size-6 text-primary" />
           House Manual
         </h1>

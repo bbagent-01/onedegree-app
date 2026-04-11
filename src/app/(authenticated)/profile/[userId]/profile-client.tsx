@@ -184,7 +184,7 @@ export function ProfileClient({
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-semibold text-foreground">
+          <h1 className="font-sans text-2xl font-semibold text-foreground">
             {profileUser.name}
           </h1>
 

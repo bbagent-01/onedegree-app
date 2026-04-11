@@ -31,7 +31,7 @@ export default async function MyListingsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">My Listings</h1>
+          <h1 className="font-sans text-2xl font-semibold text-foreground">My Listings</h1>
           <p className="text-foreground-secondary text-sm">
             {(listings?.length ?? 0)} listing{(listings?.length ?? 0) !== 1 ? "s" : ""}
           </p>

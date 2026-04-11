@@ -101,7 +101,7 @@ function ListingCard({
         {/* Price overlay */}
         {priceLabel && (
           <div className="absolute bottom-3 left-3">
-            <span className="font-display text-2xl font-bold text-white">
+            <span className="font-display text-2xl text-white">
               {priceLabel}
             </span>
             <span className="text-xs text-white/70 ml-1">/night</span>
@@ -318,7 +318,7 @@ export function ListingsIndexClient({
       <div className="pb-16">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">
+            <h1 className="font-sans text-2xl font-semibold text-foreground">
               Browse Listings
             </h1>
             <p className="text-foreground-secondary text-sm">
@@ -335,7 +335,7 @@ export function ListingsIndexClient({
     <div className="pb-16">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">
+          <h1 className="font-sans text-2xl font-semibold text-foreground">
             Browse Listings
           </h1>
           <p className="text-foreground-secondary text-sm">

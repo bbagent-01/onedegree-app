@@ -36,7 +36,7 @@ export default function ToolsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Host Tools</h1>
+        <h1 className="font-sans text-2xl font-semibold text-foreground">Host Tools</h1>
         <p className="text-sm text-foreground-secondary mt-1">
           Tools to help you manage your listings and stays
         </p>

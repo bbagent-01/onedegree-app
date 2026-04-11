@@ -13,7 +13,7 @@ export default function PropertyPhotosPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+        <h1 className="font-sans text-2xl font-semibold text-foreground flex items-center gap-2">
           <Camera className="size-6 text-primary" />
           Before & After Photos
         </h1>

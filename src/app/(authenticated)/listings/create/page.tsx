@@ -265,7 +265,7 @@ export default function CreateListingPage() {
     <main className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto p-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-foreground mb-1">
+          <h1 className="font-sans text-2xl font-semibold text-foreground mb-1">
             Create a Listing
           </h1>
           <p className="text-foreground-secondary text-sm">
