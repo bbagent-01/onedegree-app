@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { AppShell } from "@/components/app-shell";
 
+export const runtime = "edge";
+
 export default async function AuthenticatedLayout({
   children,
 }: {

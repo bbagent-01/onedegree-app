@@ -2,6 +2,8 @@ import { SignUp } from "@clerk/nextjs";
 import Link from "next/link";
 import { Shield } from "lucide-react";
 
+export const runtime = "edge";
+
 interface SignUpPageProps {
   searchParams: Promise<{ invite_token?: string }>;
 }

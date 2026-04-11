@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { MyTripsClient } from "./my-trips-client";
 
+export const runtime = "edge";
+
 export default async function MyTripsPage() {
   const { userId } = await auth();
   if (!userId) redirect("/");

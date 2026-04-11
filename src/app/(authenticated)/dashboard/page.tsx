@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DashboardClient } from "./dashboard-client";
 
+export const runtime = "edge";
+
 export default async function DashboardPage() {
   const { userId } = await auth();
   if (!userId) redirect("/");

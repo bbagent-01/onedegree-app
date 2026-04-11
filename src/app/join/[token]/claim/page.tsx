@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+export const runtime = "edge";
+
 interface ClaimPageProps {
   params: Promise<{ token: string }>;
 }

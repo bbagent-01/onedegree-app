@@ -3,6 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { JoinClient } from "./join-client";
 
+export const runtime = "edge";
+
 interface JoinPageProps {
   params: Promise<{ token: string }>;
 }

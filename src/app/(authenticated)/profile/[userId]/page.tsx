@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { ProfileClient } from "./profile-client";
 
+export const runtime = "edge";
+
 interface Props {
   params: Promise<{ userId: string }>;
 }

@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, FileText, Shield, Camera } from "lucide-react";
 
+export const runtime = "edge";
+
 const tools = [
   {
     title: "House Manual",

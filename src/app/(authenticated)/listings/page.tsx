@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getListingsForViewer } from "@/lib/listing-data";
 import { ListingsIndexClient } from "./listings-index-client";
 
+export const runtime = "edge";
+
 export default async function ListingsPage() {
   const { userId } = await auth();
   if (!userId) redirect("/");

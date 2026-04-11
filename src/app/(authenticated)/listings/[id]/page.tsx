@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getListingForViewer } from "@/lib/listing-data";
 import { ListingDetailClient } from "./listing-detail-client";
 
+export const runtime = "edge";
+
 interface Props {
   params: Promise<{ id: string }>;
 }

@@ -6,6 +6,8 @@ import { Plus, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
+export const runtime = "edge";
+
 export default async function MyListingsPage() {
   const { userId } = await auth();
   if (!userId) redirect("/");
