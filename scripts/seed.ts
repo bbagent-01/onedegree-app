@@ -180,7 +180,10 @@ async function main() {
         years: "4to7yr",
       },
       { from: "loren", to: "priya", type: "standard", years: "1to3yr" },
-      { from: "loren", to: "dana", type: "standard", years: "lt1yr" }
+      { from: "loren", to: "dana", type: "standard", years: "lt1yr" },
+      // Reciprocal vouches so Loren can see full listings (passes "vouched" visibility)
+      { from: "maya", to: "loren", type: "inner_circle", years: "8to15yr" },
+      { from: "james", to: "loren", type: "inner_circle", years: "4to7yr" }
     );
   }
 

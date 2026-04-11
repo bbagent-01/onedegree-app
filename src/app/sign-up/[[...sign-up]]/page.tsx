@@ -58,7 +58,13 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
     : "/listings";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="mb-6 text-center">
+        <h1 className="font-display text-3xl text-foreground">One Degree</h1>
+        <p className="text-sm text-foreground-secondary mt-1">
+          Join the trusted rental network
+        </p>
+      </div>
       <SignUp
         forceRedirectUrl={redirectUrl}
         appearance={{
