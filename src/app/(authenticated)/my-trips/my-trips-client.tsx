@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ContactRequestCard } from "@/components/contact-request-card";
@@ -41,7 +40,7 @@ export function MyTripsClient({
     (s) => s.host_confirmed && s.guest_confirmed
   );
 
-  // Also show accepted requests that don't have a stay confirmation yet
+  // Accepted requests without a stay confirmation yet
   const acceptedRequests = requests.filter(
     (r) =>
       r.status === "accepted" &&
@@ -49,7 +48,7 @@ export function MyTripsClient({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="font-sans text-2xl font-semibold text-foreground">My Trips</h1>
         <p className="text-sm text-foreground-secondary mt-1">
@@ -57,114 +56,126 @@ export function MyTripsClient({
         </p>
       </div>
 
-      <Tabs defaultValue="pending">
-        <TabsList>
-          <TabsTrigger value="pending">
-            Pending
-            {pendingRequests.length > 0 && (
-              <Badge variant="warning" className="ml-1.5 text-[10px] px-1.5">
-                {pendingRequests.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="past">Past Stays</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pending" className="mt-4">
-          {pendingRequests.length === 0 && acceptedRequests.length === 0 ? (
-            <EmptyState text="No pending requests" />
-          ) : (
-            <div className="space-y-3">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {pendingRequests.map((r: any) => (
+      {/* ─── Pending Requests ─── */}
+      {(pendingRequests.length > 0 || acceptedRequests.length > 0) && (
+        <section>
+          <SectionHeader
+            title="Pending Requests"
+            count={pendingRequests.length + acceptedRequests.length}
+            accent="amber"
+          />
+          <div className="space-y-3">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {pendingRequests.map((r: any) => (
+              <ContactRequestCard
+                key={r.id}
+                request={r}
+                viewAs="guest"
+                onStatusChange={() => router.refresh()}
+              />
+            ))}
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {acceptedRequests.map((r: any) => (
+              <div key={r.id} className="space-y-2">
                 <ContactRequestCard
-                  key={r.id}
                   request={r}
                   viewAs="guest"
                   onStatusChange={() => router.refresh()}
                 />
-              ))}
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {acceptedRequests.map((r: any) => (
-                <div key={r.id} className="space-y-2">
-                  <ContactRequestCard
-                    request={r}
-                    viewAs="guest"
-                    onStatusChange={() => router.refresh()}
-                  />
-                  <InitiateStayButton contactRequestId={r.id} onCreated={() => router.refresh()} />
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                <InitiateStayButton contactRequestId={r.id} onCreated={() => router.refresh()} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-        <TabsContent value="upcoming" className="mt-4">
-          {upcomingStays.length === 0 ? (
-            <EmptyState text="No upcoming stays" />
-          ) : (
-            <div className="space-y-3">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {upcomingStays.map((s: any) => (
+      {/* ─── Upcoming Stays ─── */}
+      <section>
+        <SectionHeader title="Upcoming Stays" count={upcomingStays.length} accent="purple" />
+        {upcomingStays.length === 0 ? (
+          <EmptyState text="No upcoming stays" />
+        ) : (
+          <div className="space-y-3">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {upcomingStays.map((s: any) => (
+              <div key={s.id} className="rounded-xl border border-border bg-white p-4">
                 <GuestStayCard
-                  key={s.id}
                   stay={s}
                   onConfirm={() => router.refresh()}
                 />
-              ))}
-            </div>
-          )}
-        </TabsContent>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
-        <TabsContent value="past" className="mt-4">
-          {pastStays.length === 0 ? (
-            <EmptyState text="No past stays yet" />
-          ) : (
-            <div className="space-y-3">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {pastStays.map((s: any) => (
-                <div
-                  key={s.id}
-                  className="rounded-xl border border-border bg-white p-4 space-y-3"
-                >
-                  <GuestStayCard
-                    stay={s}
-                    onConfirm={() => router.refresh()}
-                  />
-                  {s.host_rating === null &&
-                    s.host_confirmed &&
-                    s.guest_confirmed && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setReviewStay(s)}
-                      >
-                        Review Host & Listing
-                      </Button>
-                    )}
-                  {s.host_rating !== null && (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-xs text-foreground-secondary">
-                        <span>Host:</span>
-                        <StarRating value={s.host_rating} readonly size="sm" />
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-foreground-secondary">
-                        <span>Place:</span>
-                        <StarRating
-                          value={s.listing_rating}
-                          readonly
-                          size="sm"
-                        />
-                      </div>
-                    </div>
+      {/* ─── Past Stays ─── */}
+      <section>
+        <SectionHeader title="Past Stays" count={pastStays.length} accent="green" />
+        {pastStays.length === 0 ? (
+          <EmptyState text="No past stays yet — book your first trip!" />
+        ) : (
+          <div className="space-y-3">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {pastStays.map((s: any) => (
+              <div
+                key={s.id}
+                className="rounded-xl border border-border bg-white p-4 space-y-3"
+              >
+                <GuestStayCard
+                  stay={s}
+                  onConfirm={() => router.refresh()}
+                />
+                {s.host_rating === null &&
+                  s.host_confirmed &&
+                  s.guest_confirmed && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setReviewStay(s)}
+                    >
+                      Review Host & Listing
+                    </Button>
                   )}
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                {s.host_rating !== null && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-xs text-foreground-secondary">
+                      <span>Host:</span>
+                      <StarRating value={s.host_rating} readonly size="sm" />
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-foreground-secondary">
+                      <span>Place:</span>
+                      <StarRating
+                        value={s.listing_rating}
+                        readonly
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ─── All Requests ─── */}
+      {requests.length > 0 && (
+        <section>
+          <SectionHeader title="All Requests" count={requests.length} accent="purple" />
+          <div className="space-y-3">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {requests.map((r: any) => (
+              <ContactRequestCard
+                key={r.id}
+                request={r}
+                viewAs="guest"
+                onStatusChange={() => router.refresh()}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Review Dialog */}
       {reviewStay && (
@@ -225,9 +236,41 @@ export function MyTripsClient({
   );
 }
 
+/* ─── Shared Components ─── */
+
+function SectionHeader({
+  title,
+  count,
+  accent,
+}: {
+  title: string;
+  count: number;
+  accent: "amber" | "purple" | "green";
+}) {
+  const colors = {
+    amber: "bg-amber-100 text-amber-700",
+    purple: "bg-primary-light text-primary",
+    green: "bg-emerald-50 text-emerald-700",
+  };
+
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <h2 className="font-sans text-sm font-semibold text-foreground uppercase tracking-wider">
+        {title}
+      </h2>
+      <span
+        className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${colors[accent]}`}
+      >
+        {count}
+      </span>
+      <div className="flex-1 border-t border-border" />
+    </div>
+  );
+}
+
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-border py-12 text-center">
+    <div className="rounded-xl border border-dashed border-border py-10 text-center">
       <p className="text-sm text-foreground-tertiary">{text}</p>
     </div>
   );
@@ -300,12 +343,12 @@ function GuestStayCard({
             className="size-10 rounded-full object-cover"
           />
         ) : (
-          <div className="size-10 rounded-full bg-primary-light flex items-center justify-center text-primary font-semibold text-sm">
+          <div className="size-10 rounded-full bg-primary-light flex items-center justify-center text-primary font-medium text-sm">
             {host?.name?.charAt(0) || "?"}
           </div>
         )}
         <div>
-          <p className="text-sm font-semibold text-foreground">
+          <p className="text-sm font-medium text-foreground">
             {host?.name || "Unknown Host"}
           </p>
           {stay.listing && (

@@ -87,12 +87,9 @@ export function AppShell({ children, currentUser }: AppShellProps) {
         <div className="flex h-14 items-center justify-between border-b border-border px-4">
           {!collapsed && (
             <Link href="/listings" className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary-top to-primary-bot">
-                <span className="font-mono text-xs font-bold text-white">
-                  1°
-                </span>
-              </div>
-              <span className="text-sm font-semibold text-foreground">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/favicon-32.png" alt="1DB" className="h-7 w-7 rounded-lg" />
+              <span className="font-display text-base text-foreground">
                 One Degree
               </span>
             </Link>
@@ -100,11 +97,10 @@ export function AppShell({ children, currentUser }: AppShellProps) {
           {collapsed && (
             <Link
               href="/listings"
-              className="mx-auto flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary-top to-primary-bot"
+              className="mx-auto"
             >
-              <span className="font-mono text-xs font-bold text-white">
-                1°
-              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/favicon-32.png" alt="1DB" className="h-7 w-7 rounded-lg" />
             </Link>
           )}
           <button
