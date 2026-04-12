@@ -12,6 +12,7 @@ import {
   Eye,
   Loader2,
   CheckCircle2,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,9 +82,6 @@ export default function CreateListingPage() {
   const [description, setDescription] = useState("");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
-  const [availStart, setAvailStart] = useState("");
-  const [availEnd, setAvailEnd] = useState("");
-  const [flexDates, setFlexDates] = useState(false);
   const [houseRules, setHouseRules] = useState("");
   const [amenities, setAmenities] = useState<string[]>([]);
   const [previewVisibility, setPreviewVisibility] = useState("anyone");
@@ -227,9 +225,6 @@ export default function CreateListingPage() {
           description: description || null,
           price_min: priceMin ? parseInt(priceMin) : null,
           price_max: priceMax ? parseInt(priceMax) : null,
-          availability_start: availStart || null,
-          availability_end: availEnd || null,
-          availability_flexible: flexDates,
           house_rules: houseRules || null,
           amenities,
           preview_visibility: previewVisibility,
@@ -367,37 +362,16 @@ export default function CreateListingPage() {
             </div>
           </section>
 
-          {/* Availability */}
-          <section className="space-y-3">
-            <Label className="block">Availability</Label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={flexDates}
-                onChange={(e) => setFlexDates(e.target.checked)}
-                className="rounded border-border text-primary focus:ring-primary"
-              />
-              <span className="text-sm text-foreground-secondary">
-                Flexible dates
-              </span>
-            </label>
-            {!flexDates && (
-              <div className="flex items-center gap-3">
-                <Input
-                  type="date"
-                  value={availStart}
-                  onChange={(e) => setAvailStart(e.target.value)}
-                  className="flex-1"
-                />
-                <span className="text-foreground-tertiary">to</span>
-                <Input
-                  type="date"
-                  value={availEnd}
-                  onChange={(e) => setAvailEnd(e.target.value)}
-                  className="flex-1"
-                />
-              </div>
-            )}
+          {/* Availability note */}
+          <section className="rounded-xl border border-primary-border bg-primary-light p-4">
+            <p className="text-sm text-foreground-secondary">
+              <CalendarDays className="size-4 inline mr-1.5 text-primary" />
+              <span className="font-medium text-foreground">
+                Set your availability after creating the listing.
+              </span>{" "}
+              You&apos;ll use the calendar on your listing page to mark which
+              dates are available, possibly available, or blocked.
+            </p>
           </section>
 
           {/* House Rules */}

@@ -40,12 +40,42 @@ export default async function ListingDetailPage({ params }: Props) {
     viewerScore = scores?.[0]?.score ?? 0;
   }
 
+  // Fetch booked stays for this listing (confirmed stays)
+  const { data: stayRows } = await supabase
+    .from("stay_confirmations")
+    .select("id, check_in, check_out")
+    .eq("listing_id", id)
+    .or("host_confirmed.eq.true,guest_confirmed.eq.true");
+
+  const bookedStays = (stayRows || [])
+    .filter((s) => s.check_in && s.check_out)
+    .map((s) => ({
+      id: s.id,
+      check_in: s.check_in as string,
+      check_out: s.check_out as string,
+    }));
+
+  // Calendar settings from listing
+  const calendarSettings = {
+    min_nights: listing.min_nights ?? 1,
+    max_nights: listing.max_nights ?? 365,
+    prep_days: listing.prep_days ?? 0,
+    advance_notice_days: listing.advance_notice_days ?? 1,
+    availability_window_months: listing.availability_window_months ?? 12,
+    checkin_time: listing.checkin_time ?? "15:00",
+    checkout_time: listing.checkout_time ?? "11:00",
+    blocked_checkin_days: listing.blocked_checkin_days ?? [],
+    blocked_checkout_days: listing.blocked_checkout_days ?? [],
+  };
+
   return (
     <ListingDetailClient
       listing={listing}
       viewerId={viewer.id}
       viewerScore={viewerScore}
       requiredScore={listing.min_trust_score}
+      bookedStays={bookedStays}
+      calendarSettings={calendarSettings}
     />
   );
 }

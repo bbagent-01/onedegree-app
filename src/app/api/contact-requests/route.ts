@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { validateBookingDates } from "@/lib/validate-booking-dates";
 
 // GET: fetch contact requests for current user (as host or guest)
 export async function GET(req: Request) {
@@ -102,6 +103,17 @@ export async function POST(req: Request) {
 
   if (listing.host_id === currentUser.id) {
     return Response.json({ error: "You can't request your own listing" }, { status: 400 });
+  }
+
+  // Validate dates against calendar rules if both dates provided
+  if (checkIn && checkOut) {
+    const validation = await validateBookingDates(listingId, checkIn, checkOut);
+    if (!validation.valid) {
+      return Response.json(
+        { error: validation.errors[0], errors: validation.errors },
+        { status: 400 }
+      );
+    }
   }
 
   const { data: request, error } = await supabase

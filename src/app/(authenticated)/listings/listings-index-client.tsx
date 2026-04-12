@@ -138,16 +138,20 @@ function ListingCard({
           <MapPin className="size-3" />
           {listing.area_name}
         </p>
-        <p className="mt-1 flex items-center gap-1 text-xs text-foreground-tertiary">
-          <CalendarDays className="size-3" />
-          {listing.availability_flexible
-            ? "Flexible dates"
-            : listing.availability_start && listing.availability_end
-              ? `${new Date(listing.availability_start).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(listing.availability_end).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
-              : listing.availability_start
-                ? `From ${new Date(listing.availability_start).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
-                : "Dates TBD"}
-        </p>
+        {listing.nextAvailable ? (
+          <p className="mt-1 flex items-center gap-1 text-xs text-foreground-tertiary">
+            <CalendarDays className="size-3" />
+            Available{" "}
+            {new Date(listing.nextAvailable.start_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            {" – "}
+            {new Date(listing.nextAvailable.end_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </p>
+        ) : listing.availability_flexible ? (
+          <p className="mt-1 flex items-center gap-1 text-xs text-foreground-tertiary">
+            <CalendarDays className="size-3" />
+            Flexible dates
+          </p>
+        ) : null}
 
         {/* Trust metrics row (no host name/photo in preview per spec) */}
         <div className="mt-3 flex items-center gap-3 border-t border-border pt-3">

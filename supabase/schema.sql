@@ -90,9 +90,34 @@ CREATE TABLE IF NOT EXISTS listings (
   avg_listing_rating     DECIMAL(3,2) DEFAULT NULL,
   listing_review_count   INTEGER DEFAULT 0,
 
+  -- Stay rules (CC-9a)
+  min_nights             INTEGER DEFAULT 1,
+  max_nights             INTEGER DEFAULT 365,
+  prep_days              INTEGER DEFAULT 0,
+  advance_notice_days    INTEGER DEFAULT 1,
+  availability_window_months INTEGER DEFAULT 12,
+  checkin_time           TEXT DEFAULT '15:00',
+  checkout_time          TEXT DEFAULT '11:00',
+  blocked_checkin_days   TEXT[] DEFAULT '{}',
+  blocked_checkout_days  TEXT[] DEFAULT '{}',
+
   is_active              BOOLEAN DEFAULT true,
   created_at             TIMESTAMPTZ DEFAULT now(),
   updated_at             TIMESTAMPTZ DEFAULT now()
+);
+
+-- Listing availability ranges (CC-9a)
+CREATE TABLE IF NOT EXISTS listing_availability (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('available', 'possibly_available', 'blocked')),
+  custom_price_per_night DECIMAL(10,2),
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT valid_date_range CHECK (end_date >= start_date)
 );
 
 -- Listing photos
@@ -202,6 +227,8 @@ CREATE INDEX IF NOT EXISTS idx_invites_invitee_email ON invites(invitee_email) W
 CREATE INDEX IF NOT EXISTS idx_invites_invitee_phone ON invites(invitee_phone) WHERE invitee_phone IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_invites_token ON invites(token);
 CREATE INDEX IF NOT EXISTS idx_invites_inviter ON invites(inviter_id);
+CREATE INDEX IF NOT EXISTS idx_listing_avail_listing ON listing_availability(listing_id);
+CREATE INDEX IF NOT EXISTS idx_listing_avail_dates ON listing_availability(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_contact_requests_listing ON contact_requests(listing_id);
 CREATE INDEX IF NOT EXISTS idx_contact_requests_host ON contact_requests(host_id);
 CREATE INDEX IF NOT EXISTS idx_contact_requests_guest ON contact_requests(guest_id);
@@ -223,6 +250,7 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vouches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE listings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE listing_availability ENABLE ROW LEVEL SECURITY;
 ALTER TABLE listing_photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stay_confirmations ENABLE ROW LEVEL SECURITY;
@@ -271,6 +299,38 @@ CREATE POLICY "Hosts can insert own listings"
 CREATE POLICY "Hosts can update own listings"
   ON listings FOR UPDATE TO authenticated
   USING (host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'));
+
+-- Listing availability: viewable by all authenticated, manageable by host
+CREATE POLICY "Availability viewable by authenticated users"
+  ON listing_availability FOR SELECT TO authenticated
+  USING (true);
+
+CREATE POLICY "Hosts can insert availability"
+  ON listing_availability FOR INSERT TO authenticated
+  WITH CHECK (
+    listing_id IN (
+      SELECT id FROM listings
+      WHERE host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub')
+    )
+  );
+
+CREATE POLICY "Hosts can update availability"
+  ON listing_availability FOR UPDATE TO authenticated
+  USING (
+    listing_id IN (
+      SELECT id FROM listings
+      WHERE host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub')
+    )
+  );
+
+CREATE POLICY "Hosts can delete availability"
+  ON listing_availability FOR DELETE TO authenticated
+  USING (
+    listing_id IN (
+      SELECT id FROM listings
+      WHERE host_id IN (SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub')
+    )
+  );
 
 -- Listing photos: viewable with listing, manageable by host
 CREATE POLICY "Listing photos viewable with listing"

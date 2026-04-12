@@ -1,6 +1,6 @@
 # One Degree BNB — Project Plan
 
-> Last updated: April 11, 2026
+> Last updated: April 12, 2026
 
 ## What This Is
 
@@ -237,7 +237,7 @@ Handling levels: excellent / responsive / poor / terrible
 
 The incident form is accessible from the post-stay review flow. Data stored in `incidents` table for future Phase 3 analysis.
 
-## Database Schema (8 Tables)
+## Database Schema (8 Tables + planned: listing_availability, messages, message_threads)
 
 Full SQL in `supabase/schema.sql`.
 
@@ -268,7 +268,11 @@ CC sessions:
 - **CC-6d** ✅ Browse page + profiles + nav + seed data + smoke test
 - **CC-6.5** ✅ shadcn/ui component library adoption (migration, no new features)
 - **CC-7** ✅ Invite-only signup + invite links + pre-vouch (non-member)
-- **CC-8** 📋 Contact flow + 3-rating reviews + stay tools (stubs) + dashboard
+- **CC-8** 🚀 Contact flow + 3-rating reviews + stay tools (stubs) + dashboard — deployed, smoke testing
+- **CC-9a** 📋 Calendar system — availability ranges, stay rules, turnover, calendar UI
+- **CC-9b** 📋 Listing enhancements — edit listing, on/off toggle, photo management, amenities, house rules, capacity
+- **CC-9c** 📋 Pricing (custom per range, discounts, cleaning fee) + date-based search
+- **CC-9d** 📋 Communication — in-app messaging, automated messages, email notifications via Resend
 
 Alpha complete when: all sessions done, core loop works end-to-end, 50+ waitlist signups from ads.
 

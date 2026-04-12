@@ -19,6 +19,17 @@ export interface ListingRow {
   full_visibility: VisibilityTier;
   min_trust_score: number;
   specific_user_ids: string[];
+  // Stay rules (CC-9a)
+  min_nights: number;
+  max_nights: number;
+  prep_days: number;
+  advance_notice_days: number;
+  availability_window_months: number;
+  checkin_time: string;
+  checkout_time: string;
+  blocked_checkin_days: string[];
+  blocked_checkout_days: string[];
+
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -33,6 +44,12 @@ export interface ListingPhoto {
   sort_order: number;
 }
 
+export interface NextAvailableRange {
+  start_date: string;
+  end_date: string;
+  status: string;
+}
+
 export interface ListingWithAccess extends ListingRow {
   access: ListingAccess;
   photos: ListingPhoto[];
@@ -44,6 +61,7 @@ export interface ListingWithAccess extends ListingRow {
     host_review_count: number;
     vouch_power: number | null;
   };
+  nextAvailable?: NextAvailableRange | null;
 }
 
 /**
@@ -110,7 +128,28 @@ export async function getListingsForViewer(viewerId: string): Promise<ListingWit
     (innerCircleVouches || []).map(v => v.voucher_id)
   );
 
-  // 5. Host profiles
+  // 5. Next available range per listing (for browse cards)
+  const today = new Date().toISOString().split('T')[0];
+  const { data: availRanges } = await supabase
+    .from('listing_availability')
+    .select('listing_id, start_date, end_date, status')
+    .in('listing_id', listings.map(l => l.id))
+    .in('status', ['available', 'possibly_available'])
+    .gte('end_date', today)
+    .order('start_date', { ascending: true });
+
+  const nextAvailByListing = new Map<string, { start_date: string; end_date: string; status: string }>();
+  for (const r of (availRanges || [])) {
+    if (!nextAvailByListing.has(r.listing_id)) {
+      nextAvailByListing.set(r.listing_id, {
+        start_date: r.start_date,
+        end_date: r.end_date,
+        status: r.status,
+      });
+    }
+  }
+
+  // 6. Host profiles
   const { data: hosts } = await supabase
     .from('users')
     .select('id, name, avatar_url, host_rating, host_review_count, vouch_power')
@@ -144,6 +183,7 @@ export async function getListingsForViewer(viewerId: string): Promise<ListingWit
       access,
       photos: photosByListing.get(listing.id) || [],
       host: hostById.get(listing.host_id) ?? undefined,
+      nextAvailable: nextAvailByListing.get(listing.id) ?? null,
     });
   }
 

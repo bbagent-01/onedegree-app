@@ -14,7 +14,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ContactRequestForm } from "@/components/contact-request-form";
+import { CalendarManager } from "@/components/calendar/calendar-manager";
 import type { ListingWithAccess, ListingPhoto } from "@/lib/listing-data";
+import type { BookedStay, CalendarSettings } from "@/components/calendar/types";
 
 const AMENITY_LABELS: Record<string, string> = {
   wifi: "WiFi",
@@ -179,11 +181,15 @@ export function ListingDetailClient({
   viewerId,
   viewerScore = 0,
   requiredScore = 0,
+  bookedStays = [],
+  calendarSettings,
 }: {
   listing: ListingWithAccess;
   viewerId?: string;
   viewerScore?: number;
   requiredScore?: number;
+  bookedStays?: BookedStay[];
+  calendarSettings?: CalendarSettings;
 }) {
   const { access } = listing;
   const [toast, setToast] = useState<string | null>(null);
@@ -306,6 +312,23 @@ export function ListingDetailClient({
                     {listing.house_rules}
                   </p>
                 </section>
+              )}
+
+              {/* Calendar — owner sees edit mode, guests see readonly */}
+              {isOwnListing ? (
+                <CalendarManager
+                  listingId={listing.id}
+                  mode="edit"
+                  initialSettings={calendarSettings}
+                  bookedStays={bookedStays}
+                />
+              ) : (
+                <CalendarManager
+                  listingId={listing.id}
+                  mode="readonly"
+                  initialSettings={calendarSettings}
+                  bookedStays={bookedStays}
+                />
               )}
 
               {/* Host card */}
