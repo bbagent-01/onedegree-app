@@ -54,6 +54,8 @@ interface CalendarGridProps {
   onBookedStayClick?: (stayId: string) => void;
   /** Externally-controlled selected range (e.g. from booking form) */
   selectedRange?: { start: string; end: string } | null;
+  /** Default status for days with no explicit range set */
+  defaultStatus?: "available" | "possibly_available" | "blocked" | null;
 }
 
 export function CalendarGrid({
@@ -64,6 +66,7 @@ export function CalendarGrid({
   onSelectRange,
   onBookedStayClick,
   selectedRange,
+  defaultStatus,
 }: CalendarGridProps) {
   const today = new Date();
   const todayStr = formatDateStr(today);
@@ -134,9 +137,12 @@ export function CalendarGrid({
 
   function getDayInfo(dateStr: string): DayInfo {
     const entry = dayMap.get(dateStr);
+    // If no explicit range, use the default status (if set)
+    const resolvedStatus: DayStatus = entry?.status
+      ?? (defaultStatus && dateStr >= todayStr ? defaultStatus : "empty");
     return {
       date: dateStr,
-      status: entry?.status ?? "empty",
+      status: resolvedStatus,
       price: entry?.price ?? null,
       isToday: dateStr === todayStr,
       isPast: dateStr < todayStr,

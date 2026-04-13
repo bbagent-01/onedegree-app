@@ -13,18 +13,42 @@ export async function GET(
   const { id: listingId } = await params;
   const supabase = getSupabaseAdmin();
 
-  const { data, error } = await supabase
-    .from("listing_availability")
-    .select("*")
-    .eq("listing_id", listingId)
-    .order("start_date", { ascending: true });
+  const [{ data, error }, { data: stayRows }, { data: listingRow }] = await Promise.all([
+    supabase
+      .from("listing_availability")
+      .select("*")
+      .eq("listing_id", listingId)
+      .order("start_date", { ascending: true }),
+    supabase
+      .from("stay_confirmations")
+      .select("id, check_in, check_out")
+      .eq("listing_id", listingId)
+      .or("host_confirmed.eq.true,guest_confirmed.eq.true"),
+    supabase
+      .from("listings")
+      .select("default_availability_status")
+      .eq("id", listingId)
+      .single(),
+  ]);
 
   if (error) {
     console.error("Fetch availability error:", error);
     return Response.json({ error: "Failed to fetch availability" }, { status: 500 });
   }
 
-  return Response.json({ ranges: data || [] });
+  const bookedStays = (stayRows || [])
+    .filter((s) => s.check_in && s.check_out)
+    .map((s) => ({
+      id: s.id,
+      check_in: s.check_in as string,
+      check_out: s.check_out as string,
+    }));
+
+  return Response.json({
+    ranges: data || [],
+    bookedStays,
+    defaultStatus: listingRow?.default_availability_status ?? null,
+  });
 }
 
 export async function POST(

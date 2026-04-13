@@ -41,6 +41,7 @@ export function ContactRequestForm({
   // Availability data for the mini calendar
   const [ranges, setRanges] = useState<AvailabilityRange[]>([]);
   const [bookedStays, setBookedStays] = useState<BookedStay[]>([]);
+  const [defaultStatus, setDefaultStatus] = useState<"available" | "possibly_available" | "blocked" | null>(null);
   const [loadingCal, setLoadingCal] = useState(false);
 
   const fetchAvailability = useCallback(async () => {
@@ -51,6 +52,7 @@ export function ContactRequestForm({
         const data = await res.json();
         setRanges(data.ranges || []);
         setBookedStays(data.bookedStays || []);
+        setDefaultStatus(data.defaultStatus || null);
       }
     } finally {
       setLoadingCal(false);
@@ -169,6 +171,7 @@ export function ContactRequestForm({
                           ? { start: checkIn, end: checkOut }
                           : null
                       }
+                      defaultStatus={defaultStatus}
                     />
                   </div>
                 )}

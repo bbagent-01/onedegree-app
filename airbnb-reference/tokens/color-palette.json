@@ -1,0 +1,64 @@
+{
+  "_meta": {
+    "description": "DO NOT USE — Airbnb reference colors only. 1DB uses its own brand colors.",
+    "warning": "These colors are for reference/comparison ONLY. See tailwind-extend.json for 1DB colors.",
+    "date": "2026-04-13"
+  },
+  "airbnb_reference_colors": {
+    "brand_red": "#FF5A5F",
+    "brand_red_note": "Used by krgyaan as 'brand' color and ski043 in calendar",
+    "primary_orange": {
+      "light": "hsl(24.6, 95%, 53.1%)",
+      "hex_approx": "#F97316",
+      "note": "aumsoni2002 uses orange as primary (not Airbnb red)"
+    },
+    "primary_rose": {
+      "light": "hsl(346.8, 77.2%, 49.8%)",
+      "hex_approx": "#E11D48",
+      "note": "ski043 and krgyaan use rose/pink as primary"
+    }
+  },
+  "shared_semantic_colors": {
+    "background": {
+      "light": "hsl(0, 0%, 100%)",
+      "hex": "#FFFFFF"
+    },
+    "foreground": {
+      "light_aumsoni": "hsl(20, 14.3%, 4.1%)",
+      "light_ski_kry": "hsl(240, 10%, 3.9%)",
+      "hex_approx": "#0A0A0B"
+    },
+    "muted": {
+      "light": "hsl(240, 4.8%, 95.9%)",
+      "hex_approx": "#F4F4F5"
+    },
+    "muted_foreground": {
+      "light_aumsoni": "hsl(25, 5.3%, 44.7%)",
+      "light_ski_kry": "hsl(240, 3.8%, 46.1%)",
+      "hex_approx": "#717179"
+    },
+    "border": {
+      "light_aumsoni": "hsl(20, 5.9%, 90%)",
+      "light_ski_kry": "hsl(240, 5.9%, 90%)",
+      "hex_approx": "#E4E4E7"
+    },
+    "destructive": {
+      "light": "hsl(0, 84.2%, 60.2%)",
+      "hex_approx": "#EF4444"
+    }
+  },
+  "1db_brand_colors": {
+    "_note": "USE THESE — not the Airbnb colors above",
+    "accent": "#2563EB",
+    "green": "#059669",
+    "amber": "#D97706",
+    "red": "#DC2626",
+    "background_white": "#FFFFFF",
+    "background_light": "#F8F9FA",
+    "background_lighter": "#F1F3F5",
+    "text_primary": "#1A1D21",
+    "text_secondary": "#6B7280",
+    "text_tertiary": "#9CA3AF",
+    "border": "#E5E7EB"
+  }
+}

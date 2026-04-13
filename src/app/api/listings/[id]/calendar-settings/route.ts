@@ -46,6 +46,7 @@ export async function PATCH(
     "checkout_time",
     "blocked_checkin_days",
     "blocked_checkout_days",
+    "default_availability_status",
   ];
 
   const updates: Record<string, unknown> = {};

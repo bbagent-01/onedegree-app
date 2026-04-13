@@ -7,6 +7,7 @@ import { CalendarRangeModal } from "./calendar-range-modal";
 import { CalendarSettingsPanel } from "./calendar-settings";
 import { CalendarDays, Loader2, Paintbrush } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type {
   AvailabilityRange,
   AvailabilityStatus,
@@ -31,12 +32,13 @@ const DEFAULT_SETTINGS: CalendarSettings = {
   checkout_time: "11:00",
   blocked_checkin_days: [],
   blocked_checkout_days: [],
+  default_availability_status: null,
 };
 
-const BULK_OPTIONS: { status: AvailabilityStatus; label: string; color: string }[] = [
-  { status: "available", label: "Available", color: "bg-emerald-100 text-emerald-800 hover:bg-emerald-200" },
-  { status: "possibly_available", label: "Possibly Available", color: "bg-amber-100 text-amber-800 hover:bg-amber-200" },
-  { status: "blocked", label: "Blocked", color: "bg-gray-100 text-gray-600 hover:bg-gray-200" },
+const DEFAULT_STATUS_OPTIONS: { status: AvailabilityStatus; label: string; color: string; activeColor: string }[] = [
+  { status: "available", label: "Available", color: "border-border bg-white text-foreground-secondary hover:border-emerald-300", activeColor: "border-emerald-400 bg-emerald-100 text-emerald-800" },
+  { status: "possibly_available", label: "Possibly Available", color: "border-border bg-white text-foreground-secondary hover:border-amber-300", activeColor: "border-amber-400 bg-amber-100 text-amber-800" },
+  { status: "blocked", label: "Blocked", color: "border-border bg-white text-foreground-secondary hover:border-gray-400", activeColor: "border-gray-400 bg-gray-200 text-gray-700" },
 ];
 
 export function CalendarManager({
@@ -58,9 +60,8 @@ export function CalendarManager({
   const [selectedEnd, setSelectedEnd] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Bulk set dropdown
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkSaving, setBulkSaving] = useState(false);
+  // Default status saving indicator
+  const [defaultSaving, setDefaultSaving] = useState(false);
 
   const fetchRanges = useCallback(async () => {
     try {
@@ -113,33 +114,21 @@ export function CalendarManager({
     }
   }
 
-  async function handleBulkSet(status: AvailabilityStatus) {
-    setBulkSaving(true);
-    setBulkOpen(false);
-
-    // Set all unset days for the next N months (from settings.availability_window_months)
-    const windowMonths = settings.availability_window_months || 12;
-    const today = new Date();
-    const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const endD = new Date(today);
-    endD.setMonth(endD.getMonth() + windowMonths);
-    const endDate = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, "0")}-${String(endD.getDate()).padStart(2, "0")}`;
-
+  async function handleDefaultStatusChange(status: AvailabilityStatus | null) {
+    // Toggle off if already selected
+    const newStatus = settings.default_availability_status === status ? null : status;
+    setDefaultSaving(true);
     try {
-      const res = await fetch(`/api/listings/${listingId}/availability/bulk`, {
-        method: "POST",
+      const res = await fetch(`/api/listings/${listingId}/calendar-settings`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          start_date: startDate,
-          end_date: endDate,
-          status,
-        }),
+        body: JSON.stringify({ default_availability_status: newStatus }),
       });
       if (res.ok) {
-        await fetchRanges();
+        setSettings((prev) => ({ ...prev, default_availability_status: newStatus }));
       }
     } finally {
-      setBulkSaving(false);
+      setDefaultSaving(false);
     }
   }
 
@@ -161,46 +150,6 @@ export function CalendarManager({
             {mode === "edit" ? "Manage Availability" : "Availability"}
           </h2>
         </div>
-
-        {/* Bulk set button (edit mode only) */}
-        {mode === "edit" && (
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setBulkOpen(!bulkOpen)}
-              disabled={bulkSaving}
-              className="text-xs gap-1.5"
-            >
-              <Paintbrush className="size-3.5" />
-              {bulkSaving ? "Setting..." : "Set all days"}
-            </Button>
-
-            {bulkOpen && (
-              <>
-                {/* Backdrop to close */}
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setBulkOpen(false)}
-                />
-                <div className="absolute right-0 top-full mt-1 z-20 w-52 rounded-lg border border-border bg-white p-2 shadow-lg">
-                  <p className="text-[10px] text-foreground-tertiary px-2 pb-2">
-                    Sets all days to one status. Booked stays are preserved. You can override specific dates afterward.
-                  </p>
-                  {BULK_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.status}
-                      onClick={() => handleBulkSet(opt.status)}
-                      className={`w-full text-left rounded-md px-3 py-2 text-xs font-medium transition-colors ${opt.color}`}
-                    >
-                      Set all to{opt.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
       </div>
 
       {mode === "edit" && (
@@ -208,6 +157,40 @@ export function CalendarManager({
           Click a date, then click another to select a range. Set availability
           status and optional pricing for each range.
         </p>
+      )}
+
+      {/* Default status for unset days (edit mode only) */}
+      {mode === "edit" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-foreground-secondary mr-1">
+            <Paintbrush className="size-3.5" />
+            <span>Default for unset days:</span>
+          </div>
+          {DEFAULT_STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.status}
+              onClick={() => handleDefaultStatusChange(opt.status)}
+              disabled={defaultSaving}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
+                settings.default_availability_status === opt.status
+                  ? opt.activeColor
+                  : opt.color
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+          {settings.default_availability_status && (
+            <button
+              onClick={() => handleDefaultStatusChange(null)}
+              disabled={defaultSaving}
+              className="text-[10px] text-foreground-tertiary hover:text-foreground-secondary underline"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       )}
 
       {/* Calendar grid */}
@@ -219,6 +202,7 @@ export function CalendarManager({
           mode={mode}
           onSelectRange={mode === "edit" ? handleSelectRange : undefined}
           onBookedStayClick={mode === "edit" ? handleBookedStayClick : undefined}
+          defaultStatus={settings.default_availability_status}
         />
       </div>
 

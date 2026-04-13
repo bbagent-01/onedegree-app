@@ -30,6 +30,7 @@ export interface CalendarSettings {
   checkout_time: string;
   blocked_checkin_days: string[];
   blocked_checkout_days: string[];
+  default_availability_status: AvailabilityStatus | null;
 }
 
 export type DayStatus =

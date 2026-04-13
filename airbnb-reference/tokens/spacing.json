@@ -1,0 +1,54 @@
+{
+  "_meta": {
+    "description": "Spacing tokens extracted from Airbnb clone reference repos",
+    "source": "aumsoni2002, ski043, krgyaan tailwind configs + component analysis",
+    "date": "2026-04-13"
+  },
+  "scale": {
+    "_note": "All 3 repos use Tailwind's default 4px base unit. Most consistent spacing values used across components.",
+    "0": "0px",
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "5": "20px",
+    "6": "24px",
+    "8": "32px",
+    "10": "40px",
+    "12": "48px",
+    "16": "64px",
+    "20": "80px",
+    "24": "96px"
+  },
+  "common_patterns": {
+    "card_padding": "16px (p-4)",
+    "card_gap": "16px-24px (gap-4 to gap-6)",
+    "section_padding_x": "32px-40px (px-8 to px-10)",
+    "section_padding_y": "20px-32px (py-5 to py-8)",
+    "navbar_padding_x": "32px-40px (px-8 to px-10)",
+    "navbar_padding_y": "20px (py-5)",
+    "form_gap": "16px-32px (gap-4 to gap-8)",
+    "grid_gap": "16px-20px (gap-4 to gap-5)",
+    "input_padding_x": "12px (px-3)",
+    "input_padding_y": "8px (py-2)",
+    "button_padding_x": "16px (px-4)",
+    "button_padding_y": "8px (py-2)",
+    "container_max_width": "1400px (2xl breakpoint)",
+    "container_padding": "32px (2rem)"
+  },
+  "breakpoints": {
+    "sm": "640px",
+    "md": "768px",
+    "lg": "1024px",
+    "xl": "1280px",
+    "2xl": "1400px"
+  },
+  "grid_columns": {
+    "mobile": 1,
+    "sm": 2,
+    "md": 3,
+    "lg": 4,
+    "xl": 5,
+    "_note": "krgyaan uses up to 5 cols on large screens, aumsoni2002 and ski043 use 3-4"
+  }
+}

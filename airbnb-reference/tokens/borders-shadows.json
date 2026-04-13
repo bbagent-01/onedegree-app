@@ -1,0 +1,61 @@
+{
+  "_meta": {
+    "description": "Border radius and shadow tokens from Airbnb clone reference repos",
+    "source": "aumsoni2002, ski043, krgyaan tailwind configs + component analysis",
+    "date": "2026-04-13"
+  },
+  "border_radius": {
+    "_note": "All 3 repos use CSS variable --radius: 0.5rem (8px) as base. shadcn/ui pattern.",
+    "sm": "calc(var(--radius) - 4px)",
+    "sm_computed": "4px",
+    "md": "calc(var(--radius) - 2px)",
+    "md_computed": "6px",
+    "lg": "var(--radius)",
+    "lg_computed": "8px",
+    "xl": "12px",
+    "full": "9999px",
+    "usage": {
+      "buttons": "md (6px)",
+      "cards": "lg (8px) to xl (12px)",
+      "inputs": "md (6px)",
+      "avatars": "full (circle)",
+      "images": "lg (8px) to xl (12px)",
+      "modals": "lg (8px)",
+      "pills_tags": "full (9999px)",
+      "search_bar": "full (9999px)"
+    }
+  },
+  "shadows": {
+    "_note": "Repos rely heavily on Tailwind's default shadow utilities rather than custom shadows.",
+    "none": "none",
+    "sm": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+    "default": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+    "md": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+    "lg": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+    "xl": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+    "usage": {
+      "card_default": "none or shadow-sm",
+      "card_hover": "shadow-md to shadow-lg",
+      "dropdown": "shadow-md",
+      "modal": "shadow-lg to shadow-xl",
+      "navbar": "border-b (no shadow)",
+      "search_pill": "shadow-sm hover:shadow-md",
+      "booking_sidebar": "shadow-lg (sticky sidebar)"
+    }
+  },
+  "borders": {
+    "width": {
+      "default": "1px",
+      "thick": "2px"
+    },
+    "style": "solid",
+    "color_var": "hsl(var(--border))",
+    "usage": {
+      "cards": "border (1px)",
+      "inputs": "border (1px)",
+      "navbar_bottom": "border-b",
+      "category_active": "border-b-2 (thick underline)",
+      "separator": "border-t or <Separator />"
+    }
+  }
+}

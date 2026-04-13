@@ -77,6 +77,7 @@ export default async function ListingDetailPage({ params }: Props) {
     checkout_time: listing.checkout_time ?? "11:00",
     blocked_checkin_days: listing.blocked_checkin_days ?? [],
     blocked_checkout_days: listing.blocked_checkout_days ?? [],
+    default_availability_status: (listing.default_availability_status as "available" | "possibly_available" | "blocked") ?? null,
   };
 
   return (
