@@ -42,6 +42,17 @@ export async function PATCH(
   const { action } = body;
 
   if (action === "confirm") {
+    // Prevent confirming a stay whose checkout hasn't happened yet
+    if (stay.check_out) {
+      const today = new Date().toISOString().split("T")[0];
+      if (stay.check_out > today) {
+        return Response.json(
+          { error: "This stay can't be confirmed until after the checkout date" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Set the appropriate confirmed flag
     const update = isHost
       ? { host_confirmed: true }

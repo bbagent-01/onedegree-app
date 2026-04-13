@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Shield, CalendarDays, Users, AlertCircle } from "lucide-react";
+import { Shield, Users, AlertCircle } from "lucide-react";
+import { CalendarGrid } from "@/components/calendar/calendar-grid";
+import type { AvailabilityRange, BookedStay } from "@/components/calendar/types";
 
 interface ContactRequestFormProps {
   listingId: string;
@@ -35,6 +37,42 @@ export function ContactRequestForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Availability data for the mini calendar
+  const [ranges, setRanges] = useState<AvailabilityRange[]>([]);
+  const [bookedStays, setBookedStays] = useState<BookedStay[]>([]);
+  const [loadingCal, setLoadingCal] = useState(false);
+
+  const fetchAvailability = useCallback(async () => {
+    setLoadingCal(true);
+    try {
+      const res = await fetch(`/api/listings/${listingId}/availability`);
+      if (res.ok) {
+        const data = await res.json();
+        setRanges(data.ranges || []);
+        setBookedStays(data.bookedStays || []);
+      }
+    } finally {
+      setLoadingCal(false);
+    }
+  }, [listingId]);
+
+  useEffect(() => {
+    if (open) {
+      fetchAvailability();
+    }
+  }, [open, fetchAvailability]);
+
+  function handleCalendarSelect(start: string, end: string) {
+    setCheckIn(start);
+    setCheckOut(end);
+  }
+
+  function formatDisplayDate(dateStr: string): string {
+    if (!dateStr) return "";
+    const d = new Date(dateStr + "T12:00:00");
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
 
   async function handleSubmit() {
     if (!message.trim()) {
@@ -80,7 +118,7 @@ export function ContactRequestForm({
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent showCloseButton className="sm:max-w-lg">
+        <DialogContent showCloseButton className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Request to Stay</DialogTitle>
             <DialogDescription>
@@ -109,30 +147,45 @@ export function ContactRequestForm({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="mb-1.5 block text-xs">
-                    <CalendarDays className="size-3 inline mr-1" />
-                    Check-in
-                  </Label>
-                  <Input
-                    type="date"
-                    value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-1.5 block text-xs">
-                    <CalendarDays className="size-3 inline mr-1" />
-                    Check-out
-                  </Label>
-                  <Input
-                    type="date"
-                    value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                  />
-                </div>
+              {/* Calendar for date selection */}
+              <div>
+                <Label className="mb-2 block text-xs font-medium">
+                  Select your dates
+                </Label>
+                {loadingCal ? (
+                  <div className="flex items-center justify-center py-8 text-foreground-secondary text-sm">
+                    Loading availability...
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-border bg-background-mid/30 p-3">
+                    <CalendarGrid
+                      ranges={ranges}
+                      bookedStays={bookedStays}
+                      prepDays={0}
+                      mode="edit"
+                      onSelectRange={handleCalendarSelect}
+                    />
+                  </div>
+                )}
+
+                {/* Selected dates display */}
+                {(checkIn || checkOut) && (
+                  <div className="mt-2 flex items-center gap-2 text-sm">
+                    <span className="text-foreground-secondary">Selected:</span>
+                    <span className="font-medium text-foreground">
+                      {formatDisplayDate(checkIn)}
+                      {checkOut && checkOut !== checkIn && (
+                        <> — {formatDisplayDate(checkOut)}</>
+                      )}
+                    </span>
+                    <button
+                      onClick={() => { setCheckIn(""); setCheckOut(""); }}
+                      className="text-xs text-foreground-tertiary hover:text-foreground-secondary underline ml-auto"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Guest count */}

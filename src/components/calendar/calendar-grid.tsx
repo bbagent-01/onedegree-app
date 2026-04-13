@@ -17,7 +17,7 @@ const STATUS_COLORS: Record<DayStatus, string> = {
   available: "bg-emerald-100 text-emerald-900 border-emerald-200",
   possibly_available: "bg-amber-100 text-amber-900 border-amber-200",
   blocked: "bg-gray-100 text-gray-400 border-gray-200",
-  booked: "bg-primary-light text-primary border-primary-border",
+  booked: "bg-violet-100 text-violet-900 border-violet-200",
   prep: "bg-gray-50 text-gray-400 border-dashed border-gray-300",
   empty: "bg-white text-foreground-secondary border-transparent",
 };
@@ -51,6 +51,7 @@ interface CalendarGridProps {
   prepDays: number;
   mode: "edit" | "readonly";
   onSelectRange?: (start: string, end: string) => void;
+  onBookedStayClick?: (stayId: string) => void;
 }
 
 export function CalendarGrid({
@@ -59,6 +60,7 @@ export function CalendarGrid({
   prepDays,
   mode,
   onSelectRange,
+  onBookedStayClick,
 }: CalendarGridProps) {
   const today = new Date();
   const todayStr = formatDateStr(today);
@@ -72,9 +74,10 @@ export function CalendarGrid({
   const [selectEnd, setSelectEnd] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
 
-  // Build day status map
-  const dayMap = useMemo(() => {
+  // Build day status map + guest info for booked days
+  const { dayMap, bookedGuestMap } = useMemo(() => {
     const map = new Map<string, { status: DayStatus; price: number | null; rangeId: string | null }>();
+    const guestMap = new Map<string, { stayId: string; guestName?: string; guestAvatar?: string | null }>();
 
     // 1. Availability ranges
     for (const range of ranges) {
@@ -94,6 +97,11 @@ export function CalendarGrid({
       let d = stay.check_in;
       while (d < stay.check_out) {
         map.set(d, { status: "booked", price: null, rangeId: null });
+        guestMap.set(d, {
+          stayId: stay.id,
+          guestName: stay.guest_name,
+          guestAvatar: stay.guest_avatar_url,
+        });
         d = addDays(d, 1);
       }
     }
@@ -101,7 +109,6 @@ export function CalendarGrid({
     // 3. Prep days around booked stays
     if (prepDays > 0) {
       for (const stay of bookedStays) {
-        // Before check-in
         for (let i = 1; i <= prepDays; i++) {
           const prepDate = addDays(stay.check_in, -i);
           const existing = map.get(prepDate);
@@ -109,7 +116,6 @@ export function CalendarGrid({
             map.set(prepDate, { status: "prep", price: null, rangeId: null });
           }
         }
-        // After check-out
         for (let i = 0; i < prepDays; i++) {
           const prepDate = addDays(stay.check_out, i);
           const existing = map.get(prepDate);
@@ -120,7 +126,7 @@ export function CalendarGrid({
       }
     }
 
-    return map;
+    return { dayMap: map, bookedGuestMap: guestMap };
   }, [ranges, bookedStays, prepDays]);
 
   function getDayInfo(dateStr: string): DayInfo {
@@ -135,18 +141,30 @@ export function CalendarGrid({
     };
   }
 
+  function getBookedGuest(dateStr: string) {
+    return bookedGuestMap.get(dateStr) ?? null;
+  }
+
   const handleDayClick = useCallback(
     (dateStr: string) => {
       if (mode !== "edit") return;
       const info = getDayInfo(dateStr);
-      if (info.status === "booked" || info.status === "prep") return;
+
+      // Booked days → open the stay instead of selecting
+      if (info.status === "booked") {
+        const guest = bookedGuestMap.get(dateStr);
+        if (guest && onBookedStayClick) {
+          onBookedStayClick(guest.stayId);
+        }
+        return;
+      }
+      if (info.status === "prep") return;
 
       if (!selecting) {
         setSelectStart(dateStr);
         setSelectEnd(dateStr);
         setSelecting(true);
       } else {
-        // Second click completes selection
         const start = selectStart!;
         const end = dateStr;
         const [finalStart, finalEnd] = start <= end ? [start, end] : [end, start];
@@ -157,7 +175,7 @@ export function CalendarGrid({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode, selecting, selectStart, onSelectRange]
+    [mode, selecting, selectStart, onSelectRange, onBookedStayClick, bookedGuestMap]
   );
 
   const handleDayHover = useCallback(
@@ -193,7 +211,6 @@ export function CalendarGrid({
     });
   }
 
-  // Second month
   const secondMonth = {
     year: baseMonth.month === 11 ? baseMonth.year + 1 : baseMonth.year,
     month: (baseMonth.month + 1) % 12,
@@ -237,6 +254,7 @@ export function CalendarGrid({
           year={baseMonth.year}
           month={baseMonth.month}
           getDayInfo={getDayInfo}
+          getBookedGuest={getBookedGuest}
           isInSelection={isInSelection}
           onDayClick={handleDayClick}
           onDayHover={handleDayHover}
@@ -248,6 +266,7 @@ export function CalendarGrid({
             year={secondMonth.year}
             month={secondMonth.month}
             getDayInfo={getDayInfo}
+            getBookedGuest={getBookedGuest}
             isInSelection={isInSelection}
             onDayClick={handleDayClick}
             onDayHover={handleDayHover}
@@ -264,13 +283,14 @@ export function CalendarGrid({
             <LegendDot color="bg-emerald-200" label="Available" />
             <LegendDot color="bg-amber-200" label="Possibly available" />
             <LegendDot color="bg-gray-200" label="Blocked" />
-            <LegendDot color="bg-primary/20" label="Booked" />
+            <LegendDot color="bg-violet-200" label="Booked" />
             <LegendDot color="bg-gray-100 border border-dashed border-gray-300" label="Prep day" />
           </>
         ) : (
           <>
             <LegendDot color="bg-emerald-200" label="Available" />
             <LegendDot color="bg-amber-200" label="Possibly available" />
+            <LegendDot color="bg-violet-200" label="Booked" />
           </>
         )}
       </div>
@@ -297,6 +317,7 @@ function MonthGrid({
   year,
   month,
   getDayInfo,
+  getBookedGuest,
   isInSelection,
   onDayClick,
   onDayHover,
@@ -306,6 +327,7 @@ function MonthGrid({
   year: number;
   month: number;
   getDayInfo: (date: string) => DayInfo;
+  getBookedGuest: (date: string) => { stayId: string; guestName?: string; guestAvatar?: string | null } | null;
   isInSelection: (date: string) => boolean;
   onDayClick: (date: string) => void;
   onDayHover: (date: string) => void;
@@ -339,15 +361,16 @@ function MonthGrid({
         {days.map((date) => {
           const dateStr = formatDateStr(date);
           const info = getDayInfo(dateStr);
+          const guest = getBookedGuest(dateStr);
           const inSelection = isInSelection(dateStr);
           const isInteractive =
             mode === "edit" &&
-            info.status !== "booked" &&
             info.status !== "prep";
+          const isBookedClickable = mode === "edit" && info.status === "booked";
 
-          // In readonly mode, hide blocked dates (show as empty)
+          // In readonly mode, hide blocked/prep dates (show as empty), but show booked
           const displayStatus =
-            mode === "readonly" && (info.status === "blocked" || info.status === "prep" || info.status === "booked")
+            mode === "readonly" && (info.status === "blocked" || info.status === "prep")
               ? "empty"
               : info.status;
 
@@ -358,21 +381,47 @@ function MonthGrid({
               disabled={!isInteractive && mode === "edit"}
               onClick={() => onDayClick(dateStr)}
               onMouseEnter={() => onDayHover(dateStr)}
+              title={
+                info.status === "booked" && guest?.guestName
+                  ? `${guest.guestName} — Click to view stay`
+                  : undefined
+              }
               className={cn(
                 "aspect-square flex flex-col items-center justify-center rounded-lg text-xs relative transition-all border",
                 STATUS_COLORS[displayStatus],
                 info.isToday && "ring-2 ring-primary ring-offset-1",
                 info.isPast && mode === "edit" && "opacity-40",
                 inSelection && "ring-2 ring-primary/60 bg-primary-light/50",
-                isInteractive && "cursor-pointer hover:ring-2 hover:ring-primary/40",
-                selecting && isInteractive && "cursor-crosshair",
+                isInteractive && !isBookedClickable && "cursor-pointer hover:ring-2 hover:ring-primary/40",
+                isBookedClickable && "cursor-pointer hover:ring-2 hover:ring-violet-400",
+                selecting && isInteractive && !isBookedClickable && "cursor-crosshair",
                 !isInteractive && mode === "edit" && "cursor-default"
               )}
             >
+              {/* Guest avatar on booked days (edit mode) */}
+              {info.status === "booked" && guest?.guestAvatar && mode === "edit" && (
+                <img
+                  src={guest.guestAvatar}
+                  alt=""
+                  className="absolute -top-1 -right-1 size-4 rounded-full border border-white object-cover"
+                />
+              )}
+              {/* Guest initial on booked days without avatar (edit mode) */}
+              {info.status === "booked" && !guest?.guestAvatar && guest?.guestName && mode === "edit" && (
+                <span className="absolute -top-1 -right-1 size-4 rounded-full bg-violet-300 border border-white flex items-center justify-center text-[7px] font-bold text-white">
+                  {guest.guestName.charAt(0)}
+                </span>
+              )}
               <span className="font-medium">{date.getDate()}</span>
               {info.price !== null && displayStatus !== "empty" && (
                 <span className="text-[8px] leading-none opacity-70">
                   ${Math.round(info.price)}
+                </span>
+              )}
+              {/* Show guest first name on booked days in edit mode */}
+              {info.status === "booked" && guest?.guestName && mode === "edit" && (
+                <span className="text-[7px] leading-none text-violet-700 truncate max-w-full px-0.5">
+                  {guest.guestName.split(" ")[0]}
                 </span>
               )}
             </button>

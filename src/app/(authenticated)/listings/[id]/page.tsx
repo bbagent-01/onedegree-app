@@ -40,20 +40,31 @@ export default async function ListingDetailPage({ params }: Props) {
     viewerScore = scores?.[0]?.score ?? 0;
   }
 
-  // Fetch booked stays for this listing (confirmed stays)
+  // Fetch booked stays for this listing (confirmed stays) with guest info
   const { data: stayRows } = await supabase
     .from("stay_confirmations")
-    .select("id, check_in, check_out")
+    .select("id, check_in, check_out, guest_id")
     .eq("listing_id", id)
     .or("host_confirmed.eq.true,guest_confirmed.eq.true");
 
+  const guestIds = [...new Set((stayRows || []).map((s) => s.guest_id).filter(Boolean))];
+  const { data: guestUsers } = guestIds.length
+    ? await supabase.from("users").select("id, name, avatar_url").in("id", guestIds)
+    : { data: [] };
+  const guestMap = new Map((guestUsers || []).map((u) => [u.id, u]));
+
   const bookedStays = (stayRows || [])
     .filter((s) => s.check_in && s.check_out)
-    .map((s) => ({
-      id: s.id,
-      check_in: s.check_in as string,
-      check_out: s.check_out as string,
-    }));
+    .map((s) => {
+      const guest = guestMap.get(s.guest_id);
+      return {
+        id: s.id,
+        check_in: s.check_in as string,
+        check_out: s.check_out as string,
+        guest_name: guest?.name ?? undefined,
+        guest_avatar_url: guest?.avatar_url ?? null,
+      };
+    });
 
   // Calendar settings from listing
   const calendarSettings = {

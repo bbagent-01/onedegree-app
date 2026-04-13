@@ -16,6 +16,8 @@ export interface BookedStay {
   id: string;
   check_in: string;
   check_out: string;
+  guest_name?: string;
+  guest_avatar_url?: string | null;
 }
 
 export interface CalendarSettings {
