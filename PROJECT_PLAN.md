@@ -29,7 +29,8 @@ Both groups are aged 25–45, travel regularly, and are already doing this infor
 | MVP app | https://app.onedegreebnb.com |
 | Landing repo | bbagent-01/onedegree-bnb (Cloudflare Pages, auto-deploy on push to main) |
 | App repo | bbagent-01/onedegree-app (GitHub Actions → Cloudflare Pages) |
-| Landing local | ~/Dropbox/Claude/Projects/onedegree-bnb |
+| Landing local | ~/Claude/Projects/onedegree-bnb |
+| App local | ~/Claude/Projects/onedegree-app |
 | Notion SOT | Page ID 33384c6b-0fdc-811b-8ff1-c7d49dc71b79 |
 | Domains | onedegreebnb.com (primary), 1degreebnb.com (redirect), app.onedegreebnb.com (app) |
 
