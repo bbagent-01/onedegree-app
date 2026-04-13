@@ -3,126 +3,21 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* Warm palette — aligned with v5 landing page */
-    --background: #FAF8F5;
-    --background-mid: #F3F0EB;
-    --background-dark: #EBE7E0;
-    --foreground: #1A1D21;
-    --foreground-secondary: #6B7280;
-    --foreground-tertiary: #9CA3AF;
-
-    --card: rgba(255, 255, 255, 0.55);
-    --card-solid: #FFFFFF;
-    --card-foreground: #1A1D21;
-    --popover: #FFFFFF;
-    --popover-foreground: #1A1D21;
-
-    /* Purple accent system */
-    --primary: #6366F1;
-    --primary-top: #8B5CF6;
-    --primary-bot: #312E81;
-    --primary-light: #F5F3FF;
-    --primary-border: #DDD6FE;
-    --primary-dark: #1E1B4B;
-    --primary-foreground: #FFFFFF;
-
-    --secondary: #F3F0EB;
-    --secondary-foreground: #1A1D21;
-    --muted: #F3F0EB;
-    --muted-foreground: #6B7280;
-    --accent: #F5F3FF;
-    --accent-foreground: #6366F1;
-    --destructive: #DC2626;
-
-    --border: #E5E1DA;
-    --input: #E5E1DA;
-    --ring: #8B5CF6;
-
-    /* Radius */
-    --radius: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
-    --radius-2xl: 32px;
-
-    /* Sidebar */
-    --sidebar: rgba(255, 255, 255, 0.7);
-    --sidebar-foreground: #1A1D21;
-    --sidebar-primary: #6366F1;
-    --sidebar-primary-foreground: #FFFFFF;
-    --sidebar-accent: rgba(0, 0, 0, 0.04);
-    --sidebar-accent-foreground: #1A1D21;
-    --sidebar-border: #E5E1DA;
-    --sidebar-ring: #8B5CF6;
-
-    /* Trust score colors */
-    --trust-low: #EF4444;
-    --trust-building: #F59E0B;
-    --trust-solid: #059669;
-    --trust-exceptional: #8B5CF6;
-
-    /* Glass */
-    --glass-bg: rgba(255, 255, 255, 0.55);
-    --glass-bg-strong: rgba(255, 255, 255, 0.75);
-    --glass-border: rgba(255, 255, 255, 0.4);
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
-    --glass-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.08);
-
-    /* Status */
-    --green: #059669;
-    --green-light: #ECFDF5;
-    --green-border: #A7F3D0;
-    --red: #DC2626;
-    --red-light: #FEF2F2;
-    --red-border: #FECACA;
-  }
-
   * {
-    @apply border-border;
+    border-color: theme("colors.border");
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'DM Sans', -apple-system, sans-serif;
-    line-height: 1.65;
-  }
-
-  h1, h2, h3 {
-    font-family: 'Instrument Serif', Georgia, serif;
-    font-weight: 400;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
+    font-family: "DM Sans", system-ui, sans-serif;
   }
 }
 
-/* Glass utility */
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--glass-shadow);
+/* Hide scrollbar for category filter */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-
-.glass-strong {
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(32px);
-  -webkit-backdrop-filter: blur(32px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--glass-shadow-lg);
-}
-
-/* Purple gradient text */
-.grad-text {
-  background: linear-gradient(135deg, #8B5CF6 0%, #312E81 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Trust score glow */
-.trust-glow {
-  box-shadow: 0 0 12px -2px var(--trust-color, #8B5CF6);
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
