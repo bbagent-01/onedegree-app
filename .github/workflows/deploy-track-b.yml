@@ -19,8 +19,15 @@ jobs:
 
       - run: npx @cloudflare/next-on-pages
 
+      - name: Create Pages project if needed
+        run: |
+          npx wrangler pages project create onedegree-app-track-b --production-branch=track-b/airbnb-clone 2>/dev/null || true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler pages deploy .vercel/output/static --project-name=onedegree-app-track-b
+        run: npx wrangler pages deploy .vercel/output/static --project-name=onedegree-app-track-b --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
