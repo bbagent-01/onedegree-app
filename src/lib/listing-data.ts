@@ -29,6 +29,7 @@ export interface ListingRow {
   checkout_time: string;
   blocked_checkin_days: string[];
   blocked_checkout_days: string[];
+  default_availability_status: string | null;
 
   is_active: boolean;
   created_at: string;

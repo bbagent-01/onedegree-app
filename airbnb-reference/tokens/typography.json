@@ -1,0 +1,115 @@
+{
+  "_meta": {
+    "description": "Typography tokens from Airbnb clone reference repos — SIZE and WEIGHT values only",
+    "source": "aumsoni2002, ski043, krgyaan component analysis",
+    "date": "2026-04-13",
+    "note": "1DB uses DM Sans + JetBrains Mono. These are structural values only."
+  },
+  "font_families": {
+    "_reference_only": {
+      "aumsoni2002": "System default (no custom font)",
+      "ski043": "Inter (next/font/google)",
+      "krgyaan": "Inter (next/font/google)"
+    },
+    "1db_primary": "DM Sans",
+    "1db_mono": "JetBrains Mono"
+  },
+  "font_size_scale": {
+    "xs": "12px (text-xs)",
+    "sm": "14px (text-sm)",
+    "base": "16px (text-base)",
+    "lg": "18px (text-lg)",
+    "xl": "20px (text-xl)",
+    "2xl": "24px (text-2xl)",
+    "3xl": "30px (text-3xl)",
+    "4xl": "36px (text-4xl)"
+  },
+  "font_weights": {
+    "normal": 400,
+    "medium": 500,
+    "semibold": 600,
+    "bold": 700
+  },
+  "line_heights": {
+    "tight": 1.25,
+    "snug": 1.375,
+    "normal": 1.5,
+    "relaxed": 1.625
+  },
+  "semantic_roles": {
+    "page_title": {
+      "size": "text-3xl to text-4xl (30-36px)",
+      "weight": "font-bold (700)",
+      "line_height": "tight (1.25)",
+      "color": "foreground / text-primary"
+    },
+    "section_heading": {
+      "size": "text-xl to text-2xl (20-24px)",
+      "weight": "font-semibold (600)",
+      "line_height": "snug (1.375)",
+      "color": "foreground"
+    },
+    "card_title": {
+      "size": "text-base to text-lg (16-18px)",
+      "weight": "font-semibold (600)",
+      "line_height": "snug (1.375)",
+      "color": "foreground"
+    },
+    "body": {
+      "size": "text-sm to text-base (14-16px)",
+      "weight": "font-normal (400)",
+      "line_height": "normal (1.5)",
+      "color": "foreground"
+    },
+    "body_secondary": {
+      "size": "text-sm (14px)",
+      "weight": "font-normal (400)",
+      "line_height": "normal (1.5)",
+      "color": "muted-foreground"
+    },
+    "caption": {
+      "size": "text-xs (12px)",
+      "weight": "font-normal (400) to font-medium (500)",
+      "line_height": "normal (1.5)",
+      "color": "muted-foreground"
+    },
+    "label": {
+      "size": "text-sm (14px)",
+      "weight": "font-medium (500)",
+      "line_height": "snug (1.375)",
+      "color": "foreground"
+    },
+    "price": {
+      "size": "text-base to text-lg (16-18px)",
+      "weight": "font-semibold (600) to font-bold (700)",
+      "line_height": "tight (1.25)",
+      "color": "foreground"
+    },
+    "price_unit": {
+      "size": "text-sm (14px)",
+      "weight": "font-normal (400)",
+      "color": "muted-foreground",
+      "example": "/ night"
+    },
+    "button_text": {
+      "size": "text-sm (14px)",
+      "weight": "font-medium (500)",
+      "line_height": "normal (1.5)"
+    },
+    "nav_link": {
+      "size": "text-sm (14px)",
+      "weight": "font-medium (500)",
+      "color": "foreground"
+    },
+    "category_label": {
+      "size": "text-xs to text-sm (12-14px)",
+      "weight": "font-medium (500)",
+      "color": "muted-foreground (inactive) / foreground (active)"
+    }
+  },
+  "text_truncation": {
+    "card_title": "line-clamp-1 (single line truncation)",
+    "card_description": "line-clamp-2 (two line truncation)",
+    "property_tagline": "truncated to 40 chars (aumsoni2002)"
+  }
+}
