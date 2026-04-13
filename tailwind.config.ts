@@ -11,32 +11,32 @@ const config: Config = {
       colors: {
         brand: {
           DEFAULT: "#2563EB",
-          "50": "#EFF6FF",
-          "100": "#DBEAFE",
-          "200": "#BFDBFE",
-          "300": "#93C5FD",
-          "400": "#60A5FA",
-          "500": "#2563EB",
-          "600": "#1D4ED8",
-          "700": "#1E40AF",
+          50: "#EFF6FF",
+          100: "#DBEAFE",
+          200: "#BFDBFE",
+          300: "#93C5FD",
+          400: "#60A5FA",
+          500: "#2563EB",
+          600: "#1D4ED8",
+          700: "#1E40AF",
           foreground: "#FFFFFF",
         },
         success: {
           DEFAULT: "#059669",
-          "50": "#ECFDF5",
-          "100": "#D1FAE5",
+          50: "#ECFDF5",
+          100: "#D1FAE5",
           foreground: "#FFFFFF",
         },
         warning: {
           DEFAULT: "#D97706",
-          "50": "#FFFBEB",
-          "100": "#FEF3C7",
+          50: "#FFFBEB",
+          100: "#FEF3C7",
           foreground: "#FFFFFF",
         },
         danger: {
           DEFAULT: "#DC2626",
-          "50": "#FEF2F2",
-          "100": "#FEE2E2",
+          50: "#FEF2F2",
+          100: "#FEE2E2",
           foreground: "#FFFFFF",
         },
         background: "#FFFFFF",
@@ -84,6 +84,17 @@ const config: Config = {
           exceptional: "#8B5CF6",
         },
       },
+      boxShadow: {
+        card: "0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06)",
+        "card-hover": "0 4px 12px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)",
+        dropdown: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        modal: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+        search: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "search-hover": "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+      },
+      maxWidth: {
+        container: "1400px",
+      },
       borderRadius: {
         sm: "4px",
         md: "6px",
@@ -91,17 +102,6 @@ const config: Config = {
         xl: "12px",
         "2xl": "16px",
         pill: "9999px",
-      },
-      boxShadow: {
-        card: "0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06)",
-        "card-hover":
-          "0 4px 12px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)",
-        dropdown:
-          "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
-        modal:
-          "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
-        search: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        "search-hover": "0 4px 6px -1px rgb(0 0 0 / 0.1)",
       },
       fontFamily: {
         sans: ["DM Sans", "system-ui", "sans-serif"],
@@ -118,12 +118,9 @@ const config: Config = {
         "4xl": ["36px", { lineHeight: "40px" }],
       },
       spacing: {
-        "18": "72px",
-        "88": "352px",
-        "128": "512px",
-      },
-      maxWidth: {
-        container: "1280px",
+        18: "72px",
+        88: "352px",
+        128: "512px",
       },
       keyframes: {
         "accordion-down": {

@@ -1,27 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { mockListings, type Category } from "@/lib/mock-listings";
 import { CategoryFilterBar } from "@/components/category-filter-bar";
 import { ListingGrid } from "@/components/listing-grid";
-import { MOCK_LISTINGS } from "@/lib/mock-listings";
 
 export default function ExplorePage() {
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
 
-  const filtered =
-    activeCategory === "all"
-      ? MOCK_LISTINGS
-      : MOCK_LISTINGS.filter((l) => l.category === activeCategory);
+  const filteredListings = useMemo(() => {
+    if (!activeCategory) return mockListings;
+    return mockListings.filter((l) => l.category === activeCategory);
+  }, [activeCategory]);
 
   return (
-    <>
-      <CategoryFilterBar
-        activeCategory={activeCategory}
-        onCategoryChange={setActiveCategory}
-      />
-      <div className="mx-auto max-w-container px-5 md:px-10 py-6">
-        <ListingGrid listings={filtered} />
+    <div className="mx-auto max-w-container px-4 md:px-6">
+      {/* Category filter */}
+      <div className="sticky top-0 md:top-16 z-40 bg-white pt-2">
+        <CategoryFilterBar
+          activeCategory={activeCategory}
+          onCategoryChange={setActiveCategory}
+        />
       </div>
-    </>
+
+      {/* Listing grid */}
+      <div className="py-6">
+        <ListingGrid listings={filteredListings} />
+      </div>
+    </div>
   );
 }
