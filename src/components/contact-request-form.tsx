@@ -164,6 +164,11 @@ export function ContactRequestForm({
                       prepDays={0}
                       mode="edit"
                       onSelectRange={handleCalendarSelect}
+                      selectedRange={
+                        checkIn && checkOut
+                          ? { start: checkIn, end: checkOut }
+                          : null
+                      }
                     />
                   </div>
                 )}

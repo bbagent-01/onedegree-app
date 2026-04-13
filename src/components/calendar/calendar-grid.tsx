@@ -52,6 +52,8 @@ interface CalendarGridProps {
   mode: "edit" | "readonly";
   onSelectRange?: (start: string, end: string) => void;
   onBookedStayClick?: (stayId: string) => void;
+  /** Externally-controlled selected range (e.g. from booking form) */
+  selectedRange?: { start: string; end: string } | null;
 }
 
 export function CalendarGrid({
@@ -61,6 +63,7 @@ export function CalendarGrid({
   mode,
   onSelectRange,
   onBookedStayClick,
+  selectedRange,
 }: CalendarGridProps) {
   const today = new Date();
   const todayStr = formatDateStr(today);
@@ -188,12 +191,19 @@ export function CalendarGrid({
   );
 
   function isInSelection(dateStr: string): boolean {
-    if (!selectStart || !selectEnd) return false;
-    const [s, e] =
-      selectStart <= selectEnd
-        ? [selectStart, selectEnd]
-        : [selectEnd, selectStart];
-    return dateStr >= s && dateStr <= e;
+    // Active drag selection
+    if (selectStart && selectEnd) {
+      const [s, e] =
+        selectStart <= selectEnd
+          ? [selectStart, selectEnd]
+          : [selectEnd, selectStart];
+      if (dateStr >= s && dateStr <= e) return true;
+    }
+    // External selected range (e.g. booking form keeps dates highlighted)
+    if (selectedRange) {
+      return dateStr >= selectedRange.start && dateStr <= selectedRange.end;
+    }
+    return false;
   }
 
   function navigateMonth(direction: -1 | 1) {

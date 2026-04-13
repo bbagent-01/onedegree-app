@@ -3,7 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-// POST: bulk-set all unset days within a date window to a given status
+// POST: set base availability for all days (replaces existing ranges, preserves booked stays)
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -44,66 +44,61 @@ export async function POST(
     return Response.json({ error: "Invalid status" }, { status: 400 });
   }
 
-  // Get existing ranges and booked stays for this listing
-  const [{ data: existingRanges }, { data: bookedStays }] = await Promise.all([
-    supabase
-      .from("listing_availability")
-      .select("start_date, end_date")
-      .eq("listing_id", listingId),
-    supabase
-      .from("stay_confirmations")
-      .select("check_in, check_out")
-      .eq("listing_id", listingId)
-      .or("host_confirmed.eq.true,guest_confirmed.eq.true"),
-  ]);
+  // Delete ALL existing availability ranges for this listing
+  const { error: deleteError } = await supabase
+    .from("listing_availability")
+    .delete()
+    .eq("listing_id", listingId);
 
-  // Build a Set of all dates that are already set (have a range or booking)
-  const setDates = new Set<string>();
-
-  for (const range of existingRanges || []) {
-    let d = range.start_date;
-    while (d <= range.end_date) {
-      setDates.add(d);
-      d = addDays(d, 1);
-    }
+  if (deleteError) {
+    console.error("Bulk delete error:", deleteError);
+    return new Response("Failed to clear availability", { status: 500 });
   }
 
+  // Get booked stays to leave gaps around them
+  const { data: bookedStays } = await supabase
+    .from("stay_confirmations")
+    .select("check_in, check_out")
+    .eq("listing_id", listingId)
+    .or("host_confirmed.eq.true,guest_confirmed.eq.true");
+
+  // Build set of booked dates
+  const bookedDates = new Set<string>();
   for (const stay of bookedStays || []) {
     if (!stay.check_in || !stay.check_out) continue;
     let d = stay.check_in;
     while (d < stay.check_out) {
-      setDates.add(d);
+      bookedDates.add(d);
       d = addDays(d, 1);
     }
   }
 
-  // Find contiguous stretches of unset days and create ranges for them
-  const unsetRanges: { start: string; end: string }[] = [];
+  // Build contiguous ranges that skip booked dates
+  const newRanges: { start: string; end: string }[] = [];
   let currentStart: string | null = null;
   let d = start_date;
 
   while (d <= end_date) {
-    if (!setDates.has(d)) {
+    if (!bookedDates.has(d)) {
       if (!currentStart) currentStart = d;
     } else {
       if (currentStart) {
-        unsetRanges.push({ start: currentStart, end: addDays(d, -1) });
+        newRanges.push({ start: currentStart, end: addDays(d, -1) });
         currentStart = null;
       }
     }
     d = addDays(d, 1);
   }
-  // Close final range
   if (currentStart) {
-    unsetRanges.push({ start: currentStart, end: end_date });
+    newRanges.push({ start: currentStart, end: end_date });
   }
 
-  if (unsetRanges.length === 0) {
-    return Response.json({ message: "No unset days found", created: 0 });
+  if (newRanges.length === 0) {
+    return Response.json({ message: "No days to set", created: 0 });
   }
 
-  // Insert the new ranges
-  const inserts = unsetRanges.map((r) => ({
+  // Insert new ranges
+  const inserts = newRanges.map((r) => ({
     listing_id: listingId,
     start_date: r.start,
     end_date: r.end,
@@ -116,7 +111,7 @@ export async function POST(
     return new Response("Failed to set availability", { status: 500 });
   }
 
-  return Response.json({ message: "Bulk set complete", created: unsetRanges.length });
+  return Response.json({ message: "Bulk set complete", created: newRanges.length });
 }
 
 function addDays(dateStr: string, days: number): string {

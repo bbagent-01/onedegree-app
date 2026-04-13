@@ -173,7 +173,7 @@ export function CalendarManager({
               className="text-xs gap-1.5"
             >
               <Paintbrush className="size-3.5" />
-              {bulkSaving ? "Setting..." : "Set all unset days"}
+              {bulkSaving ? "Setting..." : "Set all days"}
             </Button>
 
             {bulkOpen && (
@@ -185,7 +185,7 @@ export function CalendarManager({
                 />
                 <div className="absolute right-0 top-full mt-1 z-20 w-52 rounded-lg border border-border bg-white p-2 shadow-lg">
                   <p className="text-[10px] text-foreground-tertiary px-2 pb-2">
-                    Only affects dates with no status set. Already-set dates and booked stays are not changed.
+                    Sets all days to one status. Booked stays are preserved. You can override specific dates afterward.
                   </p>
                   {BULK_OPTIONS.map((opt) => (
                     <button
@@ -193,7 +193,7 @@ export function CalendarManager({
                       onClick={() => handleBulkSet(opt.status)}
                       className={`w-full text-left rounded-md px-3 py-2 text-xs font-medium transition-colors ${opt.color}`}
                     >
-                      Mark all unset as {opt.label}
+                      Set all to{opt.label}
                     </button>
                   ))}
                 </div>
