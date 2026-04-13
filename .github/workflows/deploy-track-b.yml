@@ -17,7 +17,15 @@ jobs:
 
       - run: npm install
 
-      - run: npx @cloudflare/next-on-pages
+      - name: Build with next-on-pages
+        run: npx @cloudflare/next-on-pages
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_APP_URL: https://alpha-b.onedegreebnb.com
 
       - name: Create Pages project if needed
         run: |
@@ -26,8 +34,24 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      - name: Set environment variables on Pages project
+        run: |
+          curl -s -X PATCH \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/onedegree-app-track-b" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"deployment_configs\":{\"production\":{\"env_vars\":{\"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY\":{\"value\":\"${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}\"},\"CLERK_SECRET_KEY\":{\"value\":\"${{ secrets.CLERK_SECRET_KEY }}\"},\"NEXT_PUBLIC_SUPABASE_URL\":{\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}\"},\"NEXT_PUBLIC_SUPABASE_ANON_KEY\":{\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}\"},\"SUPABASE_SERVICE_ROLE_KEY\":{\"value\":\"${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}\"},\"NEXT_PUBLIC_APP_URL\":{\"value\":\"https://alpha-b.onedegreebnb.com\"}}}}}"
+
       - name: Deploy to Cloudflare Pages
         run: npx wrangler pages deploy .vercel/output/static --project-name=onedegree-app-track-b --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Map custom domain
+        run: |
+          curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/onedegree-app-track-b/domains" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"alpha-b.onedegreebnb.com"}' || true
