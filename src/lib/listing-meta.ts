@@ -26,6 +26,14 @@ export interface ListingMeta {
     lng?: number;
   };
   cleaningFee?: number;
+  // Extended description sections (Airbnb-style)
+  propertyOverview?: string;
+  guestAccess?: string;
+  interactionWithGuests?: string;
+  otherDetails?: string;
+  // Pricing extras
+  weeklyDiscount?: number; // percentage
+  monthlyDiscount?: number; // percentage
 }
 
 const META_RE = /^<!--meta:(\{.*?\})-->\s*\n?/;

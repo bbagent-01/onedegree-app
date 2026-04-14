@@ -70,6 +70,8 @@ export default async function EditListingPage({ params }: PageProps) {
             amenities: listing.amenities || [],
             house_rules: listing.house_rules || "",
             min_nights: listing.min_nights ?? 1,
+            advance_notice_days: listing.advance_notice_days ?? 1,
+            prep_days: listing.prep_days ?? 0,
             checkin_time: listing.checkin_time || "15:00",
             checkout_time: listing.checkout_time || "11:00",
             meta,

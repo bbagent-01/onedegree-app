@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Star, Pencil } from "lucide-react";
+import { Plus, Star, Pencil, CalendarDays } from "lucide-react";
 import type { HostingListing } from "@/lib/hosting-data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -111,13 +111,23 @@ function ListingCard({
             />
             <span>{listing.is_active ? "Listed" : "Paused"}</span>
           </div>
-          <Link
-            href={`/hosting/listings/${listing.id}/edit`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-600"
-          >
-            <Pencil className="h-3 w-3" />
-            Edit
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <Link
+              href={`/hosting/listings/${listing.id}/edit?tab=availability`}
+              className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30"
+              title="Calendar"
+            >
+              <CalendarDays className="h-3 w-3" />
+              Calendar
+            </Link>
+            <Link
+              href={`/hosting/listings/${listing.id}/edit`}
+              className="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-600"
+            >
+              <Pencil className="h-3 w-3" />
+              Edit
+            </Link>
+          </div>
         </div>
       </div>
     </div>

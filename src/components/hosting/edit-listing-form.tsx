@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Tabs,
   TabsContent,
@@ -35,11 +36,18 @@ interface InitialData {
   amenities: string[];
   house_rules: string;
   min_nights: number;
+  advance_notice_days: number;
+  prep_days: number;
   checkin_time: string;
   checkout_time: string;
   meta: ListingMeta;
   photos: UploadedPhoto[];
 }
+
+const BIG_INPUT =
+  "h-14 rounded-xl border-2 border-border bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
+const BIG_TEXTAREA =
+  "rounded-xl border-2 border-border bg-white px-4 py-3 text-base shadow-sm focus-visible:border-brand";
 
 const AMENITIES = [
   "Wifi",
@@ -86,10 +94,55 @@ export function EditListingForm({
   const [amenities, setAmenities] = useState<string[]>(initial.amenities);
   const [houseRules, setHouseRules] = useState(initial.house_rules);
   const [minNights, setMinNights] = useState(String(initial.min_nights));
+  const [advanceNotice, setAdvanceNotice] = useState(
+    String(initial.advance_notice_days ?? 1)
+  );
+  const [prepDays, setPrepDays] = useState(String(initial.prep_days ?? 0));
+  const [weeklyDiscount, setWeeklyDiscount] = useState(
+    initial.meta.weeklyDiscount ? String(initial.meta.weeklyDiscount) : ""
+  );
+  const [monthlyDiscount, setMonthlyDiscount] = useState(
+    initial.meta.monthlyDiscount ? String(initial.meta.monthlyDiscount) : ""
+  );
+  const [propertyOverview, setPropertyOverview] = useState(
+    initial.meta.propertyOverview || ""
+  );
+  const [guestAccess, setGuestAccess] = useState(
+    initial.meta.guestAccess || ""
+  );
+  const [interactionWithGuests, setInteractionWithGuests] = useState(
+    initial.meta.interactionWithGuests || ""
+  );
+  const [otherDetails, setOtherDetails] = useState(
+    initial.meta.otherDetails || ""
+  );
   const [checkIn, setCheckIn] = useState(initial.checkin_time);
   const [checkOut, setCheckOut] = useState(initial.checkout_time);
   const [photos, setPhotos] = useState<UploadedPhoto[]>(initial.photos);
   const [saving, setSaving] = useState(false);
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") || "details";
+  const [tab, setTab] = useState(initialTab);
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t) setTab(t);
+  }, [searchParams]);
+
+  const buildMeta = (): ListingMeta => ({
+    ...initial.meta,
+    propertyLabel: propertyLabel || undefined,
+    guests,
+    bedrooms,
+    beds,
+    bathrooms,
+    cleaningFee: cleaningFee ? Number(cleaningFee) : undefined,
+    propertyOverview: propertyOverview || undefined,
+    guestAccess: guestAccess || undefined,
+    interactionWithGuests: interactionWithGuests || undefined,
+    otherDetails: otherDetails || undefined,
+    weeklyDiscount: weeklyDiscount ? Number(weeklyDiscount) : undefined,
+    monthlyDiscount: monthlyDiscount ? Number(monthlyDiscount) : undefined,
+  });
 
   const toggleAmenity = (a: string) =>
     setAmenities((prev) =>
@@ -99,15 +152,7 @@ export function EditListingForm({
   const saveDetails = async () => {
     setSaving(true);
     try {
-      const meta: ListingMeta = {
-        ...initial.meta,
-        propertyLabel: propertyLabel || undefined,
-        guests,
-        bedrooms,
-        beds,
-        bathrooms,
-        cleaningFee: cleaningFee ? Number(cleaningFee) : undefined,
-      };
+      const meta = buildMeta();
       const res = await fetch(`/api/listings/${listingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -147,17 +192,7 @@ export function EditListingForm({
           body: JSON.stringify({
             price_min: price ? Number(price) : null,
             price_max: price ? Number(price) : null,
-            description: encodeListingMeta(
-              {
-                ...initial.meta,
-                cleaningFee: cleaningFee ? Number(cleaningFee) : undefined,
-                guests,
-                bedrooms,
-                beds,
-                bathrooms,
-              },
-              description
-            ),
+            description: encodeListingMeta(buildMeta(), description),
           }),
         }),
         fetch(`/api/listings/${listingId}/calendar-settings`, {
@@ -165,6 +200,8 @@ export function EditListingForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             min_nights: Number(minNights) || 1,
+            advance_notice_days: Number(advanceNotice) || 0,
+            prep_days: Number(prepDays) || 0,
             checkin_time: checkIn,
             checkout_time: checkOut,
           }),
@@ -209,7 +246,7 @@ export function EditListingForm({
   };
 
   return (
-    <Tabs defaultValue="details" className="w-full">
+    <Tabs value={tab} onValueChange={setTab} className="w-full">
       <TabsList className="mb-6 w-full justify-start gap-2 overflow-x-auto">
         <TabsTrigger value="details">Details</TabsTrigger>
         <TabsTrigger value="photos">Photos</TabsTrigger>
@@ -218,35 +255,80 @@ export function EditListingForm({
         <TabsTrigger value="rules">House rules</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="details" className="space-y-5">
+      <TabsContent value="details" className="space-y-6">
         <div>
-          <Label>Title</Label>
+          <Label className="mb-2 block text-sm font-semibold">Title</Label>
           <Input
+            className={BIG_INPUT}
             value={title}
             onChange={(e) => setTitle(e.target.value.slice(0, 60))}
             maxLength={60}
           />
         </div>
         <div>
-          <Label>Description</Label>
+          <Label className="mb-2 block text-sm font-semibold">Listing description</Label>
           <Textarea
+            className={BIG_TEXTAREA}
             rows={5}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>
+        <div>
+          <Label className="mb-2 block text-sm font-semibold">Your property</Label>
+          <Textarea
+            className={BIG_TEXTAREA}
+            rows={4}
+            value={propertyOverview}
+            onChange={(e) => setPropertyOverview(e.target.value)}
+            placeholder="Describe the space, layout, views, and neighborhood."
+          />
+        </div>
+        <div>
+          <Label className="mb-2 block text-sm font-semibold">Guest access</Label>
+          <Textarea
+            className={BIG_TEXTAREA}
+            rows={3}
+            value={guestAccess}
+            onChange={(e) => setGuestAccess(e.target.value)}
+            placeholder="What parts of the property can guests use?"
+          />
+        </div>
+        <div>
+          <Label className="mb-2 block text-sm font-semibold">Interaction with guests</Label>
+          <Textarea
+            className={BIG_TEXTAREA}
+            rows={3}
+            value={interactionWithGuests}
+            onChange={(e) => setInteractionWithGuests(e.target.value)}
+            placeholder="How much will you be around during their stay?"
+          />
+        </div>
+        <div>
+          <Label className="mb-2 block text-sm font-semibold">Other details to note</Label>
+          <Textarea
+            className={BIG_TEXTAREA}
+            rows={3}
+            value={otherDetails}
+            onChange={(e) => setOtherDetails(e.target.value)}
+            placeholder="Stairs, pets on property, quirks guests should know about."
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>Property label</Label>
+            <Label className="mb-2 block text-sm font-semibold">Property label</Label>
             <Input
+              className={BIG_INPUT}
               value={propertyLabel}
               onChange={(e) => setPropertyLabel(e.target.value)}
               placeholder="House, Apartment, Condo…"
             />
           </div>
           <div>
-            <Label>Neighborhood</Label>
+            <Label className="mb-2 block text-sm font-semibold">Neighborhood</Label>
             <Input
+              className={BIG_INPUT}
               value={areaName}
               onChange={(e) => setAreaName(e.target.value)}
             />
@@ -254,7 +336,7 @@ export function EditListingForm({
         </div>
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <NumberField label="Guests" value={guests} onChange={setGuests} />
+          <NumberField label="Maximum guests" value={guests} onChange={setGuests} />
           <NumberField
             label="Bedrooms"
             value={bedrooms}
@@ -329,45 +411,111 @@ export function EditListingForm({
         </div>
       </TabsContent>
 
-      <TabsContent value="pricing" className="space-y-5">
-        <div className="grid grid-cols-2 gap-4">
+      <TabsContent value="pricing" className="space-y-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <Label>Nightly rate (USD)</Label>
+            <Label className="mb-2 block text-sm font-semibold">Nightly rate (USD)</Label>
             <Input
+              className={BIG_INPUT}
               type="number"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
             />
           </div>
           <div>
-            <Label>Cleaning fee (optional)</Label>
+            <Label className="mb-2 block text-sm font-semibold">Cleaning fee (optional)</Label>
             <Input
+              className={BIG_INPUT}
               type="number"
               value={cleaningFee}
               onChange={(e) => setCleaningFee(e.target.value)}
             />
           </div>
-          <div>
-            <Label>Minimum stay (nights)</Label>
-            <Input
-              type="number"
-              value={minNights}
-              onChange={(e) => setMinNights(e.target.value)}
-            />
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Discounts
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">Weekly discount (%)</Label>
+              <Input
+                className={BIG_INPUT}
+                type="number"
+                min={0}
+                max={90}
+                value={weeklyDiscount}
+                onChange={(e) => setWeeklyDiscount(e.target.value)}
+                placeholder="10"
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">Monthly discount (%)</Label>
+              <Input
+                className={BIG_INPUT}
+                type="number"
+                min={0}
+                max={90}
+                value={monthlyDiscount}
+                onChange={(e) => setMonthlyDiscount(e.target.value)}
+                placeholder="20"
+              />
+            </div>
           </div>
         </div>
+
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Booking rules
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">Minimum stay (nights)</Label>
+              <Input
+                className={BIG_INPUT}
+                type="number"
+                value={minNights}
+                onChange={(e) => setMinNights(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">Advance notice (days)</Label>
+              <Input
+                className={BIG_INPUT}
+                type="number"
+                min={0}
+                value={advanceNotice}
+                onChange={(e) => setAdvanceNotice(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">Prep days between bookings</Label>
+              <Input
+                className={BIG_INPUT}
+                type="number"
+                min={0}
+                value={prepDays}
+                onChange={(e) => setPrepDays(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>Check-in time</Label>
+            <Label className="mb-2 block text-sm font-semibold">Check-in time</Label>
             <Input
+              className={BIG_INPUT}
               type="time"
               value={checkIn}
               onChange={(e) => setCheckIn(e.target.value)}
             />
           </div>
           <div>
-            <Label>Check-out time</Label>
+            <Label className="mb-2 block text-sm font-semibold">Check-out time</Label>
             <Input
+              className={BIG_INPUT}
               type="time"
               value={checkOut}
               onChange={(e) => setCheckOut(e.target.value)}
@@ -392,8 +540,9 @@ export function EditListingForm({
 
       <TabsContent value="rules" className="space-y-4">
         <div>
-          <Label>House rules</Label>
+          <Label className="mb-2 block text-sm font-semibold">House rules</Label>
           <Textarea
+            className={BIG_TEXTAREA}
             rows={8}
             value={houseRules}
             onChange={(e) => setHouseRules(e.target.value)}
@@ -428,8 +577,9 @@ function NumberField({
 }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <Label className="mb-2 block text-sm font-semibold">{label}</Label>
       <Input
+        className={BIG_INPUT}
         type="number"
         step={step}
         value={value}

@@ -69,6 +69,16 @@ interface WizardState {
   price: string;
   cleaningFee: string;
   minNights: string;
+  // Extended description sections
+  propertyOverview: string;
+  guestAccess: string;
+  interactionWithGuests: string;
+  otherDetails: string;
+  // Discounts & notice
+  weeklyDiscount: string;
+  monthlyDiscount: string;
+  advanceNoticeDays: string;
+  prepDays: string;
 }
 
 const initialState: WizardState = {
@@ -97,10 +107,24 @@ const initialState: WizardState = {
   price: "",
   cleaningFee: "",
   minNights: "1",
+  propertyOverview: "",
+  guestAccess: "",
+  interactionWithGuests: "",
+  otherDetails: "",
+  weeklyDiscount: "",
+  monthlyDiscount: "",
+  advanceNoticeDays: "1",
+  prepDays: "0",
 };
 
 const STORAGE_KEY = "track-b:create-listing-draft";
 const TOTAL_STEPS = 7;
+
+// Shared big-input style — matches House Rules checkmark buttons (px-3 py-2.5, border-2, rounded-lg)
+const BIG_INPUT =
+  "h-14 rounded-xl border-2 border-border bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
+const BIG_TEXTAREA =
+  "rounded-xl border-2 border-border bg-white px-4 py-3 text-base shadow-sm focus-visible:border-brand";
 
 const AMENITY_GROUPS: Record<string, string[]> = {
   Essentials: ["Wifi", "Kitchen", "Washer", "Dryer", "Heating", "Air conditioning"],
@@ -268,6 +292,16 @@ export default function CreateListingPage() {
           lng: state.lng,
         },
         cleaningFee: state.cleaningFee ? Number(state.cleaningFee) : undefined,
+        propertyOverview: state.propertyOverview || undefined,
+        guestAccess: state.guestAccess || undefined,
+        interactionWithGuests: state.interactionWithGuests || undefined,
+        otherDetails: state.otherDetails || undefined,
+        weeklyDiscount: state.weeklyDiscount
+          ? Number(state.weeklyDiscount)
+          : undefined,
+        monthlyDiscount: state.monthlyDiscount
+          ? Number(state.monthlyDiscount)
+          : undefined,
       };
       const houseRulesText = [
         ...state.houseRules,
@@ -313,6 +347,8 @@ export default function CreateListingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           min_nights: Number(state.minNights) || 1,
+          advance_notice_days: Number(state.advanceNoticeDays) || 0,
+          prep_days: Number(state.prepDays) || 0,
           checkin_time: state.checkIn,
           checkout_time: state.checkOut,
         }),
@@ -520,8 +556,9 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
       />
       <div className="space-y-4">
         <div>
-          <Label>Street address</Label>
+          <Label className="mb-2 block text-sm font-semibold">Street address</Label>
           <Input
+            className={BIG_INPUT}
             value={state.street}
             onChange={(e) => update("street", e.target.value)}
             placeholder="123 Main St"
@@ -529,16 +566,18 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>City</Label>
+            <Label className="mb-2 block text-sm font-semibold">City</Label>
             <Input
+              className={BIG_INPUT}
               value={state.city}
               onChange={(e) => update("city", e.target.value)}
               placeholder="Brooklyn"
             />
           </div>
           <div>
-            <Label>State / Region</Label>
+            <Label className="mb-2 block text-sm font-semibold">State / Region</Label>
             <Input
+              className={BIG_INPUT}
               value={state.state}
               onChange={(e) => update("state", e.target.value)}
               placeholder="NY"
@@ -547,16 +586,18 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>Postal code</Label>
+            <Label className="mb-2 block text-sm font-semibold">Postal code</Label>
             <Input
+              className={BIG_INPUT}
               value={state.zip}
               onChange={(e) => update("zip", e.target.value)}
               placeholder="11201"
             />
           </div>
           <div>
-            <Label>Neighborhood (shown publicly)</Label>
+            <Label className="mb-2 block text-sm font-semibold">Neighborhood (shown publicly)</Label>
             <Input
+              className={BIG_INPUT}
               value={state.areaName}
               onChange={(e) => update("areaName", e.target.value)}
               placeholder="Williamsburg"
@@ -589,7 +630,7 @@ function Step3({
       />
       <div className="rounded-xl border border-border bg-card px-5">
         <Counter
-          label="Guests"
+          label="Maximum guests"
           value={state.guests}
           onChange={(v) => update("guests", v)}
           min={1}
@@ -690,10 +731,10 @@ function Step5({
         title="Now, let's give your place a title & details"
         subtitle="Short titles work best. Keep it punchy."
       />
-      <div className="space-y-5">
+      <div className="space-y-6">
         <div>
-          <div className="flex items-center justify-between">
-            <Label>Title</Label>
+          <div className="mb-2 flex items-center justify-between">
+            <Label className="text-sm font-semibold">Title</Label>
             <span
               className={cn(
                 "text-xs",
@@ -706,6 +747,7 @@ function Step5({
             </span>
           </div>
           <Input
+            className={BIG_INPUT}
             value={state.title}
             onChange={(e) => update("title", e.target.value.slice(0, 60))}
             placeholder="Sunny Brooklyn loft with rooftop"
@@ -713,8 +755,8 @@ function Step5({
           />
         </div>
         <div>
-          <div className="flex items-center justify-between">
-            <Label>Description</Label>
+          <div className="mb-2 flex items-center justify-between">
+            <Label className="text-sm font-semibold">Listing description</Label>
             <span
               className={cn(
                 "text-xs",
@@ -727,12 +769,54 @@ function Step5({
             </span>
           </div>
           <Textarea
+            className={BIG_TEXTAREA}
             rows={5}
             value={state.description}
             onChange={(e) =>
               update("description", e.target.value.slice(0, 600))
             }
             placeholder="Tell guests what makes your place special."
+          />
+        </div>
+
+        <div>
+          <Label className="mb-2 block text-sm font-semibold">Your property</Label>
+          <Textarea
+            className={BIG_TEXTAREA}
+            rows={4}
+            value={state.propertyOverview}
+            onChange={(e) => update("propertyOverview", e.target.value)}
+            placeholder="Describe the space, layout, views, and neighborhood."
+          />
+        </div>
+        <div>
+          <Label className="mb-2 block text-sm font-semibold">Guest access</Label>
+          <Textarea
+            className={BIG_TEXTAREA}
+            rows={3}
+            value={state.guestAccess}
+            onChange={(e) => update("guestAccess", e.target.value)}
+            placeholder="What parts of the property can guests use?"
+          />
+        </div>
+        <div>
+          <Label className="mb-2 block text-sm font-semibold">Interaction with guests</Label>
+          <Textarea
+            className={BIG_TEXTAREA}
+            rows={3}
+            value={state.interactionWithGuests}
+            onChange={(e) => update("interactionWithGuests", e.target.value)}
+            placeholder="How much will you be around during their stay?"
+          />
+        </div>
+        <div>
+          <Label className="mb-2 block text-sm font-semibold">Other details to note</Label>
+          <Textarea
+            className={BIG_TEXTAREA}
+            rows={3}
+            value={state.otherDetails}
+            onChange={(e) => update("otherDetails", e.target.value)}
+            placeholder="Stairs, pets on property, quirks guests should know about."
           />
         </div>
 
@@ -769,7 +853,7 @@ function Step5({
             })}
           </div>
           <Textarea
-            className="mt-3"
+            className={cn(BIG_TEXTAREA, "mt-3")}
             rows={3}
             value={state.customRules}
             onChange={(e) => update("customRules", e.target.value)}
@@ -779,16 +863,18 @@ function Step5({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label>Check-in time</Label>
+            <Label className="mb-2 block text-sm font-semibold">Check-in time</Label>
             <Input
+              className={BIG_INPUT}
               type="time"
               value={state.checkIn}
               onChange={(e) => update("checkIn", e.target.value)}
             />
           </div>
           <div>
-            <Label>Check-out time</Label>
+            <Label className="mb-2 block text-sm font-semibold">Check-out time</Label>
             <Input
+              className={BIG_INPUT}
               type="time"
               value={state.checkOut}
               onChange={(e) => update("checkOut", e.target.value)}
@@ -807,36 +893,102 @@ function Step6({ state, update }: { state: WizardState; update: UpdateFn }) {
         title="Now for the fun part — set your price"
         subtitle="You can offer discounts and adjust availability after publishing."
       />
-      <div className="space-y-5">
-        <div>
-          <Label>Nightly rate (USD)</Label>
-          <Input
-            type="number"
-            min={1}
-            value={state.price}
-            onChange={(e) => update("price", e.target.value)}
-            placeholder="150"
-          />
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <Label className="mb-2 block text-sm font-semibold">Nightly rate (USD)</Label>
+            <Input
+              className={BIG_INPUT}
+              type="number"
+              min={1}
+              value={state.price}
+              onChange={(e) => update("price", e.target.value)}
+              placeholder="150"
+            />
+          </div>
+          <div>
+            <Label className="mb-2 block text-sm font-semibold">Cleaning fee (optional)</Label>
+            <Input
+              className={BIG_INPUT}
+              type="number"
+              min={0}
+              value={state.cleaningFee}
+              onChange={(e) => update("cleaningFee", e.target.value)}
+              placeholder="50"
+            />
+          </div>
         </div>
+
         <div>
-          <Label>Cleaning fee (optional)</Label>
-          <Input
-            type="number"
-            min={0}
-            value={state.cleaningFee}
-            onChange={(e) => update("cleaningFee", e.target.value)}
-            placeholder="50"
-          />
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Discounts
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">Weekly discount (%)</Label>
+              <Input
+                className={BIG_INPUT}
+                type="number"
+                min={0}
+                max={90}
+                value={state.weeklyDiscount}
+                onChange={(e) => update("weeklyDiscount", e.target.value)}
+                placeholder="10"
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">Monthly discount (%)</Label>
+              <Input
+                className={BIG_INPUT}
+                type="number"
+                min={0}
+                max={90}
+                value={state.monthlyDiscount}
+                onChange={(e) => update("monthlyDiscount", e.target.value)}
+                placeholder="20"
+              />
+            </div>
+          </div>
         </div>
+
         <div>
-          <Label>Minimum stay (nights)</Label>
-          <Input
-            type="number"
-            min={1}
-            value={state.minNights}
-            onChange={(e) => update("minNights", e.target.value)}
-          />
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Booking rules
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">Minimum stay (nights)</Label>
+              <Input
+                className={BIG_INPUT}
+                type="number"
+                min={1}
+                value={state.minNights}
+                onChange={(e) => update("minNights", e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">Advance notice (days)</Label>
+              <Input
+                className={BIG_INPUT}
+                type="number"
+                min={0}
+                value={state.advanceNoticeDays}
+                onChange={(e) => update("advanceNoticeDays", e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">Prep days between bookings</Label>
+              <Input
+                className={BIG_INPUT}
+                type="number"
+                min={0}
+                value={state.prepDays}
+                onChange={(e) => update("prepDays", e.target.value)}
+              />
+            </div>
+          </div>
         </div>
+
         <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
           By default, all dates are available. You can block specific dates
           from the calendar after publishing.
