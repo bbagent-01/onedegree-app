@@ -190,7 +190,7 @@ export function FilterSheet({ priceRange, activeCount }: Props) {
         render={
           <Button
             variant="outline"
-            className="h-14 gap-2 rounded-full border-border bg-white px-6 text-sm font-medium shadow-sm hover:bg-white hover:shadow transition-shadow"
+            className="h-14 gap-2 rounded-full !border-border !bg-white px-6 text-sm font-medium shadow-sm hover:!bg-white hover:shadow transition-shadow"
           >
             <SlidersHorizontal className="h-4 w-4" />
             Filters

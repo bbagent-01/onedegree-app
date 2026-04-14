@@ -84,36 +84,32 @@ function escapeAttr(s: string): string {
   return s.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-function wirePopupCarousel(
-  root: HTMLElement,
-  L: typeof import("leaflet")
-) {
-  const count = parseInt(root.dataset.ppCount || "1", 10);
+/**
+ * Document-level click delegation for the popup photo carousel.
+ * Listens in the capture phase so it runs before Leaflet's own
+ * click handlers can intercept the event.
+ */
+function handleCarouselClick(ev: Event) {
+  const target = ev.target as HTMLElement | null;
+  if (!target) return;
+  const btn = target.closest<HTMLElement>("[data-pp-action]");
+  if (!btn) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  const card = btn.closest<HTMLElement>(".pp-card");
+  if (!card) return;
+  const count = parseInt(card.dataset.ppCount || "1", 10);
   if (count <= 1) return;
-  let idx = 0;
-  const slides = root.querySelectorAll<HTMLElement>(".pp-slide");
-  const dots = root.querySelectorAll<HTMLElement>(".pp-dot");
-  const update = () => {
-    slides.forEach((el, i) =>
-      el.classList.toggle("pp-slide-active", i === idx)
-    );
-    dots.forEach((el, i) => el.classList.toggle("pp-dot-active", i === idx));
-  };
-  const go = (delta: number) => {
-    idx = (idx + delta + count) % count;
-    update();
-  };
-  root.querySelectorAll<HTMLElement>("[data-pp-action]").forEach((btn) => {
-    // Stop Leaflet from swallowing button clicks or treating them as
-    // map interactions, then attach our own handler via L.DomEvent so
-    // it runs inside Leaflet's event system.
-    L.DomEvent.disableClickPropagation(btn);
-    L.DomEvent.on(btn, "click", (ev: Event) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      go(btn.dataset.ppAction === "next" ? 1 : -1);
-    });
-  });
+  const slides = card.querySelectorAll<HTMLElement>(".pp-slide");
+  const dots = card.querySelectorAll<HTMLElement>(".pp-dot");
+  let idx = Array.from(slides).findIndex((el) =>
+    el.classList.contains("pp-slide-active")
+  );
+  if (idx < 0) idx = 0;
+  const delta = btn.dataset.ppAction === "next" ? 1 : -1;
+  idx = (idx + delta + count) % count;
+  slides.forEach((el, i) => el.classList.toggle("pp-slide-active", i === idx));
+  dots.forEach((el, i) => el.classList.toggle("pp-dot-active", i === idx));
 }
 
 export function MapView({ listings, selectedId, onSelect }: Props) {
@@ -150,12 +146,17 @@ export function MapView({ listings, selectedId, onSelect }: Props) {
       setMap(localMap);
     })();
 
+    // Document-level delegation for popup carousel nav.
+    // Capture phase so we win against Leaflet's own handlers.
+    document.addEventListener("click", handleCarouselClick, true);
+
     return () => {
       cancelled = true;
       if (localMap) {
         localMap.remove();
       }
       markersRef.current.clear();
+      document.removeEventListener("click", handleCarouselClick, true);
     };
   }, []);
 
@@ -202,14 +203,6 @@ export function MapView({ listings, selectedId, onSelect }: Props) {
         closeButton: true,
         autoPan: true,
         offset: [0, -6],
-      });
-
-      marker.on("popupopen", (e) => {
-        const root = (e.popup.getElement() as HTMLElement | null)?.querySelector(
-          ".pp-card"
-        ) as HTMLElement | null;
-        if (!root) return;
-        wirePopupCarousel(root, L);
       });
 
       marker.on("click", () => {
