@@ -1,6 +1,6 @@
 # One Degree BNB — Project Plan
 
-> Last updated: April 12, 2026
+> Last updated: April 13, 2026
 
 ## What This Is
 
@@ -26,13 +26,31 @@ Both groups are aged 25–45, travel regularly, and are already doing this infor
 | Component | URL / Location |
 |-----------|---------------|
 | Landing page | https://onedegreebnb.com |
-| MVP app | https://app.onedegreebnb.com |
+| MVP app | https://app.onedegreebnb.com (migrating to alpha-a.onedegreebnb.com) |
 | Landing repo | bbagent-01/onedegree-bnb (Cloudflare Pages, auto-deploy on push to main) |
 | App repo | bbagent-01/onedegree-app (GitHub Actions → Cloudflare Pages) |
-| Landing local | ~/Claude/Projects/onedegree-bnb |
-| App local | ~/Claude/Projects/onedegree-app |
+| Landing local | ~/Dropbox/Claude/Projects/onedegree-bnb |
 | Notion SOT | Page ID 33384c6b-0fdc-811b-8ff1-c7d49dc71b79 |
 | Domains | onedegreebnb.com (primary), 1degreebnb.com (redirect), app.onedegreebnb.com (app) |
+| Track B app | https://alpha-b.onedegreebnb.com (branch: track-b/airbnb-clone) |
+
+## ⚠️ Branch Safety — READ BEFORE EVERY SESSION
+
+Two tracks share one repo. **Working on the wrong branch has happened repeatedly.** Every CC session MUST verify its branch before writing any code.
+
+| Track | Branch | Deploy URL |
+|-------|--------|------------|
+| **Track A** (Alpha-A sessions) | `main` | alpha-a.onedegreebnb.com |
+| **Track B** (Alpha-B sessions) | `track-b/airbnb-clone` | alpha-b.onedegreebnb.com |
+
+**Mandatory first command in every session:**
+```bash
+git branch --show-current
+```
+- If the output does NOT match the expected branch for this track → **STOP. Do not write any code.** Switch to the correct branch first.
+- Track A sessions: expected output is `main`. If you see `track-b/airbnb-clone`, run `git checkout main`.
+- Track B sessions: expected output is `track-b/airbnb-clone`. If you see `main`, run `git checkout track-b/airbnb-clone`.
+- **Never commit Track A work to track-b/airbnb-clone or Track B work to main.**
 
 ## Tech Stack
 
@@ -270,10 +288,10 @@ CC sessions:
 - **CC-6.5** ✅ shadcn/ui component library adoption (migration, no new features)
 - **CC-7** ✅ Invite-only signup + invite links + pre-vouch (non-member)
 - **CC-8** 🚀 Contact flow + 3-rating reviews + stay tools (stubs) + dashboard — deployed, smoke testing
-- **CC-9a** 📋 Calendar system — availability ranges, stay rules, turnover, calendar UI
-- **CC-9b** 📋 Listing enhancements — edit listing, on/off toggle, photo management, amenities, house rules, capacity
-- **CC-9c** 📋 Pricing (custom per range, discounts, cleaning fee) + date-based search
-- **CC-9d** 📋 Communication — in-app messaging, automated messages, email notifications via Resend
+- **CC-9a** 🚀 Calendar system — availability ranges, stay rules, turnover, calendar UI — running
+- **CC-1** 📋 Listing enhancements — edit listing, on/off toggle, photo management, amenities, house rules, capacity
+- **CC-2** 📋 Pricing (custom per range, discounts, cleaning fee) + date-based search
+- **CC-3** 📋 Communication — in-app messaging, automated messages, email notifications via Resend
 
 Alpha complete when: all sessions done, core loop works end-to-end, 50+ waitlist signups from ads.
 
@@ -285,9 +303,21 @@ Gate: 10 active host listings. At least 3 completed stays. Organic referrals sta
 ### Launch — Growth + Monetization (after beta)
 Full trust algorithm, revenue model activated, on-platform tools fully built, optional payment processing, mobile app, ID verification. Legal consultation before scaling.
 
+## Track B (Parallel Build)
+- Branch: `track-b/airbnb-clone` — **NOT main**
+- Deploy: alpha-b.onedegreebnb.com
+- Repo: bbagent-01/onedegree-app (same repo, different branch)
+- Local: ~/Claude/Projects/onedegree-app
+- Session naming: `1DB - Alpha-B - CC-B# - Name`
+- Status: CC-B1 + CC-B2 complete. CC-B3a in progress.
+- Architecture: B2–B6 = pure Airbnb clone (no trust mechanics). B7 = 1DB trust overlay.
+- Rule: Shares Supabase + Clerk with Track A. No code sharing between tracks.
+- **Track A sessions MUST be on `main`. Track B sessions MUST be on `track-b/airbnb-clone`.**
+- See "Branch Safety" section above — run `git branch --show-current` before every session.
+
 ## CC Session Naming Convention
 
-`1DB - P{phase} - CC-{#} - {title}`
+`1DB - Alpha-A - CC-{#} - {title}` (Track A) / `1DB - Alpha-B - CC-B{#} - {title}` (Track B)
 
 First line of every CC prompt = session name. This master chat tracks status, updates the Project Hub and this file, and generates handoff prompts.
 
