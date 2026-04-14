@@ -249,15 +249,32 @@ export function EditListingForm({
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="w-full">
-      <TabsList className="mb-6 w-full justify-start gap-2 overflow-x-auto">
-        <TabsTrigger value="details">Details</TabsTrigger>
-        <TabsTrigger value="photos">Photos</TabsTrigger>
-        <TabsTrigger value="pricing">Pricing</TabsTrigger>
-        <TabsTrigger value="availability">Availability</TabsTrigger>
-        <TabsTrigger value="rules">House rules</TabsTrigger>
+      <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-2 rounded-2xl border border-border bg-white p-2 shadow-sm">
+        {[
+          ["details", "Details"],
+          ["photos", "Photos"],
+          ["pricing", "Pricing"],
+          ["availability", "Calendar"],
+          ["rules", "House rules"],
+        ].map(([val, label]) => (
+          <TabsTrigger
+            key={val}
+            value={val}
+            className="h-11 rounded-xl px-5 text-sm font-semibold data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-sm"
+          >
+            {label}
+          </TabsTrigger>
+        ))}
       </TabsList>
 
-      <TabsContent value="details" className="space-y-6">
+      <TabsContent value="details" className="mt-0">
+       <SectionCard
+        title="Listing details"
+        subtitle="Title, description, and the basics of your place."
+        footer={
+          <SaveBtn saving={saving} onClick={saveDetails} label="Save details" />
+        }
+       >
         <div>
           <Label className="mb-2 block text-sm font-semibold">Title</Label>
           <Input
@@ -354,7 +371,7 @@ export function EditListingForm({
         </div>
 
         <div>
-          <Label>Amenities</Label>
+          <Label className="mb-2 block text-sm font-semibold">Amenities</Label>
           <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-3">
             {AMENITIES.map((a) => {
               const active = amenities.includes(a);
@@ -364,7 +381,7 @@ export function EditListingForm({
                   type="button"
                   onClick={() => toggleAmenity(a)}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-left text-sm transition-colors",
+                    "flex items-center gap-2 rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-colors",
                     active
                       ? "border-brand bg-brand/5"
                       : "border-border hover:border-foreground/30"
@@ -386,34 +403,26 @@ export function EditListingForm({
             })}
           </div>
         </div>
-
-        <div className="flex justify-end">
-          <Button
-            onClick={saveDetails}
-            disabled={saving}
-            className={BIG_BUTTON_PRIMARY}
-          >
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save details
-          </Button>
-        </div>
+       </SectionCard>
       </TabsContent>
 
-      <TabsContent value="photos" className="space-y-5">
+      <TabsContent value="photos" className="mt-0">
+       <SectionCard
+        title="Photos"
+        subtitle="Upload at least 3 photos. The cover photo is what guests see first."
+        footer={
+          <SaveBtn saving={saving} onClick={savePhotos} label="Save photos" />
+        }
+       >
         <PhotoUploader photos={photos} onChange={setPhotos} />
-        <div className="flex justify-end">
-          <Button
-            onClick={savePhotos}
-            disabled={saving}
-            className={BIG_BUTTON_PRIMARY}
-          >
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save photos
-          </Button>
-        </div>
+       </SectionCard>
       </TabsContent>
 
-      <TabsContent value="pricing" className="space-y-6">
+      <TabsContent value="pricing" className="mt-0 space-y-6">
+       <SectionCard
+        title="Pricing"
+        subtitle="Set your nightly rate and any optional fees."
+       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <Label className="mb-2 block text-sm font-semibold">Nightly rate (USD)</Label>
@@ -434,12 +443,13 @@ export function EditListingForm({
             />
           </div>
         </div>
+       </SectionCard>
 
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Discounts
-          </div>
-          <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+       <SectionCard
+        title="Discounts"
+        subtitle="Reward longer stays with an automatic discount."
+       >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <Label className="mb-2 block text-sm font-semibold">Weekly discount (%)</Label>
               <Input
@@ -464,14 +474,14 @@ export function EditListingForm({
                 placeholder="20"
               />
             </div>
-          </div>
         </div>
+       </SectionCard>
 
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Booking rules
-          </div>
-          <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-3">
+       <SectionCard
+        title="Booking rules"
+        subtitle="Control how far in advance and how tightly guests can book."
+       >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <Label className="mb-2 block text-sm font-semibold">Minimum stay (nights)</Label>
               <Input
@@ -501,9 +511,16 @@ export function EditListingForm({
                 onChange={(e) => setPrepDays(e.target.value)}
               />
             </div>
-          </div>
         </div>
+       </SectionCard>
 
+       <SectionCard
+        title="Check-in & check-out"
+        subtitle="When guests arrive and when they leave."
+        footer={
+          <SaveBtn saving={saving} onClick={savePricing} label="Save pricing" />
+        }
+       >
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label className="mb-2 block text-sm font-semibold">Check-in time</Label>
@@ -524,23 +541,26 @@ export function EditListingForm({
             />
           </div>
         </div>
-        <div className="flex justify-end">
-          <Button
-            onClick={savePricing}
-            disabled={saving}
-            className={BIG_BUTTON_PRIMARY}
-          >
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save pricing
-          </Button>
-        </div>
+       </SectionCard>
       </TabsContent>
 
-      <TabsContent value="availability">
+      <TabsContent value="availability" className="mt-0">
+       <SectionCard
+        title="Calendar"
+        subtitle="Block dates, set custom nightly prices for specific ranges."
+       >
         <AvailabilityEditor listingId={listingId} />
+       </SectionCard>
       </TabsContent>
 
-      <TabsContent value="rules" className="space-y-4">
+      <TabsContent value="rules" className="mt-0">
+       <SectionCard
+        title="House rules"
+        subtitle="Set expectations so guests know how to treat your space."
+        footer={
+          <SaveBtn saving={saving} onClick={saveDetails} label="Save rules" />
+        }
+       >
         <div>
           <Label className="mb-2 block text-sm font-semibold">House rules</Label>
           <Textarea
@@ -551,18 +571,59 @@ export function EditListingForm({
             placeholder="One rule per line"
           />
         </div>
-        <div className="flex justify-end">
-          <Button
-            onClick={saveDetails}
-            disabled={saving}
-            className={BIG_BUTTON_PRIMARY}
-          >
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save rules
-          </Button>
-        </div>
+       </SectionCard>
       </TabsContent>
     </Tabs>
+  );
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  footer,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  footer?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-6 overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+      <div className="border-b border-border px-6 py-5 md:px-8">
+        <h2 className="text-lg font-bold text-foreground">{title}</h2>
+        {subtitle && (
+          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+        )}
+      </div>
+      <div className="space-y-6 px-6 py-6 md:px-8">{children}</div>
+      {footer && (
+        <div className="flex items-center justify-end gap-3 border-t border-border bg-muted/20 px-6 py-4 md:px-8">
+          {footer}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SaveBtn({
+  saving,
+  onClick,
+  label,
+}: {
+  saving: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <Button
+      onClick={onClick}
+      disabled={saving}
+      className={BIG_BUTTON_PRIMARY}
+    >
+      {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {label}
+    </Button>
   );
 }
 
