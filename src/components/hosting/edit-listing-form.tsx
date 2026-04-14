@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import {
   PhotoUploader,
@@ -118,6 +118,19 @@ export function EditListingForm({
   const [otherDetails, setOtherDetails] = useState(
     initial.meta.otherDetails || ""
   );
+  const [street, setStreet] = useState(initial.meta.address?.street || "");
+  const [city, setCity] = useState(initial.meta.address?.city || "");
+  const [stateRegion, setStateRegion] = useState(
+    initial.meta.address?.state || ""
+  );
+  const [zip, setZip] = useState(initial.meta.address?.zip || "");
+  const [lat, setLat] = useState<number | undefined>(
+    initial.meta.address?.lat
+  );
+  const [lng, setLng] = useState<number | undefined>(
+    initial.meta.address?.lng
+  );
+  const [geocoding, setGeocoding] = useState(false);
   const [checkIn, setCheckIn] = useState(initial.checkin_time);
   const [checkOut, setCheckOut] = useState(initial.checkout_time);
   const [photos, setPhotos] = useState<UploadedPhoto[]>(initial.photos);
@@ -144,7 +157,40 @@ export function EditListingForm({
     otherDetails: otherDetails || undefined,
     weeklyDiscount: weeklyDiscount ? Number(weeklyDiscount) : undefined,
     monthlyDiscount: monthlyDiscount ? Number(monthlyDiscount) : undefined,
+    address:
+      street || city || stateRegion || zip || lat || lng
+        ? {
+            street: street || undefined,
+            city: city || undefined,
+            state: stateRegion || undefined,
+            zip: zip || undefined,
+            lat,
+            lng,
+          }
+        : undefined,
   });
+
+  const geocodeAddress = async () => {
+    const parts = [street, city, stateRegion, zip].filter(Boolean).join(", ");
+    if (!parts) {
+      toast.error("Enter an address first");
+      return;
+    }
+    setGeocoding(true);
+    try {
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(parts)}`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { lat: number; lng: number };
+      setLat(data.lat);
+      setLng(data.lng);
+      toast.success("Location pinned");
+    } catch (e) {
+      console.error(e);
+      toast.error("Couldn't find that address");
+    } finally {
+      setGeocoding(false);
+    }
+  };
 
   const toggleAmenity = (a: string) =>
     setAmenities((prev) =>
@@ -267,7 +313,77 @@ export function EditListingForm({
         ))}
       </TabsList>
 
-      <TabsContent value="details" className="mt-0">
+      <TabsContent value="details" className="mt-0 space-y-6">
+       <SectionCard
+        title="Location"
+        subtitle="Your exact address is private. We only show the neighborhood pin to guests until they book."
+       >
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <Label className="mb-2 block text-sm font-semibold">Street address</Label>
+            <Input
+              className={BIG_INPUT}
+              value={street}
+              onChange={(e) => setStreet(e.target.value)}
+              placeholder="36 Bryant Pond Rd"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">City</Label>
+              <Input
+                className={BIG_INPUT}
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Putnam Valley"
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">State</Label>
+              <Input
+                className={BIG_INPUT}
+                value={stateRegion}
+                onChange={(e) => setStateRegion(e.target.value)}
+                placeholder="NY"
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block text-sm font-semibold">ZIP</Label>
+              <Input
+                className={BIG_INPUT}
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
+                placeholder="10579"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              onClick={geocodeAddress}
+              disabled={geocoding}
+              className="!h-12 !rounded-xl !px-5 !text-sm !font-semibold bg-brand hover:bg-brand-600"
+            >
+              {geocoding ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <MapPin className="mr-2 h-4 w-4" />
+              )}
+              Find on map
+            </Button>
+            {lat != null && lng != null ? (
+              <span className="text-xs font-medium text-emerald-700">
+                Pinned at {lat.toFixed(4)}, {lng.toFixed(4)}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                Click to pin this address on the map.
+              </span>
+            )}
+          </div>
+        </div>
+       </SectionCard>
+
        <SectionCard
         title="Listing details"
         subtitle="Title, description, and the basics of your place."

@@ -54,6 +54,27 @@ function nightsBetween(start: string, end: string) {
   );
 }
 
+const MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** Smart range: "May 5 – 12, 2026" | "May 5 – Jun 5, 2026" | "Dec 25, 2026 – Jan 5, 2027" */
+function formatRange(startIso: string, endIso: string) {
+  const s = parseYmd(startIso);
+  const e = parseYmd(endIso);
+  const sm = MONTHS_SHORT[s.getMonth()];
+  const em = MONTHS_SHORT[e.getMonth()];
+  const sd = s.getDate();
+  const ed = e.getDate();
+  const sy = s.getFullYear();
+  const ey = e.getFullYear();
+  if (sy !== ey) return `${sm} ${sd}, ${sy} – ${em} ${ed}, ${ey}`;
+  if (s.getMonth() !== e.getMonth()) return `${sm} ${sd} – ${em} ${ed}, ${sy}`;
+  if (sd === ed) return `${sm} ${sd}, ${sy}`;
+  return `${sm} ${sd}–${ed}, ${sy}`;
+}
+
 export function AvailabilityEditor({ listingId }: Props) {
   const [cursor, setCursor] = useState(() => {
     const n = new Date();
@@ -252,7 +273,7 @@ export function AvailabilityEditor({ listingId }: Props) {
                       "disabled:cursor-not-allowed disabled:opacity-50",
                       !disabled && "hover:border-brand hover:shadow-sm",
                       status === "blocked"
-                        ? "border-red-200 bg-red-50"
+                        ? "border-zinc-300 bg-[repeating-linear-gradient(45deg,theme(colors.zinc.100)_0,theme(colors.zinc.100)_6px,theme(colors.zinc.200)_6px,theme(colors.zinc.200)_12px)]"
                         : status === "booked"
                           ? "border-zinc-200 bg-zinc-100"
                           : "border-border bg-white",
@@ -264,7 +285,7 @@ export function AvailabilityEditor({ listingId }: Props) {
                       className={cn(
                         "text-sm font-semibold",
                         status === "blocked"
-                          ? "text-red-700 line-through"
+                          ? "text-zinc-500 line-through"
                           : status === "booked"
                             ? "text-zinc-400 line-through"
                             : "text-foreground",
@@ -283,7 +304,7 @@ export function AvailabilityEditor({ listingId }: Props) {
                       </span>
                     )}
                     {status === "blocked" && (
-                      <span className="text-[10px] font-semibold uppercase text-red-600">
+                      <span className="text-[10px] font-semibold uppercase text-zinc-500">
                         Blocked
                       </span>
                     )}
@@ -304,7 +325,7 @@ export function AvailabilityEditor({ listingId }: Props) {
                 Available
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-3.5 w-3.5 rounded border-2 border-red-200 bg-red-50" />
+                <span className="h-3.5 w-3.5 rounded border-2 border-zinc-300 bg-[repeating-linear-gradient(45deg,theme(colors.zinc.100)_0,theme(colors.zinc.100)_3px,theme(colors.zinc.200)_3px,theme(colors.zinc.200)_6px)]" />
                 Blocked
               </span>
               <span className="flex items-center gap-1.5">
@@ -336,7 +357,7 @@ export function AvailabilityEditor({ listingId }: Props) {
                 Date range selected
               </div>
               <div className="mt-1 text-base font-bold text-foreground">
-                {selectionRange.start} → {selectionRange.end}
+                {formatRange(selectionRange.start, selectionRange.end)}
               </div>
               <div className="mt-0.5 text-xs text-muted-foreground">
                 {selectedNights} night{selectedNights === 1 ? "" : "s"} ·
@@ -379,7 +400,7 @@ export function AvailabilityEditor({ listingId }: Props) {
                   type="button"
                   onClick={() => applyStatus("blocked")}
                   disabled={saving}
-                  className="!h-12 !rounded-xl !px-5 !text-sm !font-semibold bg-red-600 hover:bg-red-700"
+                  className="!h-12 !rounded-xl !px-5 !text-sm !font-semibold bg-zinc-700 hover:bg-zinc-800"
                 >
                   Block dates
                 </Button>

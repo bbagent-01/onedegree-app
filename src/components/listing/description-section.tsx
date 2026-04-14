@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { parseListingMeta } from "@/lib/listing-meta";
 
 const LIMIT = 300;
 
 export function DescriptionSection({ text }: { text: string | null }) {
   const [expanded, setExpanded] = useState(false);
-  const content = text?.trim() ?? "";
+  const { body } = parseListingMeta(text);
+  const content = body.trim();
 
   if (!content) {
     return (

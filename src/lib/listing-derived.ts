@@ -76,23 +76,43 @@ function anchorForArea(areaName: string): [number, number] {
 
 export function derivedExtras(
   id: string,
-  areaName: string
+  areaName: string,
+  overrides?: {
+    bedrooms?: number;
+    beds?: number;
+    bathrooms?: number;
+    lat?: number;
+    lng?: number;
+  }
 ): DerivedListingExtras {
-  const bedrooms = ROOM_DISTRIBUTION[
-    Math.floor(rand(id, "br") * ROOM_DISTRIBUTION.length)
-  ];
-  const beds = Math.max(
-    bedrooms,
-    BED_DISTRIBUTION[Math.floor(rand(id, "bd") * BED_DISTRIBUTION.length)]
-  );
-  const bathrooms = BATH_DISTRIBUTION[
-    Math.floor(rand(id, "ba") * BATH_DISTRIBUTION.length)
-  ];
+  const bedrooms =
+    overrides?.bedrooms ??
+    ROOM_DISTRIBUTION[
+      Math.floor(rand(id, "br") * ROOM_DISTRIBUTION.length)
+    ];
+  const beds =
+    overrides?.beds ??
+    Math.max(
+      bedrooms,
+      BED_DISTRIBUTION[Math.floor(rand(id, "bd") * BED_DISTRIBUTION.length)]
+    );
+  const bathrooms =
+    overrides?.bathrooms ??
+    BATH_DISTRIBUTION[
+      Math.floor(rand(id, "ba") * BATH_DISTRIBUTION.length)
+    ];
 
-  const [anchorLat, anchorLng] = anchorForArea(areaName);
-  // Scatter within ~3km radius (0.03 degrees ≈ 3.3 km latitude).
-  const latitude = anchorLat + (rand(id, "lat") - 0.5) * 0.06;
-  const longitude = anchorLng + (rand(id, "lng") - 0.5) * 0.08;
+  let latitude: number;
+  let longitude: number;
+  if (overrides?.lat != null && overrides?.lng != null) {
+    latitude = overrides.lat;
+    longitude = overrides.lng;
+  } else {
+    const [anchorLat, anchorLng] = anchorForArea(areaName);
+    // Scatter within ~3km radius (0.03 degrees ≈ 3.3 km latitude).
+    latitude = anchorLat + (rand(id, "lat") - 0.5) * 0.06;
+    longitude = anchorLng + (rand(id, "lng") - 0.5) * 0.08;
+  }
 
   return { bedrooms, beds, bathrooms, latitude, longitude };
 }

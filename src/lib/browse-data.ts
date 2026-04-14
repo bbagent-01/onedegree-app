@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "./supabase";
 import type { ListingPhoto, ListingRow } from "./listing-data";
 import { derivedExtras } from "./listing-derived";
+import { parseListingMeta } from "./listing-meta";
 
 export interface BrowseHost {
   id: string;
@@ -127,6 +128,15 @@ export async function getBrowseListings(
     arr.push(p);
     photosByListing.set(p.listing_id, arr);
   }
+  // Sort each listing's photos so the host-selected cover (is_preview) is first.
+  for (const arr of photosByListing.values()) {
+    arr.sort((a, b) => {
+      const ap = a.is_preview ? 0 : 1;
+      const bp = b.is_preview ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
+  }
 
   // Hosts
   const hostIds = [...new Set(filtered.map((l) => l.host_id))];
@@ -141,7 +151,14 @@ export async function getBrowseListings(
   }
 
   let results: BrowseListing[] = filtered.map((l) => {
-    const derived = derivedExtras(l.id, l.area_name);
+    const { meta } = parseListingMeta(l.description);
+    const derived = derivedExtras(l.id, l.area_name, {
+      bedrooms: meta.bedrooms,
+      beds: meta.beds,
+      bathrooms: meta.bathrooms,
+      lat: meta.address?.lat,
+      lng: meta.address?.lng,
+    });
     return {
       id: l.id,
       title: l.title,
