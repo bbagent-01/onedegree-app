@@ -9,6 +9,7 @@ import { ReviewsSection } from "@/components/listing/reviews-section";
 import { BookingSidebar } from "@/components/listing/booking-sidebar";
 import { AvailabilityCalendarWrapper } from "@/components/listing/availability-calendar-wrapper";
 import { LocationMapClient } from "@/components/listing/location-map-client";
+import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -59,6 +60,11 @@ export default async function ListingPage({
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-40 md:px-6 md:pb-12">
+      <StickyAnchorBar
+        pricePerNight={price}
+        avgRating={listing.avg_rating}
+        reviewCount={listing.review_count}
+      />
       {/* Title (mobile: below photos, desktop: above) */}
       <div className="mt-4 hidden md:block">
         <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
@@ -91,7 +97,7 @@ export default async function ListingPage({
       </div>
 
       {/* Photos */}
-      <div className="mt-4 md:mt-6 -mx-4 md:mx-0">
+      <div id="photos" className="mt-4 md:mt-6 -mx-4 md:mx-0 scroll-mt-24">
         <PhotoGallery photos={listing.photos} title={listing.title} />
       </div>
 
@@ -169,7 +175,7 @@ export default async function ListingPage({
           <Separator className="my-8" />
 
           {/* Amenities */}
-          <section>
+          <section id="amenities" className="scroll-mt-24">
             <h2 className="mb-6 text-xl font-semibold">
               What this place offers
             </h2>
@@ -194,6 +200,7 @@ export default async function ListingPage({
 
         {/* Right column: booking sidebar */}
         <div className="md:col-span-1">
+          <div id="booking-sentinel" />
           <BookingSidebar
             listingId={listing.id}
             pricePerNight={price}
@@ -209,7 +216,7 @@ export default async function ListingPage({
       <Separator className="my-10" />
 
       {/* Reviews */}
-      <section id="reviews">
+      <section id="reviews" className="scroll-mt-24">
         <ReviewsSection
           avgRating={listing.avg_rating}
           reviewCount={listing.review_count}
@@ -220,7 +227,7 @@ export default async function ListingPage({
       <Separator className="my-10" />
 
       {/* Location */}
-      <section>
+      <section id="location" className="scroll-mt-24">
         <h2 className="mb-2 text-xl font-semibold">Where you&apos;ll be</h2>
         <p className="mb-6 text-sm text-muted-foreground">
           {listing.area_name}

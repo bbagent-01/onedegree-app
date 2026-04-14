@@ -26,15 +26,21 @@ export function AvailabilityCalendar({
   blockedRanges,
   numberOfMonths = 2,
 }: Props) {
+  // Override shadcn Calendar's hardcoded --cell-size via inline style
+  // (class-based override gets overridden by the component's own class).
   return (
-    <Calendar
-      mode="range"
-      selected={value}
-      onSelect={onChange}
-      numberOfMonths={numberOfMonths}
-      disabled={disabledMatcher(blockedRanges)}
-      showOutsideDays={false}
-      className="[--cell-size:--spacing(12)] text-[15px]"
-    />
+    <div
+      style={{ ["--cell-size" as string]: "2.75rem" }}
+      className="text-[15px]"
+    >
+      <Calendar
+        mode="range"
+        selected={value}
+        onSelect={onChange}
+        numberOfMonths={numberOfMonths}
+        disabled={disabledMatcher(blockedRanges)}
+        showOutsideDays={false}
+      />
+    </div>
   );
 }

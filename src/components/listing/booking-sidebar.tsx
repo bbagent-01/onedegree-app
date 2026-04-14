@@ -202,6 +202,7 @@ export function BookingSidebar({
           </div>
 
           <Button
+            id="booking-reserve"
             className="mt-4 h-12 w-full rounded-lg bg-[#E31C5F] text-base font-semibold hover:bg-[#c01851]"
             onClick={reserve}
             disabled={submitting || !range?.from || !range?.to}
