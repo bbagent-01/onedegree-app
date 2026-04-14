@@ -100,6 +100,9 @@ export default async function ListingPage({
       <div id="photos" className="mt-4 md:mt-6 -mx-4 md:mx-0 scroll-mt-24">
         <PhotoGallery photos={listing.photos} title={listing.title} />
       </div>
+      {/* Sticky anchor bar triggers here — anchors appear as soon as user
+          scrolls past the photo gallery. */}
+      <div id="photos-sentinel" className="h-0" />
 
       {/* Mobile title (below photos) */}
       <div className="mt-4 md:hidden">

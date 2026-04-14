@@ -23,7 +23,11 @@ interface Props {
  */
 export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props) {
   const [mounted, setMounted] = useState(false);
-  const [visible, setVisible] = useState(false);
+  // Two-stage visibility: anchors appear once scrolled past the photo
+  // gallery, then price+Reserve gets added once scrolled past the booking
+  // sidebar's reserve button.
+  const [showAnchors, setShowAnchors] = useState(false);
+  const [showReserve, setShowReserve] = useState(false);
   const [hasDates, setHasDates] = useState(false);
   const [centerSlot, setCenterSlot] = useState<HTMLElement | null>(null);
 
@@ -33,9 +37,7 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
   }, []);
 
   // Track whether dates have been selected by observing the booking sidebar's
-  // reserve button `disabled` state. When dates aren't set, the sidebar
-  // disables the button — we mirror that into this sticky nav so we can
-  // swap the Reserve button for a "Select dates to reserve" link.
+  // reserve button `disabled` state.
   useEffect(() => {
     const btn = document.getElementById("booking-reserve") as HTMLButtonElement | null;
     if (!btn) return;
@@ -46,18 +48,44 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
     return () => mo.disconnect();
   }, []);
 
+  // Observe the photo gallery bottom — anchors appear as soon as user
+  // scrolls past photos.
   useEffect(() => {
-    const sentinel = document.getElementById("booking-sentinel");
+    const sentinel = document.getElementById("photos-sentinel");
     if (!sentinel) return;
     const io = new IntersectionObserver(
       ([entry]) => {
-        setVisible(entry.boundingClientRect.top < 0 && !entry.isIntersecting);
+        setShowAnchors(entry.boundingClientRect.top < 0 && !entry.isIntersecting);
       },
       { threshold: 0, rootMargin: "0px" }
     );
     io.observe(sentinel);
     return () => io.disconnect();
   }, []);
+
+  // Observe the end of the booking grid — price+Reserve joins the bar
+  // only after the original reserve card has scrolled out of view.
+  useEffect(() => {
+    const sentinel = document.getElementById("booking-sentinel");
+    if (!sentinel) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        setShowReserve(entry.boundingClientRect.top < 0 && !entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: "0px" }
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, []);
+
+  // Toggle a flag on <html> so DesktopNav can hide primary-nav contents at
+  // narrow viewports while the sticky nav is active.
+  useEffect(() => {
+    const el = document.documentElement;
+    if (showAnchors) el.classList.add("listing-sticky-active");
+    else el.classList.remove("listing-sticky-active");
+    return () => el.classList.remove("listing-sticky-active");
+  }, [showAnchors]);
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -73,11 +101,11 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  if (!mounted || !visible) return null;
+  if (!mounted || !showAnchors) return null;
 
-  // Single portaled row constrained to the listing content width (1280). It
-  // contains section anchors on the left and price + Reserve on the right,
-  // and visually aligns with the listing column below the nav.
+  // Single portaled row constrained to the listing content width (1280).
+  // Section anchors appear first (post-photos); price + Reserve joins
+  // once the user has scrolled past the booking sidebar.
   const barContent = (
     <div className="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-6 px-6">
       <nav className="hidden items-center gap-8 text-sm font-medium lg:flex">
@@ -86,35 +114,37 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
         <button onClick={() => scrollTo("reviews")} className="py-2 hover:text-foreground/70">Reviews</button>
         <button onClick={() => scrollTo("location")} className="py-2 hover:text-foreground/70">Location</button>
       </nav>
-      <div className="flex items-center gap-4">
-        <div className="text-right">
-          <div className="text-[15px] font-semibold">${pricePerNight} <span className="font-normal text-muted-foreground">night</span></div>
-          {avgRating && reviewCount > 0 && (
-            <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
-              <Star className="h-3 w-3 fill-foreground text-foreground" />
-              <span className="font-semibold text-foreground">{avgRating.toFixed(2)}</span>
-              <span>·</span>
-              <span>{reviewCount} reviews</span>
-            </div>
+      {showReserve && (
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="text-[15px] font-semibold">${pricePerNight} <span className="font-normal text-muted-foreground">night</span></div>
+            {avgRating && reviewCount > 0 && (
+              <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
+                <Star className="h-3 w-3 fill-foreground text-foreground" />
+                <span className="font-semibold text-foreground">{avgRating.toFixed(2)}</span>
+                <span>·</span>
+                <span>{reviewCount} reviews</span>
+              </div>
+            )}
+          </div>
+          {hasDates ? (
+            <Button
+              onClick={reserve}
+              className="h-10 rounded-lg bg-brand px-6 font-semibold text-white hover:bg-brand-600"
+            >
+              Reserve
+            </Button>
+          ) : (
+            <button
+              type="button"
+              onClick={selectDates}
+              className="h-10 rounded-lg px-4 text-sm font-semibold text-foreground underline underline-offset-2 hover:text-brand"
+            >
+              Select dates to reserve
+            </button>
           )}
         </div>
-        {hasDates ? (
-          <Button
-            onClick={reserve}
-            className="h-10 rounded-lg bg-brand px-6 font-semibold text-white hover:bg-brand-600"
-          >
-            Reserve
-          </Button>
-        ) : (
-          <button
-            type="button"
-            onClick={selectDates}
-            className="h-10 rounded-lg px-4 text-sm font-semibold text-foreground underline underline-offset-2 hover:text-brand"
-          >
-            Select dates to reserve
-          </button>
-        )}
-      </div>
+      )}
     </div>
   );
 

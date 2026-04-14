@@ -160,7 +160,7 @@ export function SearchBar({ suggestions, compact }: SearchBarProps) {
       {/* Location */}
       <Popover open={locOpen} onOpenChange={setLocOpen}>
         <PopoverTrigger
-          className="flex h-full flex-1 flex-col justify-center rounded-l-full px-6 text-left hover:bg-muted transition-colors"
+          className="flex h-full flex-1 flex-col justify-center rounded-l-full px-4 lg:px-6 text-left hover:bg-muted transition-colors"
           onClick={() => {
             setTimeout(() => locInputRef.current?.focus(), 0);
           }}
@@ -209,7 +209,7 @@ export function SearchBar({ suggestions, compact }: SearchBarProps) {
 
       {/* Dates */}
       <Popover open={dateOpen} onOpenChange={setDateOpen}>
-        <PopoverTrigger className="flex h-full flex-col justify-center px-6 text-left hover:bg-muted transition-colors">
+        <PopoverTrigger className="flex h-full flex-col justify-center px-4 lg:px-6 text-left hover:bg-muted transition-colors">
           <span className="text-xs font-semibold">When</span>
           <span className="text-sm text-muted-foreground">
             {formatRange(
@@ -246,7 +246,7 @@ export function SearchBar({ suggestions, compact }: SearchBarProps) {
 
       {/* Guests */}
       <Popover open={guestsOpen} onOpenChange={setGuestsOpen}>
-        <PopoverTrigger className="flex h-full flex-col justify-center px-6 text-left hover:bg-muted transition-colors">
+        <PopoverTrigger className="flex h-full flex-col justify-center px-4 lg:px-6 text-left hover:bg-muted transition-colors">
           <span className="text-xs font-semibold">Who</span>
           <span className="text-sm text-muted-foreground">
             {formatGuests(guests)}

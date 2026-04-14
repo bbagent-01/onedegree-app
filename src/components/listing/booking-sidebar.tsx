@@ -110,7 +110,7 @@ export function BookingSidebar({
     <>
       {/* Desktop / tablet sticky card */}
       <div className="hidden h-full md:block">
-        <div id="booking-card" className="sticky top-28 rounded-xl border border-border/60 bg-white p-6 shadow-xl">
+        <div id="booking-card" className="sticky top-24 rounded-xl border border-border/60 bg-white p-6 shadow-xl">
           <div className="flex items-baseline justify-between">
             <div>
               <span className="text-2xl font-semibold">${pricePerNight}</span>
