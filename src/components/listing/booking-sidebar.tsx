@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Minus, Plus, Star } from "lucide-react";
+import { Check, Minus, Plus, Star, X } from "lucide-react";
 import { AvailabilityCalendar } from "./availability-calendar";
 
 interface Props {
@@ -45,6 +45,7 @@ export function BookingSidebar({
   const [guests, setGuests] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [guestsOpen, setGuestsOpen] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
 
   const nights = useMemo(
     () =>
@@ -89,7 +90,7 @@ export function BookingSidebar({
       if (!res.ok) {
         toast.error(data.error || "Couldn't send reservation. Try again.");
       } else {
-        toast.success("Reservation request sent to host!");
+        setSuccessOpen(true);
       }
     } catch {
       toast.error("Network error. Try again.");
@@ -203,7 +204,7 @@ export function BookingSidebar({
 
           <Button
             id="booking-reserve"
-            className="mt-4 h-12 w-full rounded-lg bg-[#E31C5F] text-base font-semibold hover:bg-[#c01851]"
+            className="mt-4 h-12 w-full rounded-lg bg-brand text-base font-semibold hover:bg-brand-600"
             onClick={reserve}
             disabled={submitting || !range?.from || !range?.to}
           >
@@ -269,7 +270,7 @@ export function BookingSidebar({
             )}
           </div>
           <Button
-            className="h-11 rounded-lg bg-[#E31C5F] px-6 font-semibold hover:bg-[#c01851]"
+            className="h-11 rounded-lg bg-brand px-6 font-semibold hover:bg-brand-600"
             onClick={reserve}
             disabled={submitting || !range?.from || !range?.to}
           >
@@ -277,6 +278,36 @@ export function BookingSidebar({
           </Button>
         </div>
       </div>
+
+      {/* Full-width reservation-sent banner — sits above mobile tab bar (z-50)
+          and mobile booking bar (z-[60]), so z-[70] keeps it on top everywhere. */}
+      {successOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-[70] bg-brand text-white shadow-2xl">
+          <div className="mx-auto flex w-full max-w-[1760px] items-center justify-between gap-4 px-4 py-4 md:px-10 lg:px-20">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20">
+                <Check className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-base font-semibold">
+                  Reservation request sent to host
+                </div>
+                <div className="text-sm text-white/80">
+                  You&apos;ll hear back soon. Check your inbox for updates.
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSuccessOpen(false)}
+              aria-label="Dismiss"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-white/15"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Mobile inline dates picker anchor */}
       <div id="mobile-dates" className="md:hidden">

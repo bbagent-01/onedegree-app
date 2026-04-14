@@ -21,7 +21,11 @@ interface Props {
 type ViewMode = "grid" | "split" | "map";
 
 export function BrowseLayout({ listings }: Props) {
-  const [mode, setMode] = useState<ViewMode>("grid");
+  // Default to split on desktop so map is visible without toggling (Airbnb behavior).
+  const [mode, setMode] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) return "split";
+    return "grid";
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 

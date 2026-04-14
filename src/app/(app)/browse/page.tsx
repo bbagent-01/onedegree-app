@@ -10,6 +10,7 @@ import { SortDropdown } from "@/components/browse/sort-dropdown";
 import { BrowseLayout } from "@/components/browse/browse-layout";
 import { FilterSheet } from "@/components/browse/filter-sheet";
 import { ListingCardSkeleton } from "@/components/listing-card-skeleton";
+import { NavCenterPortal } from "@/components/layout/nav-center-portal";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -26,21 +27,27 @@ export default async function BrowsePage({
   const filterCount = activeFilterCount(filters);
 
   return (
-    <div className="mx-auto max-w-container px-4 md:px-6">
-      <div className="sticky top-0 md:top-16 z-40 -mx-4 md:-mx-6 border-b border-border/60 bg-white px-4 md:px-6 py-4">
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
+    <div className="w-full px-4 md:px-10 lg:px-20">
+      {/* Desktop: portal search + filters + sort into the top nav's center slot */}
+      <NavCenterPortal>
+        <div className="flex w-full max-w-4xl items-center gap-3">
           <div className="flex-1">
-            <Suspense fallback={<div className="h-14" />}>
-              <SuggestionsSearchBar />
+            <Suspense fallback={<div className="h-12" />}>
+              <SuggestionsSearchBar compact />
             </Suspense>
           </div>
-          <div className="hidden items-center gap-3 md:flex">
-            <Suspense fallback={null}>
-              <FiltersSlot filters={filters} activeCount={filterCount} />
-            </Suspense>
-            <SortDropdown />
-          </div>
+          <Suspense fallback={null}>
+            <FiltersSlot filters={filters} activeCount={filterCount} />
+          </Suspense>
+          <SortDropdown />
         </div>
+      </NavCenterPortal>
+
+      {/* Mobile sticky search bar (DesktopNav is hidden on mobile) */}
+      <div className="sticky top-0 z-40 -mx-4 border-b border-border/60 bg-white px-4 py-3 md:hidden">
+        <Suspense fallback={<div className="h-12" />}>
+          <SuggestionsSearchBar compact />
+        </Suspense>
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
@@ -64,9 +71,9 @@ export default async function BrowsePage({
   );
 }
 
-async function SuggestionsSearchBar() {
+async function SuggestionsSearchBar({ compact }: { compact?: boolean }) {
   const suggestions = await getBrowseSuggestions();
-  return <SearchBar suggestions={suggestions} />;
+  return <SearchBar suggestions={suggestions} compact={compact} />;
 }
 
 async function FiltersSlot({

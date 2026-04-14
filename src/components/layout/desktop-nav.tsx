@@ -9,14 +9,20 @@ export function DesktopNav() {
 
   return (
     <header className="hidden md:block sticky top-0 z-50 border-b border-border bg-white">
-      <div className="mx-auto flex h-16 max-w-container items-center justify-between px-6">
+      <div className="flex h-20 w-full items-center justify-between gap-6 px-10 lg:px-20">
         {/* Logo */}
-        <Link href="/browse" className="flex items-center gap-2">
-          <span className="text-xl font-bold text-brand">1° B&B</span>
+        <Link href="/browse" className="flex shrink-0 items-center" aria-label="One Degree B&B">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/1db-wordmark.svg" alt="One Degree B&B" className="h-8 w-auto" />
         </Link>
 
+        {/* Middle slot — route-specific content rendered via portal */}
+        <div id="nav-center-slot" className="flex min-w-0 flex-1 items-center justify-center" />
+
         {/* Right section */}
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-4">
+          {/* Right slot — route-specific content (price + Reserve on listing) */}
+          <div id="nav-right-slot" className="flex items-center gap-3 empty:hidden" />
           <Link
             href="/browse"
             className="text-sm font-medium text-foreground hover:text-foreground/80 transition-colors"

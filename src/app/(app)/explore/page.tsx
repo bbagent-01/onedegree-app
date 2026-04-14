@@ -14,7 +14,7 @@ export default function ExplorePage() {
   }, [activeCategory]);
 
   return (
-    <div className="mx-auto max-w-container px-4 md:px-6">
+    <div className="w-full px-4 md:px-10 lg:px-20">
       {/* Category filter */}
       <div className="sticky top-0 md:top-16 z-40 bg-white pt-2">
         <CategoryFilterBar

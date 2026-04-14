@@ -59,7 +59,7 @@ export default async function ListingPage({
   const yearsHosting = yearsSince(listing.host?.created_at);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-40 md:px-6 md:pb-12">
+    <div className="mx-auto w-full max-w-[1760px] px-4 pb-40 md:px-10 md:pb-12 lg:px-20">
       <StickyAnchorBar
         pricePerNight={price}
         avgRating={listing.avg_rating}
@@ -145,7 +145,7 @@ export default async function ListingPage({
                     </div>
                   )}
                   {isSuperhost && (
-                    <div className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#E31C5F] text-white ring-2 ring-white">
+                    <div className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white ring-2 ring-white">
                       <Medal className="h-3 w-3" />
                     </div>
                   )}

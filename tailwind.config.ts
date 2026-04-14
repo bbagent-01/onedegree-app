@@ -10,15 +10,15 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          DEFAULT: "#2563EB",
-          50: "#EFF6FF",
-          100: "#DBEAFE",
-          200: "#BFDBFE",
-          300: "#93C5FD",
-          400: "#60A5FA",
-          500: "#2563EB",
-          600: "#1D4ED8",
-          700: "#1E40AF",
+          DEFAULT: "#734796",
+          50: "#F5F1F8",
+          100: "#E8DFF0",
+          200: "#D1BDE0",
+          300: "#B395CC",
+          400: "#946CB3",
+          500: "#734796",
+          600: "#5E3A7A",
+          700: "#4A2E60",
           foreground: "#FFFFFF",
         },
         success: {
@@ -52,7 +52,7 @@ const config: Config = {
         subtle: "#9CA3AF",
         border: "#E5E7EB",
         input: "#E5E7EB",
-        ring: "#2563EB",
+        ring: "#734796",
         card: {
           DEFAULT: "#FFFFFF",
           foreground: "#1A1D21",
@@ -62,7 +62,7 @@ const config: Config = {
           foreground: "#1A1D21",
         },
         primary: {
-          DEFAULT: "#2563EB",
+          DEFAULT: "#734796",
           foreground: "#FFFFFF",
         },
         secondary: {
@@ -71,7 +71,7 @@ const config: Config = {
         },
         accent: {
           DEFAULT: "#F8F9FA",
-          foreground: "#2563EB",
+          foreground: "#734796",
         },
         destructive: {
           DEFAULT: "#DC2626",
