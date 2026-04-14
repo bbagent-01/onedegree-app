@@ -1,7 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
 import type { ListingPhoto, ListingRow } from "./listing-data";
 import { derivedExtras } from "./listing-derived";
-import { parseListingMeta } from "./listing-meta";
 
 export interface ListingHost {
   id: string;
@@ -101,14 +100,7 @@ export async function getListingDetail(
       .eq("status", "blocked"),
   ]);
 
-  const photosRaw = (photosRes.data || []) as ListingPhoto[];
-  // Ensure the host-selected cover photo (is_preview=true) sorts first.
-  const photos = [...photosRaw].sort((a, b) => {
-    const ap = a.is_preview ? 0 : 1;
-    const bp = b.is_preview ? 0 : 1;
-    if (ap !== bp) return ap - bp;
-    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-  });
+  const photos = (photosRes.data || []) as ListingPhoto[];
   const host = hostRes.data as ListingHost | null;
   const reviewRows = (reviewsRes.data || []) as Array<{
     id: string;
@@ -147,14 +139,7 @@ export async function getListingDetail(
     }))
     .filter((r) => r.text.trim().length > 0);
 
-  const { meta } = parseListingMeta(row.description);
-  const derived = derivedExtras(row.id, row.area_name, {
-    bedrooms: meta.bedrooms,
-    beds: meta.beds,
-    bathrooms: meta.bathrooms,
-    lat: meta.address?.lat,
-    lng: meta.address?.lng,
-  });
+  const derived = derivedExtras(row.id, row.area_name);
 
   return {
     id: row.id,
