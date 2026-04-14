@@ -1,0 +1,348 @@
+import { notFound } from "next/navigation";
+import { Star, Medal } from "lucide-react";
+import { getListingDetail } from "@/lib/listing-detail-data";
+import { Separator } from "@/components/ui/separator";
+import { PhotoGallery } from "@/components/listing/photo-gallery";
+import { DescriptionSection } from "@/components/listing/description-section";
+import { AmenitiesSection } from "@/components/listing/amenities-section";
+import { ReviewsSection } from "@/components/listing/reviews-section";
+import { BookingSidebar } from "@/components/listing/booking-sidebar";
+import { AvailabilityCalendarWrapper } from "@/components/listing/availability-calendar-wrapper";
+import { LocationMapClient } from "@/components/listing/location-map-client";
+
+export const runtime = "edge";
+export const dynamic = "force-dynamic";
+
+function initials(name: string | undefined) {
+  if (!name) return "H";
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function yearsSince(iso: string | undefined | null) {
+  if (!iso) return 0;
+  const years =
+    (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24 * 365);
+  return Math.max(0, Math.floor(years));
+}
+
+function subtitle(propertyType: string, areaName: string) {
+  const type =
+    propertyType === "room"
+      ? "Private room"
+      : propertyType === "apartment"
+        ? "Entire apartment"
+        : propertyType === "house"
+          ? "Entire home"
+          : "Entire place";
+  return `${type} in ${areaName}`;
+}
+
+export default async function ListingPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const listing = await getListingDetail(id);
+  if (!listing) notFound();
+
+  const price = listing.price_min ?? listing.price_max ?? 0;
+  const isSuperhost =
+    (listing.host?.host_rating ?? 0) >= 4.8 &&
+    (listing.host?.host_review_count ?? 0) >= 3;
+  const yearsHosting = yearsSince(listing.host?.created_at);
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 pb-32 md:px-6 md:pb-12">
+      {/* Title (mobile: below photos, desktop: above) */}
+      <div className="mt-4 hidden md:block">
+        <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
+          {listing.title}
+        </h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+          {listing.avg_rating && listing.review_count > 0 && (
+            <>
+              <Star className="h-3.5 w-3.5 fill-foreground text-foreground" />
+              <span className="font-semibold">
+                {listing.avg_rating.toFixed(2)}
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <a href="#reviews" className="font-semibold underline">
+                {listing.review_count}{" "}
+                {listing.review_count === 1 ? "review" : "reviews"}
+              </a>
+              <span className="text-muted-foreground">·</span>
+            </>
+          )}
+          {isSuperhost && (
+            <>
+              <Medal className="h-3.5 w-3.5 text-foreground" />
+              <span className="font-semibold">Superhost</span>
+              <span className="text-muted-foreground">·</span>
+            </>
+          )}
+          <span className="font-semibold underline">{listing.area_name}</span>
+        </div>
+      </div>
+
+      {/* Photos */}
+      <div className="mt-4 md:mt-6 -mx-4 md:mx-0">
+        <PhotoGallery photos={listing.photos} title={listing.title} />
+      </div>
+
+      {/* Mobile title (below photos) */}
+      <div className="mt-4 md:hidden">
+        <h1 className="text-2xl font-semibold leading-tight">
+          {listing.title}
+        </h1>
+      </div>
+
+      {/* Two-column layout */}
+      <div className="mt-6 grid grid-cols-1 gap-10 md:mt-8 md:grid-cols-3 md:gap-16">
+        {/* Left column: content sections */}
+        <div className="md:col-span-2">
+          {/* Header subtitle + stats */}
+          <div>
+            <h2 className="text-xl font-semibold md:text-2xl">
+              {subtitle(listing.property_type, listing.area_name)}
+            </h2>
+            <p className="mt-1 text-muted-foreground">
+              {Math.max(listing.beds, 1) * 2} guests · {listing.bedrooms}{" "}
+              bedroom{listing.bedrooms !== 1 ? "s" : ""} · {listing.beds} bed
+              {listing.beds !== 1 ? "s" : ""} · {listing.bathrooms} bath
+              {listing.bathrooms !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          <Separator className="my-8" />
+
+          {/* Host card */}
+          {listing.host && (
+            <>
+              <div className="flex items-center gap-4">
+                <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted">
+                  {listing.host.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={listing.host.avatar_url}
+                      alt={listing.host.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-base font-semibold">
+                      {initials(listing.host.name)}
+                    </div>
+                  )}
+                  {isSuperhost && (
+                    <div className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#E31C5F] text-white ring-2 ring-white">
+                      <Medal className="h-3 w-3" />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-lg font-semibold">
+                    Hosted by {listing.host.name}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {yearsHosting > 0
+                      ? `${yearsHosting} year${yearsHosting !== 1 ? "s" : ""} hosting`
+                      : "New host"}
+                    {isSuperhost ? " · Superhost" : ""}
+                  </div>
+                </div>
+              </div>
+              <Separator className="my-8" />
+            </>
+          )}
+
+          {/* Description */}
+          <section>
+            <h2 className="mb-4 text-xl font-semibold">About this place</h2>
+            <DescriptionSection text={listing.description} />
+          </section>
+
+          <Separator className="my-8" />
+
+          {/* Amenities */}
+          <section>
+            <h2 className="mb-6 text-xl font-semibold">
+              What this place offers
+            </h2>
+            <AmenitiesSection amenities={listing.amenities} />
+          </section>
+
+          <Separator className="my-8" />
+
+          {/* Availability Calendar */}
+          <section>
+            <h2 className="mb-2 text-xl font-semibold">
+              Select check-in date
+            </h2>
+            <p className="mb-6 text-sm text-muted-foreground">
+              Add your travel dates for exact pricing
+            </p>
+            <AvailabilityCalendarWrapper
+              blockedRanges={listing.blockedRanges}
+            />
+          </section>
+        </div>
+
+        {/* Right column: booking sidebar */}
+        <div className="md:col-span-1">
+          <BookingSidebar
+            listingId={listing.id}
+            pricePerNight={price}
+            minNights={listing.min_nights}
+            maxNights={listing.max_nights}
+            avgRating={listing.avg_rating}
+            reviewCount={listing.review_count}
+            blockedRanges={listing.blockedRanges}
+          />
+        </div>
+      </div>
+
+      <Separator className="my-10" />
+
+      {/* Reviews */}
+      <section id="reviews">
+        <ReviewsSection
+          avgRating={listing.avg_rating}
+          reviewCount={listing.review_count}
+          reviews={listing.reviews}
+        />
+      </section>
+
+      <Separator className="my-10" />
+
+      {/* Location */}
+      <section>
+        <h2 className="mb-2 text-xl font-semibold">Where you&apos;ll be</h2>
+        <p className="mb-6 text-sm text-muted-foreground">
+          {listing.area_name}
+        </p>
+        <LocationMapClient
+          lat={listing.latitude}
+          lng={listing.longitude}
+          areaName={listing.area_name}
+        />
+      </section>
+
+      <Separator className="my-10" />
+
+      {/* House rules */}
+      <section>
+        <h2 className="mb-6 text-xl font-semibold">Things to know</h2>
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+          <div>
+            <h3 className="mb-3 font-semibold">House rules</h3>
+            <ul className="space-y-1 text-sm text-muted-foreground">
+              <li>
+                Check-in: {listing.checkin_time?.slice(0, 5) ?? "3:00 PM"}
+              </li>
+              <li>
+                Checkout: {listing.checkout_time?.slice(0, 5) ?? "11:00 AM"}
+              </li>
+              <li>Minimum stay: {listing.min_nights} night{listing.min_nights !== 1 ? "s" : ""}</li>
+              {listing.house_rules && (
+                <li className="whitespace-pre-wrap pt-2 text-foreground">
+                  {listing.house_rules}
+                </li>
+              )}
+            </ul>
+          </div>
+          <div>
+            <h3 className="mb-3 font-semibold">Safety & property</h3>
+            <ul className="space-y-1 text-sm text-muted-foreground">
+              <li>Smoke alarm</li>
+              <li>Carbon monoxide alarm</li>
+              <li>Security camera not on property</li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="mb-3 font-semibold">Cancellation policy</h3>
+            <p className="text-sm text-muted-foreground">
+              Free cancellation before 48 hours of check-in. Review the full
+              policy at the time of booking.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Host profile section */}
+      {listing.host && (
+        <>
+          <Separator className="my-10" />
+          <section>
+            <h2 className="mb-6 text-xl font-semibold">
+              Meet your host
+            </h2>
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+              <div className="rounded-xl border border-border/60 p-6 md:col-span-1">
+                <div className="flex flex-col items-center text-center">
+                  <div className="relative h-24 w-24 overflow-hidden rounded-full bg-muted">
+                    {listing.host.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={listing.host.avatar_url}
+                        alt={listing.host.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-2xl font-semibold">
+                        {initials(listing.host.name)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-3 text-xl font-semibold">
+                    {listing.host.name}
+                  </div>
+                  {isSuperhost && (
+                    <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+                      <Medal className="h-3 w-3" />
+                      Superhost
+                    </div>
+                  )}
+                </div>
+                <div className="mt-6 space-y-3 border-t border-border/60 pt-4 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Reviews</span>
+                    <span className="font-semibold">
+                      {listing.host.host_review_count}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Rating</span>
+                    <span className="font-semibold">
+                      {listing.host.host_rating
+                        ? listing.host.host_rating.toFixed(2)
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      Years hosting
+                    </span>
+                    <span className="font-semibold">
+                      {yearsHosting || "< 1"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <p className="whitespace-pre-wrap text-base leading-relaxed">
+                  {listing.host.bio ||
+                    `${listing.host.name} is a host on One Degree BNB.`}
+                </p>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
