@@ -9,6 +9,7 @@ import { SortDropdown } from "@/components/browse/sort-dropdown";
 import { BrowseGrid } from "@/components/browse/browse-grid";
 import { ListingCardSkeleton } from "@/components/listing-card-skeleton";
 
+export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 type SearchParams = Record<string, string | string[] | undefined>;
