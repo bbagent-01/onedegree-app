@@ -12,10 +12,10 @@ import type { SortOption } from "@/lib/browse-data";
 
 const OPTIONS: { value: SortOption; label: string }[] = [
   { value: "best_match", label: "Best match" },
-  { value: "price_asc", label: "Price: low to high" },
-  { value: "price_desc", label: "Price: high to low" },
+  { value: "price_asc", label: "$ low to high" },
+  { value: "price_desc", label: "$ high to low" },
   { value: "top_rated", label: "Top rated" },
-  { value: "newest", label: "Newest listings" },
+  { value: "newest", label: "Newest" },
 ];
 
 export function SortDropdown() {
@@ -36,7 +36,7 @@ export function SortDropdown() {
 
   return (
     <Select value={current} onValueChange={change}>
-      <SelectTrigger className="h-14 w-[200px] rounded-full border-border bg-white px-6 text-sm font-medium shadow-sm hover:shadow transition-shadow">
+      <SelectTrigger className="h-14 w-auto gap-2 rounded-full border-border bg-white px-6 text-sm font-medium shadow-sm hover:shadow transition-shadow">
         <SelectValue placeholder="Sort">{currentLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>

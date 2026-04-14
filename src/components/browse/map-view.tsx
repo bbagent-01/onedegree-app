@@ -15,7 +15,9 @@ const PLACEHOLDER =
   "https://placehold.co/600x400/e2e8f0/475569?text=No+photo";
 
 function popupHtml(l: BrowseListing): string {
-  const img = l.photos[0]?.public_url ?? PLACEHOLDER;
+  const photos = l.photos.length
+    ? l.photos.map((p) => p.public_url)
+    : [PLACEHOLDER];
   const price = l.price_min ?? l.price_max ?? 0;
   const rating = l.avg_listing_rating;
   const ratingLine = rating
@@ -25,18 +27,49 @@ function popupHtml(l: BrowseListing): string {
   const area = escapeHtml(l.area_name);
   const propType =
     l.property_type.charAt(0).toUpperCase() + l.property_type.slice(1);
+
+  const slides = photos
+    .map(
+      (src, i) =>
+        `<div class="pp-slide${
+          i === 0 ? " pp-slide-active" : ""
+        }" style="background-image:url('${escapeAttr(src)}')"></div>`
+    )
+    .join("");
+
+  const dots = photos
+    .map(
+      (_, i) =>
+        `<span class="pp-dot${i === 0 ? " pp-dot-active" : ""}"></span>`
+    )
+    .join("");
+
+  const nav =
+    photos.length > 1
+      ? `
+        <button class="pp-nav pp-prev" data-pp-action="prev" aria-label="Previous photo">‹</button>
+        <button class="pp-nav pp-next" data-pp-action="next" aria-label="Next photo">›</button>
+        <div class="pp-dots">${dots}</div>
+      `
+      : "";
+
   return `
-    <a class="pp-card" href="/listings/${l.id}">
-      <div class="pp-img" style="background-image:url('${escapeAttr(img)}')"></div>
-      <div class="pp-body">
-        <div class="pp-row">
-          <span class="pp-title">${title}</span>
-          ${ratingLine}
-        </div>
-        <div class="pp-sub">${area} · ${propType}</div>
-        <div class="pp-price"><strong>$${price}</strong> <span class="pp-dim">night</span></div>
+    <div class="pp-card" data-pp-count="${photos.length}">
+      <div class="pp-imgs">
+        ${slides}
+        ${nav}
       </div>
-    </a>
+      <a class="pp-link" href="/listings/${l.id}">
+        <div class="pp-body">
+          <div class="pp-row">
+            <span class="pp-title">${title}</span>
+            ${ratingLine}
+          </div>
+          <div class="pp-sub">${area} · ${propType}</div>
+          <div class="pp-price"><strong>$${price}</strong> <span class="pp-dim">night</span></div>
+        </div>
+      </a>
+    </div>
   `;
 }
 
@@ -49,6 +82,31 @@ function escapeHtml(s: string): string {
 }
 function escapeAttr(s: string): string {
   return s.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function wirePopupCarousel(root: HTMLElement) {
+  const count = parseInt(root.dataset.ppCount || "1", 10);
+  if (count <= 1) return;
+  let idx = 0;
+  const slides = root.querySelectorAll<HTMLElement>(".pp-slide");
+  const dots = root.querySelectorAll<HTMLElement>(".pp-dot");
+  const update = () => {
+    slides.forEach((el, i) =>
+      el.classList.toggle("pp-slide-active", i === idx)
+    );
+    dots.forEach((el, i) => el.classList.toggle("pp-dot-active", i === idx));
+  };
+  const go = (delta: number) => {
+    idx = (idx + delta + count) % count;
+    update();
+  };
+  root.querySelectorAll<HTMLElement>("[data-pp-action]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      go(btn.dataset.ppAction === "next" ? 1 : -1);
+    });
+  });
 }
 
 export function MapView({ listings, selectedId, onSelect }: Props) {
@@ -137,6 +195,14 @@ export function MapView({ listings, selectedId, onSelect }: Props) {
         closeButton: true,
         autoPan: true,
         offset: [0, -6],
+      });
+
+      marker.on("popupopen", (e) => {
+        const root = (e.popup.getElement() as HTMLElement | null)?.querySelector(
+          ".pp-card"
+        ) as HTMLElement | null;
+        if (!root) return;
+        wirePopupCarousel(root);
       });
 
       marker.on("click", () => {

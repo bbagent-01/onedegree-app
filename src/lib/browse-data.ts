@@ -236,6 +236,57 @@ export async function getBrowseSuggestions(): Promise<{
 }
 
 /**
+ * Returns the total number of listings that match the given filters.
+ * Mirrors getBrowseListings' filtering logic but skips photos/hosts/sort.
+ * Used by the filter sheet to show a live "Show N places" count.
+ */
+export async function countBrowseListings(
+  filters: BrowseFilters = {}
+): Promise<number> {
+  const supabase = getSupabaseAdmin();
+
+  let query = supabase
+    .from("listings")
+    .select("id, amenities")
+    .eq("is_active", true);
+
+  if (filters.location && filters.location.trim().length > 0) {
+    const term = filters.location.trim().replace(/[%,]/g, "");
+    query = query.or(
+      `title.ilike.%${term}%,area_name.ilike.%${term}%,description.ilike.%${term}%`
+    );
+  }
+  if (filters.propertyTypes && filters.propertyTypes.length > 0) {
+    query = query.in("property_type", filters.propertyTypes);
+  }
+  if (typeof filters.priceMin === "number") {
+    query = query.gte("price_min", filters.priceMin);
+  }
+  if (typeof filters.priceMax === "number") {
+    query = query.lte("price_min", filters.priceMax);
+  }
+  if (filters.amenities && filters.amenities.length > 0) {
+    query = query.contains("amenities", filters.amenities);
+  }
+
+  const { data, error } = await query;
+  if (error || !data) return 0;
+
+  // Derived-field filters (bedrooms/beds/bathrooms come from listing-derived).
+  let rows = data as { id: string }[];
+  if (filters.bedrooms || filters.beds || filters.bathrooms) {
+    rows = rows.filter((r) => {
+      const d = derivedExtras(r.id, "");
+      if (filters.bedrooms && d.bedrooms < filters.bedrooms) return false;
+      if (filters.beds && d.beds < filters.beds) return false;
+      if (filters.bathrooms && d.bathrooms < filters.bathrooms) return false;
+      return true;
+    });
+  }
+  return rows.length;
+}
+
+/**
  * Returns price histogram buckets for the current filtered listing set,
  * ignoring the price filter itself so the slider bounds reflect what's
  * actually available after location / property type / amenity filters.

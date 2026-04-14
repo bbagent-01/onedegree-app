@@ -65,6 +65,10 @@ export function FilterSheet({ priceRange, activeCount }: Props) {
   const [bathrooms, setBathrooms] = useState(0);
   const [amenities, setAmenities] = useState<string[]>([]);
 
+  // Live preview count of listings matching the current draft.
+  const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [countLoading, setCountLoading] = useState(false);
+
   // Hydrate draft from URL each time sheet opens.
   useEffect(() => {
     if (!open) return;
@@ -77,6 +81,61 @@ export function FilterSheet({ priceRange, activeCount }: Props) {
     setBathrooms(parseInt(get("ba") || "0", 10));
     setAmenities((get("am") || "").split(",").filter(Boolean));
   }, [open, params, priceRange.min, priceRange.max]);
+
+  // Build the draft's URL params (preserves location/from/to/guests from the
+  // current URL so count respects the active search).
+  const buildDraftParams = () => {
+    const url = new URLSearchParams();
+    // Preserve core search params.
+    for (const k of ["location", "from", "to", "guests"]) {
+      const v = params.get(k);
+      if (v) url.set(k, v);
+    }
+    if (priceMin > priceRange.min) url.set("pmin", String(priceMin));
+    if (priceMax < priceRange.max) url.set("pmax", String(priceMax));
+    if (propertyTypes.length) url.set("ptype", propertyTypes.join(","));
+    if (bedrooms) url.set("br", String(bedrooms));
+    if (beds) url.set("bd", String(beds));
+    if (bathrooms) url.set("ba", String(bathrooms));
+    if (amenities.length) url.set("am", amenities.join(","));
+    return url;
+  };
+
+  // Debounced live preview count — refetches whenever any draft filter changes.
+  useEffect(() => {
+    if (!open) return;
+    const ctrl = new AbortController();
+    setCountLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const qs = buildDraftParams().toString();
+        const res = await fetch(`/api/browse/count?${qs}`, {
+          signal: ctrl.signal,
+        });
+        if (!res.ok) return;
+        const json = (await res.json()) as { count: number };
+        setPreviewCount(json.count);
+      } catch {
+        /* aborted or network */
+      } finally {
+        setCountLoading(false);
+      }
+    }, 250);
+    return () => {
+      ctrl.abort();
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    open,
+    priceMin,
+    priceMax,
+    propertyTypes,
+    bedrooms,
+    beds,
+    bathrooms,
+    amenities,
+  ]);
 
   const togglePropertyType = (v: string) => {
     setPropertyTypes((prev) =>
@@ -258,7 +317,13 @@ export function FilterSheet({ priceRange, activeCount }: Props) {
             onClick={apply}
             className="h-12 rounded-xl bg-foreground px-8 text-base font-semibold text-background hover:bg-foreground/90"
           >
-            Show stays
+            {countLoading && previewCount === null
+              ? "Show stays"
+              : previewCount === 0
+              ? "No stays match"
+              : previewCount !== null
+              ? `Show ${previewCount} ${previewCount === 1 ? "stay" : "stays"}`
+              : "Show stays"}
           </Button>
         </SheetFooter>
       </SheetContent>

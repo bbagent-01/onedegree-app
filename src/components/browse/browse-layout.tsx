@@ -47,6 +47,9 @@ export function BrowseLayout({ listings }: Props) {
     [mode]
   );
 
+  // Offset the card padding so the grid visually lines up with the container edge.
+  const gridPad = "-m-3";
+
   if (listings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -75,9 +78,10 @@ export function BrowseLayout({ listings }: Props) {
         >
           <div
             className={cn(
-              "grid gap-6",
+              "grid",
+              gridPad,
               gridCols,
-              mode === "split" && "md:max-h-[calc(100vh-200px)] md:overflow-y-auto md:pr-2"
+              mode === "split" && "md:max-h-[calc(100vh-200px)] md:overflow-y-auto"
             )}
           >
             {listings.map((l) => (
@@ -89,9 +93,8 @@ export function BrowseLayout({ listings }: Props) {
                   setSelectedId((cur) => (cur === l.id ? null : cur))
                 }
                 className={cn(
-                  "h-fit self-start rounded-xl transition-all",
-                  selectedId === l.id &&
-                    "ring-2 ring-offset-2 ring-[color:var(--brand,#2563EB)]"
+                  "h-fit self-start rounded-2xl p-3 transition-shadow",
+                  selectedId === l.id && "shadow-[0_12px_32px_rgba(0,0,0,0.14)]"
                 )}
               >
                 <LiveListingCard listing={l} />

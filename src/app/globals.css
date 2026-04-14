@@ -78,14 +78,77 @@
 }
 .listing-popup .pp-card {
   display: block;
+  color: inherit;
+}
+.listing-popup .pp-link {
+  display: block;
   text-decoration: none;
   color: inherit;
 }
-.listing-popup .pp-img {
+.listing-popup .pp-imgs {
+  position: relative;
   height: 160px;
+  background-color: #f3f4f6;
+}
+.listing-popup .pp-slide {
+  position: absolute;
+  inset: 0;
   background-size: cover;
   background-position: center;
-  background-color: #f3f4f6;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.listing-popup .pp-slide-active {
+  opacity: 1;
+}
+.listing-popup .pp-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1a1d21;
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+  text-align: center;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+  padding: 0;
+}
+.listing-popup .pp-nav:hover {
+  background: #fff;
+  transform: translateY(-50%) scale(1.05);
+}
+.listing-popup .pp-prev {
+  left: 8px;
+}
+.listing-popup .pp-next {
+  right: 8px;
+}
+.listing-popup .pp-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+.listing-popup .pp-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+  transition: background 0.15s ease;
+}
+.listing-popup .pp-dot-active {
+  background: #fff;
 }
 .listing-popup .pp-body {
   padding: 10px 12px 12px;
