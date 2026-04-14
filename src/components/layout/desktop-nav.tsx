@@ -42,7 +42,7 @@ export function DesktopNav() {
           aria-label="One Degree B&B"
           className={cn(
             "shrink-0 items-center",
-            hidePrimaryNarrow ? "hidden 2xl:flex" : "flex"
+            hidePrimaryNarrow ? "hidden min-[1900px]:flex" : "flex"
           )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -67,7 +67,7 @@ export function DesktopNav() {
         <div
           className={cn(
             "shrink-0 items-center gap-4",
-            hidePrimaryNarrow ? "hidden 2xl:flex" : "flex"
+            hidePrimaryNarrow ? "hidden min-[1900px]:flex" : "flex"
           )}
         >
           {/* "Become a Host" and the Globe icon follow Airbnb's pattern:
