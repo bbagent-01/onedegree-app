@@ -74,10 +74,10 @@ export function DesktopNav() {
               they drop out below xl so the browse search pill (or listing
               sticky bar) has room to breathe at narrower desktops. */}
           <Link
-            href="/browse"
+            href="/hosting"
             className="hidden xl:inline-flex text-sm font-medium text-foreground hover:text-foreground/80 transition-colors"
           >
-            Become a Host
+            Hosting
           </Link>
           <button className="hidden xl:inline-flex p-2 hover:bg-muted rounded-full transition-colors">
             <Globe className="h-4 w-4" />

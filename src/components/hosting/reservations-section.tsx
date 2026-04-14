@@ -1,0 +1,235 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MessageCircle, Check, X } from "lucide-react";
+import type { HostingReservation } from "@/lib/hosting-data";
+import { toast } from "sonner";
+
+function formatDateRange(checkIn: string | null, checkOut: string | null) {
+  if (!checkIn || !checkOut) return "Dates TBD";
+  const ci = new Date(checkIn);
+  const co = new Date(checkOut);
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  return `${ci.toLocaleDateString(undefined, opts)} – ${co.toLocaleDateString(undefined, opts)}, ${co.getFullYear()}`;
+}
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function statusBadge(status: HostingReservation["status"]) {
+  const map: Record<HostingReservation["status"], { label: string; className: string }> = {
+    pending: {
+      label: "Pending",
+      className: "bg-amber-100 text-amber-800 hover:bg-amber-100",
+    },
+    accepted: {
+      label: "Confirmed",
+      className: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+    },
+    declined: {
+      label: "Declined",
+      className: "bg-red-100 text-red-800 hover:bg-red-100",
+    },
+    cancelled: {
+      label: "Cancelled",
+      className: "bg-zinc-100 text-zinc-700 hover:bg-zinc-100",
+    },
+  };
+  const m = map[status];
+  return <Badge className={m.className}>{m.label}</Badge>;
+}
+
+function ReservationCard({
+  reservation,
+  onRespond,
+  isPending,
+}: {
+  reservation: HostingReservation;
+  onRespond: (id: string, action: "accepted" | "declined") => void;
+  isPending: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-white p-5 transition-shadow hover:shadow-sm">
+      <div className="flex items-start gap-4">
+        <Avatar className="h-12 w-12 shrink-0">
+          {reservation.guest_avatar && (
+            <AvatarImage src={reservation.guest_avatar} alt={reservation.guest_name} />
+          )}
+          <AvatarFallback>{initials(reservation.guest_name)}</AvatarFallback>
+        </Avatar>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-foreground">
+                {reservation.guest_name}
+              </p>
+              <p className="truncate text-sm text-muted-foreground">
+                {reservation.listing_title}
+              </p>
+            </div>
+            {statusBadge(reservation.status)}
+          </div>
+
+          <p className="mt-2 text-sm text-foreground">
+            {formatDateRange(reservation.check_in, reservation.check_out)}
+            <span className="text-muted-foreground">
+              {" "}· {reservation.guest_count} guest
+              {reservation.guest_count === 1 ? "" : "s"}
+            </span>
+          </p>
+
+          {reservation.message && (
+            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+              “{reservation.message}”
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <MessageCircle className="h-3.5 w-3.5" />
+              Message guest
+            </Button>
+            {reservation.status === "pending" && (
+              <>
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-brand hover:bg-brand-600"
+                  disabled={isPending}
+                  onClick={() => onRespond(reservation.id, "accepted")}
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  Approve
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={isPending}
+                  onClick={() => onRespond(reservation.id, "declined")}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Decline
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ label }: { label: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border bg-muted/30 p-10 text-center">
+      <p className="text-sm text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+export function ReservationsSection({
+  upcoming,
+  completed,
+  cancelled,
+}: {
+  upcoming: HostingReservation[];
+  completed: HostingReservation[];
+  cancelled: HostingReservation[];
+}) {
+  const router = useRouter();
+  const [tab, setTab] = useState("upcoming");
+  const [isPending, startTransition] = useTransition();
+
+  const handleRespond = (id: string, action: "accepted" | "declined") => {
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/contact-requests/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: action }),
+        });
+        if (!res.ok) throw new Error("Failed");
+        toast.success(action === "accepted" ? "Request approved" : "Request declined");
+        router.refresh();
+      } catch {
+        toast.error("Something went wrong");
+      }
+    });
+  };
+
+  return (
+    <section>
+      <h2 className="text-xl font-semibold text-foreground">Reservations</h2>
+      <Tabs value={tab} onValueChange={setTab} className="mt-4">
+        <TabsList>
+          <TabsTrigger value="upcoming">
+            Upcoming{upcoming.length > 0 ? ` (${upcoming.length})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="completed">
+            Completed{completed.length > 0 ? ` (${completed.length})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="cancelled">
+            Cancelled{cancelled.length > 0 ? ` (${cancelled.length})` : ""}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="upcoming" className="mt-4 space-y-3">
+          {upcoming.length === 0 ? (
+            <EmptyState label="No upcoming reservations." />
+          ) : (
+            upcoming.map((r) => (
+              <ReservationCard
+                key={r.id}
+                reservation={r}
+                onRespond={handleRespond}
+                isPending={isPending}
+              />
+            ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="completed" className="mt-4 space-y-3">
+          {completed.length === 0 ? (
+            <EmptyState label="No completed stays yet." />
+          ) : (
+            completed.map((r) => (
+              <ReservationCard
+                key={r.id}
+                reservation={r}
+                onRespond={handleRespond}
+                isPending={isPending}
+              />
+            ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="cancelled" className="mt-4 space-y-3">
+          {cancelled.length === 0 ? (
+            <EmptyState label="No cancelled reservations." />
+          ) : (
+            cancelled.map((r) => (
+              <ReservationCard
+                key={r.id}
+                reservation={r}
+                onRespond={handleRespond}
+                isPending={isPending}
+              />
+            ))
+          )}
+        </TabsContent>
+      </Tabs>
+    </section>
+  );
+}
