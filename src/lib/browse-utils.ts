@@ -1,4 +1,4 @@
-import type { BrowseListing, SortOption } from "./browse-data";
+import type { BrowseFilters, BrowseListing, SortOption } from "./browse-data";
 import type { MockListing } from "./mock-listings";
 
 const PLACEHOLDER_IMG =
@@ -7,13 +7,7 @@ const PLACEHOLDER_IMG =
 /** Parse & sanitize URL search params into a BrowseFilters object. */
 export function parseBrowseParams(
   searchParams: Record<string, string | string[] | undefined>
-): {
-  location?: string;
-  from?: string;
-  to?: string;
-  guests?: number;
-  sort: SortOption;
-} {
+): BrowseFilters & { sort: SortOption } {
   const get = (k: string) => {
     const v = searchParams[k];
     return Array.isArray(v) ? v[0] : v;
@@ -28,20 +22,56 @@ export function parseBrowseParams(
       ? sortRaw
       : "best_match";
 
-  const guestsRaw = get("guests");
-  const guests = guestsRaw ? Math.max(0, parseInt(guestsRaw, 10) || 0) : undefined;
+  const num = (k: string): number | undefined => {
+    const v = get(k);
+    if (!v) return undefined;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+
+  const csv = (k: string): string[] | undefined => {
+    const v = get(k);
+    if (!v) return undefined;
+    const arr = v
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return arr.length > 0 ? arr : undefined;
+  };
 
   return {
     location: get("location")?.trim() || undefined,
     from: get("from") || undefined,
     to: get("to") || undefined,
-    guests,
+    guests: num("guests"),
     sort,
+    priceMin: num("pmin"),
+    priceMax: num("pmax"),
+    propertyTypes: csv("ptype"),
+    bedrooms: num("br"),
+    beds: num("bd"),
+    bathrooms: num("ba"),
+    amenities: csv("am"),
   };
 }
 
+/** Count of active "advanced" filters (excludes core search params). */
+export function activeFilterCount(f: BrowseFilters): number {
+  let count = 0;
+  if (typeof f.priceMin === "number") count++;
+  if (typeof f.priceMax === "number") count++;
+  if (f.propertyTypes && f.propertyTypes.length > 0) count++;
+  if (f.bedrooms) count++;
+  if (f.beds) count++;
+  if (f.bathrooms) count++;
+  if (f.amenities && f.amenities.length > 0) count++;
+  return count;
+}
+
 /** Adapt a live DB listing to the MockListing shape consumed by ListingCardB. */
-export function adaptListingForCard(l: BrowseListing): MockListing & { href: string } {
+export function adaptListingForCard(
+  l: BrowseListing
+): MockListing & { href: string } {
   const images = l.photos.length
     ? l.photos.map((p) => p.public_url)
     : [PLACEHOLDER_IMG];

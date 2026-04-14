@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
 import type { ListingPhoto, ListingRow } from "./listing-data";
+import { derivedExtras } from "./listing-derived";
 
 export interface BrowseHost {
   id: string;
@@ -20,6 +21,12 @@ export interface BrowseListing {
   created_at: string;
   photos: ListingPhoto[];
   host: BrowseHost | null;
+  amenities: string[];
+  bedrooms: number;
+  beds: number;
+  bathrooms: number;
+  latitude: number;
+  longitude: number;
 }
 
 export type SortOption =
@@ -35,25 +42,27 @@ export interface BrowseFilters {
   to?: string; // YYYY-MM-DD
   guests?: number;
   sort?: SortOption;
+  priceMin?: number;
+  priceMax?: number;
+  propertyTypes?: string[];
+  bedrooms?: number;
+  beds?: number;
+  bathrooms?: number;
+  amenities?: string[];
 }
 
 /**
  * Fetch all active listings with photos and host profile.
  * Pure Airbnb clone — no visibility gating, no trust scoring.
- * Applies optional filters (location text, date range availability, guest count)
- * and sorts the results.
+ * Applies optional filters and sorts the results.
  */
 export async function getBrowseListings(
   filters: BrowseFilters = {}
 ): Promise<BrowseListing[]> {
   const supabase = getSupabaseAdmin();
 
-  let query = supabase
-    .from("listings")
-    .select("*")
-    .eq("is_active", true);
+  let query = supabase.from("listings").select("*").eq("is_active", true);
 
-  // Location filter: match against title or area_name (case-insensitive substring).
   if (filters.location && filters.location.trim().length > 0) {
     const term = filters.location.trim().replace(/[%,]/g, "");
     query = query.or(
@@ -61,18 +70,35 @@ export async function getBrowseListings(
     );
   }
 
+  if (filters.propertyTypes && filters.propertyTypes.length > 0) {
+    query = query.in("property_type", filters.propertyTypes);
+  }
+
+  if (typeof filters.priceMin === "number") {
+    query = query.gte("price_min", filters.priceMin);
+  }
+  if (typeof filters.priceMax === "number") {
+    query = query.lte("price_min", filters.priceMax);
+  }
+
+  if (filters.amenities && filters.amenities.length > 0) {
+    query = query.contains("amenities", filters.amenities);
+  }
+
   const { data: listings, error } = await query;
   if (error || !listings) return [];
 
   let filtered = listings as ListingRow[];
 
-  // Date-range filter: exclude listings whose listing_availability
-  // has a 'blocked' range overlapping the requested window.
+  // Date-range filter: exclude listings with a blocked availability window.
   if (filters.from && filters.to) {
     const { data: blocks } = await supabase
       .from("listing_availability")
       .select("listing_id, start_date, end_date, status")
-      .in("listing_id", filtered.map((l) => l.id))
+      .in(
+        "listing_id",
+        filtered.map((l) => l.id)
+      )
       .eq("status", "blocked")
       .lte("start_date", filters.to)
       .gte("end_date", filters.from);
@@ -114,23 +140,39 @@ export async function getBrowseListings(
     hostById.set(h.id, h as BrowseHost);
   }
 
-  const results: BrowseListing[] = filtered.map((l) => ({
-    id: l.id,
-    title: l.title,
-    area_name: l.area_name,
-    property_type: l.property_type,
-    description: l.description,
-    price_min: l.price_min,
-    price_max: l.price_max,
-    avg_listing_rating: (l as unknown as { avg_listing_rating: number | null })
-      .avg_listing_rating,
-    listing_review_count:
-      (l as unknown as { listing_review_count: number }).listing_review_count ??
-      0,
-    created_at: l.created_at,
-    photos: photosByListing.get(l.id) || [],
-    host: hostById.get(l.host_id) ?? null,
-  }));
+  let results: BrowseListing[] = filtered.map((l) => {
+    const derived = derivedExtras(l.id, l.area_name);
+    return {
+      id: l.id,
+      title: l.title,
+      area_name: l.area_name,
+      property_type: l.property_type,
+      description: l.description,
+      price_min: l.price_min,
+      price_max: l.price_max,
+      avg_listing_rating: (l as unknown as { avg_listing_rating: number | null })
+        .avg_listing_rating,
+      listing_review_count:
+        (l as unknown as { listing_review_count: number }).listing_review_count ??
+        0,
+      created_at: l.created_at,
+      photos: photosByListing.get(l.id) || [],
+      host: hostById.get(l.host_id) ?? null,
+      amenities: l.amenities || [],
+      ...derived,
+    };
+  });
+
+  // Derived-field filters (bedrooms/beds/bathrooms come from listing-derived).
+  if (filters.bedrooms) {
+    results = results.filter((r) => r.bedrooms >= filters.bedrooms!);
+  }
+  if (filters.beds) {
+    results = results.filter((r) => r.beds >= filters.beds!);
+  }
+  if (filters.bathrooms) {
+    results = results.filter((r) => r.bathrooms >= filters.bathrooms!);
+  }
 
   // Sort
   const sort = filters.sort ?? "best_match";
@@ -148,7 +190,6 @@ export async function getBrowseListings(
         );
       case "best_match":
       default: {
-        // Weighted: rating (0-5) * 20 + recency bonus (0-20 for last 90 days)
         const now = Date.now();
         const days = 1000 * 60 * 60 * 24;
         const recencyA = Math.max(
@@ -181,11 +222,47 @@ export async function getBrowseSuggestions(): Promise<{
     .eq("is_active", true);
 
   const areas = [
-    ...new Set(((data || []) as { area_name: string }[]).map((r) => r.area_name).filter(Boolean)),
+    ...new Set(
+      ((data || []) as { area_name: string }[])
+        .map((r) => r.area_name)
+        .filter(Boolean)
+    ),
   ].sort();
   const titles = ((data || []) as { title: string }[])
     .map((r) => r.title)
     .filter(Boolean);
 
   return { areas, titles };
+}
+
+/** Returns price histogram buckets for the current listing set (pre-filter). */
+export async function getBrowsePriceRange(): Promise<{
+  min: number;
+  max: number;
+  histogram: number[];
+}> {
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("listings")
+    .select("price_min")
+    .eq("is_active", true);
+
+  const prices = ((data || []) as { price_min: number | null }[])
+    .map((r) => r.price_min)
+    .filter((p): p is number => typeof p === "number" && p > 0);
+
+  if (prices.length === 0) {
+    return { min: 10, max: 1000, histogram: new Array(30).fill(0) };
+  }
+
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const buckets = 30;
+  const histogram = new Array(buckets).fill(0);
+  const span = Math.max(1, max - min);
+  for (const p of prices) {
+    const idx = Math.min(buckets - 1, Math.floor(((p - min) / span) * buckets));
+    histogram[idx]++;
+  }
+  return { min, max, histogram };
 }
