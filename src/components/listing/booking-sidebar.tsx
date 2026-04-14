@@ -211,6 +211,14 @@ export function BookingSidebar({
 
           <Button
             id="booking-reserve"
+            // Expose the selected range as a data attr so the sticky anchor
+            // bar (which doesn't share state) can show the dates next to
+            // its Reserve button.
+            data-range={
+              range?.from && range?.to
+                ? `${format(range.from, "MMM d")} – ${format(range.to, "MMM d")}`
+                : ""
+            }
             className="mt-4 h-12 w-full rounded-lg bg-brand text-base font-semibold hover:bg-brand-600"
             onClick={reserve}
             disabled={submitting || !range?.from || !range?.to}

@@ -29,6 +29,7 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
   const [showAnchors, setShowAnchors] = useState(false);
   const [showReserve, setShowReserve] = useState(false);
   const [hasDates, setHasDates] = useState(false);
+  const [dateLabel, setDateLabel] = useState("");
   const [centerSlot, setCenterSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -41,10 +42,16 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
   useEffect(() => {
     const btn = document.getElementById("booking-reserve") as HTMLButtonElement | null;
     if (!btn) return;
-    const update = () => setHasDates(!btn.disabled);
+    const update = () => {
+      setHasDates(!btn.disabled);
+      setDateLabel(btn.getAttribute("data-range") || "");
+    };
     update();
     const mo = new MutationObserver(update);
-    mo.observe(btn, { attributes: true, attributeFilter: ["disabled"] });
+    mo.observe(btn, {
+      attributes: true,
+      attributeFilter: ["disabled", "data-range"],
+    });
     return () => mo.disconnect();
   }, []);
 
@@ -118,13 +125,19 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
         <div className="flex items-center gap-4">
           <div className="text-right">
             <div className="text-[15px] font-semibold">${pricePerNight} <span className="font-normal text-muted-foreground">night</span></div>
-            {avgRating && reviewCount > 0 && (
-              <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
-                <Star className="h-3 w-3 fill-foreground text-foreground" />
-                <span className="font-semibold text-foreground">{avgRating.toFixed(2)}</span>
-                <span>·</span>
-                <span>{reviewCount} reviews</span>
+            {hasDates && dateLabel ? (
+              <div className="text-xs text-muted-foreground underline">
+                {dateLabel}
               </div>
+            ) : (
+              avgRating && reviewCount > 0 && (
+                <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
+                  <Star className="h-3 w-3 fill-foreground text-foreground" />
+                  <span className="font-semibold text-foreground">{avgRating.toFixed(2)}</span>
+                  <span>·</span>
+                  <span>{reviewCount} reviews</span>
+                </div>
+              )
             )}
           </div>
           {hasDates ? (
