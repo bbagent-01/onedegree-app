@@ -122,9 +122,12 @@ const TOTAL_STEPS = 7;
 
 // Shared big-input style — matches House Rules checkmark buttons (px-3 py-2.5, border-2, rounded-lg)
 const BIG_INPUT =
-  "h-14 rounded-xl border-2 border-border bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
+  "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
 const BIG_TEXTAREA =
-  "rounded-xl border-2 border-border bg-white px-4 py-3 text-base shadow-sm focus-visible:border-brand";
+  "rounded-xl border-2 border-border !bg-white px-4 py-3 text-base shadow-sm focus-visible:border-brand";
+const BIG_BUTTON =
+  "!h-14 !rounded-xl !px-7 !text-base !font-semibold";
+const BIG_BUTTON_PRIMARY = BIG_BUTTON + " bg-brand hover:bg-brand-600";
 
 const AMENITY_GROUPS: Record<string, string[]> = {
   Essentials: ["Wifi", "Kitchen", "Washer", "Dryer", "Heating", "Air conditioning"],
@@ -421,6 +424,7 @@ export default function CreateListingPage() {
           variant="outline"
           onClick={back}
           disabled={state.step === 1}
+          className={BIG_BUTTON}
         >
           <ArrowLeft className="mr-1 h-4 w-4" /> Back
         </Button>
@@ -429,7 +433,7 @@ export default function CreateListingPage() {
             type="button"
             onClick={next}
             disabled={!canAdvance}
-            className="bg-brand hover:bg-brand-600"
+            className={BIG_BUTTON_PRIMARY}
           >
             Next <ArrowRight className="ml-1 h-4 w-4" />
           </Button>
@@ -438,7 +442,7 @@ export default function CreateListingPage() {
             type="button"
             onClick={publish}
             disabled={submitting}
-            className="bg-brand hover:bg-brand-600"
+            className={BIG_BUTTON_PRIMARY}
           >
             {submitting ? (
               <Loader2 className="mr-1 h-4 w-4 animate-spin" />

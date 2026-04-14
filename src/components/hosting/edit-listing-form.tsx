@@ -45,9 +45,11 @@ interface InitialData {
 }
 
 const BIG_INPUT =
-  "h-14 rounded-xl border-2 border-border bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
+  "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
 const BIG_TEXTAREA =
-  "rounded-xl border-2 border-border bg-white px-4 py-3 text-base shadow-sm focus-visible:border-brand";
+  "rounded-xl border-2 border-border !bg-white px-4 py-3 text-base shadow-sm focus-visible:border-brand";
+const BIG_BUTTON_PRIMARY =
+  "!h-14 !rounded-xl !px-7 !text-base !font-semibold bg-brand hover:bg-brand-600";
 
 const AMENITIES = [
   "Wifi",
@@ -389,7 +391,7 @@ export function EditListingForm({
           <Button
             onClick={saveDetails}
             disabled={saving}
-            className="bg-brand hover:bg-brand-600"
+            className={BIG_BUTTON_PRIMARY}
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save details
@@ -403,7 +405,7 @@ export function EditListingForm({
           <Button
             onClick={savePhotos}
             disabled={saving}
-            className="bg-brand hover:bg-brand-600"
+            className={BIG_BUTTON_PRIMARY}
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save photos
@@ -526,7 +528,7 @@ export function EditListingForm({
           <Button
             onClick={savePricing}
             disabled={saving}
-            className="bg-brand hover:bg-brand-600"
+            className={BIG_BUTTON_PRIMARY}
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save pricing
@@ -553,7 +555,7 @@ export function EditListingForm({
           <Button
             onClick={saveDetails}
             disabled={saving}
-            className="bg-brand hover:bg-brand-600"
+            className={BIG_BUTTON_PRIMARY}
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save rules
