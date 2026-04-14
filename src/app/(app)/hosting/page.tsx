@@ -5,9 +5,7 @@ import { StatsCards } from "@/components/hosting/stats-cards";
 import { ReservationsSection } from "@/components/hosting/reservations-section";
 import { ListingsSection } from "@/components/hosting/listings-section";
 import { EarningsSection } from "@/components/hosting/earnings-section";
-import { buttonVariants } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -21,27 +19,13 @@ export default async function HostingPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-6 py-10 lg:px-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Welcome back, {firstName}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Here&apos;s what&apos;s happening with your listings and guests.
-          </p>
-        </div>
-        {hasListings && (
-          <Link
-            href="/listings/new"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "gap-1.5 bg-brand text-white hover:bg-brand-600"
-            )}
-          >
-            <Plus className="h-4 w-4" />
-            New listing
-          </Link>
-        )}
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">
+          Welcome back, {firstName}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Here&apos;s what&apos;s happening with your listings and guests.
+        </p>
       </div>
 
       <div className="mt-8">
@@ -73,10 +57,7 @@ export default async function HostingPage() {
               </p>
               <Link
                 href="/listings/new"
-                className={cn(
-                  buttonVariants({ size: "lg" }),
-                  "mt-4 gap-1.5 bg-brand text-white hover:bg-brand-600"
-                )}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-600"
               >
                 <Plus className="h-4 w-4" />
                 Create a listing

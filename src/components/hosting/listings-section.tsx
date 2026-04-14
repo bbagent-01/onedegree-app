@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Star, Pencil } from "lucide-react";
 import type { HostingListing } from "@/lib/hosting-data";
@@ -114,10 +113,7 @@ function ListingCard({
           </div>
           <Link
             href={`/listings/${listing.id}`}
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "gap-1.5"
-            )}
+            className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-600"
           >
             <Pencil className="h-3 w-3" />
             Edit
@@ -162,10 +158,7 @@ export function ListingsSection({ listings }: { listings: HostingListing[] }) {
         <h2 className="text-xl font-semibold text-foreground">Your listings</h2>
         <Link
           href="/listings/new"
-          className={cn(
-            buttonVariants({ variant: "outline", size: "sm" }),
-            "gap-1.5"
-          )}
+          className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-600"
         >
           <Plus className="h-4 w-4" />
           New listing

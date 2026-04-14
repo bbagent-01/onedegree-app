@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageCircle, Check, X } from "lucide-react";
@@ -97,31 +96,33 @@ function ReservationCard({
           )}
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-brand-600"
+            >
               <MessageCircle className="h-3.5 w-3.5" />
               Message guest
-            </Button>
+            </button>
             {reservation.status === "pending" && (
               <>
-                <Button
-                  size="sm"
-                  className="gap-1.5 bg-brand hover:bg-brand-600"
+                <button
+                  type="button"
                   disabled={isPending}
                   onClick={() => onRespond(reservation.id, "accepted")}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-60"
                 >
                   <Check className="h-3.5 w-3.5" />
                   Approve
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
+                </button>
+                <button
+                  type="button"
                   disabled={isPending}
                   onClick={() => onRespond(reservation.id, "declined")}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
                 >
                   <X className="h-3.5 w-3.5" />
                   Decline
-                </Button>
+                </button>
               </>
             )}
           </div>
