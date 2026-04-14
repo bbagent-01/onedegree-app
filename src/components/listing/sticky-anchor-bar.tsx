@@ -39,20 +39,18 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
 
   // Track whether dates have been selected by observing the booking sidebar's
   // reserve button `disabled` state.
+  // Listen for booking-range-change events from BookingSidebar to keep
+  // hasDates + dateLabel in sync.
   useEffect(() => {
-    const btn = document.getElementById("booking-reserve") as HTMLButtonElement | null;
-    if (!btn) return;
-    const update = () => {
-      setHasDates(!btn.disabled);
-      setDateLabel(btn.getAttribute("data-range") || "");
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ label: string; hasRange: boolean }>)
+        .detail;
+      if (!detail) return;
+      setHasDates(detail.hasRange);
+      setDateLabel(detail.label);
     };
-    update();
-    const mo = new MutationObserver(update);
-    mo.observe(btn, {
-      attributes: true,
-      attributeFilter: ["disabled", "data-range"],
-    });
-    return () => mo.disconnect();
+    window.addEventListener("booking-range-change", handler);
+    return () => window.removeEventListener("booking-range-change", handler);
   }, []);
 
   // Observe the photo gallery bottom — anchors appear as soon as user
