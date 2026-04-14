@@ -13,5 +13,11 @@ export function LocationMapClient(props: {
   lng: number;
   areaName: string;
 }) {
-  return <LocationMap {...props} />;
+  // `isolate` contains Leaflet's internal panes (z-index 200–800) inside a
+  // local stacking context so they can't float above sticky headers/bars.
+  return (
+    <div className="relative isolate z-0">
+      <LocationMap {...props} />
+    </div>
+  );
 }

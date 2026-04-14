@@ -43,7 +43,10 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
 
   return (
     <div
-      className={`pointer-events-none fixed inset-x-0 top-0 z-30 hidden border-b border-border/60 bg-white transition-all duration-200 md:block ${
+      // Sits flush below the site header (sticky top-0 z-50 h-16). Needs
+      // z > the map's leaflet panes (which top out around 800 in their own
+      // container) — but the map will be `isolate`d, so z-[55] is enough.
+      className={`pointer-events-none fixed inset-x-0 top-16 z-[55] hidden border-b border-border/60 bg-white transition-all duration-200 md:block ${
         visible ? "translate-y-0 opacity-100 pointer-events-auto" : "-translate-y-full opacity-0"
       }`}
     >
