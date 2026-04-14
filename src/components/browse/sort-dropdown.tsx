@@ -31,10 +31,13 @@ export function SortDropdown() {
     router.push(`/browse?${url.toString()}`);
   };
 
+  const currentLabel =
+    OPTIONS.find((o) => o.value === current)?.label ?? "Best match";
+
   return (
     <Select value={current} onValueChange={change}>
-      <SelectTrigger className="h-12 w-[200px] rounded-full border-border px-5 text-sm font-medium shadow-sm hover:shadow transition-shadow">
-        <SelectValue placeholder="Sort" />
+      <SelectTrigger className="h-14 w-[200px] rounded-full border-border bg-white px-6 text-sm font-medium shadow-sm hover:shadow transition-shadow">
+        <SelectValue placeholder="Sort">{currentLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {OPTIONS.map((o) => (

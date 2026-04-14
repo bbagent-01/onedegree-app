@@ -89,7 +89,7 @@ export function BrowseLayout({ listings }: Props) {
                   setSelectedId((cur) => (cur === l.id ? null : cur))
                 }
                 className={cn(
-                  "rounded-xl transition-all",
+                  "h-fit self-start rounded-xl transition-all",
                   selectedId === l.id &&
                     "ring-2 ring-offset-2 ring-[color:var(--brand,#2563EB)]"
                 )}

@@ -131,7 +131,7 @@ export function FilterSheet({ priceRange, activeCount }: Props) {
         render={
           <Button
             variant="outline"
-            className="h-12 gap-2 rounded-full border-border px-5 text-sm font-medium shadow-sm hover:shadow transition-shadow"
+            className="h-14 gap-2 rounded-full border-border bg-white px-6 text-sm font-medium shadow-sm hover:bg-white hover:shadow transition-shadow"
           >
             <SlidersHorizontal className="h-4 w-4" />
             Filters
@@ -152,7 +152,7 @@ export function FilterSheet({ priceRange, activeCount }: Props) {
           <SheetTitle>Filters</SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-8 px-4 pb-8 pt-2">
+        <div className="space-y-10 px-6 pb-10 pt-4 sm:px-8">
           {/* Price */}
           <section>
             <h3 className="text-base font-semibold">Price range</h3>
@@ -246,15 +246,20 @@ export function FilterSheet({ priceRange, activeCount }: Props) {
           </section>
         </div>
 
-        <SheetFooter className="sticky bottom-0 flex-row items-center justify-between border-t border-border bg-white px-4 py-3">
+        <SheetFooter className="sticky bottom-0 flex-row items-center justify-between border-t border-border bg-white px-6 py-5 sm:px-8">
           <button
             type="button"
             onClick={clearAll}
-            className="text-sm font-medium underline underline-offset-2"
+            className="text-base font-semibold underline underline-offset-4 hover:text-foreground/80"
           >
             Clear all
           </button>
-          <Button onClick={apply}>Show stays</Button>
+          <Button
+            onClick={apply}
+            className="h-12 rounded-xl bg-foreground px-8 text-base font-semibold text-background hover:bg-foreground/90"
+          >
+            Show stays
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

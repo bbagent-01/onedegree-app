@@ -28,10 +28,18 @@ export default async function BrowsePage({
   return (
     <div className="mx-auto max-w-container px-4 md:px-6">
       <div className="sticky top-0 md:top-16 z-40 -mx-4 md:-mx-6 border-b border-border/60 bg-white px-4 md:px-6 py-4">
-        <div className="mx-auto max-w-3xl">
-          <Suspense fallback={<div className="h-14" />}>
-            <SuggestionsSearchBar />
-          </Suspense>
+        <div className="mx-auto flex max-w-5xl items-center gap-3">
+          <div className="flex-1">
+            <Suspense fallback={<div className="h-14" />}>
+              <SuggestionsSearchBar />
+            </Suspense>
+          </div>
+          <div className="hidden items-center gap-3 md:flex">
+            <Suspense fallback={null}>
+              <FiltersSlot filters={filters} activeCount={filterCount} />
+            </Suspense>
+            <SortDropdown />
+          </div>
         </div>
       </div>
 
@@ -39,7 +47,7 @@ export default async function BrowsePage({
         <h1 className="text-lg font-semibold">
           {filters.location ? `Stays in ${filters.location}` : "Stays"}
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 md:hidden">
           <Suspense fallback={null}>
             <FiltersSlot filters={filters} activeCount={filterCount} />
           </Suspense>
