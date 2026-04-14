@@ -16,30 +16,37 @@ export function DesktopNav() {
 
   return (
     <header className="hidden md:block sticky top-0 z-50 border-b border-border bg-white">
-      <div
-        className={cn(
-          "flex h-24 items-center justify-between gap-6",
-          isListing
-            ? "mx-auto w-full max-w-[1280px] px-6"
-            : "w-full px-10 lg:px-20"
-        )}
-      >
-        {/* Logo — on listing pages, hidden below xl so the sticky anchor bar
-            can reclaim the nav width. */}
+      {/* Primary nav is always full-width, extending to browser edges. The
+          listing page's sticky anchor bar (portaled into #nav-center-slot)
+          constrains itself to 1280 so it aligns with the listing column. */}
+      <div className="relative flex h-24 w-full items-center justify-between gap-6 px-10 lg:px-20">
+        {/* Logo — hidden on narrow listing viewports so the sticky anchor
+            bar can reclaim width. */}
         <Link
           href="/browse"
           aria-label="One Degree B&B"
           className={cn(
             "shrink-0 items-center",
-            isListing ? "hidden xl:flex" : "flex"
+            isListing ? "hidden 2xl:flex" : "flex"
           )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/1db-wordmark.svg" alt="One Degree B&B" className="h-16 w-auto" />
         </Link>
 
-        {/* Middle slot — route-specific content rendered via portal */}
-        <div id="nav-center-slot" className="flex min-w-0 flex-1 items-center justify-center" />
+        {/* Middle slot — route-specific content rendered via portal.
+            On listing pages, the slot is absolutely positioned and
+            constrained to 1280 so the sticky anchor bar aligns with the
+            listing column below. On other routes (e.g. browse) it uses
+            flex so the search bar can fill the available center space. */}
+        <div
+          id="nav-center-slot"
+          className={cn(
+            isListing
+              ? "pointer-events-none absolute inset-x-0 top-0 z-[1] mx-auto flex h-24 w-full max-w-[1280px] items-center justify-center [&>*]:pointer-events-auto"
+              : "flex min-w-0 flex-1 items-center justify-center"
+          )}
+        />
 
         {/* Right section */}
         <div className="flex shrink-0 items-center gap-4">
@@ -49,7 +56,7 @@ export function DesktopNav() {
             href="/browse"
             className={cn(
               "text-sm font-medium text-foreground hover:text-foreground/80 transition-colors",
-              isListing && "hidden xl:inline-flex"
+              isListing && "hidden 2xl:inline-flex"
             )}
           >
             Become a Host
@@ -57,7 +64,7 @@ export function DesktopNav() {
           <button
             className={cn(
               "p-2 hover:bg-muted rounded-full transition-colors",
-              isListing && "hidden xl:inline-flex"
+              isListing && "hidden 2xl:inline-flex"
             )}
           >
             <Globe className="h-4 w-4" />

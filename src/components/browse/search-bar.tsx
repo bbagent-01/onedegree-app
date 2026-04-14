@@ -154,7 +154,7 @@ export function SearchBar({ suggestions, compact }: SearchBarProps) {
     <div
       className={cn(
         "flex items-center rounded-full border border-border bg-white shadow-sm hover:shadow transition-shadow",
-        compact ? "h-12" : "h-14"
+        compact ? "h-14" : "h-14"
       )}
     >
       {/* Location */}

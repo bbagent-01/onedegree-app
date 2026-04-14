@@ -26,12 +26,10 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
   const [visible, setVisible] = useState(false);
   const [hasDates, setHasDates] = useState(false);
   const [centerSlot, setCenterSlot] = useState<HTMLElement | null>(null);
-  const [rightSlot, setRightSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     setMounted(true);
     setCenterSlot(document.getElementById("nav-center-slot"));
-    setRightSlot(document.getElementById("nav-right-slot"));
   }, []);
 
   // Track whether dates have been selected by observing the booking sidebar's
@@ -77,51 +75,48 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
 
   if (!mounted || !visible) return null;
 
-  const centerContent = (
-    <nav className="hidden items-center gap-8 text-sm font-medium lg:flex">
-      <button onClick={() => scrollTo("photos")} className="py-2 hover:text-foreground/70">Photos</button>
-      <button onClick={() => scrollTo("amenities")} className="py-2 hover:text-foreground/70">Amenities</button>
-      <button onClick={() => scrollTo("reviews")} className="py-2 hover:text-foreground/70">Reviews</button>
-      <button onClick={() => scrollTo("location")} className="py-2 hover:text-foreground/70">Location</button>
-    </nav>
-  );
-
-  const rightContent = (
-    <div className="flex items-center gap-4">
-      <div className="text-right">
-        <div className="text-[15px] font-semibold">${pricePerNight} <span className="font-normal text-muted-foreground">night</span></div>
-        {avgRating && reviewCount > 0 && (
-          <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
-            <Star className="h-3 w-3 fill-foreground text-foreground" />
-            <span className="font-semibold text-foreground">{avgRating.toFixed(2)}</span>
-            <span>·</span>
-            <span>{reviewCount} reviews</span>
-          </div>
+  // Single portaled row constrained to the listing content width (1280). It
+  // contains section anchors on the left and price + Reserve on the right,
+  // and visually aligns with the listing column below the nav.
+  const barContent = (
+    <div className="mx-auto flex w-full max-w-[1280px] items-center justify-between gap-6 px-6">
+      <nav className="hidden items-center gap-8 text-sm font-medium lg:flex">
+        <button onClick={() => scrollTo("photos")} className="py-2 hover:text-foreground/70">Photos</button>
+        <button onClick={() => scrollTo("amenities")} className="py-2 hover:text-foreground/70">Amenities</button>
+        <button onClick={() => scrollTo("reviews")} className="py-2 hover:text-foreground/70">Reviews</button>
+        <button onClick={() => scrollTo("location")} className="py-2 hover:text-foreground/70">Location</button>
+      </nav>
+      <div className="flex items-center gap-4">
+        <div className="text-right">
+          <div className="text-[15px] font-semibold">${pricePerNight} <span className="font-normal text-muted-foreground">night</span></div>
+          {avgRating && reviewCount > 0 && (
+            <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
+              <Star className="h-3 w-3 fill-foreground text-foreground" />
+              <span className="font-semibold text-foreground">{avgRating.toFixed(2)}</span>
+              <span>·</span>
+              <span>{reviewCount} reviews</span>
+            </div>
+          )}
+        </div>
+        {hasDates ? (
+          <Button
+            onClick={reserve}
+            className="h-10 rounded-lg bg-brand px-6 font-semibold text-white hover:bg-brand-600"
+          >
+            Reserve
+          </Button>
+        ) : (
+          <button
+            type="button"
+            onClick={selectDates}
+            className="h-10 rounded-lg px-4 text-sm font-semibold text-foreground underline underline-offset-2 hover:text-brand"
+          >
+            Select dates to reserve
+          </button>
         )}
       </div>
-      {hasDates ? (
-        <Button
-          onClick={reserve}
-          className="h-10 rounded-lg bg-brand px-6 font-semibold text-white hover:bg-brand-600"
-        >
-          Reserve
-        </Button>
-      ) : (
-        <button
-          type="button"
-          onClick={selectDates}
-          className="h-10 rounded-lg px-4 text-sm font-semibold text-foreground underline underline-offset-2 hover:text-brand"
-        >
-          Select dates to reserve
-        </button>
-      )}
     </div>
   );
 
-  return (
-    <>
-      {centerSlot && createPortal(centerContent, centerSlot)}
-      {rightSlot && createPortal(rightContent, rightSlot)}
-    </>
-  );
+  return centerSlot ? createPortal(barContent, centerSlot) : null;
 }
