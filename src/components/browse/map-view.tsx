@@ -84,7 +84,10 @@ function escapeAttr(s: string): string {
   return s.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-function wirePopupCarousel(root: HTMLElement) {
+function wirePopupCarousel(
+  root: HTMLElement,
+  L: typeof import("leaflet")
+) {
   const count = parseInt(root.dataset.ppCount || "1", 10);
   if (count <= 1) return;
   let idx = 0;
@@ -101,7 +104,11 @@ function wirePopupCarousel(root: HTMLElement) {
     update();
   };
   root.querySelectorAll<HTMLElement>("[data-pp-action]").forEach((btn) => {
-    btn.addEventListener("click", (ev) => {
+    // Stop Leaflet from swallowing button clicks or treating them as
+    // map interactions, then attach our own handler via L.DomEvent so
+    // it runs inside Leaflet's event system.
+    L.DomEvent.disableClickPropagation(btn);
+    L.DomEvent.on(btn, "click", (ev: Event) => {
       ev.preventDefault();
       ev.stopPropagation();
       go(btn.dataset.ppAction === "next" ? 1 : -1);
@@ -202,7 +209,7 @@ export function MapView({ listings, selectedId, onSelect }: Props) {
           ".pp-card"
         ) as HTMLElement | null;
         if (!root) return;
-        wirePopupCarousel(root);
+        wirePopupCarousel(root, L);
       });
 
       marker.on("click", () => {
