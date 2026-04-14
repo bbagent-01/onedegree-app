@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
 import type { BrowseListing } from "@/lib/browse-data";
 import "leaflet/dist/leaflet.css";
@@ -11,37 +11,85 @@ interface Props {
   onSelect: (id: string | null) => void;
 }
 
+const PLACEHOLDER =
+  "https://placehold.co/600x400/e2e8f0/475569?text=No+photo";
+
+function popupHtml(l: BrowseListing): string {
+  const img = l.photos[0]?.public_url ?? PLACEHOLDER;
+  const price = l.price_min ?? l.price_max ?? 0;
+  const rating = l.avg_listing_rating;
+  const ratingLine = rating
+    ? `<span class="pp-rating">★ ${rating.toFixed(2)} <span class="pp-dim">(${l.listing_review_count})</span></span>`
+    : "";
+  const title = escapeHtml(l.title);
+  const area = escapeHtml(l.area_name);
+  const propType =
+    l.property_type.charAt(0).toUpperCase() + l.property_type.slice(1);
+  return `
+    <a class="pp-card" href="/listings/${l.id}">
+      <div class="pp-img" style="background-image:url('${escapeAttr(img)}')"></div>
+      <div class="pp-body">
+        <div class="pp-row">
+          <span class="pp-title">${title}</span>
+          ${ratingLine}
+        </div>
+        <div class="pp-sub">${area} · ${propType}</div>
+        <div class="pp-price"><strong>$${price}</strong> <span class="pp-dim">night</span></div>
+      </div>
+    </a>
+  `;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+function escapeAttr(s: string): string {
+  return s.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 export function MapView({ listings, selectedId, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<LeafletMap | null>(null);
-  const markersRef = useRef<Map<string, LeafletMarker>>(new Map());
+  const [map, setMap] = useState<LeafletMap | null>(null);
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
+  const markersRef = useRef<Map<string, LeafletMarker>>(new Map());
 
-  // Init map once.
+  // Init map exactly once.
   useEffect(() => {
     let cancelled = false;
+    let localMap: LeafletMap | null = null;
     (async () => {
       const L = (await import("leaflet")).default;
-      if (cancelled || !containerRef.current || mapRef.current) return;
+      if (cancelled || !containerRef.current) return;
       leafletRef.current = L;
-      const map = L.map(containerRef.current, {
+
+      localMap = L.map(containerRef.current, {
         zoomControl: true,
         scrollWheelZoom: true,
       }).setView([40.7128, -74.006], 12);
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(map);
+      // CartoDB Positron — clean, muted base map (Airbnb-like look).
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        {
+          maxZoom: 19,
+          subdomains: ["a", "b", "c", "d"],
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        }
+      ).addTo(localMap);
 
-      mapRef.current = map;
+      setMap(localMap);
     })();
 
     return () => {
       cancelled = true;
-      mapRef.current?.remove();
-      mapRef.current = null;
+      if (localMap) {
+        localMap.remove();
+      }
       markersRef.current.clear();
     };
   }, []);
@@ -51,10 +99,9 @@ export function MapView({ listings, selectedId, onSelect }: Props) {
     [listings]
   );
 
-  // Rebuild markers whenever listings change.
+  // (Re)build markers whenever map is ready or listings change.
   useEffect(() => {
     const L = leafletRef.current;
-    const map = mapRef.current;
     if (!L || !map) return;
 
     // Remove stale markers.
@@ -78,8 +125,25 @@ export function MapView({ listings, selectedId, onSelect }: Props) {
         iconAnchor: [0, 0],
       });
 
-      const marker = L.marker([l.latitude, l.longitude], { icon }).addTo(map);
-      marker.on("click", () => onSelect(l.id));
+      const marker = L.marker([l.latitude, l.longitude], {
+        icon,
+        riseOnHover: true,
+      }).addTo(map);
+
+      marker.bindPopup(popupHtml(l), {
+        className: "listing-popup",
+        maxWidth: 260,
+        minWidth: 260,
+        closeButton: true,
+        autoPan: true,
+        offset: [0, -6],
+      });
+
+      marker.on("click", () => {
+        onSelect(l.id);
+        marker.openPopup();
+      });
+
       markersRef.current.set(l.id, marker);
       bounds.extend([l.latitude, l.longitude]);
     });
@@ -90,9 +154,9 @@ export function MapView({ listings, selectedId, onSelect }: Props) {
       map.setView([listings[0].latitude, listings[0].longitude], 14);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listingsKey]);
+  }, [map, listingsKey]);
 
-  // Update only the selected state when selectedId changes (no map re-fit).
+  // Only update visual state (no map re-fit) when selectedId changes.
   useEffect(() => {
     const L = leafletRef.current;
     if (!L) return;
@@ -112,11 +176,7 @@ export function MapView({ listings, selectedId, onSelect }: Props) {
           iconAnchor: [0, 0],
         })
       );
-      if (isSelected) {
-        marker.setZIndexOffset(1000);
-      } else {
-        marker.setZIndexOffset(0);
-      }
+      marker.setZIndexOffset(isSelected ? 1000 : 0);
     });
   }, [selectedId, listings]);
 

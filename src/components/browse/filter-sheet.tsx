@@ -129,7 +129,10 @@ export function FilterSheet({ priceRange, activeCount }: Props) {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         render={
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button
+            variant="outline"
+            className="h-12 gap-2 rounded-full border-border px-5 text-sm font-medium shadow-sm hover:shadow transition-shadow"
+          >
             <SlidersHorizontal className="h-4 w-4" />
             Filters
             {activeCount > 0 && (

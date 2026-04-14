@@ -47,3 +47,85 @@
   border-color: #1a1d21;
   transform: translate(-50%, -50%) scale(1.1);
 }
+
+/* Leaflet popup — Airbnb-style listing card */
+.leaflet-popup.listing-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+.leaflet-popup.listing-popup .leaflet-popup-content {
+  margin: 0;
+  width: 260px !important;
+}
+.leaflet-popup.listing-popup .leaflet-popup-tip {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+.leaflet-popup.listing-popup .leaflet-popup-close-button {
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 9999px;
+  color: #1a1d21;
+  font-size: 18px;
+  line-height: 26px;
+  text-align: center;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.listing-popup .pp-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.listing-popup .pp-img {
+  height: 160px;
+  background-size: cover;
+  background-position: center;
+  background-color: #f3f4f6;
+}
+.listing-popup .pp-body {
+  padding: 10px 12px 12px;
+}
+.listing-popup .pp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 8px;
+}
+.listing-popup .pp-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1a1d21;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+.listing-popup .pp-rating {
+  font-size: 12px;
+  color: #1a1d21;
+  white-space: nowrap;
+}
+.listing-popup .pp-sub {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.listing-popup .pp-price {
+  font-size: 13px;
+  color: #1a1d21;
+  margin-top: 4px;
+}
+.listing-popup .pp-dim {
+  color: #6b7280;
+  font-weight: 400;
+}

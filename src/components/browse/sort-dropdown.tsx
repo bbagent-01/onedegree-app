@@ -33,7 +33,7 @@ export function SortDropdown() {
 
   return (
     <Select value={current} onValueChange={change}>
-      <SelectTrigger className="w-[200px]">
+      <SelectTrigger className="h-12 w-[200px] rounded-full border-border px-5 text-sm font-medium shadow-sm hover:shadow transition-shadow">
         <SelectValue placeholder="Sort" />
       </SelectTrigger>
       <SelectContent>

@@ -122,21 +122,20 @@ export function BrowseLayout({ listings }: Props) {
       )}
 
       {/* Desktop split toggle */}
-      <div className="fixed bottom-24 left-1/2 z-40 hidden -translate-x-1/2 md:block">
+      <div className="fixed bottom-8 left-1/2 z-40 hidden -translate-x-1/2 md:block">
         <Button
           type="button"
           onClick={() => setMode((m) => (m === "split" ? "grid" : "split"))}
-          className="rounded-full shadow-lg"
-          size="sm"
+          className="h-12 gap-2 rounded-full bg-foreground px-6 text-sm font-medium text-background shadow-lg hover:bg-foreground/90"
         >
           {mode === "split" ? (
             <>
-              <LayoutGrid className="mr-2 h-4 w-4" />
+              <LayoutGrid className="h-4 w-4" />
               Show grid
             </>
           ) : (
             <>
-              <MapIcon className="mr-2 h-4 w-4" />
+              <MapIcon className="h-4 w-4" />
               Show map
             </>
           )}
@@ -148,17 +147,16 @@ export function BrowseLayout({ listings }: Props) {
         <Button
           type="button"
           onClick={() => setMode((m) => (m === "map" ? "grid" : "map"))}
-          className="rounded-full shadow-lg"
-          size="sm"
+          className="h-12 gap-2 rounded-full bg-foreground px-6 text-sm font-medium text-background shadow-lg hover:bg-foreground/90"
         >
           {mode === "map" ? (
             <>
-              <X className="mr-2 h-4 w-4" />
+              <X className="h-4 w-4" />
               Close map
             </>
           ) : (
             <>
-              <MapIcon className="mr-2 h-4 w-4" />
+              <MapIcon className="h-4 w-4" />
               Map
             </>
           )}
