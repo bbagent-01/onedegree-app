@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { differenceInCalendarDays, format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
@@ -46,6 +46,13 @@ export function BookingSidebar({
   const [submitting, setSubmitting] = useState(false);
   const [guestsOpen, setGuestsOpen] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
+
+  // Auto-dismiss the purple reservation-sent banner after 5 seconds.
+  useEffect(() => {
+    if (!successOpen) return;
+    const t = setTimeout(() => setSuccessOpen(false), 5000);
+    return () => clearTimeout(t);
+  }, [successOpen]);
 
   const nights = useMemo(
     () =>
@@ -103,7 +110,7 @@ export function BookingSidebar({
     <>
       {/* Desktop / tablet sticky card */}
       <div className="hidden h-full md:block">
-        <div className="sticky top-24 rounded-xl border border-border/60 bg-white p-6 shadow-xl">
+        <div id="booking-card" className="sticky top-28 rounded-xl border border-border/60 bg-white p-6 shadow-xl">
           <div className="flex items-baseline justify-between">
             <div>
               <span className="text-2xl font-semibold">${pricePerNight}</span>

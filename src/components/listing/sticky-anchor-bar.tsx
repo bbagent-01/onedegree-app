@@ -24,6 +24,7 @@ interface Props {
 export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [hasDates, setHasDates] = useState(false);
   const [centerSlot, setCenterSlot] = useState<HTMLElement | null>(null);
   const [rightSlot, setRightSlot] = useState<HTMLElement | null>(null);
 
@@ -31,6 +32,20 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
     setMounted(true);
     setCenterSlot(document.getElementById("nav-center-slot"));
     setRightSlot(document.getElementById("nav-right-slot"));
+  }, []);
+
+  // Track whether dates have been selected by observing the booking sidebar's
+  // reserve button `disabled` state. When dates aren't set, the sidebar
+  // disables the button — we mirror that into this sticky nav so we can
+  // swap the Reserve button for a "Select dates to reserve" link.
+  useEffect(() => {
+    const btn = document.getElementById("booking-reserve") as HTMLButtonElement | null;
+    if (!btn) return;
+    const update = () => setHasDates(!btn.disabled);
+    update();
+    const mo = new MutationObserver(update);
+    mo.observe(btn, { attributes: true, attributeFilter: ["disabled"] });
+    return () => mo.disconnect();
   }, []);
 
   useEffect(() => {
@@ -52,6 +67,12 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
 
   const reserve = () => {
     document.getElementById("booking-reserve")?.click();
+  };
+
+  const selectDates = () => {
+    document
+      .getElementById("booking-card")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   if (!mounted || !visible) return null;
@@ -78,12 +99,22 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
           </div>
         )}
       </div>
-      <Button
-        onClick={reserve}
-        className="h-10 rounded-lg bg-brand px-6 font-semibold text-white hover:bg-brand-600"
-      >
-        Reserve
-      </Button>
+      {hasDates ? (
+        <Button
+          onClick={reserve}
+          className="h-10 rounded-lg bg-brand px-6 font-semibold text-white hover:bg-brand-600"
+        >
+          Reserve
+        </Button>
+      ) : (
+        <button
+          type="button"
+          onClick={selectDates}
+          className="h-10 rounded-lg px-4 text-sm font-semibold text-foreground underline underline-offset-2 hover:text-brand"
+        >
+          Select dates to reserve
+        </button>
+      )}
     </div>
   );
 
