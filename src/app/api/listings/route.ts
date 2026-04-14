@@ -81,6 +81,9 @@ export async function POST(req: Request) {
       full_visibility: full_visibility || "vouched",
       min_trust_score: min_trust_score ?? 0,
       specific_user_ids: specific_user_ids || [],
+      // Default new listings to "available" so guests can immediately request
+      // dates without the host first having to paint every cell green.
+      default_availability_status: "available",
     })
     .select("id")
     .single();

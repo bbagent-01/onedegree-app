@@ -38,7 +38,7 @@ export async function validateBookingDates(
   const { data: listing } = await supabase
     .from("listings")
     .select(
-      "min_nights, max_nights, prep_days, advance_notice_days, availability_window_months, blocked_checkin_days, blocked_checkout_days"
+      "min_nights, max_nights, prep_days, advance_notice_days, availability_window_months, blocked_checkin_days, blocked_checkout_days, default_availability_status"
     )
     .eq("id", listingId)
     .single();
@@ -115,14 +115,21 @@ export async function validateBookingDates(
   }
 
   // Check each night (check-in through day before check-out)
+  // Uncovered days fall back to the listing's default_availability_status.
+  const defaultStatus = listing.default_availability_status as
+    | "available"
+    | "possibly_available"
+    | "blocked"
+    | null;
   let d = checkIn;
   const uncoveredDates: string[] = [];
   const blockedDates: string[] = [];
   while (d < checkOut) {
-    const status = statusMap.get(d);
-    if (!status) {
+    const explicit = statusMap.get(d);
+    const effective = explicit ?? defaultStatus ?? null;
+    if (!effective) {
       uncoveredDates.push(d);
-    } else if (status === "blocked") {
+    } else if (effective === "blocked") {
       blockedDates.push(d);
     }
     d = addDays(d, 1);
