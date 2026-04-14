@@ -36,21 +36,20 @@ Both groups are aged 25–45, travel regularly, and are already doing this infor
 
 ## ⚠️ Branch Safety — READ BEFORE EVERY SESSION
 
-Two tracks share one repo. **Working on the wrong branch has happened repeatedly.** Every CC session MUST verify its branch before writing any code.
+Each track has its own local clone. **Never switch branches — if you're in the right folder, you're on the right branch.**
 
-| Track | Branch | Deploy URL |
-|-------|--------|------------|
-| **Track A** (Alpha-A sessions) | `main` | alpha-a.onedegreebnb.com |
-| **Track B** (Alpha-B sessions) | `track-b/airbnb-clone` | alpha-b.onedegreebnb.com |
+| Track | Local folder | Branch | Deploy URL |
+|-------|-------------|--------|------------|
+| **Track A** (Alpha-A sessions) | `~/Claude/Projects/onedegree-app` | `main` | alpha-a.onedegreebnb.com |
+| **Track B** (Alpha-B sessions) | `~/Claude/Projects/onedegree-app-track-b` | `track-b/airbnb-clone` | alpha-b.onedegreebnb.com |
 
 **Mandatory first command in every session:**
 ```bash
 git branch --show-current
 ```
-- If the output does NOT match the expected branch for this track → **STOP. Do not write any code.** Switch to the correct branch first.
-- Track A sessions: expected output is `main`. If you see `track-b/airbnb-clone`, run `git checkout main`.
-- Track B sessions: expected output is `track-b/airbnb-clone`. If you see `main`, run `git checkout track-b/airbnb-clone`.
-- **Never commit Track A work to track-b/airbnb-clone or Track B work to main.**
+- Track A sessions: expected output is `main`. If you see anything else → **STOP. You are in the wrong folder.**
+- Track B sessions: expected output is `track-b/airbnb-clone`. If you see anything else → **STOP. You are in the wrong folder.**
+- **Never run `git checkout` to switch branches. Never commit Track A work to track-b/airbnb-clone or Track B work to main.**
 
 ## Tech Stack
 
@@ -305,9 +304,9 @@ Full trust algorithm, revenue model activated, on-platform tools fully built, op
 
 ## Track B (Parallel Build)
 - Branch: `track-b/airbnb-clone` — **NOT main**
+- **Local: `~/Claude/Projects/onedegree-app-track-b`** (separate clone — never use `~/Claude/Projects/onedegree-app` for Track B)
 - Deploy: alpha-b.onedegreebnb.com
 - Repo: bbagent-01/onedegree-app (same repo, different branch)
-- Local: ~/Claude/Projects/onedegree-app
 - Session naming: `1DB - Alpha-B - CC-B# - Name`
 - Status: CC-B1 + CC-B2 complete. CC-B3a in progress.
 - Architecture: B2–B6 = pure Airbnb clone (no trust mechanics). B7 = 1DB trust overlay.

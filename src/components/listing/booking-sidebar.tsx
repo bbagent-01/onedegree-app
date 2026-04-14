@@ -101,7 +101,7 @@ export function BookingSidebar({
   return (
     <>
       {/* Desktop / tablet sticky card */}
-      <div className="hidden md:block">
+      <div className="hidden h-full md:block">
         <div className="sticky top-24 rounded-xl border border-border/60 bg-white p-6 shadow-xl">
           <div className="flex items-baseline justify-between">
             <div>
@@ -242,8 +242,8 @@ export function BookingSidebar({
         </div>
       </div>
 
-      {/* Mobile fixed bottom bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-white px-4 py-3 md:hidden">
+      {/* Mobile fixed bottom bar — sits above the mobile tab bar (which is z-50 h-[60px]) */}
+      <div className="fixed inset-x-0 bottom-[60px] z-[60] border-t border-border/60 bg-white px-4 py-3 md:hidden">
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <div>
             <div>

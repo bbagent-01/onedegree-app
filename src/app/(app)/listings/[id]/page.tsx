@@ -58,7 +58,7 @@ export default async function ListingPage({
   const yearsHosting = yearsSince(listing.host?.created_at);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-32 md:px-6 md:pb-12">
+    <div className="mx-auto max-w-6xl px-4 pb-40 md:px-6 md:pb-12">
       {/* Title (mobile: below photos, desktop: above) */}
       <div className="mt-4 hidden md:block">
         <h1 className="text-2xl font-semibold leading-tight md:text-3xl">

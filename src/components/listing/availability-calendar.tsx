@@ -34,7 +34,7 @@ export function AvailabilityCalendar({
       numberOfMonths={numberOfMonths}
       disabled={disabledMatcher(blockedRanges)}
       showOutsideDays={false}
-      className="[--cell-size:--spacing(10)]"
+      className="[--cell-size:--spacing(12)] text-[15px]"
     />
   );
 }

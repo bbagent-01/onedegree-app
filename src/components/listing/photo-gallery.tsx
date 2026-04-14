@@ -54,35 +54,67 @@ export function PhotoGallery({ photos, title }: Props) {
 
   return (
     <>
-      {/* Desktop grid */}
+      {/* Desktop grid — adapts to photo count */}
       <div className="relative hidden md:block">
-        <div className="grid h-[420px] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-xl lg:h-[480px]">
-          <button
-            onClick={() => open(0)}
-            className="relative col-span-2 row-span-2 overflow-hidden bg-muted group"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={images[0]}
-              alt={`${title} — photo 1`}
-              className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
-            />
-          </button>
-          {[1, 2, 3, 4].map((i) => (
+        {images.length >= 5 ? (
+          <div className="grid h-[420px] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-xl lg:h-[480px]">
             <button
-              key={i}
-              onClick={() => open(Math.min(i, images.length - 1))}
-              className="relative overflow-hidden bg-muted group"
+              onClick={() => open(0)}
+              className="relative col-span-2 row-span-2 overflow-hidden bg-muted group"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={images[i] ?? images[images.length - 1]}
-                alt={`${title} — photo ${i + 1}`}
-                className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
-              />
+              <img src={images[0]} alt={`${title} — photo 1`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
             </button>
-          ))}
-        </div>
+            {[1, 2, 3, 4].map((i) => (
+              <button key={i} onClick={() => open(i)} className="relative overflow-hidden bg-muted group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={images[i]} alt={`${title} — photo ${i + 1}`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
+              </button>
+            ))}
+          </div>
+        ) : images.length === 4 ? (
+          <div className="grid h-[420px] grid-cols-3 grid-rows-2 gap-2 overflow-hidden rounded-xl lg:h-[480px]">
+            <button onClick={() => open(0)} className="relative col-span-2 row-span-2 overflow-hidden bg-muted group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={images[0]} alt={`${title} — photo 1`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
+            </button>
+            {[1, 2, 3].map((i) => (
+              <button key={i} onClick={() => open(i)} className={cn("relative overflow-hidden bg-muted group", i === 3 && "col-span-2")}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={images[i]} alt={`${title} — photo ${i + 1}`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
+              </button>
+            ))}
+          </div>
+        ) : images.length === 3 ? (
+          <div className="grid h-[420px] grid-cols-2 grid-rows-2 gap-2 overflow-hidden rounded-xl lg:h-[480px]">
+            <button onClick={() => open(0)} className="relative row-span-2 overflow-hidden bg-muted group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={images[0]} alt={`${title} — photo 1`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
+            </button>
+            {[1, 2].map((i) => (
+              <button key={i} onClick={() => open(i)} className="relative overflow-hidden bg-muted group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={images[i]} alt={`${title} — photo ${i + 1}`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
+              </button>
+            ))}
+          </div>
+        ) : images.length === 2 ? (
+          <div className="grid h-[420px] grid-cols-2 gap-2 overflow-hidden rounded-xl lg:h-[480px]">
+            {[0, 1].map((i) => (
+              <button key={i} onClick={() => open(i)} className="relative overflow-hidden bg-muted group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={images[i]} alt={`${title} — photo ${i + 1}`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="h-[420px] overflow-hidden rounded-xl lg:h-[480px]">
+            <button onClick={() => open(0)} className="relative h-full w-full overflow-hidden bg-muted group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={images[0]} alt={`${title} — photo 1`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
+            </button>
+          </div>
+        )}
 
         <Button
           variant="outline"
