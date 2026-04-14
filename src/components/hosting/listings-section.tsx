@@ -29,14 +29,14 @@ function ToggleSwitch({
         onChange(!active);
       }}
       className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-lg transition-colors",
+        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
         active ? "bg-brand" : "bg-zinc-300",
         disabled && "opacity-60"
       )}
     >
       <span
         className={cn(
-          "inline-block h-5 w-5 transform rounded-lg bg-white shadow-sm transition-transform",
+          "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
           active ? "translate-x-[22px]" : "translate-x-0.5"
         )}
       />
