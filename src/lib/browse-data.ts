@@ -235,17 +235,38 @@ export async function getBrowseSuggestions(): Promise<{
   return { areas, titles };
 }
 
-/** Returns price histogram buckets for the current listing set (pre-filter). */
-export async function getBrowsePriceRange(): Promise<{
+/**
+ * Returns price histogram buckets for the current filtered listing set,
+ * ignoring the price filter itself so the slider bounds reflect what's
+ * actually available after location / property type / amenity filters.
+ */
+export async function getBrowsePriceRange(
+  filters: BrowseFilters = {}
+): Promise<{
   min: number;
   max: number;
   histogram: number[];
 }> {
   const supabase = getSupabaseAdmin();
-  const { data } = await supabase
+  let query = supabase
     .from("listings")
     .select("price_min")
     .eq("is_active", true);
+
+  if (filters.location && filters.location.trim().length > 0) {
+    const term = filters.location.trim().replace(/[%,]/g, "");
+    query = query.or(
+      `title.ilike.%${term}%,area_name.ilike.%${term}%,description.ilike.%${term}%`
+    );
+  }
+  if (filters.propertyTypes && filters.propertyTypes.length > 0) {
+    query = query.in("property_type", filters.propertyTypes);
+  }
+  if (filters.amenities && filters.amenities.length > 0) {
+    query = query.contains("amenities", filters.amenities);
+  }
+
+  const { data } = await query;
 
   const prices = ((data || []) as { price_min: number | null }[])
     .map((r) => r.price_min)

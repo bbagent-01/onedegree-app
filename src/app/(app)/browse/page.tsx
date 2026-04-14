@@ -41,7 +41,7 @@ export default async function BrowsePage({
         </h1>
         <div className="flex items-center gap-2">
           <Suspense fallback={null}>
-            <FiltersSlot activeCount={filterCount} />
+            <FiltersSlot filters={filters} activeCount={filterCount} />
           </Suspense>
           <SortDropdown />
         </div>
@@ -61,8 +61,21 @@ async function SuggestionsSearchBar() {
   return <SearchBar suggestions={suggestions} />;
 }
 
-async function FiltersSlot({ activeCount }: { activeCount: number }) {
-  const priceRange = await getBrowsePriceRange();
+async function FiltersSlot({
+  filters,
+  activeCount,
+}: {
+  filters: ReturnType<typeof parseBrowseParams>;
+  activeCount: number;
+}) {
+  // Price bounds should reflect the currently-filtered set (excluding price itself).
+  const { priceMin, priceMax, bedrooms, beds, bathrooms, ...rest } = filters;
+  void priceMin;
+  void priceMax;
+  void bedrooms;
+  void beds;
+  void bathrooms;
+  const priceRange = await getBrowsePriceRange(rest);
   return <FilterSheet priceRange={priceRange} activeCount={activeCount} />;
 }
 
