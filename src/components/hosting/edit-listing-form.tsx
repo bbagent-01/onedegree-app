@@ -248,7 +248,7 @@ export function EditListingForm({
   };
 
   return (
-    <Tabs value={tab} onValueChange={setTab} className="w-full">
+    <Tabs value={tab} onValueChange={setTab} className="w-full !flex-col">
       <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-2 rounded-2xl border border-border bg-white p-2 shadow-sm">
         {[
           ["details", "Details"],
