@@ -26,11 +26,6 @@ export function AvailabilityCalendar({
   blockedRanges,
   numberOfMonths = 2,
 }: Props) {
-  // shadcn Calendar hardcodes `[--cell-size:--spacing(7)]` on the DayPicker
-  // root via className. A class-based CSS var on an element wins over a
-  // parent wrapper's inline var. The only way to beat it is to set the var
-  // *inline* on the same element — DayPicker forwards `style` to its root,
-  // so this propagates correctly.
   return (
     <Calendar
       mode="range"
@@ -40,7 +35,6 @@ export function AvailabilityCalendar({
       disabled={disabledMatcher(blockedRanges)}
       showOutsideDays={false}
       className="text-[15px]"
-      style={{ ["--cell-size" as string]: "2.75rem" }}
     />
   );
 }

@@ -200,7 +200,6 @@ export default async function ListingPage({
 
         {/* Right column: booking sidebar */}
         <div className="md:col-span-1">
-          <div id="booking-sentinel" />
           <BookingSidebar
             listingId={listing.id}
             pricePerNight={price}
@@ -212,6 +211,15 @@ export default async function ListingPage({
           />
         </div>
       </div>
+
+      {/*
+        Sticky anchor bar sentinel — placed at the end of the main booking
+        grid so it scrolls above the viewport only after the sidebar's
+        column has fully passed. This matches Airbnb: the reserve card
+        sticks in its column until the end of the listing info, then the
+        anchor bar appears at top.
+      */}
+      <div id="booking-sentinel" className="h-0" />
 
       <Separator className="my-10" />
 
