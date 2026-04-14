@@ -57,7 +57,7 @@ export default async function HostingPage() {
               </p>
               <Link
                 href="/listings/new"
-                className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-600"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-600"
               >
                 <Plus className="h-4 w-4" />
                 Create a listing

@@ -98,7 +98,7 @@ function ReservationCard({
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-brand-600"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-600"
             >
               <MessageCircle className="h-3.5 w-3.5" />
               Message guest
@@ -109,7 +109,7 @@ function ReservationCard({
                   type="button"
                   disabled={isPending}
                   onClick={() => onRespond(reservation.id, "accepted")}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-brand-600 disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-600 disabled:opacity-60"
                 >
                   <Check className="h-3.5 w-3.5" />
                   Approve
@@ -118,7 +118,7 @@ function ReservationCard({
                   type="button"
                   disabled={isPending}
                   onClick={() => onRespond(reservation.id, "declined")}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
                 >
                   <X className="h-3.5 w-3.5" />
                   Decline

@@ -29,14 +29,14 @@ function ToggleSwitch({
         onChange(!active);
       }}
       className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
+        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-lg transition-colors",
         active ? "bg-brand" : "bg-zinc-300",
         disabled && "opacity-60"
       )}
     >
       <span
         className={cn(
-          "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform",
+          "inline-block h-5 w-5 transform rounded-lg bg-white shadow-sm transition-transform",
           active ? "translate-x-[22px]" : "translate-x-0.5"
         )}
       />
@@ -113,7 +113,7 @@ function ListingCard({
           </div>
           <Link
             href={`/listings/${listing.id}`}
-            className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-600"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-600"
           >
             <Pencil className="h-3 w-3" />
             Edit
@@ -158,7 +158,7 @@ export function ListingsSection({ listings }: { listings: HostingListing[] }) {
         <h2 className="text-xl font-semibold text-foreground">Your listings</h2>
         <Link
           href="/listings/new"
-          className="inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-600"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-600"
         >
           <Plus className="h-4 w-4" />
           New listing
@@ -186,10 +186,10 @@ export function ListingsSection({ listings }: { listings: HostingListing[] }) {
           href="/listings/new"
           className="flex min-h-[280px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 p-6 text-center transition-colors hover:border-brand hover:bg-brand/5"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white shadow-sm">
             <Plus className="h-6 w-6 text-brand" />
           </div>
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-sm font-semibold text-foreground">
             Create a new listing
           </p>
           <p className="text-xs text-muted-foreground">
