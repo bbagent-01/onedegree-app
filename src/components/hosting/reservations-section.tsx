@@ -172,15 +172,27 @@ export function ReservationsSection({
   return (
     <section>
       <h2 className="text-xl font-semibold text-foreground">Reservations</h2>
-      <Tabs value={tab} onValueChange={setTab} className="mt-4">
-        <TabsList>
-          <TabsTrigger value="upcoming">
+      <Tabs value={tab} onValueChange={setTab} className="mt-4 !flex-col">
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start gap-6 border-b border-border !rounded-none bg-transparent p-0"
+        >
+          <TabsTrigger
+            value="upcoming"
+            className="!h-auto !flex-none !px-0 pb-3 text-base !rounded-none data-active:!bg-transparent data-active:after:!opacity-100 after:!bottom-[-1px] after:!h-0.5 after:!bg-foreground"
+          >
             Upcoming{upcoming.length > 0 ? ` (${upcoming.length})` : ""}
           </TabsTrigger>
-          <TabsTrigger value="completed">
+          <TabsTrigger
+            value="completed"
+            className="!h-auto !flex-none !px-0 pb-3 text-base !rounded-none data-active:!bg-transparent data-active:after:!opacity-100 after:!bottom-[-1px] after:!h-0.5 after:!bg-foreground"
+          >
             Completed{completed.length > 0 ? ` (${completed.length})` : ""}
           </TabsTrigger>
-          <TabsTrigger value="cancelled">
+          <TabsTrigger
+            value="cancelled"
+            className="!h-auto !flex-none !px-0 pb-3 text-base !rounded-none data-active:!bg-transparent data-active:after:!opacity-100 after:!bottom-[-1px] after:!h-0.5 after:!bg-foreground"
+          >
             Cancelled{cancelled.length > 0 ? ` (${cancelled.length})` : ""}
           </TabsTrigger>
         </TabsList>
