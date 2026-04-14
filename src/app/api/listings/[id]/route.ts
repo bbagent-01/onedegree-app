@@ -3,7 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-// PATCH: toggle listing active state (or other owner-only fields)
+// PATCH: update owner-editable fields on a listing
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -35,11 +35,38 @@ export async function PATCH(
 
   const body = await req.json();
   const update: Record<string, unknown> = {};
+
+  // Boolean
   if (typeof body.is_active === "boolean") update.is_active = body.is_active;
+
+  // Plain text / numeric fields
+  const passthrough = [
+    "title",
+    "description",
+    "area_name",
+    "property_type",
+    "price_min",
+    "price_max",
+    "house_rules",
+    "availability_start",
+    "availability_end",
+    "availability_flexible",
+    "preview_visibility",
+    "full_visibility",
+    "min_trust_score",
+  ];
+  for (const k of passthrough) {
+    if (k in body) update[k] = body[k];
+  }
+  if (Array.isArray(body.amenities)) update.amenities = body.amenities;
+  if (Array.isArray(body.specific_user_ids))
+    update.specific_user_ids = body.specific_user_ids;
 
   if (Object.keys(update).length === 0) {
     return Response.json({ error: "Nothing to update" }, { status: 400 });
   }
+
+  update.updated_at = new Date().toISOString();
 
   const { error } = await supabase
     .from("listings")

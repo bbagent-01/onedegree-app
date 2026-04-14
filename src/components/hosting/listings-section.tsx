@@ -112,7 +112,7 @@ function ListingCard({
             <span>{listing.is_active ? "Listed" : "Paused"}</span>
           </div>
           <Link
-            href={`/listings/${listing.id}`}
+            href={`/hosting/listings/${listing.id}/edit`}
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-600"
           >
             <Pencil className="h-3 w-3" />
@@ -157,7 +157,7 @@ export function ListingsSection({ listings }: { listings: HostingListing[] }) {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-foreground">Your listings</h2>
         <Link
-          href="/listings/new"
+          href="/hosting/create"
           className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-600"
         >
           <Plus className="h-4 w-4" />
@@ -183,7 +183,7 @@ export function ListingsSection({ listings }: { listings: HostingListing[] }) {
 
         {/* Create new listing card */}
         <Link
-          href="/listings/new"
+          href="/hosting/create"
           className="flex min-h-[280px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/20 p-6 text-center transition-colors hover:border-brand hover:bg-brand/5"
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white shadow-sm">
