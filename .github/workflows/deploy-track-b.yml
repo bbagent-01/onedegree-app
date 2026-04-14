@@ -40,7 +40,7 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/onedegree-app-track-b" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"deployment_configs\":{\"production\":{\"env_vars\":{\"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY\":{\"value\":\"${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}\"},\"CLERK_SECRET_KEY\":{\"value\":\"${{ secrets.CLERK_SECRET_KEY }}\"},\"NEXT_PUBLIC_SUPABASE_URL\":{\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}\"},\"NEXT_PUBLIC_SUPABASE_ANON_KEY\":{\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}\"},\"SUPABASE_SERVICE_ROLE_KEY\":{\"value\":\"${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}\"},\"NEXT_PUBLIC_APP_URL\":{\"value\":\"https://alpha-b.onedegreebnb.com\"}}}}}"
+            -d "{\"deployment_configs\":{\"production\":{\"env_vars\":{\"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}\"},\"CLERK_SECRET_KEY\":{\"type\":\"secret_text\",\"value\":\"${{ secrets.CLERK_SECRET_KEY }}\"},\"NEXT_PUBLIC_SUPABASE_URL\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}\"},\"NEXT_PUBLIC_SUPABASE_ANON_KEY\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}\"},\"SUPABASE_SERVICE_ROLE_KEY\":{\"type\":\"secret_text\",\"value\":\"${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}\"},\"NEXT_PUBLIC_APP_URL\":{\"type\":\"plain_text\",\"value\":\"https://alpha-b.onedegreebnb.com\"}}}}}"
 
       - name: Deploy to Cloudflare Pages
         run: npx wrangler pages deploy .vercel/output/static --project-name=onedegree-app-track-b --commit-dirty=true
