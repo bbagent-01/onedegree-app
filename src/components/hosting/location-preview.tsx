@@ -55,16 +55,20 @@ export function LocationPreview({
       const L = (await import("leaflet")).default;
       if (cancelled || !containerRef.current) return;
 
-      // Fix the default marker icon path (broken by bundlers).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl:
-          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      // Custom brand-purple pin as an inline-SVG divIcon. Avoids both the
+      // broken default-icon bundler paths and any external fetch.
+      const pinSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">
+          <path d="M15 0C6.716 0 0 6.716 0 15c0 10.5 15 27 15 27s15-16.5 15-27C30 6.716 23.284 0 15 0z"
+                fill="#734796" stroke="#ffffff" stroke-width="2"/>
+          <circle cx="15" cy="15" r="5" fill="#ffffff"/>
+        </svg>`;
+      const brandIcon = L.divIcon({
+        className: "",
+        html: pinSvg,
+        iconSize: [30, 42],
+        iconAnchor: [15, 42],
+        tooltipAnchor: [0, -36],
       });
 
       if (!mapRef.current) {
@@ -85,14 +89,17 @@ export function LocationPreview({
 
         // Approximate-radius circle — matches guest-facing LocationMap.
         const circle = L.circle([lat, lng], {
-          radius: 500,
-          color: "#FF385C",
-          fillColor: "#FF385C",
+          radius: 750,
+          color: "#734796",
+          fillColor: "#734796",
           fillOpacity: 0.18,
           weight: 2,
         }).addTo(map);
 
-        const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        const marker = L.marker([lat, lng], {
+          draggable: true,
+          icon: brandIcon,
+        }).addTo(map);
         marker.on("dragend", () => {
           const p = marker.getLatLng();
           circle.setLatLng(p);
@@ -134,15 +141,9 @@ export function LocationPreview({
   }, []);
 
   return (
-    <div className="space-y-2">
-      <div
-        ref={containerRef}
-        className="h-[320px] w-full overflow-hidden rounded-xl border border-border/60"
-      />
-      <p className="text-xs text-muted-foreground">
-        The pink circle shows the approximate area guests see before they
-        book — your exact address stays private. Drag the pin to fine-tune.
-      </p>
-    </div>
+    <div
+      ref={containerRef}
+      className="h-[320px] w-full overflow-hidden rounded-xl border border-border/60"
+    />
   );
 }

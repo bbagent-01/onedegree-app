@@ -469,25 +469,26 @@ export function EditListingForm({
               )}
               Find on map
             </Button>
-            {lat != null && lng != null ? (
-              <span className="text-xs font-medium text-emerald-700">
-                Pinned at {lat.toFixed(4)}, {lng.toFixed(4)}
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                Click to pin this address on the map.
-              </span>
-            )}
+            <span className="text-xs text-muted-foreground">
+              The purple circle shows the approximate area guests see
+              before they book — your exact address stays private. Drag
+              the pin to fine-tune.
+            </span>
           </div>
           {lat != null && lng != null && (
-            <LocationPreview
-              lat={lat}
-              lng={lng}
-              onChange={(newLat, newLng) => {
-                setLat(newLat);
-                setLng(newLng);
-              }}
-            />
+            <div className="space-y-2">
+              <LocationPreview
+                lat={lat}
+                lng={lng}
+                onChange={(newLat, newLng) => {
+                  setLat(newLat);
+                  setLng(newLng);
+                }}
+              />
+              <p className="text-xs font-medium text-muted-foreground">
+                Pinned at {lat.toFixed(4)}, {lng.toFixed(4)}
+              </p>
+            </div>
           )}
         </div>
        </SectionCard>
