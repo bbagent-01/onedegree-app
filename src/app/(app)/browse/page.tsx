@@ -7,7 +7,6 @@ import {
 import { activeFilterCount, parseBrowseParams } from "@/lib/browse-utils";
 import { SearchBar } from "@/components/browse/search-bar";
 import { MobileSearchPill } from "@/components/browse/mobile-search-pill";
-import { SortDropdown } from "@/components/browse/sort-dropdown";
 import { BrowseLayout } from "@/components/browse/browse-layout";
 import { FilterSheet } from "@/components/browse/filter-sheet";
 import { ListingCardSkeleton } from "@/components/listing-card-skeleton";
@@ -53,24 +52,15 @@ export default async function BrowsePage({
         </Suspense>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">
-          {filters.location ? `Stays in ${filters.location}` : "Stays"}
-        </h1>
-        <div className="flex items-center gap-2">
-          {/* Mobile-only filters (desktop renders them in the nav cluster) */}
-          <div className="md:hidden">
-            <Suspense fallback={null}>
-              <FiltersSlot filters={filters} activeCount={filterCount} />
-            </Suspense>
-          </div>
-          <SortDropdown />
-        </div>
-      </div>
-
-      <div className="py-6">
+      <div className="mt-6">
         <Suspense fallback={<GridSkeleton />}>
-          <BrowseResults filters={filters} />
+          <BrowseResults
+            filters={filters}
+            activeCount={filterCount}
+            headingText={
+              filters.location ? `Stays in ${filters.location}` : "Stays"
+            }
+          />
         </Suspense>
       </div>
     </div>
@@ -90,9 +80,11 @@ async function MobileSearchPillSlot() {
 async function FiltersSlot({
   filters,
   activeCount,
+  compact,
 }: {
   filters: ReturnType<typeof parseBrowseParams>;
   activeCount: number;
+  compact?: boolean;
 }) {
   // Price bounds should reflect the currently-filtered set (excluding price itself).
   const { priceMin, priceMax, bedrooms, beds, bathrooms, ...rest } = filters;
@@ -102,16 +94,36 @@ async function FiltersSlot({
   void beds;
   void bathrooms;
   const priceRange = await getBrowsePriceRange(rest);
-  return <FilterSheet priceRange={priceRange} activeCount={activeCount} />;
+  return (
+    <FilterSheet
+      priceRange={priceRange}
+      activeCount={activeCount}
+      compact={compact}
+    />
+  );
 }
 
 async function BrowseResults({
   filters,
+  activeCount,
+  headingText,
 }: {
   filters: ReturnType<typeof parseBrowseParams>;
+  activeCount: number;
+  headingText: string;
 }) {
   const listings = await getBrowseListings(filters);
-  return <BrowseLayout listings={listings} />;
+  return (
+    <BrowseLayout
+      listings={listings}
+      headingText={headingText}
+      mobileFiltersSlot={
+        <Suspense fallback={null}>
+          <FiltersSlot filters={filters} activeCount={activeCount} compact />
+        </Suspense>
+      }
+    />
+  );
 }
 
 function GridSkeleton() {

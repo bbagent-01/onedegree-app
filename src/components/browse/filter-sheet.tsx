@@ -49,9 +49,15 @@ const AMENITIES = [
 interface Props {
   priceRange: { min: number; max: number; histogram: number[] };
   activeCount: number;
+  /**
+   * Compact variant renders a shorter pill (h-9 px-4) to match the sort
+   * dropdown when both sit in the results header row. Default h-14 is
+   * used when the filter lives in the top nav alongside the search pill.
+   */
+  compact?: boolean;
 }
 
-export function FilterSheet({ priceRange, activeCount }: Props) {
+export function FilterSheet({ priceRange, activeCount, compact }: Props) {
   const router = useRouter();
   const params = useSearchParams();
   const [open, setOpen] = useState(false);
@@ -190,7 +196,10 @@ export function FilterSheet({ priceRange, activeCount }: Props) {
         render={
           <Button
             variant="outline"
-            className="h-14 gap-2 rounded-full !border-border !bg-white px-6 text-sm font-medium shadow-sm hover:!bg-white hover:shadow transition-shadow"
+            className={cn(
+              "gap-2 rounded-full !border-border !bg-white text-sm font-medium shadow-sm hover:!bg-white hover:shadow transition-shadow",
+              compact ? "h-9 px-4" : "h-14 px-6"
+            )}
           >
             <SlidersHorizontal className="h-4 w-4" />
             Filters
