@@ -38,10 +38,12 @@ export interface ThreadMessage {
 export interface ThreadDetail extends InboxThread {
   messages: ThreadMessage[];
   booking: {
+    id: string;
     status: string;
     check_in: string | null;
     check_out: string | null;
     guest_count: number;
+    total_estimate: number | null;
   } | null;
 }
 
@@ -198,7 +200,7 @@ export async function getThreadDetail(
     thread.contact_request_id
       ? supabase
           .from("contact_requests")
-          .select("status, check_in, check_out, guest_count")
+          .select("id, status, check_in, check_out, guest_count, total_estimate")
           .eq("id", thread.contact_request_id)
           .single()
       : Promise.resolve({ data: null }),
@@ -238,10 +240,14 @@ export async function getThreadDetail(
     messages: (messages || []) as ThreadMessage[],
     booking: booking
       ? {
+          id: booking.id,
           status: booking.status,
           check_in: booking.check_in,
           check_out: booking.check_out,
           guest_count: booking.guest_count ?? 1,
+          total_estimate:
+            (booking as { total_estimate?: number | null }).total_estimate ??
+            null,
         }
       : null,
   };

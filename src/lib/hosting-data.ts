@@ -27,6 +27,7 @@ export interface HostingReservation {
   check_out: string | null;
   guest_count: number;
   message: string;
+  total_estimate: number | null;
   status: "pending" | "accepted" | "declined" | "cancelled";
   created_at: string;
   responded_at: string | null;
@@ -107,7 +108,7 @@ export async function getHostDashboardData(): Promise<HostDashboardData | null> 
   const { data: requests } = await supabase
     .from("contact_requests")
     .select(
-      "id, listing_id, guest_id, check_in, check_out, guest_count, message, status, created_at, responded_at"
+      "id, listing_id, guest_id, check_in, check_out, guest_count, message, total_estimate, status, created_at, responded_at"
     )
     .eq("host_id", hostId)
     .order("created_at", { ascending: false });
@@ -146,6 +147,7 @@ export async function getHostDashboardData(): Promise<HostDashboardData | null> 
       check_out: r.check_out,
       guest_count: r.guest_count || 1,
       message: r.message,
+      total_estimate: (r as { total_estimate?: number | null }).total_estimate ?? null,
       status: r.status as HostingReservation["status"],
       created_at: r.created_at,
       responded_at: r.responded_at,

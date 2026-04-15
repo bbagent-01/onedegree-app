@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send } from "lucide-react";
+import { Send, Check, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { getSupabase } from "@/lib/supabase";
@@ -86,10 +87,43 @@ export function ThreadView({
   thread,
   currentUserId,
 }: Props) {
+  const router = useRouter();
   const [messages, setMessages] = useState<ThreadMessage[]>(thread.messages);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [actingOn, setActingOn] = useState<null | "accepted" | "declined">(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+
+  const isHost = thread.role === "host";
+  const pendingBookingId =
+    thread.booking && thread.booking.status === "pending"
+      ? thread.booking.id
+      : null;
+
+  const respondToBooking = async (action: "accepted" | "declined") => {
+    if (!pendingBookingId || actingOn) return;
+    setActingOn(action);
+    try {
+      const res = await fetch(`/api/contact-requests/${pendingBookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: action }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error || "Couldn't update reservation");
+        return;
+      }
+      toast.success(
+        action === "accepted" ? "Reservation approved" : "Reservation declined"
+      );
+      router.refresh();
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setActingOn(null);
+    }
+  };
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -217,6 +251,52 @@ export function ThreadView({
           </div>
         </div>
       </div>
+
+      {/* Host action panel — only visible to the host while a booking is pending */}
+      {isHost && pendingBookingId && thread.booking && (
+        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-amber-900">
+                Reservation request pending
+              </div>
+              <div className="mt-0.5 text-xs text-amber-800">
+                {formatStayDates(thread.booking.check_in, thread.booking.check_out)}
+                {" · "}
+                {thread.booking.guest_count} guest
+                {thread.booking.guest_count === 1 ? "" : "s"}
+                {typeof thread.booking.total_estimate === "number" &&
+                  thread.booking.total_estimate > 0 && (
+                    <>
+                      {" · "}${thread.booking.total_estimate.toLocaleString()}{" "}
+                      estimated
+                    </>
+                  )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={actingOn !== null}
+                onClick={() => respondToBooking("declined")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-60"
+              >
+                <X className="h-3.5 w-3.5" />
+                {actingOn === "declined" ? "Declining…" : "Decline"}
+              </button>
+              <button
+                type="button"
+                disabled={actingOn !== null}
+                onClick={() => respondToBooking("accepted")}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
+              >
+                <Check className="h-3.5 w-3.5" />
+                {actingOn === "accepted" ? "Approving…" : "Approve"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Listing context card */}
       {thread.listing && (

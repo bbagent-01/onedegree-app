@@ -89,11 +89,23 @@ function ReservationCard({
               {" "}· {reservation.guest_count} guest
               {reservation.guest_count === 1 ? "" : "s"}
             </span>
+            {typeof reservation.total_estimate === "number" &&
+              reservation.total_estimate > 0 && (
+                <span className="text-muted-foreground">
+                  {" "}· ${reservation.total_estimate.toLocaleString()} estimated
+                </span>
+              )}
           </p>
 
-          {reservation.message && (
-            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-              “{reservation.message}”
+          {reservation.message &&
+            reservation.message !== "(No message included)" && (
+              <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+                “{reservation.message}”
+              </p>
+            )}
+          {reservation.message === "(No message included)" && (
+            <p className="mt-2 text-sm italic text-muted-foreground/70">
+              No message from guest
             </p>
           )}
 

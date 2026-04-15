@@ -66,7 +66,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const summaryMessage = `Hi! I'd like to reserve your place from ${body.checkIn} to ${body.checkOut} for ${body.guests ?? 1} guest(s). Estimated total: $${(body.total ?? 0).toLocaleString()}.`;
+  // The guest's typed message is what the host should see in the preview
+  // card. Fall back to a short placeholder if empty so the column is never
+  // NULL (contact_requests.message is NOT NULL).
+  const guestTyped = (body.message || "").trim();
+  const storedMessage = guestTyped || "(No message included)";
+  const totalEstimate = Math.round(body.total ?? 0);
 
   // Idempotency guard: if a pending or accepted request already exists for
   // this exact listing + guest + dates, reuse it instead of creating a
@@ -95,10 +100,11 @@ export async function POST(req: Request) {
         listing_id: body.listingId,
         guest_id: currentUser.id,
         host_id: listing.host_id,
-        message: summaryMessage,
+        message: storedMessage,
         check_in: body.checkIn,
         check_out: body.checkOut,
         guest_count: body.guests ?? 1,
+        total_estimate: totalEstimate,
         status: "pending",
       })
       .select("id")
@@ -144,20 +150,13 @@ export async function POST(req: Request) {
     is_system: true,
   });
 
-  // Optional intro message from the guest (otherwise the canned summary)
-  const guestText = (body.message || "").trim();
-  if (guestText) {
+  // Only post an intro message if the guest actually typed one — no more
+  // canned fallback that pollutes the thread with boilerplate.
+  if (guestTyped) {
     await supabase.from("messages").insert({
       thread_id: threadId,
       sender_id: currentUser.id,
-      content: guestText,
-      is_system: false,
-    });
-  } else {
-    await supabase.from("messages").insert({
-      thread_id: threadId,
-      sender_id: currentUser.id,
-      content: summaryMessage,
+      content: guestTyped,
       is_system: false,
     });
   }
@@ -174,7 +173,7 @@ export async function POST(req: Request) {
     guestCount: body.guests ?? 1,
     threadId,
     bookingId: request.id,
-    message: (body.message || "").trim() || null,
+    message: guestTyped || null,
   });
 
   return Response.json({ id: request.id, threadId });
