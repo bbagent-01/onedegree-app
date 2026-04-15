@@ -83,29 +83,75 @@ async function send({ to, kind, subject, html }: SendOpts) {
 }
 
 /* ---------- Templates ---------- */
+// Visual style mirrors the landing page survey email so transactional mail
+// from app.* feels like the same brand. Playfair Display headline, cream
+// background, gradient purple CTA, wordmark logo from onedegreebnb.com.
 
-const wrap = (title: string, body: string) => `
-<!doctype html>
+const WORDMARK_URL = "https://onedegreebnb.com/images/wordmark-gradient.svg";
+
+const wrap = (greeting: string, body: string) => `<!DOCTYPE html>
 <html>
-  <body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif;background:#f8f8f8;margin:0;padding:24px;color:#1a1d21;">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-      <tr><td style="padding:24px 28px;border-bottom:1px solid #eee;">
-        <div style="font-size:14px;color:#7a3aff;font-weight:600;letter-spacing:0.04em;">ONE DEGREE BNB</div>
-      </td></tr>
-      <tr><td style="padding:28px;">
-        <h1 style="margin:0 0 16px 0;font-size:20px;font-weight:600;color:#1a1d21;">${title}</h1>
-        ${body}
-      </td></tr>
-      <tr><td style="padding:18px 28px 24px 28px;border-top:1px solid #eee;font-size:12px;color:#888;">
-        You're receiving this because you have an account on One Degree BNB.
-        <br><a href="${APP_BASE_URL}/settings/notifications" style="color:#7a3aff;text-decoration:none;">Manage email preferences</a>
-      </td></tr>
-    </table>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background-color:#FAF8F5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#FAF8F5;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E5E7EB;">
+          <tr>
+            <td style="padding:32px 40px 24px;text-align:left;">
+              <img src="${WORDMARK_URL}" alt="One Degree BNB" width="180" style="display:inline-block;">
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 40px 36px;">
+              <h2 style="color:#1A1D21;font-size:28px;font-weight:400;margin:0 0 20px;text-align:left;font-family:'Playfair Display',Georgia,serif;">${greeting}</h2>
+              ${body}
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#F9FAFB;padding:20px 40px;text-align:center;border-top:1px solid #E5E7EB;">
+              <p style="color:#9CA3AF;font-size:12px;margin:0 0 4px;">One Degree BNB &middot; <a href="https://onedegreebnb.com" style="color:#9CA3AF;text-decoration:none;">onedegreebnb.com</a></p>
+              <p style="color:#9CA3AF;font-size:11px;margin:0;"><a href="${APP_BASE_URL}/settings/notifications" style="color:#9CA3AF;text-decoration:underline;">Manage email preferences</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
 </html>`;
 
-const button = (label: string, href: string) =>
-  `<div style="margin:24px 0;"><a href="${href}" style="display:inline-block;background:#7a3aff;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:14px;">${label}</a></div>`;
+const para = (text: string) =>
+  `<p style="color:#4B5563;font-size:15px;line-height:1.7;margin:0 0 14px;text-align:left;">${text}</p>`;
+
+const button = (label: string, href: string) => `
+<table cellpadding="0" cellspacing="0" style="margin:24px 0 8px;">
+  <tr>
+    <td style="background:linear-gradient(180deg,#8B5CF6,#312E81);border-radius:10px;text-align:center;">
+      <a href="${href}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">${label}</a>
+    </td>
+  </tr>
+</table>`;
+
+const detailRow = (label: string, value: string) =>
+  `<tr><td style="padding:6px 0;color:#9CA3AF;font-size:13px;width:90px;">${label}</td><td style="padding:6px 0;color:#1A1D21;font-size:14px;font-weight:500;">${value}</td></tr>`;
+
+const detailsTable = (rows: string) => `
+<table cellpadding="0" cellspacing="0" style="margin:8px 0 20px;border-collapse:collapse;">
+  ${rows}
+</table>`;
+
+const quoteBox = (text: string) =>
+  `<div style="margin:20px 0;padding:16px 18px;background:#F9FAFB;border-left:3px solid #8B5CF6;border-radius:6px;color:#374151;font-size:14px;line-height:1.6;font-style:italic;">${escapeHtml(text)}</div>`;
+
+const firstName = (full: string | null | undefined) => {
+  if (!full) return "there";
+  return full.split(" ")[0];
+};
 
 const stayDates = (ci: string | null, co: string | null) => {
   if (!ci || !co) return "";
@@ -143,22 +189,25 @@ export async function emailNewBookingRequest(p: BookingPayload) {
   const inboxUrl = p.threadId
     ? `${APP_BASE_URL}/inbox/${p.threadId}`
     : `${APP_BASE_URL}/inbox`;
+  const rows =
+    (dates ? detailRow("Dates", dates) : "") +
+    detailRow(
+      "Guests",
+      `${p.guestCount} guest${p.guestCount === 1 ? "" : "s"}`
+    ) +
+    detailRow("Listing", escapeHtml(p.listingTitle));
   const body = `
-    <p style="margin:0 0 12px 0;font-size:15px;line-height:1.55;">
-      <strong>${p.guestName}</strong> requested to book your place
-      <strong>${escapeHtml(p.listingTitle)}</strong>.
-    </p>
-    ${dates ? `<p style="margin:0 0 6px 0;font-size:14px;color:#555;">📅 ${dates}</p>` : ""}
-    <p style="margin:0 0 4px 0;font-size:14px;color:#555;">👥 ${p.guestCount} guest${p.guestCount === 1 ? "" : "s"}</p>
-    ${p.message ? `<blockquote style="margin:18px 0 0 0;padding:14px 16px;background:#f5f3ff;border-left:3px solid #7a3aff;border-radius:8px;font-size:14px;color:#3b1d80;line-height:1.5;">${escapeHtml(p.message)}</blockquote>` : ""}
+    ${para(`<strong>${escapeHtml(p.guestName)}</strong> just sent you a reservation request.`)}
+    ${detailsTable(rows)}
+    ${p.message ? quoteBox(p.message) : ""}
+    ${para("Open the conversation to accept, decline, or ask a question before you respond.")}
     ${button("Review request", inboxUrl)}
-    <p style="margin:0;font-size:13px;color:#777;">Open the conversation to accept, decline, or ask a question.</p>
   `;
   return send({
     to: host,
     kind: "booking_request",
     subject: `New booking request from ${p.guestName}`,
-    html: wrap(`New request from ${p.guestName}`, body),
+    html: wrap(`Hi ${firstName(host.name)}!`, body),
   });
 }
 
@@ -169,24 +218,26 @@ export async function emailBookingConfirmed(p: BookingPayload) {
   const tripsUrl = p.bookingId
     ? `${APP_BASE_URL}/trips/${p.bookingId}`
     : `${APP_BASE_URL}/trips`;
+  const rows =
+    (dates ? detailRow("Dates", dates) : "") +
+    detailRow(
+      "Guests",
+      `${p.guestCount} guest${p.guestCount === 1 ? "" : "s"}`
+    ) +
+    detailRow("Host", escapeHtml(p.hostName)) +
+    detailRow("Listing", escapeHtml(p.listingTitle));
   const body = `
-    <p style="margin:0 0 12px 0;font-size:15px;line-height:1.55;">
-      Good news — <strong>${p.hostName}</strong> accepted your request to stay at
-      <strong>${escapeHtml(p.listingTitle)}</strong>.
-    </p>
-    ${dates ? `<p style="margin:0 0 6px 0;font-size:14px;color:#555;">📅 ${dates}</p>` : ""}
-    ${p.hostResponseMessage ? `<blockquote style="margin:18px 0 0 0;padding:14px 16px;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:8px;font-size:14px;color:#14532d;line-height:1.5;">${escapeHtml(p.hostResponseMessage)}</blockquote>` : ""}
+    ${para(`Great news — <strong>${escapeHtml(p.hostName)}</strong> accepted your request to stay at <strong>${escapeHtml(p.listingTitle)}</strong>.`)}
+    ${detailsTable(rows)}
+    ${p.hostResponseMessage ? quoteBox(p.hostResponseMessage) : ""}
+    ${para("You can message your host any time from your inbox to coordinate check-in details. Payment is handled directly between you and the host.")}
     ${button("View trip details", tripsUrl)}
-    <p style="margin:0;font-size:13px;color:#777;">
-      You can message your host any time from your inbox. Payment is handled
-      directly between you and the host.
-    </p>
   `;
   return send({
     to: guest,
     kind: "booking_confirmed",
     subject: `Your stay at ${p.listingTitle} is confirmed`,
-    html: wrap("Booking confirmed 🎉", body),
+    html: wrap(`Hi ${firstName(guest.name)}!`, body),
   });
 }
 
@@ -195,18 +246,16 @@ export async function emailBookingDeclined(p: BookingPayload) {
   if (!guest) return;
   const browseUrl = `${APP_BASE_URL}/browse`;
   const body = `
-    <p style="margin:0 0 12px 0;font-size:15px;line-height:1.55;">
-      Unfortunately, <strong>${p.hostName}</strong> isn't able to host your stay at
-      <strong>${escapeHtml(p.listingTitle)}</strong> for the dates you requested.
-    </p>
-    ${p.hostResponseMessage ? `<blockquote style="margin:18px 0 0 0;padding:14px 16px;background:#fafafa;border-left:3px solid #d4d4d8;border-radius:8px;font-size:14px;color:#3f3f46;line-height:1.5;">${escapeHtml(p.hostResponseMessage)}</blockquote>` : ""}
+    ${para(`Unfortunately, <strong>${escapeHtml(p.hostName)}</strong> isn't able to host your stay at <strong>${escapeHtml(p.listingTitle)}</strong> for the dates you requested.`)}
+    ${p.hostResponseMessage ? quoteBox(p.hostResponseMessage) : ""}
+    ${para("Don't take it personally — hosts decline for all kinds of reasons. Plenty of other places are waiting for you.")}
     ${button("Browse other places", browseUrl)}
   `;
   return send({
     to: guest,
     kind: "booking_declined",
     subject: `Update on your request for ${p.listingTitle}`,
-    html: wrap("Your request wasn't accepted", body),
+    html: wrap(`Hi ${firstName(guest.name)}!`, body),
   });
 }
 
@@ -223,18 +272,15 @@ export async function emailNewMessage(p: MessagePayload) {
   if (!recipient) return;
   const inboxUrl = `${APP_BASE_URL}/inbox/${p.threadId}`;
   const body = `
-    <p style="margin:0 0 12px 0;font-size:15px;line-height:1.55;">
-      <strong>${p.senderName}</strong> sent you a message about
-      <strong>${escapeHtml(p.listingTitle)}</strong>.
-    </p>
-    <blockquote style="margin:18px 0 0 0;padding:14px 16px;background:#f5f3ff;border-left:3px solid #7a3aff;border-radius:8px;font-size:14px;color:#3b1d80;line-height:1.5;">${escapeHtml(p.preview)}</blockquote>
+    ${para(`<strong>${escapeHtml(p.senderName)}</strong> sent you a new message about <strong>${escapeHtml(p.listingTitle)}</strong>.`)}
+    ${quoteBox(p.preview)}
     ${button("Reply", inboxUrl)}
   `;
   return send({
     to: recipient,
     kind: "new_message",
     subject: `${p.senderName}: ${truncate(p.preview, 60)}`,
-    html: wrap(`New message from ${p.senderName}`, body),
+    html: wrap(`Hi ${firstName(recipient.name)}!`, body),
   });
 }
 
