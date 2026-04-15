@@ -38,7 +38,12 @@ interface Tab {
 }
 
 const travelingTabs: Tab[] = [
-  { href: "/explore", label: "Explore", icon: Search },
+  {
+    href: "/browse",
+    label: "Explore",
+    icon: Search,
+    match: (p) => p.startsWith("/browse"),
+  },
   { href: "/wishlists", label: "Wishlists", icon: Heart, match: (p) => p.startsWith("/wishlists") },
   { href: "/trips", label: "Trips", icon: CalendarDays },
   { href: "/inbox", label: "Inbox", icon: MessageCircle, match: (p) => p.startsWith("/inbox") },
@@ -258,7 +263,7 @@ export function MobileNav() {
               {mode === "traveling" && (
                 <>
                   <MenuLink
-                    href="/explore"
+                    href="/browse"
                     icon={Search}
                     label="Explore"
                     onClick={closeMenu}

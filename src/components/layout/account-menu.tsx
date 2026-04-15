@@ -138,7 +138,7 @@ export function AccountMenu() {
   const travelingSections: MenuSection[] = [
     {
       items: [
-        { href: "/explore", label: "Explore", icon: Search },
+        { href: "/browse", label: "Explore", icon: Search },
         { href: "/trips", label: "Trips", icon: CalendarDays },
         { href: "/inbox", label: "Messages", icon: MessageCircle },
         { href: "/wishlists", label: "Wishlists", icon: Heart },
