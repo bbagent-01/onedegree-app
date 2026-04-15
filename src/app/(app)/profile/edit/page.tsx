@@ -12,17 +12,31 @@ export default async function ProfileEditPage() {
     redirect("/sign-in?redirect_url=/profile/edit");
   }
 
+  // SELECT * so this page still works pre-migration-011 — the new
+  // profile columns (location/languages/occupation) just come back
+  // undefined and the form falls back to empty strings.
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
     .from("users")
-    .select("id, name, avatar_url, bio, location, occupation, languages")
+    .select("*")
     .eq("clerk_id", clerkId)
     .maybeSingle();
 
   if (!data) {
-    // User row should exist via webhook — bail out gracefully.
-    redirect("/browse");
+    // Webhook hasn't synced this Clerk user yet. Show a friendly message
+    // instead of redirecting away from the page the user asked for.
+    return (
+      <div className="mx-auto w-full max-w-[680px] px-4 py-10 md:px-6">
+        <h1 className="text-2xl font-semibold md:text-3xl">Edit profile</h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          We&apos;re still finishing setting up your account. Give it a few
+          seconds and reload this page.
+        </p>
+      </div>
+    );
   }
+
+  const raw = data as Record<string, unknown>;
 
   return (
     <div className="mx-auto w-full max-w-[680px] px-4 py-6 md:px-6 md:py-10">
@@ -33,14 +47,14 @@ export default async function ProfileEditPage() {
       </p>
 
       <ProfileEditForm
-        userId={data.id as string}
+        userId={raw.id as string}
         initial={{
-          name: (data.name as string) || "",
-          bio: (data.bio as string | null) || "",
-          location: (data.location as string | null) || "",
-          occupation: (data.occupation as string | null) || "",
+          name: (raw.name as string) || "",
+          bio: (raw.bio as string | null) || "",
+          location: (raw.location as string | null) || "",
+          occupation: (raw.occupation as string | null) || "",
           languages:
-            ((data.languages as string[] | null) || []).join(", ") || "",
+            ((raw.languages as string[] | null) || []).join(", ") || "",
         }}
       />
     </div>
