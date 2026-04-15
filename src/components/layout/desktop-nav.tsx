@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Globe } from "lucide-react";
-import { useUser, UserButton, SignInButton } from "@clerk/nextjs";
+import { useUser, SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { AccountMenu } from "./account-menu";
+import { ModeToggle } from "./mode-toggle";
 
 export function DesktopNav() {
   const { isSignedIn } = useUser();
@@ -70,41 +72,20 @@ export function DesktopNav() {
             hidePrimaryNarrow ? "hidden min-[1900px]:flex" : "flex"
           )}
         >
-          {/* "Become a Host" and the Globe icon follow Airbnb's pattern:
-              they drop out below xl so the browse search pill (or listing
-              sticky bar) has room to breathe at narrower desktops. */}
-          <Link
-            href="/hosting"
-            className="hidden xl:inline-flex text-sm font-medium text-foreground hover:text-foreground/80 transition-colors"
+          {/* Mode toggle — "Switch to hosting" / "Switch to traveling".
+              Hidden below lg so the browse search pill has room. */}
+          {isSignedIn && <ModeToggle />}
+
+          <button
+            type="button"
+            aria-label="Choose language"
+            className="hidden xl:inline-flex p-2 hover:bg-muted rounded-full transition-colors"
           >
-            Hosting
-          </Link>
-          {isSignedIn && (
-            <Link
-              href="/trips"
-              className="hidden xl:inline-flex text-sm font-medium text-foreground hover:text-foreground/80 transition-colors"
-            >
-              Trips
-            </Link>
-          )}
-          {isSignedIn && (
-            <Link
-              href="/inbox"
-              className="hidden xl:inline-flex text-sm font-medium text-foreground hover:text-foreground/80 transition-colors"
-            >
-              Inbox
-            </Link>
-          )}
-          <button className="hidden xl:inline-flex p-2 hover:bg-muted rounded-full transition-colors">
             <Globe className="h-4 w-4" />
           </button>
 
           {isSignedIn ? (
-            <UserButton
-              appearance={{
-                elements: { avatarBox: "h-8 w-8" },
-              }}
-            />
+            <AccountMenu />
           ) : (
             <SignInButton mode="modal">
               <button className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 transition-colors">
