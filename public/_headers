@@ -1,0 +1,12 @@
+# Cloudflare Pages headers — keeps HTML fresh so mobile browsers never
+# get stuck on a stale edge-cached copy of the app, while still letting
+# Next.js's content-hashed JS/CSS bundles cache forever.
+
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/_next/image*
+  Cache-Control: public, max-age=3600, must-revalidate

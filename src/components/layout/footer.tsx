@@ -1,6 +1,21 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+/**
+ * Routes that own their full viewport (search + map layouts, message
+ * threads, etc) and shouldn't have a footer peeking at the bottom.
+ */
+const HIDDEN_ROUTES = ["/browse", "/inbox"];
 
 export function Footer() {
+  const pathname = usePathname() || "";
+  const hidden = HIDDEN_ROUTES.some(
+    (r) => pathname === r || pathname.startsWith(`${r}/`)
+  );
+  if (hidden) return null;
+
   return (
     <footer className="hidden md:block border-t border-border bg-surface">
       <div className="w-full px-10 lg:px-20 py-6">

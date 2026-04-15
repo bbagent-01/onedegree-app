@@ -59,9 +59,6 @@ export function BrowseLayout({ listings, headingText, mobileFiltersSlot }: Props
     [mode]
   );
 
-  // Offset the card padding so the grid visually lines up with the container edge.
-  const gridPad = "-m-3";
-
   // Heading row with sort/filters — lives inside the left column so the
   // sort pill aligns with the right edge of the grid (not the far right
   // of the page) and the map column extends all the way up to this row.
@@ -104,14 +101,14 @@ export function BrowseLayout({ listings, headingText, mobileFiltersSlot }: Props
               : ""
           )}
         >
-          {/* Left column — heading row + grid of cards */}
-          <div
-            className={cn(
-              mode === "split" && "md:max-h-[calc(100vh-140px)] md:overflow-y-auto"
-            )}
-          >
+          {/* Left column — heading row + grid of cards.
+              No independent scroll container: the whole page scrolls,
+              and the map column uses sticky to stay pinned. This avoids
+              clipping hover shadows against an overflow box and lets the
+              footer be replaced by the map extending to viewport bottom. */}
+          <div>
             {headerRow}
-            <div className={cn("grid", gridPad, gridCols)}>
+            <div className={cn("grid gap-3", gridCols)}>
               {listings.map((l) => (
                 <div
                   key={l.id}
