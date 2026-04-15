@@ -35,9 +35,12 @@ export function DesktopNav() {
       {/* Primary nav is always full-width, extending to browser edges. The
           listing page's sticky anchor bar (portaled into #nav-center-slot)
           constrains itself to 1280 so it aligns with the listing column. */}
-      <div className="relative flex h-20 w-full items-center justify-between gap-6 px-6 lg:px-10">
-        {/* Logo — on listing pages, hidden at narrow viewports once the
-            sticky anchor bar is active so there's no overlap. */}
+      <div className="relative flex h-20 w-full items-center justify-between gap-4 px-5 lg:gap-6 lg:px-10">
+        {/* Logo — progressive: full wordmark at lg+, compact icon below
+            so there's more room for the search pill at narrow desktop
+            widths. Mirrors Airbnb's responsive logo behavior.
+            On listing pages, hidden at narrow viewports once the sticky
+            anchor bar is active so there's no overlap. */}
         <Link
           href="/browse"
           aria-label="One Degree B&B"
@@ -47,7 +50,17 @@ export function DesktopNav() {
           )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/1db-wordmark.svg" alt="One Degree B&B" className="h-12 w-auto" />
+          <img
+            src="/1db-wordmark.svg"
+            alt="One Degree B&B"
+            className="hidden h-12 w-auto lg:block"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/1db-symbol.svg"
+            alt="One Degree B&B"
+            className="block h-9 w-auto lg:hidden"
+          />
         </Link>
 
         {/* Middle slot — route-specific content rendered via portal.

@@ -17,7 +17,7 @@ export function ModeToggle() {
   return (
     <Link
       href={href}
-      className="hidden lg:inline-flex rounded-full px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+      className="hidden xl:inline-flex rounded-full px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
     >
       {label}
     </Link>
