@@ -49,7 +49,17 @@ export function ReserveForm({
       }
       toast.success("Reservation request sent");
       if (data.threadId) {
-        router.push(`/inbox/${data.threadId}?sent=1`);
+        // Desktop: split-view URL so the conversation list is always visible.
+        // Mobile: full-page thread URL so the user lands directly on the
+        // conversation they just started instead of the inbox list.
+        const isDesktop =
+          typeof window !== "undefined" &&
+          window.matchMedia("(min-width: 768px)").matches;
+        router.push(
+          isDesktop
+            ? `/inbox?thread=${data.threadId}&sent=1`
+            : `/inbox/${data.threadId}?sent=1`
+        );
       } else {
         router.push("/inbox?sent=1");
       }
