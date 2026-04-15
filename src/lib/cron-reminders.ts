@@ -67,11 +67,11 @@ export async function runReminderSweep(): Promise<CronResult> {
         result.checkinReminders.fired += 1;
         result.checkinReminders.ids.push(booking.id);
       } catch (e) {
-        result.errors.push(`checkin ${booking.id}: ${String(e)}`);
+        result.errors.push(`checkin ${booking.id}: ${stringifyError(e)}`);
       }
     }
   } catch (e) {
-    result.errors.push(`checkin sweep failed: ${String(e)}`);
+    result.errors.push(`checkin sweep failed: ${stringifyError(e)}`);
   }
 
   // ─── 2. Review prompts ─────────────────────────────────────────────────
@@ -99,14 +99,30 @@ export async function runReminderSweep(): Promise<CronResult> {
         result.reviewPrompts.fired += 1;
         result.reviewPrompts.ids.push(booking.id);
       } catch (e) {
-        result.errors.push(`review ${booking.id}: ${String(e)}`);
+        result.errors.push(`review ${booking.id}: ${stringifyError(e)}`);
       }
     }
   } catch (e) {
-    result.errors.push(`review sweep failed: ${String(e)}`);
+    result.errors.push(`review sweep failed: ${stringifyError(e)}`);
   }
 
   return result;
+}
+
+function stringifyError(e: unknown): string {
+  if (!e) return "unknown";
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  try {
+    // Supabase errors are objects with { message, code, details, hint }
+    const obj = e as Record<string, unknown>;
+    if (obj.message) {
+      return [obj.message, obj.code, obj.details].filter(Boolean).join(" | ");
+    }
+    return JSON.stringify(e);
+  } catch {
+    return String(e);
+  }
 }
 
 async function fireCheckinReminder(b: AcceptedBooking) {
