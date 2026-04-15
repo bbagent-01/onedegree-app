@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOrCreateThread } from "@/lib/messaging-data";
+import { emailNewBookingRequest } from "@/lib/email";
 
 /**
  * Track B reservation endpoint.
@@ -53,6 +54,11 @@ export async function POST(req: Request) {
   if (!listing) {
     return Response.json({ error: "Listing not found" }, { status: 404 });
   }
+  const { data: hostUser } = await supabase
+    .from("users")
+    .select("id, name")
+    .eq("id", listing.host_id)
+    .maybeSingle();
   if (listing.host_id === currentUser.id) {
     return Response.json(
       { error: "You can't reserve your own listing." },
@@ -125,6 +131,21 @@ export async function POST(req: Request) {
       is_system: false,
     });
   }
+
+  // Fire-and-forget transactional email to the host
+  await emailNewBookingRequest({
+    hostId: listing.host_id,
+    guestId: currentUser.id,
+    guestName: currentUser.name || "A guest",
+    hostName: hostUser?.name || "Host",
+    listingTitle: listing.title,
+    checkIn: body.checkIn,
+    checkOut: body.checkOut,
+    guestCount: body.guests ?? 1,
+    threadId,
+    bookingId: request.id,
+    message: (body.message || "").trim() || null,
+  });
 
   return Response.json({ id: request.id, threadId });
 }

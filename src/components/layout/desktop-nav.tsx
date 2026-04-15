@@ -81,6 +81,14 @@ export function DesktopNav() {
           </Link>
           {isSignedIn && (
             <Link
+              href="/trips"
+              className="hidden xl:inline-flex text-sm font-medium text-foreground hover:text-foreground/80 transition-colors"
+            >
+              Trips
+            </Link>
+          )}
+          {isSignedIn && (
+            <Link
               href="/inbox"
               className="hidden xl:inline-flex text-sm font-medium text-foreground hover:text-foreground/80 transition-colors"
             >

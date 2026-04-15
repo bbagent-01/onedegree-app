@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { emailBookingConfirmed, emailBookingDeclined } from "@/lib/email";
 
 // PATCH: host responds to a contact request (accept/decline)
 export async function PATCH(
@@ -89,6 +90,60 @@ export async function PATCH(
         is_system: false,
       });
     }
+  }
+
+  // Auto-create a stay_confirmation row for accepted bookings so the guest
+  // can leave a review after checkout. Idempotent — does nothing if a row
+  // already exists for this contact_request.
+  if (status === "accepted") {
+    const { data: existingStay } = await supabase
+      .from("stay_confirmations")
+      .select("id")
+      .eq("contact_request_id", id)
+      .maybeSingle();
+    if (!existingStay) {
+      await supabase.from("stay_confirmations").insert({
+        contact_request_id: id,
+        listing_id: request.listing_id,
+        host_id: request.host_id,
+        guest_id: request.guest_id,
+        check_in: request.check_in,
+        check_out: request.check_out,
+        host_confirmed: false,
+        guest_confirmed: false,
+      });
+    }
+  }
+
+  // Fire-and-forget transactional email to the guest
+  const { data: listingRow } = await supabase
+    .from("listings")
+    .select("id, title")
+    .eq("id", request.listing_id)
+    .maybeSingle();
+  const { data: hostUser } = await supabase
+    .from("users")
+    .select("id, name")
+    .eq("id", request.host_id)
+    .maybeSingle();
+
+  const emailPayload = {
+    hostId: request.host_id,
+    guestId: request.guest_id,
+    guestName: "Guest",
+    hostName: hostUser?.name || "Host",
+    listingTitle: listingRow?.title || "Your trip",
+    checkIn: request.check_in,
+    checkOut: request.check_out,
+    guestCount: 1,
+    bookingId: id,
+    hostResponseMessage: hostResponseMessage || null,
+  };
+
+  if (status === "accepted") {
+    await emailBookingConfirmed(emailPayload);
+  } else if (status === "declined") {
+    await emailBookingDeclined(emailPayload);
   }
 
   return Response.json({ ok: true });

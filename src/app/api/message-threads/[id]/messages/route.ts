@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { emailNewMessage } from "@/lib/email";
 
 /**
  * POST /api/message-threads/[id]/messages
@@ -28,7 +29,7 @@ export async function POST(
 
   const { data: thread } = await supabase
     .from("message_threads")
-    .select("id, guest_id, host_id")
+    .select("id, guest_id, host_id, listing_id")
     .eq("id", threadId)
     .single();
   if (!thread) {
@@ -64,6 +65,25 @@ export async function POST(
     console.error("Message insert error:", error);
     return Response.json({ error: "Failed to send" }, { status: 500 });
   }
+
+  // Fire-and-forget transactional email to the other participant
+  const recipientId =
+    thread.guest_id === currentUser.id ? thread.host_id : thread.guest_id;
+  const [{ data: senderRow }, { data: listingRow }] = await Promise.all([
+    supabase.from("users").select("name").eq("id", currentUser.id).maybeSingle(),
+    supabase
+      .from("listings")
+      .select("title")
+      .eq("id", thread.listing_id)
+      .maybeSingle(),
+  ]);
+  await emailNewMessage({
+    recipientId,
+    senderName: senderRow?.name || "Someone",
+    threadId,
+    preview: content.slice(0, 240),
+    listingTitle: listingRow?.title || "your conversation",
+  });
 
   return Response.json({ message: inserted });
 }
