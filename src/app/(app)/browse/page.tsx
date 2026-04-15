@@ -1,9 +1,12 @@
 import { Suspense } from "react";
+import { auth } from "@clerk/nextjs/server";
 import {
   getBrowseListings,
   getBrowsePriceRange,
   getBrowseSuggestions,
 } from "@/lib/browse-data";
+import { getSavedListingIds } from "@/lib/wishlist-data";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { activeFilterCount, parseBrowseParams } from "@/lib/browse-utils";
 import { SearchBar } from "@/components/browse/search-bar";
 import { MobileSearchPill } from "@/components/browse/mobile-search-pill";
@@ -113,9 +116,27 @@ async function BrowseResults({
   headingText: string;
 }) {
   const listings = await getBrowseListings(filters);
+
+  // Hydrate the heart-state for signed-in users.
+  const { userId: clerkId } = await auth();
+  let savedIds: string[] = [];
+  if (clerkId) {
+    const supabase = getSupabaseAdmin();
+    const { data } = await supabase
+      .from("users")
+      .select("id")
+      .eq("clerk_id", clerkId)
+      .maybeSingle();
+    if (data?.id) {
+      const set = await getSavedListingIds(data.id as string);
+      savedIds = [...set];
+    }
+  }
+
   return (
     <BrowseLayout
       listings={listings}
+      savedIds={savedIds}
       headingText={headingText}
       mobileFiltersSlot={
         <Suspense fallback={null}>

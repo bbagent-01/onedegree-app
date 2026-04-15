@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
@@ -52,6 +52,20 @@ export function AccountMenu() {
   const pathname = usePathname();
   const mode = getNavMode(pathname);
   const [open, setOpen] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
+
+  // Look up the Supabase user row id so the "Profile" link can deep-link
+  // straight to /profile/:id. We fetch lazily via a tiny /api/users/me
+  // endpoint. If it's not ready yet we fall back to /profile/edit.
+  useEffect(() => {
+    if (!isSignedIn || profileId) return;
+    fetch("/api/users/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.id) setProfileId(data.id);
+      })
+      .catch(() => {});
+  }, [isSignedIn, profileId]);
 
   if (!isSignedIn) return null;
 
@@ -60,6 +74,7 @@ export function AccountMenu() {
     close();
     signOut({ redirectUrl: "/" });
   };
+  const profileHref = profileId ? `/profile/${profileId}` : "/profile/edit";
 
   // Build mode-aware menu sections. Only include links to routes that
   // actually exist in the app today — easier to extend later than to leave
@@ -70,19 +85,19 @@ export function AccountMenu() {
         { href: "/explore", label: "Explore", icon: Search },
         { href: "/trips", label: "Trips", icon: CalendarDays },
         { href: "/inbox", label: "Messages", icon: MessageCircle },
-        { label: "Wishlists", icon: Heart, disabled: true },
-        { label: "Profile", icon: User, disabled: true },
+        { href: "/wishlists", label: "Wishlists", icon: Heart },
+        { href: profileHref, label: "Profile", icon: User },
       ],
     },
     {
       items: [
         {
-          href: "/settings/notifications",
+          href: "/settings",
           label: "Account settings",
           icon: Settings,
         },
         { label: "Languages & currency", icon: Globe, disabled: true },
-        { label: "Help Center", icon: HelpCircle, disabled: true },
+        { href: "/help", label: "Help Center", icon: HelpCircle },
       ],
     },
     {
@@ -107,18 +122,18 @@ export function AccountMenu() {
         { href: "/hosting", label: "Hosting dashboard", icon: LayoutGrid },
         { href: "/hosting/create", label: "Create a new listing", icon: Plus },
         { href: "/inbox", label: "Messages", icon: MessageCircle },
-        { label: "Profile", icon: User, disabled: true },
+        { href: profileHref, label: "Profile", icon: User },
       ],
     },
     {
       items: [
         {
-          href: "/settings/notifications",
+          href: "/settings",
           label: "Account settings",
           icon: Settings,
         },
         { label: "Languages & currency", icon: Globe, disabled: true },
-        { label: "Help Center", icon: HelpCircle, disabled: true },
+        { href: "/help", label: "Help Center", icon: HelpCircle },
       ],
     },
     {

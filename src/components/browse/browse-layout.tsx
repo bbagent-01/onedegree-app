@@ -18,6 +18,8 @@ const MapView = dynamic(
 interface Props {
   listings: BrowseListing[];
   headingText: string;
+  /** Listing IDs the signed-in user has already wishlisted. */
+  savedIds?: string[];
   /**
    * Compact Filters pill for the mobile header row. On desktop the
    * Filters button lives in the top nav cluster, so this slot is only
@@ -28,7 +30,13 @@ interface Props {
 
 type ViewMode = "grid" | "split" | "map";
 
-export function BrowseLayout({ listings, headingText, mobileFiltersSlot }: Props) {
+export function BrowseLayout({
+  listings,
+  headingText,
+  savedIds = [],
+  mobileFiltersSlot,
+}: Props) {
+  const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
   // Default to split on desktop so map is visible without toggling (Airbnb behavior).
   const [mode, setMode] = useState<ViewMode>(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) return "split";
@@ -125,7 +133,7 @@ export function BrowseLayout({ listings, headingText, mobileFiltersSlot }: Props
                       "shadow-[0_12px_32px_rgba(0,0,0,0.14)]"
                   )}
                 >
-                  <LiveListingCard listing={l} />
+                  <LiveListingCard listing={l} initialSaved={savedSet.has(l.id)} />
                 </div>
               ))}
             </div>

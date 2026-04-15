@@ -2,6 +2,60 @@
 
 Schema changes introduced by Track B sessions. Each entry documents what was added and why.
 
+## CC-B6c — Wishlists, profile fields, support requests
+
+**Migration:** `supabase/migrations/011_wishlists_profiles_support.sql`
+
+### New tables
+
+#### `saved_listings`
+Per-user wishlist / favorites join table.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| user_id | UUID NOT NULL | FK → users, ON DELETE CASCADE |
+| listing_id | UUID NOT NULL | FK → listings, ON DELETE CASCADE |
+| created_at | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+- Primary key: `(user_id, listing_id)` — dedupes and acts as the lookup index.
+- Secondary indexes: `(user_id, created_at DESC)` for the Wishlists page, `(listing_id)` for host-side counts later.
+- RLS enabled with a permissive SELECT policy. Writes go through the service role in `/api/wishlists`.
+
+#### `support_requests`
+Help Center contact form submissions. Not exposed through any API yet — read directly from Supabase Studio for now.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID PK | gen_random_uuid() |
+| user_id | UUID | FK → users, ON DELETE SET NULL (nullable so logged-out guests can submit) |
+| name | TEXT | |
+| email | TEXT | |
+| category | TEXT NOT NULL | One of: bug, question, feedback, other |
+| message | TEXT NOT NULL | Max 4000 chars (enforced at API layer) |
+| status | TEXT NOT NULL DEFAULT 'open' | Free-form for future triage workflow |
+| created_at | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+
+- Index: `(status, created_at DESC)` for an eventual support dashboard.
+- RLS enabled with no policies → only the service role can read/write.
+
+### Users table additions
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| location | TEXT | City / state shown on the profile card |
+| languages | TEXT[] | Array of language names ("English", "Spanish", …) |
+| occupation | TEXT | Free-form work / role |
+| deactivated_at | TIMESTAMPTZ | Soft delete marker set from the Settings page |
+
+All columns are nullable; no backfill needed. Profile-data.ts tolerates
+missing columns via a generic `SELECT *` so the app still renders on
+older schemas.
+
+### Why this shape
+Wishlists and profile fields are generic enough that Track A is welcome
+to adopt them verbatim. Support requests live entirely in Track B for
+now — we can fold them into a shared admin surface later.
+
 ## CC-B6a — Messaging inbox
 
 **Migration:** `supabase/migrations/007_messaging_inbox.sql`

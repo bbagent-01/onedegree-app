@@ -24,6 +24,7 @@ export function Footer() {
             &copy; {new Date().getFullYear()} One Degree B&B. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <Link href="/help" className="hover:text-foreground transition-colors">Help</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="#" className="hover:text-foreground transition-colors">Sitemap</Link>

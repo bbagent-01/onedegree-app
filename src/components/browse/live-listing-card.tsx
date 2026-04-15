@@ -4,18 +4,32 @@ import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Heart, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { toast } from "sonner";
 import type { BrowseListing } from "@/lib/browse-data";
 
 const PLACEHOLDER =
   "https://placehold.co/600x400/e2e8f0/475569?text=No+photo";
 
-export function LiveListingCard({ listing }: { listing: BrowseListing }) {
+interface Props {
+  listing: BrowseListing;
+  /** Initial saved state for the heart button. */
+  initialSaved?: boolean;
+  /** Called with new saved state after a successful toggle. */
+  onSaveChange?: (listingId: string, saved: boolean) => void;
+}
+
+export function LiveListingCard({
+  listing,
+  initialSaved = false,
+  onSaveChange,
+}: Props) {
   const images = listing.photos.length
     ? listing.photos.map((p) => p.public_url)
     : [PLACEHOLDER];
 
   const [currentImage, setCurrentImage] = useState(0);
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(initialSaved);
+  const [pending, setPending] = useState(false);
 
   const prev = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -26,6 +40,43 @@ export function LiveListingCard({ listing }: { listing: BrowseListing }) {
     e.preventDefault();
     e.stopPropagation();
     setCurrentImage((i) => (i === images.length - 1 ? 0 : i + 1));
+  };
+
+  const toggleSave = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (pending) return;
+
+    // Optimistic update — flip immediately, rollback on error.
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+    setPending(true);
+
+    try {
+      const res = await fetch("/api/wishlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: listing.id }),
+      });
+      if (res.status === 401) {
+        setIsSaved(!nextSaved);
+        toast.error("Sign in to save listings");
+        return;
+      }
+      if (!res.ok) {
+        setIsSaved(!nextSaved);
+        toast.error("Couldn't update wishlist");
+        return;
+      }
+      const data = (await res.json()) as { saved: boolean };
+      setIsSaved(data.saved);
+      onSaveChange?.(listing.id, data.saved);
+    } catch {
+      setIsSaved(!nextSaved);
+      toast.error("Network error");
+    } finally {
+      setPending(false);
+    }
   };
 
   const rating = listing.avg_listing_rating ?? 0;
@@ -42,12 +93,9 @@ export function LiveListingCard({ listing }: { listing: BrowseListing }) {
         />
 
         <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsSaved(!isSaved);
-          }}
-          aria-label="Save"
+          onClick={toggleSave}
+          aria-label={isSaved ? "Remove from wishlist" : "Save to wishlist"}
+          aria-pressed={isSaved}
           className="absolute right-3 top-3 z-10"
         >
           <Heart

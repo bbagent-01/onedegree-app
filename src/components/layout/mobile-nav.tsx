@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Search,
@@ -39,6 +39,7 @@ interface Tab {
 
 const travelingTabs: Tab[] = [
   { href: "/explore", label: "Explore", icon: Search },
+  { href: "/wishlists", label: "Wishlists", icon: Heart, match: (p) => p.startsWith("/wishlists") },
   { href: "/trips", label: "Trips", icon: CalendarDays },
   { href: "/inbox", label: "Inbox", icon: MessageCircle, match: (p) => p.startsWith("/inbox") },
   { label: "Menu", icon: Menu, isMenu: true },
@@ -68,6 +69,20 @@ export function MobileNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isSignedIn, user } = useUser();
   const { signOut } = useClerk();
+
+  // Look up Supabase user-row id so the "Profile" link can deep-link to
+  // /profile/:id. Falls back to /profile/edit until it resolves.
+  const [profileId, setProfileId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isSignedIn || profileId) return;
+    fetch("/api/users/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.id) setProfileId(data.id);
+      })
+      .catch(() => {});
+  }, [isSignedIn, profileId]);
+  const profileHref = profileId ? `/profile/${profileId}` : "/profile/edit";
 
   const closeMenu = () => setMenuOpen(false);
   const handleSignOut = () => {
@@ -197,6 +212,12 @@ export function MobileNav() {
                     onClick={closeMenu}
                   />
                   <MenuLink
+                    href="/wishlists"
+                    icon={Heart}
+                    label="Wishlists"
+                    onClick={closeMenu}
+                  />
+                  <MenuLink
                     href="/trips"
                     icon={CalendarDays}
                     label="Trips"
@@ -208,25 +229,39 @@ export function MobileNav() {
                     label="Messages"
                     onClick={closeMenu}
                   />
-                  <DisabledMenuItem icon={Heart} label="Wishlists" />
-                  <DisabledMenuItem icon={User} label="Profile" />
+                  <MenuLink
+                    href={profileHref}
+                    icon={User}
+                    label="Profile"
+                    onClick={closeMenu}
+                  />
                 </>
               )}
 
               {mode === "hosting" && (
-                <DisabledMenuItem icon={User} label="Profile" />
+                <MenuLink
+                  href={profileHref}
+                  icon={User}
+                  label="Profile"
+                  onClick={closeMenu}
+                />
               )}
 
               <Divider />
 
               <MenuLink
-                href="/settings/notifications"
+                href="/settings"
                 icon={Settings}
                 label="Account settings"
                 onClick={closeMenu}
               />
               <DisabledMenuItem icon={Globe} label="Languages & currency" />
-              <DisabledMenuItem icon={HelpCircle} label="Help Center" />
+              <MenuLink
+                href="/help"
+                icon={HelpCircle}
+                label="Help Center"
+                onClick={closeMenu}
+              />
 
               <Divider />
 
