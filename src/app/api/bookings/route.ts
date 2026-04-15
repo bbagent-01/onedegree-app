@@ -68,27 +68,50 @@ export async function POST(req: Request) {
 
   const summaryMessage = `Hi! I'd like to reserve your place from ${body.checkIn} to ${body.checkOut} for ${body.guests ?? 1} guest(s). Estimated total: $${(body.total ?? 0).toLocaleString()}.`;
 
-  const { data: request, error } = await supabase
+  // Idempotency guard: if a pending or accepted request already exists for
+  // this exact listing + guest + dates, reuse it instead of creating a
+  // duplicate row. Prevents the "user clicks Reserve twice" failure mode.
+  const { data: existing } = await supabase
     .from("contact_requests")
-    .insert({
-      listing_id: body.listingId,
-      guest_id: currentUser.id,
-      host_id: listing.host_id,
-      message: summaryMessage,
-      check_in: body.checkIn,
-      check_out: body.checkOut,
-      guest_count: body.guests ?? 1,
-      status: "pending",
-    })
     .select("id")
-    .single();
+    .eq("listing_id", body.listingId)
+    .eq("guest_id", currentUser.id)
+    .eq("check_in", body.checkIn)
+    .eq("check_out", body.checkOut)
+    .in("status", ["pending", "accepted"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (error || !request) {
-    console.error("Booking insert error:", error);
-    return Response.json(
-      { error: "Couldn't send reservation request." },
-      { status: 500 }
-    );
+  let request: { id: string } | null = null;
+  let isExisting = false;
+  if (existing) {
+    request = existing;
+    isExisting = true;
+  } else {
+    const { data: created, error } = await supabase
+      .from("contact_requests")
+      .insert({
+        listing_id: body.listingId,
+        guest_id: currentUser.id,
+        host_id: listing.host_id,
+        message: summaryMessage,
+        check_in: body.checkIn,
+        check_out: body.checkOut,
+        guest_count: body.guests ?? 1,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+
+    if (error || !created) {
+      console.error("Booking insert error:", error);
+      return Response.json(
+        { error: "Couldn't send reservation request." },
+        { status: 500 }
+      );
+    }
+    request = created;
   }
 
   // Open or reuse a thread for this listing/guest.
@@ -103,6 +126,13 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error("Thread create error:", e);
     return Response.json({ id: request.id });
+  }
+
+  // If this was a duplicate click, don't spam the thread with another
+  // system message + intro + email. Just hand back the existing booking
+  // and thread so the UI lands the user back where they already were.
+  if (isExisting) {
+    return Response.json({ id: request.id, threadId, deduped: true });
   }
 
   // System message — reservation request created
