@@ -1,29 +1,50 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
+import type {
+  Map as LeafletMap,
+  Marker as LeafletMarker,
+  Circle as LeafletCircle,
+} from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 /**
  * Small interactive map preview used in the hosting edit form so the host
- * can verify the pinned address. Supports live prop updates (re-centers
- * without remounting) when lat/lng change.
+ * can verify the pinned address.
  *
- * Kept local to /hosting to avoid pulling in the guest-facing
- * `LocationMap` component (which has additional guest copy + the
- * approximate-location circle styling).
+ * Features:
+ *   - Draggable marker. On drag-end, calls `onChange(lat, lng)` so the
+ *     parent form can store the adjusted coordinates.
+ *   - 500m approximate-location circle matching the guest-facing
+ *     `LocationMap` — shows the host exactly what guests will see before
+ *     they book (neighborhood blur, not exact address).
+ *   - Live prop updates (re-centers / moves marker) without remounting
+ *     the Leaflet instance.
+ *
+ * NB: Leaflet's default marker icons break when bundled (the CSS
+ * references ./images/marker-icon.png which webpack rewrites). We pin
+ * them to unpkg so the marker actually renders.
  */
 export function LocationPreview({
   lat,
   lng,
+  onChange,
 }: {
   lat: number;
   lng: number;
+  onChange?: (lat: number, lng: number) => void;
 }) {
   const [mounted, setMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<LeafletMarker | null>(null);
+  const circleRef = useRef<LeafletCircle | null>(null);
+  // Keep the latest onChange in a ref so the dragend handler stays live
+  // without having to reattach on every render.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => setMounted(true), []);
 
@@ -34,11 +55,23 @@ export function LocationPreview({
       const L = (await import("leaflet")).default;
       if (cancelled || !containerRef.current) return;
 
+      // Fix the default marker icon path (broken by bundlers).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl:
+          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        iconUrl:
+          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl:
+          "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      });
+
       if (!mapRef.current) {
         const map = L.map(containerRef.current, {
           zoomControl: true,
           scrollWheelZoom: false,
-        }).setView([lat, lng], 15);
+        }).setView([lat, lng], 14);
 
         L.tileLayer(
           "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
@@ -50,12 +83,36 @@ export function LocationPreview({
           }
         ).addTo(map);
 
-        const marker = L.marker([lat, lng]).addTo(map);
+        // Approximate-radius circle — matches guest-facing LocationMap.
+        const circle = L.circle([lat, lng], {
+          radius: 500,
+          color: "#FF385C",
+          fillColor: "#FF385C",
+          fillOpacity: 0.18,
+          weight: 2,
+        }).addTo(map);
+
+        const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        marker.on("dragend", () => {
+          const p = marker.getLatLng();
+          circle.setLatLng(p);
+          onChangeRef.current?.(p.lat, p.lng);
+        });
+        marker
+          .bindTooltip("Drag to adjust", {
+            permanent: false,
+            direction: "top",
+            offset: [0, -36],
+          })
+          .openTooltip();
+
         mapRef.current = map;
         markerRef.current = marker;
+        circleRef.current = circle;
       } else {
-        mapRef.current.setView([lat, lng], 15);
+        mapRef.current.setView([lat, lng], mapRef.current.getZoom());
         markerRef.current?.setLatLng([lat, lng]);
+        circleRef.current?.setLatLng([lat, lng]);
       }
     })();
 
@@ -71,14 +128,21 @@ export function LocationPreview({
         mapRef.current.remove();
         mapRef.current = null;
         markerRef.current = null;
+        circleRef.current = null;
       }
     };
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className="h-[280px] w-full overflow-hidden rounded-xl border border-border/60"
-    />
+    <div className="space-y-2">
+      <div
+        ref={containerRef}
+        className="h-[320px] w-full overflow-hidden rounded-xl border border-border/60"
+      />
+      <p className="text-xs text-muted-foreground">
+        The pink circle shows the approximate area guests see before they
+        book — your exact address stays private. Drag the pin to fine-tune.
+      </p>
+    </div>
   );
 }

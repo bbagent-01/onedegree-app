@@ -480,7 +480,14 @@ export function EditListingForm({
             )}
           </div>
           {lat != null && lng != null && (
-            <LocationPreview lat={lat} lng={lng} />
+            <LocationPreview
+              lat={lat}
+              lng={lng}
+              onChange={(newLat, newLng) => {
+                setLat(newLat);
+                setLng(newLng);
+              }}
+            />
           )}
         </div>
        </SectionCard>
