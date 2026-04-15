@@ -149,8 +149,15 @@ export function BrowseLayout({ listings }: Props) {
         </Button>
       </div>
 
-      {/* Mobile map toggle */}
-      <div className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 md:hidden">
+      {/* Mobile map toggle — floats above the mobile tab bar. The bottom
+          offset accounts for the tab bar's height plus the iOS
+          home-indicator safe area plus a 1rem breathing gap. */}
+      <div
+        className="fixed left-1/2 z-40 -translate-x-1/2 md:hidden"
+        style={{
+          bottom: "calc(4rem + env(safe-area-inset-bottom) + 1rem)",
+        }}
+      >
         <Button
           type="button"
           onClick={() => setMode((m) => (m === "map" ? "grid" : "map"))}

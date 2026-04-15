@@ -168,17 +168,17 @@ export function MobileSearchPill({ suggestions }: Props) {
 
       <SheetContent
         side="bottom"
-        className="h-[92dvh] w-full max-w-none rounded-t-3xl p-0"
+        showCloseButton={false}
+        className="h-[92dvh] max-h-[92dvh] w-full max-w-none gap-0 rounded-t-3xl p-0"
       >
-        <div className="flex h-full flex-col">
-          <SheetHeader className="border-b border-border px-5 py-4">
-            <SheetTitle className="text-lg font-semibold">
-              Start your search
-            </SheetTitle>
-          </SheetHeader>
+        <SheetHeader className="shrink-0 border-b border-border px-5 py-4">
+          <SheetTitle className="text-lg font-semibold">
+            Start your search
+          </SheetTitle>
+        </SheetHeader>
 
-          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-            {/* Where */}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5">
+          {/* Where */}
             <section className="rounded-2xl border border-border p-4">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Where
@@ -244,32 +244,34 @@ export function MobileSearchPill({ suggestions }: Props) {
               )}
             </section>
 
-            {/* Who */}
-            <section className="rounded-2xl border border-border p-4">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Who
-              </div>
-              <GuestCounter value={guests} onChange={setGuests} />
-            </section>
-          </div>
+          {/* Who */}
+          <section className="rounded-2xl border border-border p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Who
+            </div>
+            <GuestCounter value={guests} onChange={setGuests} />
+          </section>
+        </div>
 
-          <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-4">
-            <button
-              type="button"
-              onClick={clearAll}
-              className="text-sm font-semibold underline-offset-4 hover:underline"
-            >
-              Clear all
-            </button>
-            <button
-              type="button"
-              onClick={applySearch}
-              className="inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600"
-            >
-              <Search className="h-4 w-4" />
-              Search
-            </button>
-          </div>
+        <div
+          className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-white px-5 py-4"
+          style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+        >
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-sm font-semibold underline-offset-4 hover:underline"
+          >
+            Clear all
+          </button>
+          <button
+            type="button"
+            onClick={applySearch}
+            className="inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600"
+          >
+            <Search className="h-4 w-4" />
+            Search
+          </button>
         </div>
       </SheetContent>
     </Sheet>
