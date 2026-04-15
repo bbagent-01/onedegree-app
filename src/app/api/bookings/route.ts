@@ -2,11 +2,13 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getOrCreateThread } from "@/lib/messaging-data";
 
 /**
  * Track B reservation endpoint.
- * Creates a pending contact_request (Airbnb-style "request to book").
- * No payment processing — host reviews and responds via their dashboard.
+ * Creates a pending contact_request, opens (or reuses) a message thread,
+ * inserts a system message + the guest's optional intro message.
+ * No payment processing — host reviews and responds via the dashboard.
  */
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -20,7 +22,7 @@ export async function POST(req: Request) {
   const supabase = getSupabaseAdmin();
   const { data: currentUser } = await supabase
     .from("users")
-    .select("id")
+    .select("id, name")
     .eq("clerk_id", userId)
     .single();
   if (!currentUser) {
@@ -33,6 +35,7 @@ export async function POST(req: Request) {
     checkOut?: string | null;
     guests?: number;
     total?: number;
+    message?: string | null;
   } | null;
 
   if (!body?.listingId || !body.checkIn || !body.checkOut) {
@@ -44,7 +47,7 @@ export async function POST(req: Request) {
 
   const { data: listing } = await supabase
     .from("listings")
-    .select("id, host_id")
+    .select("id, host_id, title")
     .eq("id", body.listingId)
     .single();
   if (!listing) {
@@ -57,7 +60,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const message = `Hi! I'd like to reserve your place from ${body.checkIn} to ${body.checkOut} for ${body.guests ?? 1} guest(s). Estimated total: $${(body.total ?? 0).toLocaleString()}.`;
+  const summaryMessage = `Hi! I'd like to reserve your place from ${body.checkIn} to ${body.checkOut} for ${body.guests ?? 1} guest(s). Estimated total: $${(body.total ?? 0).toLocaleString()}.`;
 
   const { data: request, error } = await supabase
     .from("contact_requests")
@@ -65,7 +68,7 @@ export async function POST(req: Request) {
       listing_id: body.listingId,
       guest_id: currentUser.id,
       host_id: listing.host_id,
-      message,
+      message: summaryMessage,
       check_in: body.checkIn,
       check_out: body.checkOut,
       guest_count: body.guests ?? 1,
@@ -74,7 +77,7 @@ export async function POST(req: Request) {
     .select("id")
     .single();
 
-  if (error) {
+  if (error || !request) {
     console.error("Booking insert error:", error);
     return Response.json(
       { error: "Couldn't send reservation request." },
@@ -82,5 +85,46 @@ export async function POST(req: Request) {
     );
   }
 
-  return Response.json({ id: request.id });
+  // Open or reuse a thread for this listing/guest.
+  let threadId: string;
+  try {
+    threadId = await getOrCreateThread({
+      listingId: body.listingId,
+      guestId: currentUser.id,
+      hostId: listing.host_id,
+      contactRequestId: request.id,
+    });
+  } catch (e) {
+    console.error("Thread create error:", e);
+    return Response.json({ id: request.id });
+  }
+
+  // System message — reservation request created
+  const guestLabel = currentUser.name?.split(" ")[0] || "Guest";
+  await supabase.from("messages").insert({
+    thread_id: threadId,
+    sender_id: null,
+    content: `${guestLabel} requested to reserve from ${body.checkIn} to ${body.checkOut} · ${body.guests ?? 1} guest${(body.guests ?? 1) === 1 ? "" : "s"}.`,
+    is_system: true,
+  });
+
+  // Optional intro message from the guest (otherwise the canned summary)
+  const guestText = (body.message || "").trim();
+  if (guestText) {
+    await supabase.from("messages").insert({
+      thread_id: threadId,
+      sender_id: currentUser.id,
+      content: guestText,
+      is_system: false,
+    });
+  } else {
+    await supabase.from("messages").insert({
+      thread_id: threadId,
+      sender_id: currentUser.id,
+      content: summaryMessage,
+      is_system: false,
+    });
+  }
+
+  return Response.json({ id: request.id, threadId });
 }

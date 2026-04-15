@@ -23,7 +23,7 @@ export async function PATCH(
   // Verify this request belongs to the current user as host
   const { data: request } = await supabase
     .from("contact_requests")
-    .select("id, host_id, status")
+    .select("id, host_id, guest_id, listing_id, check_in, check_out, status")
     .eq("id", id)
     .single();
 
@@ -58,6 +58,37 @@ export async function PATCH(
   if (error) {
     console.error("Contact request update error:", error);
     return new Response("Failed to update", { status: 500 });
+  }
+
+  // Post a system message into the thread (if one exists) so both sides see
+  // the host's response in their inbox.
+  const { data: thread } = await supabase
+    .from("message_threads")
+    .select("id")
+    .eq("listing_id", request.listing_id)
+    .eq("guest_id", request.guest_id)
+    .maybeSingle();
+
+  if (thread) {
+    const verb = status === "accepted" ? "accepted" : "declined";
+    await supabase.from("messages").insert({
+      thread_id: thread.id,
+      sender_id: null,
+      content:
+        status === "accepted"
+          ? `Host ${verb} the reservation request${request.check_in && request.check_out ? ` for ${request.check_in} to ${request.check_out}` : ""}.`
+          : `Host ${verb} the reservation request.`,
+      is_system: true,
+    });
+
+    if (hostResponseMessage && hostResponseMessage.trim()) {
+      await supabase.from("messages").insert({
+        thread_id: thread.id,
+        sender_id: currentUser.id,
+        content: hostResponseMessage.trim(),
+        is_system: false,
+      });
+    }
   }
 
   return Response.json({ ok: true });

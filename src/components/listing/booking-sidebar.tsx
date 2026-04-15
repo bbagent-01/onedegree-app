@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { differenceInCalendarDays, format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
@@ -11,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Check, Minus, Plus, Star, X } from "lucide-react";
+import { Minus, Plus, Star } from "lucide-react";
 import { AvailabilityCalendar } from "./availability-calendar";
 
 interface Props {
@@ -41,18 +42,10 @@ export function BookingSidebar({
   reviewCount,
   blockedRanges,
 }: Props) {
+  const router = useRouter();
   const [range, setRange] = useState<DateRange | undefined>();
   const [guests, setGuests] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
   const [guestsOpen, setGuestsOpen] = useState(false);
-  const [successOpen, setSuccessOpen] = useState(false);
-
-  // Auto-dismiss the purple reservation-sent banner after 5 seconds.
-  useEffect(() => {
-    if (!successOpen) return;
-    const t = setTimeout(() => setSuccessOpen(false), 5000);
-    return () => clearTimeout(t);
-  }, [successOpen]);
 
   // Broadcast the selected range so the sticky anchor bar (sibling client
   // component) can display the dates next to its Reserve button. Using a
@@ -84,7 +77,8 @@ export function BookingSidebar({
 
   const canReserve = nights >= minNights && nights <= maxNights;
 
-  const reserve = async () => {
+  const reserve = () => {
+    if (!range?.from || !range?.to) return;
     if (!canReserve) {
       toast.error(
         nights < minNights
@@ -93,32 +87,12 @@ export function BookingSidebar({
       );
       return;
     }
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listingId,
-          checkIn: range?.from ? format(range.from, "yyyy-MM-dd") : null,
-          checkOut: range?.to ? format(range.to, "yyyy-MM-dd") : null,
-          guests,
-          total: fees.total,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-      };
-      if (!res.ok) {
-        toast.error(data.error || "Couldn't send reservation. Try again.");
-      } else {
-        setSuccessOpen(true);
-      }
-    } catch {
-      toast.error("Network error. Try again.");
-    } finally {
-      setSubmitting(false);
-    }
+    const params = new URLSearchParams({
+      from: format(range.from, "yyyy-MM-dd"),
+      to: format(range.to, "yyyy-MM-dd"),
+      guests: String(guests),
+    });
+    router.push(`/listings/${listingId}/reserve?${params.toString()}`);
   };
 
   return (
@@ -228,13 +202,9 @@ export function BookingSidebar({
             id="booking-reserve"
             className="mt-4 h-12 w-full rounded-lg bg-brand text-base font-semibold hover:bg-brand-600"
             onClick={reserve}
-            disabled={submitting || !range?.from || !range?.to}
+            disabled={!range?.from || !range?.to}
           >
-            {submitting
-              ? "Sending…"
-              : nights === 0
-                ? "Reserve"
-                : "Request to reserve"}
+            {nights === 0 ? "Reserve" : "Request to reserve"}
           </Button>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             You won&apos;t be charged yet
@@ -294,42 +264,12 @@ export function BookingSidebar({
           <Button
             className="h-11 rounded-lg bg-brand px-6 font-semibold hover:bg-brand-600"
             onClick={reserve}
-            disabled={submitting || !range?.from || !range?.to}
+            disabled={!range?.from || !range?.to}
           >
             Reserve
           </Button>
         </div>
       </div>
-
-      {/* Full-width reservation-sent banner — sits above mobile tab bar (z-50)
-          and mobile booking bar (z-[60]), so z-[70] keeps it on top everywhere. */}
-      {successOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-[70] bg-brand text-white shadow-2xl">
-          <div className="mx-auto flex w-full max-w-[1760px] items-center justify-between gap-4 px-4 py-4 md:px-10 lg:px-20">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20">
-                <Check className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-base font-semibold">
-                  Reservation request sent to host
-                </div>
-                <div className="text-sm text-white/80">
-                  You&apos;ll hear back soon. Check your inbox for updates.
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSuccessOpen(false)}
-              aria-label="Dismiss"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-white/15"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Mobile inline dates picker anchor */}
       <div id="mobile-dates" className="md:hidden">

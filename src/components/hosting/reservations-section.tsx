@@ -52,10 +52,12 @@ function statusBadge(status: HostingReservation["status"]) {
 function ReservationCard({
   reservation,
   onRespond,
+  onMessage,
   isPending,
 }: {
   reservation: HostingReservation;
   onRespond: (id: string, action: "accepted" | "declined") => void;
+  onMessage: (reservation: HostingReservation) => void;
   isPending: boolean;
 }) {
   return (
@@ -98,6 +100,7 @@ function ReservationCard({
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
+              onClick={() => onMessage(reservation)}
               className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-600"
             >
               <MessageCircle className="h-3.5 w-3.5" />
@@ -170,6 +173,33 @@ export function ReservationsSection({
     });
   };
 
+  const handleMessage = (reservation: HostingReservation) => {
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/message-threads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            listingId: reservation.listing_id,
+            otherUserId: reservation.guest_id,
+            contactRequestId: reservation.id,
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          threadId?: string;
+          error?: string;
+        };
+        if (!res.ok || !data.threadId) {
+          toast.error(data.error || "Couldn't open conversation");
+          return;
+        }
+        router.push(`/inbox/${data.threadId}`);
+      } catch {
+        toast.error("Something went wrong");
+      }
+    });
+  };
+
   return (
     <section>
       <h2 className="text-xl font-semibold text-foreground">Reservations</h2>
@@ -207,6 +237,7 @@ export function ReservationsSection({
                 key={r.id}
                 reservation={r}
                 onRespond={handleRespond}
+                onMessage={handleMessage}
                 isPending={isPending}
               />
             ))
@@ -222,6 +253,7 @@ export function ReservationsSection({
                 key={r.id}
                 reservation={r}
                 onRespond={handleRespond}
+                onMessage={handleMessage}
                 isPending={isPending}
               />
             ))
@@ -237,6 +269,7 @@ export function ReservationsSection({
                 key={r.id}
                 reservation={r}
                 onRespond={handleRespond}
+                onMessage={handleMessage}
                 isPending={isPending}
               />
             ))
