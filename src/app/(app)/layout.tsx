@@ -6,7 +6,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <DesktopNav />
-      <main className="flex-1 pb-16 md:pb-0">{children}</main>
+      {/* Bottom padding reserves space for the fixed mobile nav plus the
+          iOS home-indicator safe area. Stripped on md+ where the nav
+          isn't fixed. */}
+      <main
+        className="flex-1 md:!pb-0"
+        style={{
+          paddingBottom: "calc(4rem + env(safe-area-inset-bottom))",
+        }}
+      >
+        {children}
+      </main>
       <Footer />
       <MobileNav />
     </div>

@@ -77,7 +77,16 @@ export function MobileNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-white md:hidden">
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-white md:hidden"
+        style={{
+          // Extend the nav into the iOS home-indicator safe area so it
+          // sits flush against the physical bottom of the screen instead
+          // of floating above a blank strip. env() falls back to 0 on
+          // browsers that don't support it.
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
         <div className="flex items-center justify-around py-2">
           {tabs.map((tab) => {
             const isActive = tab.href

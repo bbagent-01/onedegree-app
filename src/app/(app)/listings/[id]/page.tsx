@@ -187,8 +187,10 @@ export default async function ListingPage({
 
           <Separator className="my-8" />
 
-          {/* Availability Calendar */}
-          <section>
+          {/* Availability Calendar — desktop only. Mobile uses the
+              single-month paginated picker inside BookingSidebar's
+              #mobile-dates block. */}
+          <section className="hidden md:block">
             <h2 className="mb-2 text-xl font-semibold">
               Select check-in date
             </h2>

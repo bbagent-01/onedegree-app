@@ -6,6 +6,7 @@ import {
 } from "@/lib/browse-data";
 import { activeFilterCount, parseBrowseParams } from "@/lib/browse-utils";
 import { SearchBar } from "@/components/browse/search-bar";
+import { MobileSearchPill } from "@/components/browse/mobile-search-pill";
 import { SortDropdown } from "@/components/browse/sort-dropdown";
 import { BrowseLayout } from "@/components/browse/browse-layout";
 import { FilterSheet } from "@/components/browse/filter-sheet";
@@ -43,10 +44,11 @@ export default async function BrowsePage({
         </div>
       </NavCenterPortal>
 
-      {/* Mobile sticky search bar (DesktopNav is hidden on mobile) */}
+      {/* Mobile sticky search pill — collapsed to "Start your search",
+          opens a full-height sheet with stacked sections on tap. */}
       <div className="sticky top-0 z-40 -mx-4 border-b border-border/60 bg-white px-4 py-3 md:hidden">
-        <Suspense fallback={<div className="h-12" />}>
-          <SuggestionsSearchBar compact />
+        <Suspense fallback={<div className="h-14" />}>
+          <MobileSearchPillSlot />
         </Suspense>
       </div>
 
@@ -74,6 +76,11 @@ export default async function BrowsePage({
 async function SuggestionsSearchBar({ compact }: { compact?: boolean }) {
   const suggestions = await getBrowseSuggestions();
   return <SearchBar suggestions={suggestions} compact={compact} />;
+}
+
+async function MobileSearchPillSlot() {
+  const suggestions = await getBrowseSuggestions();
+  return <MobileSearchPill suggestions={suggestions} />;
 }
 
 async function FiltersSlot({
