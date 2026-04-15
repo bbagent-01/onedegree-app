@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { LocationPreview } from "@/components/hosting/location-preview";
 import { useSearchParams } from "next/navigation";
 import {
   Tabs,
@@ -131,6 +132,69 @@ export function EditListingForm({
     initial.meta.address?.lng
   );
   const [geocoding, setGeocoding] = useState(false);
+  // Address autocomplete state. Debounced Nominatim suggestions.
+  type AddrSuggestion = {
+    lat: number;
+    lng: number;
+    display_name: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  };
+  const [suggestions, setSuggestions] = useState<AddrSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loadingSug, setLoadingSug] = useState(false);
+  // Guard so we don't re-fetch immediately after picking a suggestion.
+  const suppressNextFetchRef = useRef(false);
+  useEffect(() => {
+    if (suppressNextFetchRef.current) {
+      suppressNextFetchRef.current = false;
+      return;
+    }
+    const q = street.trim();
+    if (q.length < 4) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSug(true);
+    const t = setTimeout(async () => {
+      try {
+        // Include city/state hints to bias results when the host has them.
+        const hint = [city, stateRegion].filter(Boolean).join(", ");
+        const full = hint ? `${q}, ${hint}` : q;
+        const res = await fetch(
+          `/api/geocode?q=${encodeURIComponent(full)}&limit=5`
+        );
+        if (!res.ok) {
+          if (!cancelled) setSuggestions([]);
+          return;
+        }
+        const data = (await res.json()) as { results?: AddrSuggestion[] };
+        if (!cancelled) setSuggestions(data.results || []);
+      } catch {
+        if (!cancelled) setSuggestions([]);
+      } finally {
+        if (!cancelled) setLoadingSug(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [street, city, stateRegion]);
+  const pickSuggestion = (s: AddrSuggestion) => {
+    suppressNextFetchRef.current = true;
+    if (s.street) setStreet(s.street);
+    if (s.city) setCity(s.city);
+    if (s.state) setStateRegion(s.state);
+    if (s.zip) setZip(s.zip);
+    setLat(s.lat);
+    setLng(s.lng);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
   const [checkIn, setCheckIn] = useState(initial.checkin_time);
   const [checkOut, setCheckOut] = useState(initial.checkout_time);
   const [photos, setPhotos] = useState<UploadedPhoto[]>(initial.photos);
@@ -319,14 +383,48 @@ export function EditListingForm({
         subtitle="Your exact address is private. We only show the neighborhood pin to guests until they book."
        >
         <div className="grid grid-cols-1 gap-4">
-          <div>
+          <div className="relative">
             <Label className="mb-2 block text-sm font-semibold">Street address</Label>
             <Input
               className={BIG_INPUT}
               value={street}
-              onChange={(e) => setStreet(e.target.value)}
+              onChange={(e) => {
+                setStreet(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => {
+                // Delay so a click on a suggestion registers first.
+                setTimeout(() => setShowSuggestions(false), 150);
+              }}
               placeholder="36 Bryant Pond Rd"
+              autoComplete="off"
             />
+            {showSuggestions && (suggestions.length > 0 || loadingSug) && (
+              <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-border bg-white shadow-lg">
+                {loadingSug && suggestions.length === 0 ? (
+                  <div className="px-4 py-3 text-sm text-muted-foreground">
+                    Searching…
+                  </div>
+                ) : (
+                  suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onMouseDown={(e) => {
+                        // Prevent blur from firing before click.
+                        e.preventDefault();
+                        pickSuggestion(s);
+                      }}
+                      className="flex w-full items-start gap-2 border-b border-border/50 px-4 py-3 text-left text-sm last:border-b-0 hover:bg-muted/40"
+                    >
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="line-clamp-2">{s.display_name}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
@@ -381,6 +479,9 @@ export function EditListingForm({
               </span>
             )}
           </div>
+          {lat != null && lng != null && (
+            <LocationPreview lat={lat} lng={lng} />
+          )}
         </div>
        </SectionCard>
 
