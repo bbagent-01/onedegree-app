@@ -129,7 +129,7 @@ export async function getUserWishlists(
     const covers = rows
       .slice(0, 4)
       .map((r) => coverByListing.get(r.listing_id))
-      .filter((x): x is string => typeof x === "string");
+      .filter((x): x is string => typeof x === "string" && x.length > 0);
     return {
       id: l.id as string,
       name: l.name as string,

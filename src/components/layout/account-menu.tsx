@@ -74,21 +74,16 @@ export function AccountMenu() {
   };
   const profileHref = profileId ? `/profile/${profileId}` : "/profile/edit";
 
-  // Logged-out users get a compact menu with explore + help + sign
-  // in / sign up. Mirrors Airbnb's hamburger-next-to-signin pattern.
+  // Logged-out users get a compact hamburger menu — no avatar
+  // placeholder since there's no user to represent.
   if (!isSignedIn) {
     return (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
-          className="inline-flex items-center gap-2 rounded-full border border-border bg-white py-1.5 pl-3 pr-1.5 text-sm font-medium transition-shadow hover:shadow-md"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-white transition-shadow hover:shadow-md"
           aria-label="Open menu"
         >
           <Menu className="h-4 w-4" />
-          <Avatar className="h-7 w-7">
-            <AvatarFallback className="text-[10px]">
-              <User className="h-3.5 w-3.5" />
-            </AvatarFallback>
-          </Avatar>
         </PopoverTrigger>
         <PopoverContent
           align="end"

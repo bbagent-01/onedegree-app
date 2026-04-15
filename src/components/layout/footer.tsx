@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 /**
  * Footer hidden on full-viewport routes that own the whole screen
@@ -11,9 +12,16 @@ import { usePathname } from "next/navigation";
  */
 const HIDDEN_ROUTES = ["/inbox"];
 
+interface FooterLink {
+  label: string;
+  href: string;
+  /** When true, render as disabled with a "Soon" pill instead of a link. */
+  soon?: boolean;
+}
+
 interface Column {
   heading: string;
-  links: { label: string; href: string }[];
+  links: FooterLink[];
 }
 
 const COLUMNS: Column[] = [
@@ -23,7 +31,7 @@ const COLUMNS: Column[] = [
       { label: "Help Center", href: "/help" },
       { label: "Contact us", href: "/help#contact" },
       { label: "Report a problem", href: "/help#contact" },
-      { label: "Community guidelines", href: "#" },
+      { label: "Community guidelines", href: "#", soon: true },
     ],
   },
   {
@@ -38,10 +46,10 @@ const COLUMNS: Column[] = [
   {
     heading: "One Degree B&B",
     links: [
-      { label: "About", href: "#" },
-      { label: "How it works", href: "#" },
-      { label: "Careers", href: "#" },
-      { label: "Press", href: "#" },
+      { label: "About", href: "#", soon: true },
+      { label: "How it works", href: "#", soon: true },
+      { label: "Careers", href: "#", soon: true },
+      { label: "Press", href: "#", soon: true },
     ],
   },
   {
@@ -54,6 +62,38 @@ const COLUMNS: Column[] = [
     ],
   },
 ];
+
+const LEGAL_LINKS: FooterLink[] = [
+  { label: "Privacy", href: "#", soon: true },
+  { label: "Terms", href: "#", soon: true },
+  { label: "Sitemap", href: "#", soon: true },
+];
+
+function FooterLinkItem({ link }: { link: FooterLink }) {
+  if (link.soon) {
+    return (
+      <span
+        aria-disabled="true"
+        className={cn(
+          "inline-flex cursor-not-allowed items-center gap-1.5 text-muted-foreground/50"
+        )}
+      >
+        {link.label}
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Soon
+        </span>
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={link.href}
+      className="text-muted-foreground transition-colors hover:text-foreground"
+    >
+      {link.label}
+    </Link>
+  );
+}
 
 export function Footer() {
   const pathname = usePathname() || "";
@@ -71,15 +111,10 @@ export function Footer() {
               <h3 className="text-sm font-semibold text-foreground">
                 {col.heading}
               </h3>
-              <ul className="mt-4 space-y-3">
+              <ul className="mt-4 space-y-3 text-sm">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {link.label}
-                    </Link>
+                    <FooterLinkItem link={link} />
                   </li>
                 ))}
               </ul>
@@ -93,15 +128,9 @@ export function Footer() {
             reserved.
           </p>
           <div className="flex items-center gap-5 text-xs text-muted-foreground">
-            <Link href="#" className="hover:text-foreground transition-colors">
-              Privacy
-            </Link>
-            <Link href="#" className="hover:text-foreground transition-colors">
-              Terms
-            </Link>
-            <Link href="#" className="hover:text-foreground transition-colors">
-              Sitemap
-            </Link>
+            {LEGAL_LINKS.map((link) => (
+              <FooterLinkItem key={link.label} link={link} />
+            ))}
           </div>
         </div>
       </div>

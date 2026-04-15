@@ -46,47 +46,96 @@ export default async function WishlistsPage() {
 }
 
 function WishlistCollectionCard({ list }: { list: WishlistSummary }) {
-  const covers = list.cover_photos;
-
   return (
     <Link href={`/wishlists/${list.id}`} className="group block">
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
-        {covers.length === 0 ? (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <Heart className="h-10 w-10" />
-          </div>
-        ) : covers.length === 1 ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={covers[0]}
-            alt={list.name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          // 2x2 mosaic for 2+ covers; stretch 2 covers to fill the right column.
-          <div className="grid h-full w-full grid-cols-2 gap-0.5">
-            {[0, 1, 2, 3].map((i) => {
-              const src = covers[i] ?? covers[i - 2] ?? covers[0];
-              return (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={i}
-                  src={src}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              );
-            })}
-          </div>
-        )}
+        <CoverMosaic covers={list.cover_photos} alt={list.name} />
       </div>
       <div className="mt-3">
         <h3 className="text-base font-semibold">{list.name}</h3>
         <p className="text-sm text-muted-foreground">
-          {list.item_count} {list.item_count === 1 ? "saved" : "saved"}
+          {list.item_count} saved
         </p>
       </div>
     </Link>
+  );
+}
+
+/**
+ * Proper mosaic that never repeats images:
+ *  - 0 covers → heart placeholder
+ *  - 1 cover  → full single photo
+ *  - 2 covers → 2 columns side-by-side
+ *  - 3 covers → one big left + two stacked right
+ *  - 4+       → 2×2 grid, first four only
+ */
+function CoverMosaic({ covers, alt }: { covers: string[]; alt: string }) {
+  if (covers.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+        <Heart className="h-10 w-10" />
+      </div>
+    );
+  }
+
+  if (covers.length === 1) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={covers[0]}
+        alt={alt}
+        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+      />
+    );
+  }
+
+  if (covers.length === 2) {
+    return (
+      <div className="grid h-full w-full grid-cols-2 gap-0.5">
+        {covers.map((src, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={src}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (covers.length === 3) {
+    return (
+      <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-0.5">
+        {/* Big left cell spans both rows */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={covers[0]}
+          alt=""
+          className="row-span-2 h-full w-full object-cover"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={covers[1]} alt="" className="h-full w-full object-cover" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={covers[2]} alt="" className="h-full w-full object-cover" />
+      </div>
+    );
+  }
+
+  // 4+ covers → first four in a 2x2 grid
+  return (
+    <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-0.5">
+      {covers.slice(0, 4).map((src, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={i}
+          src={src}
+          alt=""
+          className="h-full w-full object-cover"
+        />
+      ))}
+    </div>
   );
 }
 

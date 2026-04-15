@@ -118,6 +118,15 @@ export function MobileNav() {
           // of floating above a blank strip. env() falls back to 0 on
           // browsers that don't support it.
           paddingBottom: "env(safe-area-inset-bottom)",
+          // Force the nav onto its own compositing layer. Without this,
+          // iOS Safari briefly hides fixed-bottom elements when the URL
+          // bar collapses on scroll-down and restores them on scroll-up,
+          // which reads as a flash of missing icons.
+          WebkitTransform: "translate3d(0,0,0)",
+          transform: "translate3d(0,0,0)",
+          willChange: "transform",
+          WebkitBackfaceVisibility: "hidden",
+          backfaceVisibility: "hidden",
         }}
       >
         <div className="flex items-center justify-around py-2">

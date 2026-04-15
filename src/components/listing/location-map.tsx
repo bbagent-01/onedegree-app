@@ -36,10 +36,12 @@ export function LocationMap({ lat, lng, areaName }: Props) {
       ).addTo(map);
 
       // Approximate-location circle (Airbnb hides exact address pre-booking).
+      // Purple at 1.5× the old 500 m radius so the neighborhood feels more
+      // believable as a "general area" hint than a pin.
       L.circle([lat, lng], {
-        radius: 500,
-        color: "#FF385C",
-        fillColor: "#FF385C",
+        radius: 750,
+        color: "#7C3AED",
+        fillColor: "#7C3AED",
         fillOpacity: 0.18,
         weight: 2,
       }).addTo(map);
