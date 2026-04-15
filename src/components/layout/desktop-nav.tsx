@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Globe } from "lucide-react";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -75,14 +74,6 @@ export function DesktopNav() {
           {/* Mode toggle — "Switch to hosting" / "Switch to traveling".
               Hidden below lg so the browse search pill has room. */}
           {isSignedIn && <ModeToggle />}
-
-          <button
-            type="button"
-            aria-label="Choose language"
-            className="hidden xl:inline-flex p-2 hover:bg-muted rounded-full transition-colors"
-          >
-            <Globe className="h-4 w-4" />
-          </button>
 
           {isSignedIn ? (
             <AccountMenu />

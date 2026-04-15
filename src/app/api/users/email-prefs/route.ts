@@ -8,6 +8,7 @@ const ALLOWED_KEYS = [
   "booking_confirmed",
   "booking_declined",
   "new_message",
+  "checkin_reminder",
   "review_reminder",
 ] as const;
 

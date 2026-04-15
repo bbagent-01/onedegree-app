@@ -1,0 +1,15 @@
+name = "onedegree-cron-worker"
+main = "src/index.ts"
+compatibility_date = "2026-04-15"
+
+# Hourly at minute :07 to spread load away from the top of the hour.
+[triggers]
+crons = ["7 * * * *"]
+
+# Two non-secret env vars. The CRON_SECRET secret is set separately via
+# `wrangler secret put` so it never lands in a committed file.
+[vars]
+TARGET_URL = "https://alpha-b.onedegreebnb.com/api/cron/check-reminders"
+
+[observability]
+enabled = true

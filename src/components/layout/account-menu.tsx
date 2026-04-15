@@ -14,6 +14,10 @@ import {
   LogOut,
   Settings,
   ArrowLeftRight,
+  Heart,
+  User,
+  Globe,
+  HelpCircle,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -25,6 +29,7 @@ interface MenuItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
 interface MenuSection {
@@ -65,6 +70,8 @@ export function AccountMenu() {
         { href: "/explore", label: "Explore", icon: Search },
         { href: "/trips", label: "Trips", icon: CalendarDays },
         { href: "/inbox", label: "Messages", icon: MessageCircle },
+        { label: "Wishlists", icon: Heart, disabled: true },
+        { label: "Profile", icon: User, disabled: true },
       ],
     },
     {
@@ -74,6 +81,8 @@ export function AccountMenu() {
           label: "Account settings",
           icon: Settings,
         },
+        { label: "Languages & currency", icon: Globe, disabled: true },
+        { label: "Help Center", icon: HelpCircle, disabled: true },
       ],
     },
     {
@@ -98,6 +107,7 @@ export function AccountMenu() {
         { href: "/hosting", label: "Hosting dashboard", icon: LayoutGrid },
         { href: "/hosting/create", label: "Create a new listing", icon: Plus },
         { href: "/inbox", label: "Messages", icon: MessageCircle },
+        { label: "Profile", icon: User, disabled: true },
       ],
     },
     {
@@ -107,6 +117,8 @@ export function AccountMenu() {
           label: "Account settings",
           icon: Settings,
         },
+        { label: "Languages & currency", icon: Globe, disabled: true },
+        { label: "Help Center", icon: HelpCircle, disabled: true },
       ],
     },
     {
@@ -154,8 +166,28 @@ export function AccountMenu() {
               <div className="my-1 h-px bg-border" role="separator" />
             )}
             {section.items.map((item) => {
+              const baseClass = "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-left";
+              if (item.disabled) {
+                return (
+                  <div
+                    key={item.label}
+                    className={cn(
+                      baseClass,
+                      "cursor-not-allowed text-muted-foreground/60"
+                    )}
+                    aria-disabled="true"
+                  >
+                    <item.icon className="h-4 w-4 text-muted-foreground/50" />
+                    {item.label}
+                    <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground/60">
+                      Soon
+                    </span>
+                  </div>
+                );
+              }
               const className = cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted text-left"
+                baseClass,
+                "text-foreground transition-colors hover:bg-muted"
               );
               if (item.onClick) {
                 return (

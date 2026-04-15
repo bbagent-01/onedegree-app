@@ -22,6 +22,7 @@ export type EmailKind =
   | "booking_confirmed"
   | "booking_declined"
   | "new_message"
+  | "checkin_reminder"
   | "review_reminder";
 
 interface UserRecipient {
@@ -286,6 +287,73 @@ export async function emailNewMessage(p: MessagePayload) {
     kind: "new_message",
     subject: `${p.senderName}: ${truncate(p.preview, 60)}`,
     html: wrap(`Hi ${firstName(recipient.name)}!`, body),
+  });
+}
+
+interface CheckinReminderPayload {
+  recipientId: string;
+  recipientRole: "guest" | "host";
+  guestName: string;
+  hostName: string;
+  listingTitle: string;
+  checkIn: string;
+  checkOut: string;
+  threadId: string | null;
+  bookingId: string;
+}
+
+export async function emailCheckinReminder(p: CheckinReminderPayload) {
+  const recipient = await fetchRecipient(p.recipientId);
+  if (!recipient) return;
+  const dates = stayDates(p.checkIn, p.checkOut);
+  const tripsUrl = p.recipientRole === "guest"
+    ? `${APP_BASE_URL}/trips/${p.bookingId}`
+    : `${APP_BASE_URL}/inbox${p.threadId ? `/${p.threadId}` : ""}`;
+  const otherName = p.recipientRole === "guest" ? p.hostName : p.guestName;
+  const lede = p.recipientRole === "guest"
+    ? `Your stay at <strong>${escapeHtml(p.listingTitle)}</strong> starts tomorrow. Time to start packing.`
+    : `<strong>${escapeHtml(p.guestName)}</strong> is checking in to <strong>${escapeHtml(p.listingTitle)}</strong> tomorrow. A friendly heads-up so you can prep the place.`;
+  const cta = p.recipientRole === "guest" ? "View trip details" : "Open conversation";
+  const rows =
+    detailRow("Dates", dates) +
+    detailRow(p.recipientRole === "guest" ? "Host" : "Guest", escapeHtml(otherName)) +
+    detailRow("Listing", escapeHtml(p.listingTitle));
+  const body = `
+    ${para(lede)}
+    ${detailsTable(rows)}
+    ${para("Need to coordinate check-in details, parking, or arrival time? Send a message in your inbox.")}
+    ${button(cta, tripsUrl)}
+  `;
+  return send({
+    to: recipient,
+    kind: "checkin_reminder",
+    subject: `Heads up — ${p.recipientRole === "guest" ? "your stay" : "a check-in"} is tomorrow`,
+    html: wrap(`Hi ${firstName(recipient.name)}!`, body),
+  });
+}
+
+interface ReviewReminderPayload {
+  guestId: string;
+  guestName: string;
+  hostName: string;
+  listingTitle: string;
+  bookingId: string;
+}
+
+export async function emailReviewReminder(p: ReviewReminderPayload) {
+  const guest = await fetchRecipient(p.guestId);
+  if (!guest) return;
+  const tripsUrl = `${APP_BASE_URL}/trips/${p.bookingId}`;
+  const body = `
+    ${para(`Hope your stay at <strong>${escapeHtml(p.listingTitle)}</strong> with <strong>${escapeHtml(p.hostName)}</strong> was a great one.`)}
+    ${para("Take a minute to leave a review — it helps your host build their reputation and helps future guests know what to expect.")}
+    ${button("Leave a review", tripsUrl)}
+  `;
+  return send({
+    to: guest,
+    kind: "review_reminder",
+    subject: `How was your stay at ${p.listingTitle}?`,
+    html: wrap(`Hi ${firstName(guest.name)}!`, body),
   });
 }
 

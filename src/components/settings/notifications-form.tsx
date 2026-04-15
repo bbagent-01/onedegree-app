@@ -10,6 +10,7 @@ type Prefs = {
   booking_confirmed: boolean;
   booking_declined: boolean;
   new_message: boolean;
+  checkin_reminder: boolean;
   review_reminder: boolean;
 };
 
@@ -33,6 +34,11 @@ const ITEMS: { key: keyof Prefs; title: string; description: string }[] = [
     key: "new_message",
     title: "New messages",
     description: "When someone sends you a message about a stay.",
+  },
+  {
+    key: "checkin_reminder",
+    title: "Check-in reminders",
+    description: "A heads-up the day before a stay starts.",
   },
   {
     key: "review_reminder",

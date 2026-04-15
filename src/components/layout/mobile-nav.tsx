@@ -12,6 +12,10 @@ import {
   Settings,
   ArrowLeftRight,
   LogOut,
+  Heart,
+  User,
+  Globe,
+  HelpCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -195,7 +199,13 @@ export function MobileNav() {
                     label="Messages"
                     onClick={closeMenu}
                   />
+                  <DisabledMenuItem icon={Heart} label="Wishlists" />
+                  <DisabledMenuItem icon={User} label="Profile" />
                 </>
+              )}
+
+              {mode === "hosting" && (
+                <DisabledMenuItem icon={User} label="Profile" />
               )}
 
               <Divider />
@@ -206,6 +216,8 @@ export function MobileNav() {
                 label="Account settings"
                 onClick={closeMenu}
               />
+              <DisabledMenuItem icon={Globe} label="Languages & currency" />
+              <DisabledMenuItem icon={HelpCircle} label="Help Center" />
 
               <Divider />
 
@@ -265,5 +277,26 @@ function MenuLink({ href, icon: Icon, label, onClick }: MenuLinkProps) {
       <Icon className="h-4 w-4 text-muted-foreground" />
       {label}
     </Link>
+  );
+}
+
+function DisabledMenuItem({
+  icon: Icon,
+  label,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <div
+      aria-disabled="true"
+      className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground/60"
+    >
+      <Icon className="h-4 w-4 text-muted-foreground/50" />
+      {label}
+      <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground/60">
+        Soon
+      </span>
+    </div>
   );
 }

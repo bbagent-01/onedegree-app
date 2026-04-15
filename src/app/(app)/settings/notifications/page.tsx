@@ -11,6 +11,7 @@ const DEFAULTS = {
   booking_confirmed: true,
   booking_declined: true,
   new_message: true,
+  checkin_reminder: true,
   review_reminder: true,
 };
 
