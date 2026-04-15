@@ -3,10 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Heart, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { Heart, ChevronLeft, ChevronRight, Lock, Star } from "lucide-react";
 import { toast } from "sonner";
 import type { BrowseListing } from "@/lib/browse-data";
 import { SaveToWishlistDialog } from "@/components/wishlist/save-to-wishlist-dialog";
+import { TrustBadge } from "@/components/trust-badge";
+import { GatedListingDialog } from "./gated-listing-dialog";
+import type { BrowseListingTrust } from "./browse-layout";
 
 const PLACEHOLDER =
   "https://placehold.co/600x400/e2e8f0/475569?text=No+photo";
@@ -18,12 +21,18 @@ interface Props {
   initialSaved?: boolean;
   /** Called after the user makes changes in the wishlist picker. */
   onSaveChange?: (listingId: string, saved: boolean) => void;
+  /** Viewer's trust info for this listing's host. */
+  trust?: BrowseListingTrust;
+  /** True if the viewer is signed in. */
+  isSignedIn?: boolean;
 }
 
 export function LiveListingCard({
   listing,
   initialSaved = false,
   onSaveChange,
+  trust,
+  isSignedIn = false,
 }: Props) {
   const images = listing.photos.length
     ? listing.photos.map((p) => p.public_url)
@@ -32,6 +41,9 @@ export function LiveListingCard({
   const [currentImage, setCurrentImage] = useState(0);
   const [isSaved, setIsSaved] = useState(initialSaved);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [gateDialogOpen, setGateDialogOpen] = useState(false);
+
+  const canSeeFull = trust?.canSeeFull ?? true;
 
   const prev = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -66,6 +78,80 @@ export function LiveListingCard({
   const rating = listing.avg_listing_rating ?? 0;
   const price = listing.price_min ?? listing.price_max ?? 0;
 
+  // ─────────────────────────────────────────────────────────────
+  // Gated variant — viewer can't access this listing yet.
+  // Blurred photo, hidden title, overlay CTA that opens a modal.
+  // ─────────────────────────────────────────────────────────────
+  if (!canSeeFull) {
+    const mutuals = trust?.mutualConnections ?? [];
+    const openGate = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setGateDialogOpen(true);
+    };
+    return (
+      <>
+        <button
+          type="button"
+          onClick={openGate}
+          className="group block w-full text-left"
+          aria-label="Private listing — requires trust connection"
+        >
+          <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={images[0]}
+              alt="Private listing"
+              className="h-full w-full scale-110 object-cover blur-lg"
+              draggable={false}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-black/5" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/40 backdrop-blur">
+                <Lock className="h-4 w-4" />
+              </div>
+              <div className="text-sm font-semibold drop-shadow">
+                Private listing
+              </div>
+              <div className="text-xs text-white/90 drop-shadow">
+                Requires trust connection
+              </div>
+            </div>
+            {trust && trust.score > 0 && (
+              <div className="absolute left-3 top-3">
+                <TrustBadge score={trust.score} size="sm" />
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3">
+            <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
+              {listing.area_name}
+            </h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {mutuals.length > 0
+                ? `${mutuals.length} of your connections could introduce you`
+                : isSignedIn
+                  ? "Not connected yet"
+                  : "Sign in to see your connection"}
+            </p>
+          </div>
+        </button>
+
+        <GatedListingDialog
+          open={gateDialogOpen}
+          onOpenChange={setGateDialogOpen}
+          listing={listing}
+          trust={trust}
+          isSignedIn={isSignedIn}
+        />
+      </>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Standard variant — viewer has full access.
+  // ─────────────────────────────────────────────────────────────
   return (
     <>
       <Link href={`/listings/${listing.id}`} className="group block">
@@ -76,6 +162,12 @@ export function LiveListingCard({
             alt={listing.title}
             className="h-full w-full object-cover"
           />
+
+          {trust && trust.score > 0 && (
+            <div className="absolute left-3 top-3">
+              <TrustBadge score={trust.score} size="sm" />
+            </div>
+          )}
 
           <button
             onClick={openPicker}

@@ -124,6 +124,9 @@ Before creating any new table in a CC session, check if it already exists. If it
 | 008 | `008_trips_notifications.sql` | users.email_prefs, contact_requests.cancelled_at/by, status enum |
 | 009 | `009_reminder_tracking.sql` | contact_requests.checkin_reminder_sent_at, review_prompt_sent_at |
 | 010 | `010_contact_request_total.sql` | contact_requests.total_estimate |
+| 011 | `011_wishlists_profiles_support.sql` | saved_listings, support_requests, users profile columns |
+| 012 | `012_named_wishlists.sql` | wishlists table, saved_listings reshape for named collections |
+| 013 | `013_min_trust_gate.sql` | listings.min_trust_gate — per-listing trust visibility threshold |
 
 ## Infrastructure
 

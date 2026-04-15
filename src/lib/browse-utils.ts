@@ -18,7 +18,8 @@ export function parseBrowseParams(
     sortRaw === "price_asc" ||
     sortRaw === "price_desc" ||
     sortRaw === "top_rated" ||
-    sortRaw === "newest"
+    sortRaw === "newest" ||
+    sortRaw === "trust_desc"
       ? sortRaw
       : "best_match";
 
@@ -52,6 +53,7 @@ export function parseBrowseParams(
     beds: num("bd"),
     bathrooms: num("ba"),
     amenities: csv("am"),
+    minTrust: num("trust"),
   };
 }
 
@@ -65,6 +67,7 @@ export function activeFilterCount(f: BrowseFilters): number {
   if (f.beds) count++;
   if (f.bathrooms) count++;
   if (f.amenities && f.amenities.length > 0) count++;
+  if (typeof f.minTrust === "number" && f.minTrust > 0) count++;
   return count;
 }
 

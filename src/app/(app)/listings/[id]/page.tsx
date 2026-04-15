@@ -1,6 +1,11 @@
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { Star, Medal } from "lucide-react";
 import { getListingDetail } from "@/lib/listing-detail-data";
+import {
+  computeTrustPath,
+  getInternalUserIdFromClerk,
+} from "@/lib/trust-data";
 import { Separator } from "@/components/ui/separator";
 import { PhotoGallery } from "@/components/listing/photo-gallery";
 import { DescriptionSection } from "@/components/listing/description-section";
@@ -10,6 +15,8 @@ import { BookingSidebar } from "@/components/listing/booking-sidebar";
 import { AvailabilityCalendarWrapper } from "@/components/listing/availability-calendar-wrapper";
 import { LocationMapClient } from "@/components/listing/location-map-client";
 import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
+import { GatedListingView } from "@/components/listing/gated-listing-view";
+import { TrustBadge } from "@/components/trust-badge";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -52,6 +59,30 @@ export default async function ListingPage({
   const listing = await getListingDetail(id);
   if (!listing) notFound();
 
+  // Trust gating — compute viewer → host path, decide whether to show
+  // the full listing or a gated preview. Host always sees their own.
+  const { userId: clerkId } = await auth();
+  const viewerId = await getInternalUserIdFromClerk(clerkId);
+  const isHost = viewerId && viewerId === listing.host_id;
+  const trust =
+    viewerId && !isHost
+      ? await computeTrustPath(viewerId, listing.host_id)
+      : null;
+  const canSeeFull =
+    isHost ||
+    listing.min_trust_gate <= 0 ||
+    (trust !== null && trust.score >= listing.min_trust_gate);
+
+  if (!canSeeFull) {
+    return (
+      <GatedListingView
+        listing={listing}
+        trust={trust}
+        isSignedIn={Boolean(viewerId)}
+      />
+    );
+  }
+
   const price = listing.price_min ?? listing.price_max ?? 0;
   const isSuperhost =
     (listing.host?.host_rating ?? 0) >= 4.8 &&
@@ -67,9 +98,14 @@ export default async function ListingPage({
       />
       {/* Title (mobile: below photos, desktop: above) */}
       <div className="mt-4 hidden md:block">
-        <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
-          {listing.title}
-        </h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
+            {listing.title}
+          </h1>
+          {trust && trust.score > 0 && (
+            <TrustBadge score={trust.score} size="md" />
+          )}
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           {listing.avg_rating && listing.review_count > 0 && (
             <>

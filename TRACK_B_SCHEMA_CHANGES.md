@@ -2,6 +2,22 @@
 
 Schema changes introduced by Track B sessions. Each entry documents what was added and why.
 
+## CC-B7a — Listing trust gate (migration 013)
+
+**Migration:** `supabase/migrations/013_min_trust_gate.sql`
+
+### listings table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| min_trust_gate | INTEGER NOT NULL DEFAULT 0 | Required viewer trust score to see full listing details. 0 = visible to the whole network, higher values restrict to closer connections. |
+
+- Partial index `idx_listings_min_trust_gate` over `(min_trust_gate) WHERE min_trust_gate > 0` for future server-side filtering.
+- Backfill: all existing rows default to 0, so the Airbnb-clone experience is preserved until hosts explicitly set a gate in CC-B7c.
+
+### Why this shape
+Per-listing gating is the simplest way for a host to differentiate a private guest room (gate of 60+) from a public-facing cabin (gate of 0), without requiring a separate visibility tier enum. The viewer's trust score is computed server-side in `src/lib/trust-data.ts` against the existing `calculate_one_degree_scores` RPC and compared to this column.
+
 ## CC-B6c — Named wishlists (migration 012)
 
 **Migration:** `supabase/migrations/012_named_wishlists.sql`

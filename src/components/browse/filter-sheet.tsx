@@ -70,6 +70,7 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
   const [beds, setBeds] = useState(0);
   const [bathrooms, setBathrooms] = useState(0);
   const [amenities, setAmenities] = useState<string[]>([]);
+  const [minTrust, setMinTrust] = useState(0);
 
   // Live preview count of listings matching the current draft.
   const [previewCount, setPreviewCount] = useState<number | null>(null);
@@ -86,6 +87,7 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
     setBeds(parseInt(get("bd") || "0", 10));
     setBathrooms(parseInt(get("ba") || "0", 10));
     setAmenities((get("am") || "").split(",").filter(Boolean));
+    setMinTrust(parseInt(get("trust") || "0", 10));
   }, [open, params, priceRange.min, priceRange.max]);
 
   // Build the draft's URL params (preserves location/from/to/guests from the
@@ -104,6 +106,7 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
     if (beds) url.set("bd", String(beds));
     if (bathrooms) url.set("ba", String(bathrooms));
     if (amenities.length) url.set("am", amenities.join(","));
+    if (minTrust > 0) url.set("trust", String(minTrust));
     return url;
   };
 
@@ -141,6 +144,7 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
     beds,
     bathrooms,
     amenities,
+    minTrust,
   ]);
 
   const togglePropertyType = (v: string) => {
@@ -175,6 +179,7 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
     set("bd", beds ? String(beds) : undefined);
     set("ba", bathrooms ? String(bathrooms) : undefined);
     set("am", amenities.length ? amenities.join(",") : undefined);
+    set("trust", minTrust > 0 ? String(minTrust) : undefined);
 
     router.push(`/browse?${url.toString()}`);
     setOpen(false);
@@ -188,6 +193,7 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
     setBeds(0);
     setBathrooms(0);
     setAmenities([]);
+    setMinTrust(0);
   };
 
   return (
@@ -238,6 +244,36 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
                   setPriceMax(b);
                 }}
               />
+            </div>
+          </section>
+
+          {/* Minimum connection strength */}
+          <section>
+            <h3 className="text-base font-semibold">
+              Minimum connection strength
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Only show stays where your trust score to the host is at least
+              this value. 0 means anyone in your network.
+            </p>
+            <div className="mt-4">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={minTrust}
+                onChange={(e) => setMinTrust(parseInt(e.target.value, 10))}
+                className="w-full accent-foreground"
+                aria-label="Minimum connection strength"
+              />
+              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                <span>Any</span>
+                <span className="font-mono tabular-nums text-foreground">
+                  {minTrust === 0 ? "Any" : `${minTrust}+`}
+                </span>
+                <span>100</span>
+              </div>
             </div>
           </section>
 

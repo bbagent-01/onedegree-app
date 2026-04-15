@@ -8,7 +8,21 @@ import { Button } from "@/components/ui/button";
 import { LiveListingCard } from "./live-listing-card";
 import { SortDropdown } from "./sort-dropdown";
 import type { BrowseListing } from "@/lib/browse-data";
+import type { TrustPathUser } from "@/lib/trust-data";
 import { cn } from "@/lib/utils";
+
+/**
+ * Per-listing trust info injected by the server component. The viewer
+ * may see a listing fully, or only the gated preview when their trust
+ * score is below the host's min_trust_gate. Cards render differently
+ * based on `canSeeFull`.
+ */
+export interface BrowseListingTrust {
+  score: number;
+  degree: 1 | 2 | null;
+  canSeeFull: boolean;
+  mutualConnections: TrustPathUser[];
+}
 
 const MapView = dynamic(
   () => import("./map-view").then((m) => m.MapView),
@@ -20,6 +34,14 @@ interface Props {
   headingText: string;
   /** Listing IDs the signed-in user has already wishlisted. */
   savedIds?: string[];
+  /**
+   * Per-listing trust info keyed by listing id. Missing entries are
+   * treated as "no gate / fully visible" (public viewing, or a
+   * listing whose gate is 0).
+   */
+  trustByListing?: Record<string, BrowseListingTrust>;
+  /** True if the viewer is signed in (affects gated-card CTAs). */
+  isSignedIn?: boolean;
   /**
    * Compact Filters pill for the mobile header row. On desktop the
    * Filters button lives in the top nav cluster, so this slot is only
@@ -34,6 +56,8 @@ export function BrowseLayout({
   listings,
   headingText,
   savedIds = [],
+  trustByListing = {},
+  isSignedIn = false,
   mobileFiltersSlot,
 }: Props) {
   const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
@@ -119,23 +143,31 @@ export function BrowseLayout({
           <div>
             {headerRow}
             <div className={cn("grid gap-3", gridCols)}>
-              {listings.map((l) => (
-                <div
-                  key={l.id}
-                  ref={setRef(l.id)}
-                  onMouseEnter={() => setSelectedId(l.id)}
-                  onMouseLeave={() =>
-                    setSelectedId((cur) => (cur === l.id ? null : cur))
-                  }
-                  className={cn(
-                    "h-fit self-start rounded-2xl p-3 transition-shadow",
-                    selectedId === l.id &&
-                      "shadow-[0_12px_32px_rgba(0,0,0,0.14)]"
-                  )}
-                >
-                  <LiveListingCard listing={l} initialSaved={savedSet.has(l.id)} />
-                </div>
-              ))}
+              {listings.map((l) => {
+                const trust = trustByListing[l.id];
+                return (
+                  <div
+                    key={l.id}
+                    ref={setRef(l.id)}
+                    onMouseEnter={() => setSelectedId(l.id)}
+                    onMouseLeave={() =>
+                      setSelectedId((cur) => (cur === l.id ? null : cur))
+                    }
+                    className={cn(
+                      "h-fit self-start rounded-2xl p-3 transition-shadow",
+                      selectedId === l.id &&
+                        "shadow-[0_12px_32px_rgba(0,0,0,0.14)]"
+                    )}
+                  >
+                    <LiveListingCard
+                      listing={l}
+                      initialSaved={savedSet.has(l.id)}
+                      trust={trust}
+                      isSignedIn={isSignedIn}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
 

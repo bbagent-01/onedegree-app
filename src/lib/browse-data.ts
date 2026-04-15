@@ -22,6 +22,13 @@ export interface BrowseListing {
   created_at: string;
   photos: ListingPhoto[];
   host: BrowseHost | null;
+  host_id: string;
+  /**
+   * Host-set trust gate (listings.min_trust_gate). A viewer can see
+   * full details only if their computed trust score to the host is
+   * >= this value. 0 = visible to the entire network.
+   */
+  min_trust_gate: number;
   amenities: string[];
   bedrooms: number;
   beds: number;
@@ -35,7 +42,8 @@ export type SortOption =
   | "price_asc"
   | "price_desc"
   | "top_rated"
-  | "newest";
+  | "newest"
+  | "trust_desc";
 
 export interface BrowseFilters {
   location?: string;
@@ -50,6 +58,12 @@ export interface BrowseFilters {
   beds?: number;
   bathrooms?: number;
   amenities?: string[];
+  /**
+   * Minimum viewer trust score to the host. Applied as a client-side
+   * filter (after trust paths are computed) because trust is not a
+   * column on the listings table.
+   */
+  minTrust?: number;
 }
 
 /**
@@ -159,6 +173,11 @@ export async function getBrowseListings(
       lat: meta.address?.lat,
       lng: meta.address?.lng,
     });
+    const extras = l as unknown as {
+      avg_listing_rating: number | null;
+      listing_review_count: number;
+      min_trust_gate: number | null;
+    };
     return {
       id: l.id,
       title: l.title,
@@ -167,14 +186,13 @@ export async function getBrowseListings(
       description: l.description,
       price_min: l.price_min,
       price_max: l.price_max,
-      avg_listing_rating: (l as unknown as { avg_listing_rating: number | null })
-        .avg_listing_rating,
-      listing_review_count:
-        (l as unknown as { listing_review_count: number }).listing_review_count ??
-        0,
+      avg_listing_rating: extras.avg_listing_rating,
+      listing_review_count: extras.listing_review_count ?? 0,
       created_at: l.created_at,
       photos: photosByListing.get(l.id) || [],
       host: hostById.get(l.host_id) ?? null,
+      host_id: l.host_id,
+      min_trust_gate: extras.min_trust_gate ?? 0,
       amenities: l.amenities || [],
       ...derived,
     };
@@ -205,6 +223,11 @@ export async function getBrowseListings(
         return (
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
+      case "trust_desc":
+        // Trust-based sort happens in the server component after we've
+        // attached scores — fall through to best_match here as a stable
+        // tiebreaker so cards don't jitter when trust ties.
+        return 0;
       case "best_match":
       default: {
         const now = Date.now();

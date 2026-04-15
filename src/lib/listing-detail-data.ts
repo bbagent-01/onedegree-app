@@ -43,6 +43,11 @@ export interface ListingDetail {
   availability_end: string | null;
   photos: ListingPhoto[];
   host: ListingHost | null;
+  host_id: string;
+  /**
+   * Host-set trust gate. 0 means anyone can see the full listing.
+   */
+  min_trust_gate: number;
   bedrooms: number;
   beds: number;
   bathrooms: number;
@@ -70,6 +75,7 @@ export async function getListingDetail(
   const row = listing as ListingRow & {
     avg_listing_rating: number | null;
     listing_review_count: number | null;
+    min_trust_gate: number | null;
   };
 
   const [photosRes, hostRes, reviewsRes, blocksRes] = await Promise.all([
@@ -174,6 +180,8 @@ export async function getListingDetail(
     availability_end: row.availability_end,
     photos,
     host,
+    host_id: row.host_id,
+    min_trust_gate: row.min_trust_gate ?? 0,
     avg_rating: row.avg_listing_rating,
     review_count: row.listing_review_count ?? reviews.length,
     reviews,

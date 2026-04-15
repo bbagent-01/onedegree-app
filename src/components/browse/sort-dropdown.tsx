@@ -12,6 +12,7 @@ import type { SortOption } from "@/lib/browse-data";
 
 const OPTIONS: { value: SortOption; label: string }[] = [
   { value: "best_match", label: "Best match" },
+  { value: "trust_desc", label: "Strongest connections" },
   { value: "price_asc", label: "$ low to high" },
   { value: "price_desc", label: "$ high to low" },
   { value: "top_rated", label: "Top rated" },

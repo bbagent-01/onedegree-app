@@ -268,6 +268,11 @@ async function hydrateListings(
       lat: meta.address?.lat,
       lng: meta.address?.lng,
     });
+    const extras = l as unknown as {
+      avg_listing_rating: number | null;
+      listing_review_count: number;
+      min_trust_gate: number | null;
+    };
     return {
       id: l.id,
       title: l.title,
@@ -276,14 +281,13 @@ async function hydrateListings(
       description: l.description,
       price_min: l.price_min,
       price_max: l.price_max,
-      avg_listing_rating: (l as unknown as { avg_listing_rating: number | null })
-        .avg_listing_rating,
-      listing_review_count:
-        (l as unknown as { listing_review_count: number }).listing_review_count ??
-        0,
+      avg_listing_rating: extras.avg_listing_rating,
+      listing_review_count: extras.listing_review_count ?? 0,
       created_at: l.created_at,
       photos: photosByListing.get(l.id) || [],
       host: hostById.get(l.host_id) ?? null,
+      host_id: l.host_id,
+      min_trust_gate: extras.min_trust_gate ?? 0,
       amenities: l.amenities || [],
       ...derived,
     };

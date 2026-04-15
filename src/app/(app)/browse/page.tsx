@@ -6,7 +6,11 @@ import {
   getBrowseSuggestions,
 } from "@/lib/browse-data";
 import { getSavedListingIds } from "@/lib/wishlist-data";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import {
+  computeTrustPaths,
+  getInternalUserIdFromClerk,
+} from "@/lib/trust-data";
+import type { BrowseListingTrust } from "@/components/browse/browse-layout";
 import { activeFilterCount, parseBrowseParams } from "@/lib/browse-utils";
 import { SearchBar } from "@/components/browse/search-bar";
 import { MobileSearchPill } from "@/components/browse/mobile-search-pill";
@@ -115,28 +119,84 @@ async function BrowseResults({
   activeCount: number;
   headingText: string;
 }) {
-  const listings = await getBrowseListings(filters);
+  let listings = await getBrowseListings(filters);
 
-  // Hydrate the heart-state for signed-in users.
+  // Resolve the signed-in viewer's internal user id once.
   const { userId: clerkId } = await auth();
+  let viewerId: string | null = null;
   let savedIds: string[] = [];
   if (clerkId) {
-    const supabase = getSupabaseAdmin();
-    const { data } = await supabase
-      .from("users")
-      .select("id")
-      .eq("clerk_id", clerkId)
-      .maybeSingle();
-    if (data?.id) {
-      const set = await getSavedListingIds(data.id as string);
+    viewerId = await getInternalUserIdFromClerk(clerkId);
+    if (viewerId) {
+      const set = await getSavedListingIds(viewerId);
       savedIds = [...set];
     }
+  }
+
+  // Compute trust paths from the viewer to every host in the result
+  // set. One batched DB roundtrip — no N+1.
+  const trustByListing: Record<string, BrowseListingTrust> = {};
+  if (viewerId && listings.length > 0) {
+    const hostIds = [
+      ...new Set(listings.map((l) => l.host_id).filter(Boolean)),
+    ];
+    const trustResults = await computeTrustPaths(viewerId, hostIds);
+    for (const l of listings) {
+      const r = trustResults[l.host_id];
+      if (!r) {
+        trustByListing[l.id] = {
+          score: 0,
+          degree: null,
+          canSeeFull: l.min_trust_gate <= 0 || l.host_id === viewerId,
+          mutualConnections: [],
+        };
+        continue;
+      }
+      // Host is always allowed to see their own listing.
+      const isHost = l.host_id === viewerId;
+      const canSeeFull = isHost || r.score >= l.min_trust_gate;
+      trustByListing[l.id] = {
+        score: r.score,
+        degree: r.degree,
+        canSeeFull,
+        mutualConnections: r.mutualConnections,
+      };
+    }
+  } else {
+    // Logged-out viewers: gate anything with min_trust_gate > 0.
+    for (const l of listings) {
+      trustByListing[l.id] = {
+        score: 0,
+        degree: null,
+        canSeeFull: l.min_trust_gate <= 0,
+        mutualConnections: [],
+      };
+    }
+  }
+
+  // Trust score filter (client-side — trust is not a listings column).
+  if (typeof filters.minTrust === "number" && filters.minTrust > 0) {
+    const minTrust = filters.minTrust;
+    listings = listings.filter(
+      (l) => (trustByListing[l.id]?.score ?? 0) >= minTrust
+    );
+  }
+
+  // Trust sort — stable, applied after scoring.
+  if (filters.sort === "trust_desc") {
+    listings = [...listings].sort((a, b) => {
+      const sa = trustByListing[a.id]?.score ?? 0;
+      const sb = trustByListing[b.id]?.score ?? 0;
+      return sb - sa;
+    });
   }
 
   return (
     <BrowseLayout
       listings={listings}
       savedIds={savedIds}
+      trustByListing={trustByListing}
+      isSignedIn={Boolean(viewerId)}
       headingText={headingText}
       mobileFiltersSlot={
         <Suspense fallback={null}>
