@@ -2,6 +2,38 @@
 
 Schema changes introduced by Track B sessions. Each entry documents what was added and why.
 
+## CC-B6c — Named wishlists (migration 012)
+
+**Migration:** `supabase/migrations/012_named_wishlists.sql`
+
+### New table
+
+#### `wishlists`
+Airbnb-style named collections. One user → many wishlists → many listings.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID PK | gen_random_uuid() |
+| user_id | UUID NOT NULL | FK → users, ON DELETE CASCADE |
+| name | TEXT NOT NULL | Max 60 chars (enforced at API) |
+| is_default | BOOLEAN NOT NULL DEFAULT false | True for the auto-created "Saved" list |
+| created_at | TIMESTAMPTZ NOT NULL DEFAULT now() | |
+| updated_at | TIMESTAMPTZ NOT NULL DEFAULT now() | Bumped on save/remove for natural sort |
+
+- Index: `(user_id, created_at DESC)` for listing the user's lists.
+- Partial unique: `(user_id) WHERE is_default = true` enforces "at most one default per user."
+- RLS enabled with permissive SELECT; mutations go through the service role.
+
+### saved_listings reshape
+
+- Added `wishlist_id UUID NOT NULL REFERENCES wishlists(id) ON DELETE CASCADE`.
+- Backfill: any existing saved_listings rows are moved into a freshly created `"Saved"` default list for each owning user.
+- Primary key swapped from `(user_id, listing_id)` → `(wishlist_id, listing_id)` so the same listing can live in multiple wishlists.
+- Added index `(user_id, listing_id)` so the "is this listing saved anywhere for this user?" query stays fast.
+
+### Why this shape
+Mirrors Airbnb's collection model (wishlists have names, same listing can appear in multiple). Keeping `user_id` denormalized on saved_listings lets us do the "any list contains this" heart-fill query without a join.
+
 ## CC-B6c — Wishlists, profile fields, support requests
 
 **Migration:** `supabase/migrations/011_wishlists_profiles_support.sql`

@@ -236,14 +236,14 @@ export function BookingSidebar({
         </div>
       </div>
 
-      {/* Mobile fixed bottom bar — sits above the mobile tab bar. The
-          tab bar is roughly 4rem tall plus the iOS home-indicator safe
-          area inset, so we offset this bar by the same amount to avoid
-          covering the nav icons (which was hiding them on scroll). */}
+      {/* Mobile fixed bottom bar — sits flush above the mobile tab
+          bar. The tab bar publishes its measured height as
+          --mobile-nav-h so we land pixel-perfect against its top edge
+          without the 2–3px seam that a hard-coded 4rem left behind. */}
       <div
         className="fixed inset-x-0 z-[60] border-t border-border/60 bg-white px-4 py-3 md:hidden"
         style={{
-          bottom: "calc(4rem + env(safe-area-inset-bottom))",
+          bottom: "var(--mobile-nav-h, 3.75rem)",
         }}
       >
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">

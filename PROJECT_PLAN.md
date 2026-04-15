@@ -125,6 +125,7 @@ Before creating any new table in a CC session, check if it already exists. If it
 | 009 | `009_reminder_tracking.sql` | contact_requests.checkin_reminder_sent_at, review_prompt_sent_at |
 | 010 | `010_contact_request_total.sql` | contact_requests.total_estimate |
 | 011 | `011_wishlists_profiles_support.sql` | saved_listings, support_requests, users.{location,languages,occupation,deactivated_at} |
+| 012 | `012_named_wishlists.sql` | wishlists table + saved_listings.wishlist_id (PK reshape) |
 
 ## Infrastructure
 

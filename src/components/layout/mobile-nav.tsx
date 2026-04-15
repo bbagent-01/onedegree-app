@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Search,
@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser, useClerk, SignInButton } from "@clerk/nextjs";
+import { useUser, useClerk, SignInButton, SignUpButton } from "@clerk/nextjs";
 import {
   Sheet,
   SheetContent,
@@ -84,6 +84,23 @@ export function MobileNav() {
   }, [isSignedIn, profileId]);
   const profileHref = profileId ? `/profile/${profileId}` : "/profile/edit";
 
+  // Publish the nav's actual measured height as a CSS variable so the
+  // mobile reserve bar on listing pages can sit flush with it. Prevents
+  // the 2–3px gap that would otherwise appear at the seam.
+  const navRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const update = () => {
+      const h = el.getBoundingClientRect().height;
+      document.documentElement.style.setProperty("--mobile-nav-h", `${h}px`);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const closeMenu = () => setMenuOpen(false);
   const handleSignOut = () => {
     closeMenu();
@@ -93,6 +110,7 @@ export function MobileNav() {
   return (
     <>
       <nav
+        ref={navRef}
         className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-white md:hidden"
         style={{
           // Extend the nav into the iOS home-indicator safe area so it
@@ -150,15 +168,40 @@ export function MobileNav() {
           </SheetHeader>
 
           {!isSignedIn ? (
-            <div className="mt-6">
+            <div className="mt-6 space-y-2">
+              <SignUpButton mode="modal">
+                <button
+                  type="button"
+                  className="w-full rounded-lg bg-foreground px-4 py-3 text-sm font-semibold text-background hover:bg-foreground/90"
+                  onClick={closeMenu}
+                >
+                  Sign up
+                </button>
+              </SignUpButton>
               <SignInButton mode="modal">
                 <button
                   type="button"
-                  className="w-full rounded-lg bg-brand px-4 py-3 text-sm font-semibold text-white hover:bg-brand-600"
+                  className="w-full rounded-lg border border-border bg-white px-4 py-3 text-sm font-semibold hover:bg-muted"
+                  onClick={closeMenu}
                 >
                   Sign in
                 </button>
               </SignInButton>
+
+              <Divider />
+
+              <MenuLink
+                href="/browse"
+                icon={Search}
+                label="Explore listings"
+                onClick={closeMenu}
+              />
+              <MenuLink
+                href="/help"
+                icon={HelpCircle}
+                label="Help Center"
+                onClick={closeMenu}
+              />
             </div>
           ) : (
             <div className="mt-4 space-y-1">

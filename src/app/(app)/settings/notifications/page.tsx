@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { NotificationsForm } from "@/components/settings/notifications-form";
@@ -32,6 +34,13 @@ export default async function NotificationsSettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[680px] px-4 py-6 md:px-6 md:py-10">
+      <Link
+        href="/settings"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Account settings
+      </Link>
       <h1 className="text-2xl font-semibold md:text-3xl">Email notifications</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Choose which transactional emails One Degree BNB sends you.

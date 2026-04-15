@@ -3,8 +3,7 @@ import { redirect } from "next/navigation";
 import { Heart } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getSavedListings } from "@/lib/wishlist-data";
-import { LiveListingCard } from "@/components/browse/live-listing-card";
+import { getUserWishlists, type WishlistSummary } from "@/lib/wishlist-data";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -22,36 +21,76 @@ export default async function WishlistsPage() {
     .eq("clerk_id", clerkId)
     .maybeSingle();
 
-  if (!userRow?.id) {
-    // User synced hasn't completed yet — render empty state.
-    return <EmptyWishlist />;
-  }
+  if (!userRow?.id) return <EmptyState />;
 
-  const listings = await getSavedListings(userRow.id as string);
+  const lists = await getUserWishlists(userRow.id as string);
 
-  if (listings.length === 0) {
-    return <EmptyWishlist />;
-  }
+  if (lists.length === 0) return <EmptyState />;
 
   return (
     <div className="w-full px-4 py-6 md:px-10 md:py-10 lg:px-20">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold md:text-3xl">Wishlists</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {listings.length} saved {listings.length === 1 ? "place" : "places"}
+          {lists.length} {lists.length === 1 ? "list" : "lists"}
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {listings.map((l) => (
-          <LiveListingCard key={l.id} listing={l} initialSaved />
+        {lists.map((l) => (
+          <WishlistCollectionCard key={l.id} list={l} />
         ))}
       </div>
     </div>
   );
 }
 
-function EmptyWishlist() {
+function WishlistCollectionCard({ list }: { list: WishlistSummary }) {
+  const covers = list.cover_photos;
+
+  return (
+    <Link href={`/wishlists/${list.id}`} className="group block">
+      <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
+        {covers.length === 0 ? (
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            <Heart className="h-10 w-10" />
+          </div>
+        ) : covers.length === 1 ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={covers[0]}
+            alt={list.name}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          // 2x2 mosaic for 2+ covers; stretch 2 covers to fill the right column.
+          <div className="grid h-full w-full grid-cols-2 gap-0.5">
+            {[0, 1, 2, 3].map((i) => {
+              const src = covers[i] ?? covers[i - 2] ?? covers[0];
+              return (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={src}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="mt-3">
+        <h3 className="text-base font-semibold">{list.name}</h3>
+        <p className="text-sm text-muted-foreground">
+          {list.item_count} {list.item_count === 1 ? "saved" : "saved"}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+function EmptyState() {
   return (
     <div className="w-full px-4 py-10 md:px-10 lg:px-20">
       <h1 className="text-2xl font-semibold md:text-3xl">Wishlists</h1>

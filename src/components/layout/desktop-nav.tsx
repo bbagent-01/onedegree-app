@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useUser, SignInButton } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -87,16 +87,7 @@ export function DesktopNav() {
           {/* Mode toggle — "Switch to hosting" / "Switch to traveling".
               Hidden below lg so the browse search pill has room. */}
           {isSignedIn && <ModeToggle />}
-
-          {isSignedIn ? (
-            <AccountMenu />
-          ) : (
-            <SignInButton mode="modal">
-              <button className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 transition-colors">
-                Sign in
-              </button>
-            </SignInButton>
-          )}
+          <AccountMenu />
         </div>
       </div>
     </header>

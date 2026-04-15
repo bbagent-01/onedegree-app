@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser, useClerk } from "@clerk/nextjs";
+import { useUser, useClerk, SignInButton, SignUpButton } from "@clerk/nextjs";
 import {
   Menu,
   CalendarDays,
@@ -67,14 +67,75 @@ export function AccountMenu() {
       .catch(() => {});
   }, [isSignedIn, profileId]);
 
-  if (!isSignedIn) return null;
-
   const close = () => setOpen(false);
   const handleSignOut = () => {
     close();
     signOut({ redirectUrl: "/" });
   };
   const profileHref = profileId ? `/profile/${profileId}` : "/profile/edit";
+
+  // Logged-out users get a compact menu with explore + help + sign
+  // in / sign up. Mirrors Airbnb's hamburger-next-to-signin pattern.
+  if (!isSignedIn) {
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          className="inline-flex items-center gap-2 rounded-full border border-border bg-white py-1.5 pl-3 pr-1.5 text-sm font-medium transition-shadow hover:shadow-md"
+          aria-label="Open menu"
+        >
+          <Menu className="h-4 w-4" />
+          <Avatar className="h-7 w-7">
+            <AvatarFallback className="text-[10px]">
+              <User className="h-3.5 w-3.5" />
+            </AvatarFallback>
+          </Avatar>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="w-60 rounded-2xl border border-border bg-white p-2 shadow-lg"
+        >
+          <SignUpButton mode="modal">
+            <button
+              type="button"
+              className="w-full rounded-lg bg-foreground px-4 py-2.5 text-sm font-semibold text-background hover:bg-foreground/90"
+              onClick={close}
+            >
+              Sign up
+            </button>
+          </SignUpButton>
+          <SignInButton mode="modal">
+            <button
+              type="button"
+              className="mt-2 w-full rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold hover:bg-muted"
+              onClick={close}
+            >
+              Sign in
+            </button>
+          </SignInButton>
+
+          <div className="my-2 h-px bg-border" role="separator" />
+
+          <Link
+            href="/browse"
+            onClick={close}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+          >
+            <Search className="h-4 w-4 text-muted-foreground" />
+            Explore listings
+          </Link>
+          <Link
+            href="/help"
+            onClick={close}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted"
+          >
+            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+            Help Center
+          </Link>
+        </PopoverContent>
+      </Popover>
+    );
+  }
 
   // Build mode-aware menu sections. Only include links to routes that
   // actually exist in the app today — easier to extend later than to leave
