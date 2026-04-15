@@ -211,7 +211,7 @@ export function SearchBar({ suggestions, compact }: SearchBarProps) {
       <Popover open={dateOpen} onOpenChange={setDateOpen}>
         <PopoverTrigger className="flex h-full flex-col justify-center px-4 lg:px-6 text-left hover:bg-muted transition-colors">
           <span className="text-xs font-semibold">When</span>
-          <span className="text-sm text-muted-foreground">
+          <span className="whitespace-nowrap text-sm text-muted-foreground">
             {formatRange(
               range?.from ? format(range.from, "yyyy-MM-dd") : undefined,
               range?.to ? format(range.to, "yyyy-MM-dd") : undefined
@@ -248,7 +248,7 @@ export function SearchBar({ suggestions, compact }: SearchBarProps) {
       <Popover open={guestsOpen} onOpenChange={setGuestsOpen}>
         <PopoverTrigger className="flex h-full flex-col justify-center px-4 lg:px-6 text-left hover:bg-muted transition-colors">
           <span className="text-xs font-semibold">Who</span>
-          <span className="text-sm text-muted-foreground">
+          <span className="whitespace-nowrap text-sm text-muted-foreground">
             {formatGuests(guests)}
           </span>
         </PopoverTrigger>

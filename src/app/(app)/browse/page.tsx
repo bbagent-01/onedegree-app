@@ -29,7 +29,9 @@ export default async function BrowsePage({
 
   return (
     <div className="w-full px-4 md:px-10 lg:px-20">
-      {/* Desktop: portal search + filters + sort into the top nav's center slot */}
+      {/* Desktop: portal search + filters into the top nav's center slot.
+          Sort lives next to the "Stays" heading below so the nav cluster
+          doesn't overflow at narrow desktop widths. */}
       <NavCenterPortal>
         <div className="flex w-full max-w-4xl items-center gap-3">
           <div className="flex-1">
@@ -40,7 +42,6 @@ export default async function BrowsePage({
           <Suspense fallback={null}>
             <FiltersSlot filters={filters} activeCount={filterCount} />
           </Suspense>
-          <SortDropdown />
         </div>
       </NavCenterPortal>
 
@@ -56,10 +57,13 @@ export default async function BrowsePage({
         <h1 className="text-lg font-semibold">
           {filters.location ? `Stays in ${filters.location}` : "Stays"}
         </h1>
-        <div className="flex items-center gap-2 md:hidden">
-          <Suspense fallback={null}>
-            <FiltersSlot filters={filters} activeCount={filterCount} />
-          </Suspense>
+        <div className="flex items-center gap-2">
+          {/* Mobile-only filters (desktop renders them in the nav cluster) */}
+          <div className="md:hidden">
+            <Suspense fallback={null}>
+              <FiltersSlot filters={filters} activeCount={filterCount} />
+            </Suspense>
+          </div>
           <SortDropdown />
         </div>
       </div>
