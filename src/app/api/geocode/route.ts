@@ -22,14 +22,15 @@ export async function GET(req: Request) {
   url.searchParams.set("limit", "1");
 
   try {
+    // NB: `cache: "no-store"` is not implemented on Cloudflare Workers fetch,
+    // so we omit it. Nominatim responses are small and this route is called
+    // rarely (only when a host clicks "Find on map" in the edit form).
     const res = await fetch(url.toString(), {
       headers: {
         // Nominatim requires a valid User-Agent identifying the app.
         "User-Agent": "onedegreebnb-alpha-b (contact: hello@onedegreebnb.com)",
         Accept: "application/json",
       },
-      // Nominatim is slow; don't cache at the edge.
-      cache: "no-store",
     });
     if (!res.ok) {
       return NextResponse.json(

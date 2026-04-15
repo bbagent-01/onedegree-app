@@ -665,7 +665,10 @@ export function EditListingForm({
         title="Calendar"
         subtitle="Block dates, set custom nightly prices for specific ranges."
        >
-        <AvailabilityEditor listingId={listingId} />
+        <AvailabilityEditor
+          listingId={listingId}
+          defaultPrice={price ? Number(price) : null}
+        />
        </SectionCard>
       </TabsContent>
 

@@ -61,6 +61,32 @@ const AREA_ANCHORS: Record<string, [number, number]> = {
   "austin": [30.2672, -97.7431],
   "miami": [25.7617, -80.1918],
   "chicago": [41.8781, -87.6298],
+  // California
+  "laguna beach": [33.5427, -117.7854],
+  "california": [36.7783, -119.4179],
+  "malibu": [34.0259, -118.7798],
+  "santa monica": [34.0195, -118.4912],
+  "palm springs": [33.8303, -116.5453],
+  "lake tahoe": [39.0968, -120.0324],
+  "napa": [38.2975, -122.2869],
+  "san diego": [32.7157, -117.1611],
+  "santa barbara": [34.4208, -119.6982],
+  // New York state (outside NYC)
+  "putnam valley": [41.385, -73.8075],
+  "hudson valley": [41.7, -74.0],
+  "catskills": [42.1, -74.3],
+  "hamptons": [40.96, -72.3],
+  "montauk": [41.0362, -71.9546],
+  "new york": [40.7128, -74.006],
+  // Other popular destinations
+  "aspen": [39.1911, -106.8175],
+  "nashville": [36.1627, -86.7816],
+  "new orleans": [29.9511, -90.0715],
+  "portland": [45.5152, -122.6784],
+  "seattle": [47.6062, -122.3321],
+  "denver": [39.7392, -104.9903],
+  "boston": [42.3601, -71.0589],
+  "washington": [38.9072, -77.0369],
 };
 
 const DEFAULT_ANCHOR: [number, number] = [40.7128, -74.006]; // NYC

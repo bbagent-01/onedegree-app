@@ -56,7 +56,10 @@ export function PhotoGallery({ photos, title }: Props) {
     <>
       {/* Desktop grid — adapts to photo count */}
       <div className="relative hidden md:block">
-        {images.length >= 5 ? (
+        {images.length >= 4 ? (
+          // 4-col × 2-row grid: hero takes left half (2×2), remaining 4
+          // cells hold up to 4 thumbnails. With 4 images total, 3 thumbs
+          // fill cells (3,1)(4,1)(3,2) and (4,2) is left empty — clean.
           <div className="grid h-[420px] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-xl lg:h-[480px]">
             <button
               onClick={() => open(0)}
@@ -65,21 +68,8 @@ export function PhotoGallery({ photos, title }: Props) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={images[0]} alt={`${title} — photo 1`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
             </button>
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2, 3, 4].slice(0, Math.min(4, images.length - 1)).map((i) => (
               <button key={i} onClick={() => open(i)} className="relative overflow-hidden bg-muted group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={images[i]} alt={`${title} — photo ${i + 1}`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
-              </button>
-            ))}
-          </div>
-        ) : images.length === 4 ? (
-          <div className="grid h-[420px] grid-cols-3 grid-rows-2 gap-2 overflow-hidden rounded-xl lg:h-[480px]">
-            <button onClick={() => open(0)} className="relative col-span-2 row-span-2 overflow-hidden bg-muted group">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={images[0]} alt={`${title} — photo 1`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
-            </button>
-            {[1, 2, 3].map((i) => (
-              <button key={i} onClick={() => open(i)} className={cn("relative overflow-hidden bg-muted group", i === 3 && "col-span-2")}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={images[i]} alt={`${title} — photo ${i + 1}`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
               </button>
