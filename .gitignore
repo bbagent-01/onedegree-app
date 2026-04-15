@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+cron-worker/node_modules
+cron-worker/package-lock.json
 /.pnp
 .pnp.js
 .yarn/install-state.gz
