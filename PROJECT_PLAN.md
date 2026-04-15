@@ -80,7 +80,9 @@ One Degree B&B (1DB) is a trust-based short-term rental platform — "Airbnb mee
 - **CC-B5b:** ✅ Create/edit listing — 7-step wizard, photo upload + drag-reorder, calendar management, tabbed edit form
 - **CC-B6a:** ✅ Booking + messaging — booking request flow, threaded inbox, Supabase Realtime, approve/decline from inbox
 - **CC-B6b:** ✅ Trips + notifications — My Trips page, system messages, Resend email (6 categories), cron worker, review system
-- **CC-B6c:** ✅ Wishlists, profile view/edit, help center + FAQ, settings page, soft-delete account
+
+### Next (on track-b/airbnb-clone)
+- **CC-B6c:** 📋 Wishlist, profile view/edit, help center + FAQ, settings page
 
 ### Upcoming (on track-b/1db-overlay — new branch from airbnb-clone)
 - **CC-B7a:** 📋 Trust infrastructure — trust score computation, visibility gating, blurred previews, TrustBadge/ConnectionPath/TrustGate components
@@ -105,10 +107,8 @@ One Degree B&B (1DB) is a trust-based short-term rental platform — "Airbnb mee
 - **message_threads** — conversation threads. Fields: id, listing_id, guest_id, host_id, booking_id, created_at, updated_at
 - **messages** — individual messages. Fields: id, thread_id, sender_id, content, is_system, created_at
 
-### Tables added in B6c (migration 011)
+### Tables to be created (B6c)
 - **saved_listings** — wishlist/favorites. Fields: user_id, listing_id, created_at
-- **support_requests** — Help Center submissions. Fields: id, user_id, name, email, category, message, status, created_at
-- **users** — added columns: location, languages[], occupation, deactivated_at
 
 ### Tables to be created (B7a)
 - **listings.min_trust_gate** — new column (integer, default 0)
@@ -124,8 +124,6 @@ Before creating any new table in a CC session, check if it already exists. If it
 | 008 | `008_trips_notifications.sql` | users.email_prefs, contact_requests.cancelled_at/by, status enum |
 | 009 | `009_reminder_tracking.sql` | contact_requests.checkin_reminder_sent_at, review_prompt_sent_at |
 | 010 | `010_contact_request_total.sql` | contact_requests.total_estimate |
-| 011 | `011_wishlists_profiles_support.sql` | saved_listings, support_requests, users.{location,languages,occupation,deactivated_at} |
-| 012 | `012_named_wishlists.sql` | wishlists table + saved_listings.wishlist_id (PK reshape) |
 
 ## Infrastructure
 
@@ -175,6 +173,22 @@ Post-stay vouches force "Less than 1 year" bucket — non-overridable.
 
 ### Platform Posture
 Craigslist-style: facilitates introductions, not party to agreements. Does NOT process payments, is NOT a booking service. All financial arrangements happen directly between parties.
+
+## Instruction Preferences for CC Sessions
+
+Every Claude Code session and agent working on this project must follow these rules:
+
+1. **Before asking me to do any technical step, check if it can be done via CLI, API, script, or code. If yes, do it yourself — do not ask me first.**
+2. If a step genuinely requires me (credential in a browser, paid action, irreversible prod change), then ALL of the following are mandatory:
+   - a. Use numbered steps. One action per step. Never combine multiple clicks into one step.
+   - b. Every URL I need to visit must be a clickable hyperlink, and it must deep-link to the exact page — never just the homepage.
+   - c. Every string I need to copy/paste/type goes in its own fenced code block. Never inline inside a sentence.
+   - d. Tell me exactly which button to click, which field to paste into, which menu item to pick. Assume zero technical knowledge.
+   - e. End with a verification step: "you should see X" so I know it worked.
+3. If a step needs a credential or token I don't have, give me the exact deep link to create it AND explain how to save it so you can use it automatically next time (e.g. "paste this line into .env.local: `FOO=bar`").
+4. Never say "run X" or "open Y" without specifying the app, the menu path, and the exact command or button.
+5. After every code change, commit and push immediately. Don't wait for me to ask.
+6. Every push message must end with a deep-link to the exact alpha page/route I should test, not just "deploys in ~1 min".
 
 ## Session Naming Convention
 - Track B: `1DB - Alpha-B - CC-B# - Name`
