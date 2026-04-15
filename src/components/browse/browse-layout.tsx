@@ -62,10 +62,12 @@ export function BrowseLayout({ listings, headingText, mobileFiltersSlot }: Props
   // Heading row with sort/filters — lives inside the left column so the
   // sort pill aligns with the right edge of the grid (not the far right
   // of the page) and the map column extends all the way up to this row.
+  // Mobile: heading on its own line, pills on the line below.
+  // Desktop: single row with heading left, pills right-aligned.
   const headerRow = (
-    <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="mb-4 md:flex md:items-center md:justify-between md:gap-3">
       <h1 className="text-lg font-semibold">{headingText}</h1>
-      <div className="flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-2 md:mt-0">
         <div className="md:hidden">{mobileFiltersSlot}</div>
         <SortDropdown />
       </div>

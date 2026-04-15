@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Grid3x3, X } from "lucide-react";
@@ -20,32 +20,11 @@ export function PhotoGallery({ photos, title }: Props) {
     : [PLACEHOLDER];
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [carouselIndex, setCarouselIndex] = useState(0);
 
-  const open = (idx: number) => {
-    setLightboxIndex(idx);
-    setLightboxOpen(true);
-  };
-
-  const next = useCallback(
-    () => setLightboxIndex((i) => (i + 1) % images.length),
-    [images.length]
-  );
-  const prev = useCallback(
-    () => setLightboxIndex((i) => (i - 1 + images.length) % images.length),
-    [images.length]
-  );
-
-  useEffect(() => {
-    if (!lightboxOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") next();
-      if (e.key === "ArrowLeft") prev();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [lightboxOpen, next, prev]);
+  // Lightbox is now a long vertical scroll of all photos — just open it;
+  // the user scrolls through the stack. No internal index to track.
+  const open = () => setLightboxOpen(true);
 
   const carouselPrev = () =>
     setCarouselIndex((i) => (i - 1 + images.length) % images.length);
@@ -64,7 +43,7 @@ export function PhotoGallery({ photos, title }: Props) {
           //   - 5+ photos (4 thumbs): all 4 single cells, classic layout.
           <div className="grid h-[420px] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-xl lg:h-[480px]">
             <button
-              onClick={() => open(0)}
+              onClick={() => open()}
               className="relative col-span-2 row-span-2 overflow-hidden bg-muted group"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -77,7 +56,7 @@ export function PhotoGallery({ photos, title }: Props) {
               return (
                 <button
                   key={i}
-                  onClick={() => open(i)}
+                  onClick={() => open()}
                   className={cn(
                     "relative overflow-hidden bg-muted group",
                     spanLast && "col-span-2"
@@ -91,12 +70,12 @@ export function PhotoGallery({ photos, title }: Props) {
           </div>
         ) : images.length === 3 ? (
           <div className="grid h-[420px] grid-cols-2 grid-rows-2 gap-2 overflow-hidden rounded-xl lg:h-[480px]">
-            <button onClick={() => open(0)} className="relative row-span-2 overflow-hidden bg-muted group">
+            <button onClick={() => open()} className="relative row-span-2 overflow-hidden bg-muted group">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={images[0]} alt={`${title} — photo 1`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
             </button>
             {[1, 2].map((i) => (
-              <button key={i} onClick={() => open(i)} className="relative overflow-hidden bg-muted group">
+              <button key={i} onClick={() => open()} className="relative overflow-hidden bg-muted group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={images[i]} alt={`${title} — photo ${i + 1}`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
               </button>
@@ -105,7 +84,7 @@ export function PhotoGallery({ photos, title }: Props) {
         ) : images.length === 2 ? (
           <div className="grid h-[420px] grid-cols-2 gap-2 overflow-hidden rounded-xl lg:h-[480px]">
             {[0, 1].map((i) => (
-              <button key={i} onClick={() => open(i)} className="relative overflow-hidden bg-muted group">
+              <button key={i} onClick={() => open()} className="relative overflow-hidden bg-muted group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={images[i]} alt={`${title} — photo ${i + 1}`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
               </button>
@@ -113,7 +92,7 @@ export function PhotoGallery({ photos, title }: Props) {
           </div>
         ) : (
           <div className="h-[420px] overflow-hidden rounded-xl lg:h-[480px]">
-            <button onClick={() => open(0)} className="relative h-full w-full overflow-hidden bg-muted group">
+            <button onClick={() => open()} className="relative h-full w-full overflow-hidden bg-muted group">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={images[0]} alt={`${title} — photo 1`} className="h-full w-full object-cover transition-opacity group-hover:opacity-90" />
             </button>
@@ -123,7 +102,7 @@ export function PhotoGallery({ photos, title }: Props) {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => open(0)}
+          onClick={() => open()}
           className="absolute bottom-4 right-4 h-9 gap-2 rounded-lg border-foreground/20 bg-white font-semibold shadow-sm hover:bg-white"
         >
           <Grid3x3 className="h-4 w-4" />
@@ -139,7 +118,7 @@ export function PhotoGallery({ photos, title }: Props) {
             src={images[carouselIndex]}
             alt={`${title} — photo ${carouselIndex + 1}`}
             className="h-full w-full object-cover"
-            onClick={() => open(carouselIndex)}
+            onClick={() => open()}
           />
           {images.length > 1 && (
             <>
@@ -176,52 +155,51 @@ export function PhotoGallery({ photos, title }: Props) {
         </div>
       </div>
 
-      {/* Lightbox */}
+      {/* Lightbox — all photos stacked vertically in a scroll container.
+          No arrow nav; user just scrolls. Close button is a big, obvious
+          circle in the top-right that stays pinned over the scroll. */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent
           showCloseButton={false}
-          className="h-screen max-w-none w-screen gap-0 border-0 bg-black p-0 rounded-none sm:max-w-none"
+          className="inset-0 left-0 top-0 h-[100dvh] max-w-none w-screen translate-x-0 translate-y-0 gap-0 overflow-hidden border-0 bg-black p-0 ring-0 rounded-none sm:max-w-none"
         >
-          <div className="relative flex h-full w-full flex-col">
-            <div className="flex items-center justify-between px-4 py-3 text-white">
-              <button
-                onClick={() => setLightboxOpen(false)}
-                className="flex items-center gap-2 rounded-full p-2 hover:bg-white/10"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-              <div className="text-sm">
-                {lightboxIndex + 1} / {images.length}
-              </div>
-              <div className="w-9" />
-            </div>
+          {/* Sticky close button — top right, always visible on top of
+              the scroll contents with a subtle background so it's
+              discoverable over any photo. */}
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(false)}
+            aria-label="Close photos"
+            className="fixed right-4 top-4 z-[80] flex h-11 w-11 items-center justify-center rounded-full bg-white text-foreground shadow-lg hover:bg-white/90"
+            style={{ top: "calc(1rem + env(safe-area-inset-top))" }}
+          >
+            <X className="h-5 w-5" />
+          </button>
 
-            <div className="relative flex flex-1 items-center justify-center px-2 pb-8">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={images[lightboxIndex]}
-                alt={`${title} — photo ${lightboxIndex + 1}`}
-                className="max-h-full max-w-full object-contain"
-              />
-              {images.length > 1 && (
-                <>
-                  <button
-                    onClick={prev}
-                    className="absolute left-4 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
-                    aria-label="Previous photo"
-                  >
-                    <ChevronLeft className="h-6 w-6" />
-                  </button>
-                  <button
-                    onClick={next}
-                    className="absolute right-4 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
-                    aria-label="Next photo"
-                  >
-                    <ChevronRight className="h-6 w-6" />
-                  </button>
-                </>
-              )}
+          {/* Scrollable photo column */}
+          <div
+            className="h-[100dvh] w-full overflow-y-auto overscroll-contain bg-black"
+            style={{
+              paddingTop: "calc(1rem + env(safe-area-inset-top))",
+              paddingBottom: "calc(2rem + env(safe-area-inset-bottom))",
+            }}
+          >
+            <div className="mx-auto flex max-w-4xl flex-col gap-3 px-3 md:gap-4 md:px-6">
+              <h2 className="sr-only">{title} — photos</h2>
+              {images.map((src, i) => (
+                <div
+                  key={`${src}-${i}`}
+                  className="w-full overflow-hidden rounded-lg bg-black/50"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={src}
+                    alt={`${title} — photo ${i + 1}`}
+                    className="block h-auto w-full object-contain"
+                    loading={i === 0 ? "eager" : "lazy"}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </DialogContent>

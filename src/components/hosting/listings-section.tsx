@@ -55,79 +55,87 @@ function ListingCard({
 }) {
   return (
     <div className="group overflow-hidden rounded-xl border border-border bg-white transition-shadow hover:shadow-md">
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        {listing.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={listing.thumbnail_url}
-            alt={listing.title}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-            No photo
-          </div>
-        )}
-        <div className="absolute left-3 top-3">
-          {listing.is_active ? (
-            <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
-              Active
-            </Badge>
-          ) : (
-            <Badge className="bg-zinc-900/80 text-white hover:bg-zinc-900/80">
-              Paused
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      <div className="p-4">
-        <p className="truncate text-xs uppercase tracking-wide text-muted-foreground">
-          {listing.area_name}
-        </p>
-        <h3 className="mt-0.5 line-clamp-1 font-semibold text-foreground">
-          {listing.title}
-        </h3>
-
-        <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-          <span>
-            {listing.upcoming_bookings} upcoming
-            {listing.upcoming_bookings === 1 ? " booking" : " bookings"}
-          </span>
-          {listing.avg_rating !== null && (
-            <span className="flex items-center gap-1">
-              <Star className="h-3 w-3 fill-current text-amber-500" />
-              {listing.avg_rating.toFixed(1)} ({listing.review_count})
-            </span>
-          )}
-        </div>
-
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ToggleSwitch
-              active={listing.is_active}
-              disabled={pending}
-              onChange={(v) => onToggle(listing.id, v)}
+      {/* Photo + title + stats area is a single clickable link to the
+          public listing page. Only the action buttons at the bottom
+          (toggle, calendar, edit) break out of this link. */}
+      <Link
+        href={`/listings/${listing.id}`}
+        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+          {listing.thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={listing.thumbnail_url}
+              alt={listing.title}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
-            <span>{listing.is_active ? "Listed" : "Paused"}</span>
+          ) : (
+            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+              No photo
+            </div>
+          )}
+          <div className="absolute left-3 top-3">
+            {listing.is_active ? (
+              <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+                Active
+              </Badge>
+            ) : (
+              <Badge className="bg-zinc-900/80 text-white hover:bg-zinc-900/80">
+                Paused
+              </Badge>
+            )}
           </div>
-          <div className="flex items-center gap-1.5">
-            <Link
-              href={`/hosting/listings/${listing.id}/edit?tab=availability`}
-              className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30"
-              title="Calendar"
-            >
-              <CalendarDays className="h-3 w-3" />
-              Calendar
-            </Link>
-            <Link
-              href={`/hosting/listings/${listing.id}/edit`}
-              className="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-600"
-            >
-              <Pencil className="h-3 w-3" />
-              Edit
-            </Link>
+        </div>
+
+        <div className="px-4 pt-4">
+          <p className="truncate text-xs uppercase tracking-wide text-muted-foreground">
+            {listing.area_name}
+          </p>
+          <h3 className="mt-0.5 line-clamp-1 font-semibold text-foreground">
+            {listing.title}
+          </h3>
+
+          <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+            <span>
+              {listing.upcoming_bookings} upcoming
+              {listing.upcoming_bookings === 1 ? " booking" : " bookings"}
+            </span>
+            {listing.avg_rating !== null && (
+              <span className="flex items-center gap-1">
+                <Star className="h-3 w-3 fill-current text-amber-500" />
+                {listing.avg_rating.toFixed(1)} ({listing.review_count})
+              </span>
+            )}
           </div>
+        </div>
+      </Link>
+
+      <div className="flex items-center justify-between px-4 pb-4 pt-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <ToggleSwitch
+            active={listing.is_active}
+            disabled={pending}
+            onChange={(v) => onToggle(listing.id, v)}
+          />
+          <span>{listing.is_active ? "Listed" : "Paused"}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Link
+            href={`/hosting/listings/${listing.id}/edit?tab=availability`}
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30"
+            title="Calendar"
+          >
+            <CalendarDays className="h-3 w-3" />
+            Calendar
+          </Link>
+          <Link
+            href={`/hosting/listings/${listing.id}/edit`}
+            className="inline-flex items-center gap-1 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-600"
+          >
+            <Pencil className="h-3 w-3" />
+            Edit
+          </Link>
         </div>
       </div>
     </div>
