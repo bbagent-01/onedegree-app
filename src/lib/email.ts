@@ -9,7 +9,11 @@
 import { Resend } from "resend";
 import { getSupabaseAdmin } from "./supabase";
 
-const FROM = "One Degree BNB <loren@onedegreebnb.com>";
+const FROM = "One Degree BNB <notifications@onedegreebnb.com>";
+// Replies route back to a real mailbox so anyone hitting Reply still
+// reaches a human while we're in alpha. Future: parse inbound replies via
+// Resend's Inbound API and post them as messages into the originating thread.
+const REPLY_TO = "loren@onedegreebnb.com";
 const APP_BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL || "https://alpha-b.onedegreebnb.com";
 
@@ -71,6 +75,7 @@ async function send({ to, kind, subject, html }: SendOpts) {
     const result = await resend.emails.send({
       from: FROM,
       to: to.email,
+      replyTo: REPLY_TO,
       subject,
       html,
     });
