@@ -35,6 +35,12 @@ export interface BrowseListing {
   bathrooms: number;
   latitude: number;
   longitude: number;
+  /** Visibility mode: public | preview_gated | hidden */
+  visibility_mode: string;
+  /** Host-written preview description (200 char max) */
+  preview_description: string | null;
+  /** Per-action access rules (JSONB from DB) */
+  access_settings: import("./trust/types").AccessSettings | null;
 }
 
 export type SortOption =
@@ -64,6 +70,8 @@ export interface BrowseFilters {
    * column on the listings table.
    */
   minTrust?: number;
+  /** When true, only show listings where the viewer has full access. */
+  fullAccessOnly?: boolean;
 }
 
 /**
@@ -76,7 +84,8 @@ export async function getBrowseListings(
 ): Promise<BrowseListing[]> {
   const supabase = getSupabaseAdmin();
 
-  let query = supabase.from("listings").select("*").eq("is_active", true);
+  let query = supabase.from("listings").select("*").eq("is_active", true)
+    .or("visibility_mode.neq.hidden,visibility_mode.is.null");
 
   if (filters.location && filters.location.trim().length > 0) {
     const term = filters.location.trim().replace(/[%,]/g, "");
@@ -177,6 +186,9 @@ export async function getBrowseListings(
       avg_listing_rating: number | null;
       listing_review_count: number;
       min_trust_gate: number | null;
+      visibility_mode: string | null;
+      preview_description: string | null;
+      access_settings: import("./trust/types").AccessSettings | null;
     };
     return {
       id: l.id,
@@ -194,6 +206,9 @@ export async function getBrowseListings(
       host_id: l.host_id,
       min_trust_gate: extras.min_trust_gate ?? 0,
       amenities: l.amenities || [],
+      visibility_mode: extras.visibility_mode ?? "preview_gated",
+      preview_description: extras.preview_description ?? null,
+      access_settings: extras.access_settings ?? null,
       ...derived,
     };
   });

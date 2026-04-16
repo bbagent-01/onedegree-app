@@ -43,6 +43,14 @@ type PropertyLabel =
   | "Cabin"
   | "Other";
 
+type VisibilityMode = "public" | "preview_gated" | "hidden";
+type AccessType = "anyone" | "min_score" | "max_degrees" | "specific_people";
+
+interface AccessRuleState {
+  type: AccessType;
+  threshold: string; // stored as string for form input
+}
+
 interface WizardState {
   step: number;
   placeKind: PlaceKind | null;
@@ -79,6 +87,14 @@ interface WizardState {
   monthlyDiscount: string;
   advanceNoticeDays: string;
   prepDays: string;
+  // Visibility & trust settings (CC-C3)
+  visibilityMode: VisibilityMode;
+  previewDescription: string;
+  accessSeePreview: AccessRuleState;
+  accessSeeFull: AccessRuleState;
+  accessRequestBook: AccessRuleState;
+  accessMessage: AccessRuleState;
+  accessRequestIntro: AccessRuleState;
 }
 
 const initialState: WizardState = {
@@ -115,10 +131,18 @@ const initialState: WizardState = {
   monthlyDiscount: "",
   advanceNoticeDays: "1",
   prepDays: "0",
+  // Visibility defaults (CC-C3)
+  visibilityMode: "preview_gated",
+  previewDescription: "",
+  accessSeePreview: { type: "anyone", threshold: "" },
+  accessSeeFull: { type: "min_score", threshold: "10" },
+  accessRequestBook: { type: "min_score", threshold: "20" },
+  accessMessage: { type: "min_score", threshold: "10" },
+  accessRequestIntro: { type: "anyone", threshold: "" },
 };
 
 const STORAGE_KEY = "track-b:create-listing-draft";
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 
 // Shared big-input style — matches House Rules checkmark buttons (px-3 py-2.5, border-2, rounded-lg)
 const BIG_INPUT =
@@ -134,6 +158,14 @@ const AMENITY_GROUPS: Record<string, string[]> = {
   Features: ["Pool", "Hot tub", "Free parking", "Workspace", "TV", "Gym"],
   Safety: ["Smoke alarm", "First aid kit", "Fire extinguisher", "Carbon monoxide alarm"],
 };
+
+function buildAccessRule(rule: AccessRuleState): { type: string; threshold?: number; user_ids?: string[] } {
+  if (rule.type === "anyone") return { type: "anyone" };
+  if (rule.type === "min_score") return { type: "min_score", threshold: Number(rule.threshold) || 0 };
+  if (rule.type === "max_degrees") return { type: "max_degrees", threshold: Number(rule.threshold) || 2 };
+  if (rule.type === "specific_people") return { type: "specific_people", user_ids: [] };
+  return { type: "anyone" };
+}
 
 const DEFAULT_HOUSE_RULES = [
   "No smoking",
@@ -328,6 +360,16 @@ export default function CreateListingPage() {
         full_visibility: "anyone",
         min_trust_score: 0,
         specific_user_ids: [],
+        visibility_mode: state.visibilityMode,
+        preview_description: state.previewDescription || null,
+        access_settings: {
+          see_preview: buildAccessRule(state.accessSeePreview),
+          see_full: buildAccessRule(state.accessSeeFull),
+          request_book: buildAccessRule(state.accessRequestBook),
+          message: buildAccessRule(state.accessMessage),
+          request_intro: buildAccessRule(state.accessRequestIntro),
+          view_host_profile: { type: "anyone" },
+        },
         photos: state.photos.map((p, i) => ({
           public_url: p.public_url,
           storage_path: p.storage_path,
@@ -415,7 +457,8 @@ export default function CreateListingPage() {
           <Step5 state={state} update={update} toggleRule={toggleRule} />
         )}
         {state.step === 6 && <Step6 state={state} update={update} />}
-        {state.step === 7 && <Step7 state={state} />}
+        {state.step === 7 && <Step7Visibility state={state} update={update} />}
+        {state.step === 8 && <Step8Review state={state} />}
       </div>
 
       <div className="mt-10 flex items-center justify-between border-t border-border pt-6">
@@ -1002,7 +1045,167 @@ function Step6({ state, update }: { state: WizardState; update: UpdateFn }) {
   );
 }
 
-function Step7({ state }: { state: WizardState }) {
+function Step7Visibility({ state, update }: { state: WizardState; update: UpdateFn }) {
+  const VISIBILITY_MODES: { key: VisibilityMode; label: string; desc: string }[] = [
+    {
+      key: "preview_gated",
+      label: "Standard",
+      desc: "Anonymous preview visible to all. Full listing gated by trust.",
+    },
+    {
+      key: "public",
+      label: "Public",
+      desc: "Full listing visible to anyone on the platform.",
+    },
+    {
+      key: "hidden",
+      label: "Hidden",
+      desc: "Not discoverable in browse. Only via direct link you share.",
+    },
+  ];
+
+  const ACCESS_ACTIONS: {
+    key: keyof Pick<WizardState, "accessSeePreview" | "accessSeeFull" | "accessRequestBook" | "accessMessage" | "accessRequestIntro">;
+    label: string;
+  }[] = [
+    { key: "accessSeePreview", label: "See Preview" },
+    { key: "accessSeeFull", label: "See Full Listing" },
+    { key: "accessRequestBook", label: "Request to Book" },
+    { key: "accessMessage", label: "Message Host" },
+    { key: "accessRequestIntro", label: "Request Introduction" },
+  ];
+
+  const ACCESS_TYPES: { key: AccessType; label: string }[] = [
+    { key: "anyone", label: "Anyone on platform" },
+    { key: "min_score", label: "Min 1\u00B0 score" },
+    { key: "max_degrees", label: "Within N degrees" },
+    { key: "specific_people", label: "Specific people" },
+  ];
+
+  const updateAccessRule = (
+    key: keyof Pick<WizardState, "accessSeePreview" | "accessSeeFull" | "accessRequestBook" | "accessMessage" | "accessRequestIntro">,
+    field: keyof AccessRuleState,
+    value: string
+  ) => {
+    const current = state[key];
+    update(key, { ...current, [field]: value });
+  };
+
+  return (
+    <div>
+      <StepHeading
+        title="Visibility & Trust"
+        subtitle="Control who can see and access your listing."
+      />
+
+      {/* Visibility Mode */}
+      <div className="space-y-6">
+        <div>
+          <div className="text-sm font-semibold text-foreground">Listing visibility</div>
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {VISIBILITY_MODES.map(({ key, label, desc }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => update("visibilityMode", key)}
+                className={cn(
+                  "flex flex-col items-start rounded-xl border-2 p-5 text-left transition-colors",
+                  state.visibilityMode === key
+                    ? "border-brand bg-brand/5"
+                    : "border-border hover:border-foreground/30"
+                )}
+              >
+                <div className="text-base font-semibold text-foreground">{label}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Per-action access settings — only for preview_gated mode */}
+        {state.visibilityMode === "preview_gated" && (
+          <div>
+            <div className="text-sm font-semibold text-foreground">Access settings</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Set who can perform each action on your listing.
+            </p>
+            <div className="mt-4 space-y-4">
+              {ACCESS_ACTIONS.map(({ key, label }) => {
+                const rule = state[key];
+                return (
+                  <div key={key} className="rounded-xl border border-border bg-card p-4">
+                    <div className="text-sm font-medium text-foreground">{label}</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <select
+                        value={rule.type}
+                        onChange={(e) => updateAccessRule(key, "type", e.target.value)}
+                        className={cn(
+                          "h-10 rounded-lg border border-border bg-white px-3 text-sm",
+                          "focus-visible:border-brand focus-visible:outline-none"
+                        )}
+                      >
+                        {ACCESS_TYPES.map(({ key: ak, label: al }) => (
+                          <option key={ak} value={ak}>{al}</option>
+                        ))}
+                      </select>
+                      {(rule.type === "min_score" || rule.type === "max_degrees") && (
+                        <Input
+                          type="number"
+                          min={0}
+                          className="h-10 w-24 rounded-lg border border-border bg-white px-3 text-sm"
+                          value={rule.threshold}
+                          onChange={(e) => updateAccessRule(key, "threshold", e.target.value)}
+                          placeholder={rule.type === "min_score" ? "Score" : "Degrees"}
+                        />
+                      )}
+                      {rule.type === "specific_people" && (
+                        <span className="text-xs text-muted-foreground">
+                          (User picker coming soon)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Preview description */}
+        <div>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">Preview description</Label>
+            <span
+              className={cn(
+                "text-xs",
+                state.previewDescription.length > 200 ? "text-red-600" : "text-muted-foreground"
+              )}
+            >
+              {state.previewDescription.length}/200
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Short description shown to users who haven&apos;t unlocked your listing. If empty, we&apos;ll use the first 100 characters of your main description.
+          </p>
+          <Textarea
+            className={cn(BIG_TEXTAREA, "mt-2")}
+            rows={3}
+            value={state.previewDescription}
+            onChange={(e) => update("previewDescription", e.target.value.slice(0, 200))}
+            placeholder="A charming space in a great neighborhood..."
+            maxLength={200}
+          />
+        </div>
+
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+          Preview photos are selected in the Photos step — mark 2–3 photos as &quot;preview&quot; to control what anonymous visitors see.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Step8Review({ state }: { state: WizardState }) {
   const row = (label: string, value: React.ReactNode) => (
     <div className="flex items-start justify-between border-b border-border py-3 last:border-0">
       <div className="text-sm text-muted-foreground">{label}</div>

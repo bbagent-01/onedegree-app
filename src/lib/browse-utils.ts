@@ -54,6 +54,7 @@ export function parseBrowseParams(
     bathrooms: num("ba"),
     amenities: csv("am"),
     minTrust: num("trust"),
+    fullAccessOnly: get("fao") === "1",
   };
 }
 

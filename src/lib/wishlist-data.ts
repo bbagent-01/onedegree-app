@@ -272,6 +272,9 @@ async function hydrateListings(
       avg_listing_rating: number | null;
       listing_review_count: number;
       min_trust_gate: number | null;
+      visibility_mode: string | null;
+      preview_description: string | null;
+      access_settings: import("./trust/types").AccessSettings | null;
     };
     return {
       id: l.id,
@@ -289,6 +292,9 @@ async function hydrateListings(
       host_id: l.host_id,
       min_trust_gate: extras.min_trust_gate ?? 0,
       amenities: l.amenities || [],
+      visibility_mode: extras.visibility_mode ?? "preview_gated",
+      preview_description: extras.preview_description ?? null,
+      access_settings: extras.access_settings ?? null,
       ...derived,
     };
   });

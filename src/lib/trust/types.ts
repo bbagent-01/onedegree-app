@@ -104,15 +104,14 @@ export const YEARS_MULTIPLIER: Record<string, number> = {
 
 /**
  * Default access_settings for new listings.
- * Alpha-phase defaults: most gates open so testers see the full UI.
- * Only message and request-to-book are gated — enough to feel the
- * mechanic without blocking exploration.
+ * Preview is open to everyone; full listing and actions are gated by
+ * 1° vouch score so the visibility mechanic is visible from day one.
  */
 export const DEFAULT_ACCESS_SETTINGS: AccessSettings = {
   see_preview: { type: "anyone" },
-  see_full: { type: "anyone" },
-  request_book: { type: "min_score", threshold: 30 },
-  message: { type: "min_score", threshold: 15 },
+  see_full: { type: "min_score", threshold: 10 },
+  request_book: { type: "min_score", threshold: 20 },
+  message: { type: "min_score", threshold: 10 },
   request_intro: { type: "anyone" },
   view_host_profile: { type: "anyone" },
 };

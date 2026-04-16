@@ -6,6 +6,8 @@ import {
   computeTrustPath,
   getInternalUserIdFromClerk,
 } from "@/lib/trust-data";
+import { checkListingAccess } from "@/lib/trust/check-access";
+import type { AccessSettings } from "@/lib/trust/types";
 import { Separator } from "@/components/ui/separator";
 import { PhotoGallery } from "@/components/listing/photo-gallery";
 import { DescriptionSection } from "@/components/listing/description-section";
@@ -69,16 +71,34 @@ export default async function ListingPage({
     viewerId && !isHost
       ? await computeTrustPath(viewerId, listing.host_id)
       : null;
-  const canSeeFull =
-    isHost ||
-    listing.min_trust_gate <= 0 ||
-    (trust !== null && trust.score >= listing.min_trust_gate);
+
+  // For direct-link access to hidden listings, we evaluate access but
+  // don't return NO_ACCESS. Hidden listings are always accessible via URL.
+  const listingForAccess = {
+    host_id: listing.host_id,
+    // Treat hidden as preview_gated for direct link access (hidden only blocks browse)
+    visibility_mode:
+      (listing as unknown as { visibility_mode?: string }).visibility_mode === "hidden"
+        ? "preview_gated"
+        : (listing as unknown as { visibility_mode?: string }).visibility_mode,
+    access_settings: (listing as unknown as { access_settings?: AccessSettings | null }).access_settings,
+  };
+
+  const access = checkListingAccess(
+    viewerId ?? null,
+    listingForAccess,
+    trust?.score ?? 0,
+    trust?.degree === 1 ? 1 : trust?.degree === 2 ? 2 : undefined
+  );
+
+  const canSeeFull = isHost || access.can_see_full;
 
   if (!canSeeFull) {
     return (
       <GatedListingView
         listing={listing}
         trust={trust}
+        access={access}
         isSignedIn={Boolean(viewerId)}
       />
     );

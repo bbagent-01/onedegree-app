@@ -10,6 +10,8 @@ import {
   computeTrustPaths,
   getInternalUserIdFromClerk,
 } from "@/lib/trust-data";
+import { checkListingAccess } from "@/lib/trust/check-access";
+import type { AccessSettings } from "@/lib/trust/types";
 import type { BrowseListingTrust } from "@/components/browse/browse-layout";
 import { activeFilterCount, parseBrowseParams } from "@/lib/browse-utils";
 import { SearchBar } from "@/components/browse/search-bar";
@@ -125,11 +127,22 @@ async function BrowseResults({
   const { userId: clerkId } = await auth();
   let viewerId: string | null = null;
   let savedIds: string[] = [];
+  let viewerVouchCountReceived = 0;
   if (clerkId) {
     viewerId = await getInternalUserIdFromClerk(clerkId);
     if (viewerId) {
       const set = await getSavedListingIds(viewerId);
       savedIds = [...set];
+      // Check if user has any inbound vouches (cold-start detection)
+      const { getSupabaseAdmin } = await import("@/lib/supabase");
+      const { data: vouchCountRow } = await getSupabaseAdmin()
+        .from("users")
+        .select("vouch_count_received")
+        .eq("id", viewerId)
+        .maybeSingle();
+      viewerVouchCountReceived =
+        (vouchCountRow as { vouch_count_received: number | null } | null)
+          ?.vouch_count_received ?? 0;
     }
   }
 
@@ -143,35 +156,76 @@ async function BrowseResults({
     const trustResults = await computeTrustPaths(viewerId, hostIds);
     for (const l of listings) {
       const r = trustResults[l.host_id];
-      if (!r) {
-        trustByListing[l.id] = {
-          score: 0,
-          degree: null,
-          canSeeFull: l.min_trust_gate <= 0 || l.host_id === viewerId,
-          mutualConnections: [],
-        };
-        continue;
-      }
-      // Host is always allowed to see their own listing.
-      const isHost = l.host_id === viewerId;
-      const canSeeFull = isHost || r.score >= l.min_trust_gate;
+      const score = r?.score ?? 0;
+      const degree = r?.degree ?? null;
+      const mutualConnections = r?.mutualConnections ?? [];
+
+      // Use checkListingAccess for proper per-action evaluation
+      const access = checkListingAccess(
+        viewerId,
+        {
+          host_id: l.host_id,
+          visibility_mode: l.visibility_mode,
+          access_settings: l.access_settings as AccessSettings | null,
+        },
+        score,
+        degree === 1 ? 1 : degree === 2 ? 2 : undefined
+      );
+
       trustByListing[l.id] = {
-        score: r.score,
-        degree: r.degree,
-        canSeeFull,
-        mutualConnections: r.mutualConnections,
+        score,
+        degree,
+        canSeePreview: access.can_see_preview,
+        canSeeFull: access.can_see_full,
+        canRequestBook: access.can_request_book,
+        canMessage: access.can_message,
+        canRequestIntro: access.can_request_intro,
+        mutualConnections,
       };
     }
   } else {
-    // Logged-out viewers: gate anything with min_trust_gate > 0.
+    // Logged-out viewers: evaluate access with score=0
     for (const l of listings) {
+      const access = checkListingAccess(
+        null,
+        {
+          host_id: l.host_id,
+          visibility_mode: l.visibility_mode,
+          access_settings: l.access_settings as AccessSettings | null,
+        },
+        0
+      );
       trustByListing[l.id] = {
         score: 0,
         degree: null,
-        canSeeFull: l.min_trust_gate <= 0,
+        canSeePreview: access.can_see_preview,
+        canSeeFull: access.can_see_full,
+        canRequestBook: false,
+        canMessage: false,
+        canRequestIntro: false,
         mutualConnections: [],
       };
     }
+  }
+
+  // Zero-vouches users: only show listings where see_preview = anyone
+  const isZeroVouches = viewerId !== null && viewerVouchCountReceived === 0;
+  if (isZeroVouches) {
+    listings = listings.filter((l) => {
+      const settings = l.access_settings;
+      const seePreviewType = settings?.see_preview?.type ?? "anyone";
+      return seePreviewType === "anyone";
+    });
+  }
+
+  // Filter out listings where the viewer can't see even the preview
+  listings = listings.filter(
+    (l) => trustByListing[l.id]?.canSeePreview || trustByListing[l.id]?.canSeeFull
+  );
+
+  // "Show only fully accessible" filter
+  if (filters.fullAccessOnly) {
+    listings = listings.filter((l) => trustByListing[l.id]?.canSeeFull);
   }
 
   // Trust score filter (client-side — trust is not a listings column).
@@ -197,6 +251,7 @@ async function BrowseResults({
       savedIds={savedIds}
       trustByListing={trustByListing}
       isSignedIn={Boolean(viewerId)}
+      isZeroVouches={isZeroVouches}
       headingText={headingText}
       mobileFiltersSlot={
         <Suspense fallback={null}>

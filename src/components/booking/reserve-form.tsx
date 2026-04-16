@@ -85,10 +85,10 @@ export function ReserveForm({
         disabled={submitting}
         className="h-12 w-full rounded-lg bg-brand text-base font-semibold text-white hover:bg-brand-600"
       >
-        {submitting ? "Sending…" : "Confirm and reserve"}
+        {submitting ? "Sending…" : "Confirm and request to book"}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        You won&apos;t be charged. The host reviews and confirms.
+        Payment arranged directly with your host off-platform
       </p>
     </div>
   );

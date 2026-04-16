@@ -143,7 +143,7 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
               onClick={reserve}
               className="h-10 rounded-lg bg-brand px-6 font-semibold text-white hover:bg-brand-600"
             >
-              Reserve
+              Request to Book
             </Button>
           ) : (
             <button
@@ -151,7 +151,7 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
               onClick={selectDates}
               className="h-10 rounded-lg px-4 text-sm font-semibold text-foreground underline underline-offset-2 hover:text-brand"
             >
-              Select dates to reserve
+              Select dates
             </button>
           )}
         </div>

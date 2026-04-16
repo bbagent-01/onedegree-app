@@ -36,6 +36,10 @@ export async function POST(req: Request) {
     min_trust_score,
     specific_user_ids,
     photos, // Array of { public_url, storage_path, is_preview, sort_order }
+    // CC-C3 visibility fields
+    visibility_mode,
+    preview_description,
+    access_settings,
   } = body;
 
   // Validate required fields
@@ -81,6 +85,9 @@ export async function POST(req: Request) {
       full_visibility: full_visibility || "vouched",
       min_trust_score: min_trust_score ?? 0,
       specific_user_ids: specific_user_ids || [],
+      visibility_mode: visibility_mode || "preview_gated",
+      preview_description: preview_description || null,
+      access_settings: access_settings || null,
     })
     .select("id")
     .single();

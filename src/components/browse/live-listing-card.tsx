@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Heart, ChevronLeft, ChevronRight, Lock, Star } from "lucide-react";
+import { Heart, ChevronLeft, ChevronRight, Lock, Star, Info } from "lucide-react";
 import { toast } from "sonner";
 import type { BrowseListing } from "@/lib/browse-data";
 import { SaveToWishlistDialog } from "@/components/wishlist/save-to-wishlist-dialog";
@@ -34,15 +34,23 @@ export function LiveListingCard({
   trust,
   isSignedIn = false,
 }: Props) {
-  const images = listing.photos.length
+  const allImages = listing.photos.length
     ? listing.photos.map((p) => p.public_url)
     : [PLACEHOLDER];
+
+  // Preview photos: those marked is_preview, or first 2
+  const previewPhotos = listing.photos.filter((p) => p.is_preview);
+  const previewImages =
+    previewPhotos.length > 0
+      ? previewPhotos.slice(0, 3).map((p) => p.public_url)
+      : allImages.slice(0, 2);
 
   const [currentImage, setCurrentImage] = useState(0);
   const [isSaved, setIsSaved] = useState(initialSaved);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [gateDialogOpen, setGateDialogOpen] = useState(false);
 
+  const canSeePreview = trust?.canSeePreview ?? true;
   const canSeeFull = trust?.canSeeFull ?? true;
 
   const prev = (e: React.MouseEvent) => {
@@ -59,9 +67,6 @@ export function LiveListingCard({
   const openPicker = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Quick auth check — if the user isn't signed in, nudge them
-    // without opening an empty dialog.
     try {
       const probe = await fetch("/api/wishlists?listingId=" + listing.id);
       if (probe.status === 401) {
@@ -77,12 +82,137 @@ export function LiveListingCard({
 
   const rating = listing.avg_listing_rating ?? 0;
   const price = listing.price_min ?? listing.price_max ?? 0;
+  const hasPriceRange =
+    listing.price_min && listing.price_max && listing.price_min !== listing.price_max;
+
+  // Choose which images set to use based on access level
+  const images = canSeeFull ? allImages : previewImages;
 
   // ─────────────────────────────────────────────────────────────
-  // Gated variant — viewer can't access this listing yet.
-  // Blurred photo, hidden title, overlay CTA that opens a modal.
+  // Preview variant — viewer can see preview but NOT full listing.
+  // Shows preview photos (not blurred), neighborhood, price range,
+  // rating, subtle lock icon. No host info.
   // ─────────────────────────────────────────────────────────────
-  if (!canSeeFull) {
+  if (canSeePreview && !canSeeFull) {
+    return (
+      <>
+        <Link
+          href={`/listings/${listing.id}`}
+          className="group block"
+        >
+          <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={images[currentImage] ?? PLACEHOLDER}
+              alt={`Preview of listing in ${listing.area_name}`}
+              className="h-full w-full object-cover saturate-[0.85] brightness-[0.97]"
+            />
+
+            {/* Lock badge — top-left */}
+            <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur">
+              <Lock className="h-3 w-3" />
+              Private listing
+            </div>
+
+            {/* Trust badge — top-left below lock if score > 0 */}
+            {trust && trust.score > 0 && (
+              <div className="absolute left-3 top-11">
+                <TrustBadge score={trust.score} size="sm" />
+              </div>
+            )}
+
+            {/* Preview tooltip — top-right */}
+            {/* Info tooltip — top-right */}
+            <div
+              className="absolute right-3 top-3 z-10 group/tip"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            >
+              <button
+                className="peer flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur"
+              >
+                <Info className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+              <div className="pointer-events-none absolute right-0 top-full z-20 mt-1 w-52 rounded-lg bg-foreground px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity peer-hover:opacity-100 peer-focus:opacity-100">
+                Your trust score with this host is below the required threshold. Get vouched by more people to unlock.
+              </div>
+            </div>
+
+            {/* Carousel nav */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={prev}
+                  aria-label="Previous photo"
+                  className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 p-1 opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-white"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={next}
+                  aria-label="Next photo"
+                  className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 p-1 opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-white"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 gap-1">
+                  {images.map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full transition-colors",
+                        i === currentImage ? "bg-white" : "bg-white/50"
+                      )}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="mt-3">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
+                {listing.area_name}
+              </h3>
+              {rating > 0 && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Star className="h-3.5 w-3.5 fill-muted-foreground text-muted-foreground" />
+                  <span>{rating.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+            {/* No host name/photo in preview mode */}
+            <p className="mt-1">
+              {hasPriceRange ? (
+                <>
+                  <span className="font-semibold">
+                    ${listing.price_min}–${listing.price_max}
+                  </span>
+                  <span className="text-muted-foreground"> / night</span>
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold">${price}</span>
+                  <span className="text-muted-foreground"> night</span>
+                </>
+              )}
+            </p>
+          </div>
+        </Link>
+
+        {/* Trust indicator placeholder (wired in CC-C4) */}
+        <div data-trust-indicator className="hidden" />
+      </>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Gated fallback — viewer can't even see preview.
+  // Blurred photo, hidden title, overlay CTA that opens a modal.
+  // (This shouldn't appear on browse — filtered out server-side —
+  // but kept for other contexts e.g. wishlists, search.)
+  // ─────────────────────────────────────────────────────────────
+  if (!canSeeFull && !canSeePreview) {
     const mutuals = trust?.mutualConnections ?? [];
     const openGate = (e: React.MouseEvent) => {
       e.preventDefault();
@@ -100,7 +230,7 @@ export function LiveListingCard({
           <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={images[0]}
+              src={allImages[0]}
               alt="Private listing"
               className="h-full w-full scale-110 object-cover blur-lg"
               draggable={false}
@@ -150,7 +280,7 @@ export function LiveListingCard({
   }
 
   // ─────────────────────────────────────────────────────────────
-  // Standard variant — viewer has full access.
+  // Full variant — viewer has full access.
   // ─────────────────────────────────────────────────────────────
   return (
     <>
@@ -242,6 +372,9 @@ export function LiveListingCard({
           </p>
         </div>
       </Link>
+
+      {/* Trust indicator placeholder (wired in CC-C4) */}
+      <div data-trust-indicator className="hidden" />
 
       <SaveToWishlistDialog
         open={dialogOpen}

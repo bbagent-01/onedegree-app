@@ -57,6 +57,12 @@ export interface ListingDetail {
   review_count: number;
   reviews: ListingReview[];
   blockedRanges: { start: string; end: string }[];
+  /** Visibility mode: public | preview_gated | hidden */
+  visibility_mode: string;
+  /** Host-written preview description (200 char max) */
+  preview_description: string | null;
+  /** Per-action access rules (JSONB from DB) */
+  access_settings: import("./trust/types").AccessSettings | null;
 }
 
 export async function getListingDetail(
@@ -76,6 +82,9 @@ export async function getListingDetail(
     avg_listing_rating: number | null;
     listing_review_count: number | null;
     min_trust_gate: number | null;
+    visibility_mode: string | null;
+    preview_description: string | null;
+    access_settings: import("./trust/types").AccessSettings | null;
   };
 
   const [photosRes, hostRes, reviewsRes, blocksRes] = await Promise.all([
@@ -189,6 +198,9 @@ export async function getListingDetail(
       start_date: string;
       end_date: string;
     }[]).map((b) => ({ start: b.start_date, end: b.end_date })),
+    visibility_mode: row.visibility_mode ?? "preview_gated",
+    preview_description: row.preview_description ?? null,
+    access_settings: row.access_settings ?? null,
     ...derived,
   };
 }

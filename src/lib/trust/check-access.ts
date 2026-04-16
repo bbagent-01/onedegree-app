@@ -52,7 +52,7 @@ export function checkListingAccess(
     return FULL_ACCESS;
   }
 
-  // Hidden listings: no access unless you're the host
+  // Hidden listings: no access unless you're the host (on browse; direct-link handled separately)
   if (listing.visibility_mode === "hidden") {
     return NO_ACCESS;
   }
@@ -61,6 +61,8 @@ export function checkListingAccess(
   if (listing.visibility_mode === "public") {
     return FULL_ACCESS;
   }
+
+  // null/undefined visibility_mode treated as preview_gated (default)
 
   // Anonymous viewers: only see_preview if it's set to "anyone"
   if (!viewerId) {

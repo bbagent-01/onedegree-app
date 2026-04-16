@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Map as MapIcon, LayoutGrid, X } from "lucide-react";
+import Link from "next/link";
+import { Map as MapIcon, LayoutGrid, X, UserPlus, Lock } from "lucide-react";
 import { SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LiveListingCard } from "./live-listing-card";
@@ -13,14 +14,17 @@ import { cn } from "@/lib/utils";
 
 /**
  * Per-listing trust info injected by the server component. The viewer
- * may see a listing fully, or only the gated preview when their trust
- * score is below the host's min_trust_gate. Cards render differently
- * based on `canSeeFull`.
+ * may see a listing fully, only the preview, or nothing at all based
+ * on the host's access_settings evaluated via checkListingAccess.
  */
 export interface BrowseListingTrust {
   score: number;
   degree: 1 | 2 | null;
+  canSeePreview: boolean;
   canSeeFull: boolean;
+  canRequestBook: boolean;
+  canMessage: boolean;
+  canRequestIntro: boolean;
   mutualConnections: TrustPathUser[];
 }
 
@@ -42,6 +46,8 @@ interface Props {
   trustByListing?: Record<string, BrowseListingTrust>;
   /** True if the viewer is signed in (affects gated-card CTAs). */
   isSignedIn?: boolean;
+  /** True if the viewer is signed in but has zero inbound vouches (cold-start). */
+  isZeroVouches?: boolean;
   /**
    * Compact Filters pill for the mobile header row. On desktop the
    * Filters button lives in the top nav cluster, so this slot is only
@@ -58,6 +64,7 @@ export function BrowseLayout({
   savedIds = [],
   trustByListing = {},
   isSignedIn = false,
+  isZeroVouches = false,
   mobileFiltersSlot,
 }: Props) {
   const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
@@ -141,6 +148,41 @@ export function BrowseLayout({
               clipping hover shadows against an overflow box and lets the
               footer be replaced by the map extending to viewport bottom. */}
           <div>
+            {/* Zero-vouches banner */}
+            {isZeroVouches && (
+              <div className="mb-4 flex flex-col gap-3 rounded-xl border-2 border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">
+                      You&apos;re not connected to anyone yet
+                    </div>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      Invite friends or ask someone to vouch for you to unlock more listings.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Link
+                    href="/network?tab=invite"
+                    className="inline-flex h-9 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-600"
+                  >
+                    Invite Friends
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Sign-in CTA for unauthenticated users */}
+            {!isSignedIn && (
+              <div className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4">
+                <Lock className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  <Link href="/sign-in" className="font-semibold text-foreground underline underline-offset-2">Sign in</Link> to see trusted listings from your network.
+                </p>
+              </div>
+            )}
+
             {headerRow}
             <div className={cn("grid gap-3", gridCols)}>
               {listings.map((l) => {

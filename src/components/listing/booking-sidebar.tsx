@@ -204,10 +204,10 @@ export function BookingSidebar({
             onClick={reserve}
             disabled={!range?.from || !range?.to}
           >
-            {nights === 0 ? "Reserve" : "Request to reserve"}
+            Request to Book
           </Button>
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            You won&apos;t be charged yet
+            Payment arranged directly with your host off-platform
           </p>
 
           {nights > 0 && (
@@ -274,7 +274,7 @@ export function BookingSidebar({
             onClick={reserve}
             disabled={!range?.from || !range?.to}
           >
-            Reserve
+            Request to Book
           </Button>
         </div>
       </div>
