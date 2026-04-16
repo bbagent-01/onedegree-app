@@ -26,7 +26,7 @@ import {
   type VouchType,
   type YearsKnownBucket,
 } from "@/lib/vouch-constants";
-import { Shield, Star, Check, ChevronRight, Trash2, Eye, EyeOff } from "lucide-react";
+import { Shield, Star, Check, ChevronRight, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 
 interface VouchTarget {
@@ -37,7 +37,7 @@ interface VouchTarget {
 
 interface ExistingVouch {
   vouch_type: VouchType;
-  years_known_bucket: string; // could be old or new format
+  years_known_bucket: string;
   vouch_score?: number | null;
 }
 
@@ -45,19 +45,14 @@ interface VouchModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   target: VouchTarget;
-  /** Pre-existing vouch to update (null = new vouch) */
   existingVouch?: ExistingVouch | null;
-  /** Post-stay vouch locks years_known to lt1 */
   isPostStay?: boolean;
-  /** Booking ID that triggered this vouch */
   sourceBookingId?: string | null;
-  /** Callback after vouch is successfully saved */
   onVouchSaved?: (score: number) => void;
-  /** Callback after vouch is removed */
   onVouchRemoved?: () => void;
 }
 
-type Step = "type" | "years" | "confirm";
+type Step = "type" | "years" | "confirm" | "remove_confirm";
 
 function initials(name: string) {
   return (
@@ -90,9 +85,9 @@ export function VouchModal({
   const [showVouchPowerInfo, setShowVouchPowerInfo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [removeReason, setRemoveReason] = useState("");
   const [savedScore, setSavedScore] = useState<number | null>(null);
 
-  // Only reset state on open transition (false → true), not on every prop change
   useEffect(() => {
     if (open && !prevOpenRef.current) {
       const normalizedBucket = existingVouch
@@ -105,6 +100,7 @@ export function VouchModal({
       setShowVouchPowerInfo(false);
       setSaving(false);
       setRemoving(false);
+      setRemoveReason("");
       setSavedScore(null);
     }
     prevOpenRef.current = open;
@@ -158,7 +154,10 @@ export function VouchModal({
       const res = await fetch("/api/vouches", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetUserId: target.id }),
+        body: JSON.stringify({
+          targetUserId: target.id,
+          reason: removeReason.trim() || undefined,
+        }),
       });
       if (!res.ok) throw new Error("Failed to remove vouch");
       toast.success("Vouch removed");
@@ -169,16 +168,17 @@ export function VouchModal({
     } finally {
       setRemoving(false);
     }
-  }, [target.id, onVouchRemoved, onOpenChange]);
+  }, [target.id, removeReason, onVouchRemoved, onOpenChange]);
 
   const isUpdate = !!existingVouch;
   const firstName = target.name.split(" ")[0];
-  const title =
-    step === "confirm"
-      ? ""
-      : isUpdate
-        ? `Update vouch for ${firstName}`
-        : `Vouch for ${firstName}`;
+
+  const stepTitle: Record<Step, string> = {
+    type: isUpdate ? `Update vouch for ${firstName}` : `Vouch for ${firstName}`,
+    years: isUpdate ? `Update vouch for ${firstName}` : `Vouch for ${firstName}`,
+    confirm: "",
+    remove_confirm: `Remove vouch for ${firstName}`,
+  };
 
   const content = (
     <div className="relative min-h-[280px]">
@@ -240,7 +240,20 @@ export function VouchModal({
             </button>
           ))}
         </div>
-        <div className="mt-5 flex items-center justify-end">
+        <div className="mt-5 flex items-center justify-between">
+          {isUpdate ? (
+            <Button
+              variant="ghost"
+              size="lg"
+              className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setStep("remove_confirm")}
+            >
+              <Trash2 className="h-4 w-4" />
+              Remove vouch
+            </Button>
+          ) : (
+            <div />
+          )}
           <Button
             size="lg"
             disabled={!vouchType}
@@ -259,7 +272,7 @@ export function VouchModal({
           "transition-all duration-300 ease-in-out",
           step === "years"
             ? "translate-x-0 opacity-100"
-            : step === "type"
+            : step === "type" || step === "remove_confirm"
               ? "translate-x-full absolute inset-0 opacity-0 pointer-events-none"
               : "-translate-x-full absolute inset-0 opacity-0 pointer-events-none"
         )}
@@ -301,7 +314,7 @@ export function VouchModal({
           })}
         </div>
 
-        {/* Reputation stake acknowledgment */}
+        {/* Reputation stake acknowledgment with inline info toggle */}
         <label className="mt-4 flex items-start gap-2.5 rounded-lg border border-border bg-muted/30 p-3 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -309,69 +322,103 @@ export function VouchModal({
             onChange={(e) => setStakeAcknowledged(e.target.checked)}
             className="mt-0.5 h-4 w-4 rounded border-border accent-brand"
           />
-          <span className="text-sm text-muted-foreground leading-relaxed">
-            I understand that {firstName}&apos;s guest rating will affect my
-            vouch power.
-          </span>
-        </label>
-
-        {/* Vouch power explainer — expandable */}
-        <button
-          type="button"
-          onClick={() => setShowVouchPowerInfo(!showVouchPowerInfo)}
-          className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {showVouchPowerInfo ? (
-            <EyeOff className="h-3.5 w-3.5" />
-          ) : (
-            <Eye className="h-3.5 w-3.5" />
-          )}
-          What is vouch power?
-        </button>
-        {showVouchPowerInfo && (
-          <div className="mt-2 rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground leading-relaxed animate-in slide-in-from-top-1 duration-200">
-            <strong className="text-foreground">Vouch power</strong> determines
-            how much weight your vouches carry. It&apos;s based on the average
-            guest rating of people you&apos;ve vouched for. If they&apos;re great
-            guests, your vouch power goes up. If they&apos;re not, it goes down.
-            This only affects how much your vouch counts — it does not affect
-            your own guest rating.
+          <div className="flex-1">
+            <span className="text-sm text-muted-foreground leading-relaxed">
+              I understand that {firstName}&apos;s guest rating will affect my
+              vouch power.{" "}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowVouchPowerInfo(!showVouchPowerInfo);
+                }}
+                className="inline-flex items-center align-middle"
+                aria-label="What is vouch power?"
+              >
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-muted-foreground/40 text-[10px] font-semibold text-muted-foreground hover:bg-muted-foreground/10 transition-colors">
+                  i
+                </span>
+              </button>
+            </span>
+            {showVouchPowerInfo && (
+              <div className="mt-2 rounded border border-border bg-white p-2.5 text-xs text-muted-foreground leading-relaxed animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                <strong className="text-foreground">Vouch power</strong> determines
+                how much weight your vouches carry. It&apos;s based on the average
+                guest rating of people you&apos;ve vouched for. If they&apos;re great
+                guests, your vouch power goes up. If they&apos;re not, it goes down.
+                This only affects how much your vouch counts — it does not affect
+                your own guest rating.
+              </div>
+            )}
           </div>
-        )}
+        </label>
 
         <div className="mt-5 flex items-center justify-between">
           <Button variant="ghost" size="lg" onClick={() => setStep("type")}>
             Back
           </Button>
-          <div className="flex items-center gap-2">
-            {isUpdate && (
-              <Button
-                variant="destructive"
-                size="lg"
-                disabled={removing}
-                onClick={handleRemove}
-                className="gap-1"
-              >
-                <Trash2 className="h-4 w-4" />
-                {removing ? "Removing..." : "Remove"}
-              </Button>
-            )}
-            <Button
-              size="lg"
-              disabled={!yearsKnown || !stakeAcknowledged || saving}
-              onClick={handleSubmit}
-            >
-              {saving
-                ? "Saving..."
-                : isUpdate
-                  ? "Update vouch"
-                  : `Vouch for ${firstName}`}
-            </Button>
-          </div>
+          <Button
+            size="lg"
+            disabled={!yearsKnown || !stakeAcknowledged || saving}
+            onClick={handleSubmit}
+          >
+            {saving
+              ? "Saving..."
+              : isUpdate
+                ? "Update vouch"
+                : `Vouch for ${firstName}`}
+          </Button>
         </div>
       </div>
 
-      {/* Step 3: Confirmation */}
+      {/* Remove Confirmation */}
+      <div
+        className={cn(
+          "transition-all duration-300 ease-in-out",
+          step === "remove_confirm"
+            ? "translate-x-0 opacity-100"
+            : "translate-x-full absolute inset-0 opacity-0 pointer-events-none"
+        )}
+      >
+        <p className="text-sm text-muted-foreground">
+          Are you sure you want to remove your vouch for{" "}
+          <span className="font-medium text-foreground">{target.name}</span>?
+          This will affect their 1&deg; Score with anyone connected through you.
+        </p>
+
+        <div className="mt-4">
+          <label className="text-sm font-medium text-foreground">
+            Reason{" "}
+            <span className="font-normal text-muted-foreground">(optional)</span>
+          </label>
+          <textarea
+            value={removeReason}
+            onChange={(e) => setRemoveReason(e.target.value)}
+            placeholder="Can you tell us why?"
+            className="mt-1.5 w-full rounded-xl border-2 border-border bg-white px-4 py-3 text-sm shadow-sm placeholder:text-muted-foreground/60 focus:border-brand focus:outline-none resize-none"
+            rows={3}
+          />
+        </div>
+
+        <div className="mt-5 flex items-center justify-between">
+          <Button variant="ghost" size="lg" onClick={() => setStep("type")}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            size="lg"
+            disabled={removing}
+            onClick={handleRemove}
+            className="gap-1"
+          >
+            <Trash2 className="h-4 w-4" />
+            {removing ? "Removing..." : "Confirm removal"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Confirmation */}
       <div
         className={cn(
           "transition-all duration-300 ease-in-out",
@@ -430,7 +477,7 @@ export function VouchModal({
         <DialogContent className="sm:max-w-md">
           {step !== "confirm" && (
             <DialogHeader>
-              <DialogTitle>{title}</DialogTitle>
+              <DialogTitle>{stepTitle[step]}</DialogTitle>
             </DialogHeader>
           )}
           {content}
@@ -444,7 +491,7 @@ export function VouchModal({
       <SheetContent side="bottom" className="rounded-t-2xl px-5 pb-8 pt-5">
         {step !== "confirm" && (
           <SheetHeader className="p-0 pb-3">
-            <SheetTitle>{title}</SheetTitle>
+            <SheetTitle>{stepTitle[step]}</SheetTitle>
           </SheetHeader>
         )}
         {content}
