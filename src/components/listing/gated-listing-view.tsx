@@ -59,6 +59,8 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
   const showMapArea = pc?.show_map_area ?? true;
   const showRating = pc?.show_rating ?? true;
   const showAmenities = pc?.show_amenities ?? false;
+  const showBedCounts = pc?.show_bed_counts ?? true;
+  const showHouseRules = pc?.show_house_rules ?? false;
 
   // Price range display
   const hasPriceRange =
@@ -146,6 +148,13 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
                     </span>
                   </div>
                 )}
+                {showBedCounts && (
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    {listing.bedrooms} bedroom{listing.bedrooms !== 1 ? "s" : ""}{" "}
+                    &middot; {listing.beds} bed{listing.beds !== 1 ? "s" : ""}{" "}
+                    &middot; {listing.bathrooms} bath{listing.bathrooms !== 1 ? "s" : ""}
+                  </div>
+                )}
               </div>
               {score > 0 && <TrustBadge score={score} size="md" />}
             </div>
@@ -200,6 +209,19 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
                     </div>
                   ))}
                 </div>
+              </section>
+              <Separator className="my-8" />
+            </>
+          )}
+
+          {/* House rules */}
+          {showHouseRules && listing.house_rules && (
+            <>
+              <section>
+                <h2 className="mb-4 text-xl font-semibold">House rules</h2>
+                <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                  {listing.house_rules}
+                </p>
               </section>
               <Separator className="my-8" />
             </>

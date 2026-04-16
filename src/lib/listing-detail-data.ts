@@ -117,8 +117,11 @@ export async function getListingDetail(
   ]);
 
   const photosRaw = (photosRes.data || []) as ListingPhoto[];
-  // Ensure the host-selected cover photo (is_preview=true) sorts first.
+  // Cover first, then preview photos, then rest.
   const photos = [...photosRaw].sort((a, b) => {
+    const ac = a.is_cover ? 0 : 1;
+    const bc = b.is_cover ? 0 : 1;
+    if (ac !== bc) return ac - bc;
     const ap = a.is_preview ? 0 : 1;
     const bp = b.is_preview ? 0 : 1;
     if (ap !== bp) return ap - bp;

@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { ImagePlus, Loader2, Star, Trash2, GripVertical } from "lucide-react";
+import {
+  ImagePlus,
+  Loader2,
+  Star,
+  Trash2,
+  GripVertical,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -9,6 +17,9 @@ export interface UploadedPhoto {
   id?: string; // present for already-saved photos
   public_url: string;
   storage_path?: string;
+  /** Single-select: the hero/thumbnail image for this listing. */
+  is_cover: boolean;
+  /** Multi-select: whether this photo appears in anonymous preview. */
   is_preview: boolean;
   sort_order: number;
 }
@@ -51,6 +62,7 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
           added.push({
             public_url: data.public_url,
             storage_path: data.storage_path,
+            is_cover: false,
             is_preview: false,
             sort_order: photos.length + added.length,
           });
@@ -59,10 +71,15 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
           toast.error(`Failed to upload ${file.name}`);
         }
       }
-      // If no cover yet, mark the first newly uploaded photo as cover.
       const next = [...photos, ...added];
+      // If no cover yet, mark the first photo as cover.
+      if (!next.some((p) => p.is_cover) && next.length > 0) {
+        next[0].is_cover = true;
+      }
+      // If no preview photos yet, default the cover into preview too.
       if (!next.some((p) => p.is_preview) && next.length > 0) {
-        next[0].is_preview = true;
+        const coverIdx = next.findIndex((p) => p.is_cover);
+        if (coverIdx >= 0) next[coverIdx].is_preview = true;
       }
       onChange(next.map((p, i) => ({ ...p, sort_order: i })));
       setUploading(false);
@@ -82,21 +99,32 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
     const next = photos
       .filter((_, i) => i !== idx)
       .map((p, i) => ({ ...p, sort_order: i }));
+    // Keep at least one cover.
+    if (!next.some((p) => p.is_cover) && next.length > 0) {
+      next[0].is_cover = true;
+    }
+    // Keep at least one preview.
     if (!next.some((p) => p.is_preview) && next.length > 0) {
-      next[0].is_preview = true;
+      const coverIdx = next.findIndex((p) => p.is_cover);
+      if (coverIdx >= 0) next[coverIdx].is_preview = true;
     }
     onChange(next);
   };
 
-  // Toggle whether a photo is included in the preview. Multi-select.
-  // The first preview photo (by sort_order) also acts as the cover.
+  // Single-select: make photo idx the cover, unset all others.
+  const setCover = (idx: number) => {
+    onChange(photos.map((p, i) => ({ ...p, is_cover: i === idx })));
+  };
+
+  // Multi-select: toggle whether photo idx is in the preview.
+  // Always keep at least one photo in the preview (the cover).
   const togglePreview = (idx: number) => {
     const next = photos.map((p, i) =>
       i === idx ? { ...p, is_preview: !p.is_preview } : p
     );
-    // Always ensure at least one photo is marked as preview (the cover).
     if (!next.some((p) => p.is_preview) && next.length > 0) {
-      next[0].is_preview = true;
+      const coverIdx = next.findIndex((p) => p.is_cover);
+      next[coverIdx >= 0 ? coverIdx : 0].is_preview = true;
     }
     onChange(next);
   };
@@ -135,7 +163,7 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
           Drag and drop photos or click to upload
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          JPG or PNG — minimum 3 photos, up to {max}
+          JPG or PNG &mdash; minimum 3 photos, up to {max}
         </p>
         <input
           ref={inputRef}
@@ -171,9 +199,31 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/30" />
+
+              {/* Drag handle */}
               <div className="absolute left-1.5 top-1.5 rounded bg-black/60 p-1 text-white opacity-0 group-hover:opacity-100">
                 <GripVertical className="h-3.5 w-3.5" />
               </div>
+
+              {/* Cover star (single-select) */}
+              <button
+                type="button"
+                onClick={() => setCover(i)}
+                className={cn(
+                  "absolute right-10 top-1.5 rounded-full p-1.5 shadow-sm transition-colors",
+                  p.is_cover
+                    ? "bg-amber-400 text-white"
+                    : "bg-white/90 text-zinc-700 opacity-0 hover:bg-white group-hover:opacity-100"
+                )}
+                title={p.is_cover ? "Cover photo" : "Set as cover"}
+                aria-label={p.is_cover ? "Cover photo" : "Set as cover"}
+              >
+                <Star
+                  className={cn("h-4 w-4", p.is_cover && "fill-current")}
+                />
+              </button>
+
+              {/* Preview eye (multi-select) */}
               <button
                 type="button"
                 onClick={() => togglePreview(i)}
@@ -183,25 +233,40 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
                     ? "bg-brand text-white"
                     : "bg-white/90 text-zinc-700 opacity-0 hover:bg-white group-hover:opacity-100"
                 )}
-                title={p.is_preview ? "Included in preview — click to remove" : "Include in preview"}
+                title={p.is_preview ? "In preview — click to hide" : "Include in preview"}
+                aria-label={p.is_preview ? "In preview" : "Include in preview"}
               >
-                <Star
-                  className={cn("h-4 w-4", p.is_preview && "fill-current")}
-                />
+                {p.is_preview ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <EyeOff className="h-4 w-4" />
+                )}
               </button>
+
+              {/* Remove */}
               <button
                 type="button"
                 onClick={() => remove(i)}
                 className="absolute bottom-1.5 right-1.5 rounded-full bg-white/90 p-1.5 text-zinc-700 opacity-0 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
                 title="Remove"
+                aria-label="Remove photo"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
-              {p.is_preview && (
-                <div className="absolute bottom-1.5 left-1.5 rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
-                  Preview
-                </div>
-              )}
+
+              {/* Badges */}
+              <div className="absolute bottom-1.5 left-1.5 flex gap-1">
+                {p.is_cover && (
+                  <div className="rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
+                    Cover
+                  </div>
+                )}
+                {p.is_preview && (
+                  <div className="rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
+                    Preview
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -217,11 +282,16 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
         )}
       </div>
       {photos.length > 0 && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Tap the star to include a photo in your preview. 2&ndash;3 preview
-          photos are shown to anyone before they&apos;ve unlocked your full
-          listing. The first preview photo is used as the cover.
-        </p>
+        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> Cover
+            &mdash; main thumbnail (pick one)
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Eye className="h-3.5 w-3.5 text-brand" /> Preview &mdash; shown to
+            anyone before they unlock the listing (pick any)
+          </span>
+        </div>
       )}
     </div>
   );

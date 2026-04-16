@@ -151,9 +151,12 @@ export async function getBrowseListings(
     arr.push(p);
     photosByListing.set(p.listing_id, arr);
   }
-  // Sort each listing's photos so the host-selected cover (is_preview) is first.
+  // Sort each listing's photos: cover first, then preview photos, then rest.
   for (const arr of photosByListing.values()) {
     arr.sort((a, b) => {
+      const ac = a.is_cover ? 0 : 1;
+      const bc = b.is_cover ? 0 : 1;
+      if (ac !== bc) return ac - bc;
       const ap = a.is_preview ? 0 : 1;
       const bp = b.is_preview ? 0 : 1;
       if (ap !== bp) return ap - bp;

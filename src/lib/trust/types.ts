@@ -47,6 +47,10 @@ export interface PreviewContentSettings {
   show_rating?: boolean;
   /** Show amenities list */
   show_amenities?: boolean;
+  /** Show bedroom / bed / bathroom counts */
+  show_bed_counts?: boolean;
+  /** Show house rules */
+  show_house_rules?: boolean;
 }
 
 export const DEFAULT_PREVIEW_CONTENT: PreviewContentSettings = {
@@ -57,6 +61,8 @@ export const DEFAULT_PREVIEW_CONTENT: PreviewContentSettings = {
   show_map_area: true,
   show_rating: true,
   show_amenities: false,
+  show_bed_counts: true,
+  show_house_rules: false,
 };
 
 export interface HydratedConnector {

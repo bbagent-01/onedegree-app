@@ -39,6 +39,7 @@ export async function PUT(
       id?: string;
       public_url: string;
       storage_path?: string | null;
+      is_cover?: boolean;
       is_preview: boolean;
       sort_order: number;
     }>;
@@ -49,8 +50,13 @@ export async function PUT(
   }
 
   if (body.photos.length > 0 && !body.photos.some((p) => p.is_preview)) {
-    // Force first as cover if nothing marked
+    // Force first as preview if nothing marked
     body.photos[0].is_preview = true;
+  }
+  if (body.photos.length > 0 && !body.photos.some((p) => p.is_cover)) {
+    // Force first preview as cover if no cover is set
+    const firstPreview = body.photos.find((p) => p.is_preview);
+    if (firstPreview) firstPreview.is_cover = true;
   }
 
   // Current rows
@@ -76,6 +82,7 @@ export async function PUT(
       await supabase
         .from("listing_photos")
         .update({
+          is_cover: p.is_cover ?? false,
           is_preview: p.is_preview,
           sort_order: p.sort_order,
         })
@@ -90,6 +97,7 @@ export async function PUT(
       listing_id: listingId,
       public_url: p.public_url,
       storage_path: p.storage_path || null,
+      is_cover: p.is_cover ?? false,
       is_preview: p.is_preview,
       sort_order: p.sort_order,
     }));
@@ -109,7 +117,7 @@ export async function PUT(
   // Return fresh ordered list
   const { data: photos } = await supabase
     .from("listing_photos")
-    .select("id, public_url, storage_path, is_preview, sort_order")
+    .select("id, public_url, storage_path, is_cover, is_preview, sort_order")
     .eq("listing_id", listingId)
     .order("sort_order", { ascending: true });
 

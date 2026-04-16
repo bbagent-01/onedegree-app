@@ -105,6 +105,8 @@ interface WizardState {
   previewShowMapArea: boolean;
   previewShowRating: boolean;
   previewShowAmenities: boolean;
+  previewShowBedCounts: boolean;
+  previewShowHouseRules: boolean;
   // Default availability
   defaultAvailability: "available" | "unavailable" | "possibly";
 }
@@ -158,11 +160,13 @@ const initialState: WizardState = {
   previewShowMapArea: true,
   previewShowRating: true,
   previewShowAmenities: false,
+  previewShowBedCounts: true,
+  previewShowHouseRules: false,
   defaultAvailability: "available",
 };
 
 const STORAGE_KEY = "track-b:create-listing-draft";
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 
 // Shared big-input style — matches House Rules checkmark buttons (px-3 py-2.5, border-2, rounded-lg)
 const BIG_INPUT =
@@ -284,6 +288,26 @@ export default function CreateListingPage() {
         ) {
           delete clean.lng;
         }
+        // Photo migration: old drafts only had is_preview; split out is_cover.
+        if (Array.isArray(clean.photos)) {
+          const hasAnyCover = clean.photos.some(
+            (p: UploadedPhoto) => p.is_cover
+          );
+          clean.photos = clean.photos.map((p: UploadedPhoto, i: number) => ({
+            ...p,
+            is_cover:
+              p.is_cover === true ||
+              (!hasAnyCover && p.is_preview === true && i === 0)
+                ? true
+                : Boolean(p.is_cover),
+            is_preview: Boolean(p.is_preview),
+          }));
+          // Ensure one photo is marked cover (first preview, or first photo)
+          if (!clean.photos.some((p) => p.is_cover) && clean.photos.length > 0) {
+            const pv = clean.photos.findIndex((p) => p.is_preview);
+            clean.photos[pv >= 0 ? pv : 0].is_cover = true;
+          }
+        }
         setState({ ...initialState, ...clean });
       }
     } catch {}
@@ -328,7 +352,11 @@ export default function CreateListingPage() {
       case 3:
         return state.guests >= 1 && state.bedrooms >= 0;
       case 4:
-        return state.photos.length >= 3 && state.photos.some((p) => p.is_preview);
+        return (
+          state.photos.length >= 3 &&
+          state.photos.some((p) => p.is_cover) &&
+          state.photos.some((p) => p.is_preview)
+        );
       case 5:
         return state.title.trim().length > 0 && state.title.length <= 50;
       case 6:
@@ -422,11 +450,14 @@ export default function CreateListingPage() {
             show_map_area: state.previewShowMapArea,
             show_rating: state.previewShowRating,
             show_amenities: state.previewShowAmenities,
+            show_bed_counts: state.previewShowBedCounts,
+            show_house_rules: state.previewShowHouseRules,
           },
         },
         photos: state.photos.map((p, i) => ({
           public_url: p.public_url,
           storage_path: p.storage_path,
+          is_cover: p.is_cover,
           is_preview: p.is_preview,
           sort_order: i,
         })),
@@ -511,8 +542,9 @@ export default function CreateListingPage() {
           <Step5 state={state} update={update} toggleRule={toggleRule} />
         )}
         {state.step === 6 && <Step6 state={state} update={update} />}
-        {state.step === 7 && <Step7Visibility state={state} update={update} />}
-        {state.step === 8 && <Step8Review state={state} />}
+        {state.step === 7 && <Step7Preview state={state} update={update} />}
+        {state.step === 8 && <Step8Visibility state={state} update={update} />}
+        {state.step === 9 && <Step9Review state={state} />}
       </div>
 
       <div className="mt-10 flex items-center justify-between border-t border-border pt-6">
@@ -1320,7 +1352,9 @@ type PreviewToggleKey =
   | "previewShowNeighborhood"
   | "previewShowMapArea"
   | "previewShowRating"
-  | "previewShowAmenities";
+  | "previewShowAmenities"
+  | "previewShowBedCounts"
+  | "previewShowHouseRules";
 
 type AccessKey =
   | "accessSeePreview"
@@ -1329,51 +1363,22 @@ type AccessKey =
   | "accessMessage"
   | "accessRequestIntro";
 
-function Step7Visibility({
+// ──────────────────────────────────────────────────────────────────
+// Step 7 — Listing Preview
+// Host controls what shows in the anonymous preview + sees a live mock.
+// ──────────────────────────────────────────────────────────────────
+function Step7Preview({
   state,
   update,
 }: {
   state: WizardState;
   update: UpdateFn;
 }) {
-  const VISIBILITY_MODES: {
-    key: VisibilityMode;
+  const PREVIEW_TOGGLES: {
+    key: PreviewToggleKey;
     label: string;
     desc: string;
   }[] = [
-    {
-      key: "preview_gated",
-      label: "Standard",
-      desc: "Anonymous preview for everyone. Full listing gated by trust.",
-    },
-    {
-      key: "public",
-      label: "Public",
-      desc: "Full listing visible to anyone on the platform.",
-    },
-    {
-      key: "hidden",
-      label: "Hidden",
-      desc: "Not discoverable in browse. Only via direct link you share.",
-    },
-  ];
-
-  const ACCESS_ACTIONS: { key: AccessKey; label: string; hint?: string }[] = [
-    { key: "accessSeePreview", label: "See Preview", hint: "Who can see the anonymous preview of your listing" },
-    { key: "accessSeeFull", label: "See Full Listing", hint: "Who can unlock and view the full listing" },
-    { key: "accessRequestBook", label: "Request to Book", hint: "Who can send a booking request" },
-    { key: "accessMessage", label: "Message Host", hint: "Who can send you a message" },
-    { key: "accessRequestIntro", label: "Request Introduction", hint: "Who can ask a mutual connection for an intro" },
-  ];
-
-  const ACCESS_TYPES: { key: AccessType; label: string }[] = [
-    { key: "anyone", label: "Anyone on platform" },
-    { key: "min_score", label: "Min 1\u00B0 score" },
-    { key: "max_degrees", label: "Within N degrees" },
-    { key: "specific_people", label: "Specific people" },
-  ];
-
-  const PREVIEW_TOGGLES: { key: PreviewToggleKey; label: string; desc: string }[] = [
     { key: "previewShowPriceRange", label: "Price range", desc: "$min–$max / night" },
     { key: "previewShowDescription", label: "Description", desc: "Your preview description (or first 100 chars of the main one)" },
     { key: "previewShowHostFirstName", label: "Your first name", desc: "If off, shows \"a verified member\"" },
@@ -1381,87 +1386,48 @@ function Step7Visibility({
     { key: "previewShowMapArea", label: "Approximate map area", desc: "Blurred radius, no exact pin" },
     { key: "previewShowRating", label: "Rating & reviews count", desc: "Star rating and how many reviews" },
     { key: "previewShowAmenities", label: "Amenities list", desc: "WiFi, parking, etc." },
+    { key: "previewShowBedCounts", label: "Bedroom / bed / bath count", desc: "\u201C2 bedrooms \u00B7 2 beds \u00B7 1 bath\u201D" },
+    { key: "previewShowHouseRules", label: "House rules", desc: "Rules you set for guests" },
   ];
 
-  const updateAccessRule = (
-    key: AccessKey,
-    field: keyof AccessRuleState,
-    value: string
-  ) => {
-    const current = state[key];
-    update(key, { ...current, [field]: value });
+  const togglePreviewPhoto = (idx: number) => {
+    const next = state.photos.map((p, i) =>
+      i === idx ? { ...p, is_preview: !p.is_preview } : p
+    );
+    if (!next.some((p) => p.is_preview) && next.length > 0) {
+      const coverIdx = next.findIndex((p) => p.is_cover);
+      next[coverIdx >= 0 ? coverIdx : 0].is_preview = true;
+    }
+    update("photos", next);
   };
 
-  // Quick-fill templates — set visibility_mode AND pre-fill access rules.
-  // Host can still customize each rule afterwards.
-  const applyTemplate = (mode: VisibilityMode) => {
-    update("visibilityMode", mode);
-    if (mode === "public") {
-      update("accessSeePreview", { type: "anyone", threshold: "" });
-      update("accessSeeFull", { type: "anyone", threshold: "" });
-      update("accessRequestBook", { type: "anyone", threshold: "" });
-      update("accessMessage", { type: "anyone", threshold: "" });
-      update("accessRequestIntro", { type: "anyone", threshold: "" });
-    } else if (mode === "preview_gated") {
-      update("accessSeePreview", { type: "anyone", threshold: "" });
-      update("accessSeeFull", { type: "min_score", threshold: "10" });
-      update("accessRequestBook", { type: "min_score", threshold: "20" });
-      update("accessMessage", { type: "min_score", threshold: "10" });
-      update("accessRequestIntro", { type: "anyone", threshold: "" });
-    } else if (mode === "hidden") {
-      // Hidden: discoverability off, but access rules stay as whatever they were.
-      // User can tweak each field after if they want.
-    }
-  };
+  // ── Derived values for the mocks ──
+  const firstName = "you"; // placeholder; we don't have the host's name in wizard state
+  const priceDisplay =
+    state.price && Number(state.price) > 0 ? `$${state.price}` : null;
+  const previewDesc =
+    state.previewDescription ||
+    state.description.slice(0, 100) + (state.description.length > 100 ? "\u2026" : "");
+  const previewPhotos = state.photos.filter((p) => p.is_preview);
+  const coverPhoto = state.photos.find((p) => p.is_cover) || previewPhotos[0];
+  const tileImage = coverPhoto?.public_url;
 
   return (
     <div>
       <StepHeading
-        title="Visibility & Access"
-        subtitle="Pick a template to start, then fine-tune what's shown in the preview and who can do what."
+        title="Listing Preview"
+        subtitle="This is what anyone sees before they've unlocked your listing. You control exactly what's shown — then on the next step, you control who can see it."
       />
 
       <div className="space-y-8">
-        {/* Template quick-fill */}
-        <div>
-          <div className="text-sm font-semibold text-foreground">Visibility template</div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            These are starting points — every setting below is still editable.
-          </p>
-          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-            {VISIBILITY_MODES.map(({ key, label, desc }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => applyTemplate(key)}
-                className={cn(
-                  "flex flex-col items-start rounded-xl border-2 p-5 text-left transition-colors",
-                  state.visibilityMode === key
-                    ? "border-brand bg-brand/5"
-                    : "border-border hover:border-foreground/30"
-                )}
-              >
-                <div className="text-base font-semibold text-foreground">{label}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ──────────────────────────────────────────────────────── */}
-        {/* Section A: Preview content — what shows in the preview   */}
-        {/* ──────────────────────────────────────────────────────── */}
+        {/* Preview content toggles */}
         <div className="rounded-2xl border border-border bg-card p-6">
-          <div>
-            <div className="text-base font-semibold text-foreground">
-              Preview content
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              When someone sees your preview (before they&apos;ve unlocked the full
-              listing), show&hellip;
-            </p>
+          <div className="text-base font-semibold text-foreground">
+            Show in preview
           </div>
-
+          <p className="mt-1 text-sm text-muted-foreground">
+            Toggle what anonymous visitors see.
+          </p>
           <div className="mt-5 space-y-2">
             {PREVIEW_TOGGLES.map(({ key, label, desc }) => (
               <label
@@ -1523,26 +1489,333 @@ function Step7Visibility({
               maxLength={200}
             />
           </div>
+        </div>
 
-          <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-            Preview photos are chosen in the Photos step &mdash; star 2&ndash;3
-            photos to include in the preview.
+        {/* Preview photo selector — mini version of the photo uploader */}
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="text-base font-semibold text-foreground">
+            Preview photos
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tap the eye to include a photo in the preview. 2&ndash;3 photos work
+            best. The cover (star, set in the Photos step) is always included.
+          </p>
+          {state.photos.length === 0 ? (
+            <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+              Upload photos first (back one step) to select preview photos here.
+            </div>
+          ) : (
+            <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+              {state.photos.map((p, i) => (
+                <button
+                  key={p.public_url}
+                  type="button"
+                  onClick={() => togglePreviewPhoto(i)}
+                  className={cn(
+                    "group relative aspect-square overflow-hidden rounded-lg border-2 transition-all",
+                    p.is_preview
+                      ? "border-brand"
+                      : "border-border opacity-70 hover:opacity-100"
+                  )}
+                  aria-label={p.is_preview ? "Remove from preview" : "Add to preview"}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.public_url}
+                    alt=""
+                    className={cn(
+                      "h-full w-full object-cover",
+                      !p.is_preview && "grayscale"
+                    )}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20" />
+                  <div className="absolute right-1 top-1 flex gap-1">
+                    {p.is_cover && (
+                      <div className="rounded bg-amber-400 px-1 py-0.5 text-[9px] font-semibold uppercase text-white">
+                        Cover
+                      </div>
+                    )}
+                    {p.is_preview && (
+                      <div className="rounded bg-brand px-1 py-0.5 text-[9px] font-semibold uppercase text-white">
+                        Preview
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Live mocks */}
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="text-base font-semibold text-foreground">
+            How your preview will look
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Updates live as you change settings above.
+          </p>
+
+          <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Tile mock */}
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Browse tile
+              </div>
+              <div className="w-full max-w-xs">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
+                  {tileImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={tileImage}
+                      alt="Preview"
+                      className="h-full w-full object-cover saturate-[0.85] brightness-[0.97]"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+                      No cover photo yet
+                    </div>
+                  )}
+                  <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur">
+                    Private listing
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
+                      {state.previewShowNeighborhood
+                        ? state.areaName || state.city || "Neighborhood"
+                        : "Private location"}
+                    </h3>
+                    {state.previewShowRating && (
+                      <div className="text-xs text-muted-foreground">
+                        &#9733; 4.87
+                      </div>
+                    )}
+                  </div>
+                  {state.previewShowPriceRange && priceDisplay && (
+                    <p className="mt-1 text-sm">
+                      <span className="font-semibold">{priceDisplay}</span>
+                      <span className="text-muted-foreground"> / night</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Detail mock */}
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Detail page
+              </div>
+              <div className="rounded-xl border border-border bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-lg font-semibold leading-tight">
+                    {state.placeKind === "private"
+                      ? "Private room"
+                      : state.placeKind === "shared"
+                        ? "Shared room"
+                        : "Entire place"}
+                    {state.previewShowNeighborhood
+                      ? ` in ${state.areaName || state.city || "the neighborhood"}`
+                      : ""}
+                  </h3>
+                  {state.previewShowRating && (
+                    <div className="shrink-0 text-xs text-muted-foreground">
+                      &#9733; 4.87 &middot; 24 reviews
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-2 text-xs font-medium text-muted-foreground">
+                  Hosted by{" "}
+                  {state.previewShowHostFirstName
+                    ? firstName
+                    : "a verified member"}
+                </div>
+
+                {state.previewShowBedCounts && (
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {state.bedrooms} bedroom{state.bedrooms !== 1 ? "s" : ""}{" "}
+                    &middot; {state.beds} bed{state.beds !== 1 ? "s" : ""}{" "}
+                    &middot; {state.bathrooms} bath
+                    {state.bathrooms !== 1 ? "s" : ""}
+                  </div>
+                )}
+
+                {state.previewShowPriceRange && priceDisplay && (
+                  <div className="mt-3 text-base font-semibold">
+                    {priceDisplay}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      / night (range)
+                    </span>
+                  </div>
+                )}
+
+                {state.previewShowDescription && previewDesc && (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {previewDesc}
+                  </p>
+                )}
+
+                {state.previewShowMapArea && (
+                  <div className="mt-3 flex h-20 items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
+                    Approximate map area
+                  </div>
+                )}
+
+                {state.previewShowAmenities && state.amenities.length > 0 && (
+                  <div className="mt-3">
+                    <div className="text-xs font-semibold text-foreground">Amenities</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {state.amenities.slice(0, 5).join(" \u00B7 ")}
+                      {state.amenities.length > 5
+                        ? ` \u00B7 +${state.amenities.length - 5} more`
+                        : ""}
+                    </div>
+                  </div>
+                )}
+
+                {state.previewShowHouseRules &&
+                  (state.houseRules.length > 0 || state.customRules) && (
+                    <div className="mt-3">
+                      <div className="text-xs font-semibold text-foreground">House rules</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {state.houseRules.slice(0, 3).join(" \u00B7 ")}
+                        {state.customRules ? ` \u00B7 ${state.customRules}` : ""}
+                      </div>
+                    </div>
+                  )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Step 8 — Visibility & Access
+// Templates at top are just presets that pre-fill the rules below.
+// ──────────────────────────────────────────────────────────────────
+function Step8Visibility({
+  state,
+  update,
+}: {
+  state: WizardState;
+  update: UpdateFn;
+}) {
+  const VISIBILITY_MODES: {
+    key: VisibilityMode;
+    label: string;
+    desc: string;
+  }[] = [
+    {
+      key: "preview_gated",
+      label: "Standard",
+      desc: "Anonymous preview for everyone. Full listing gated by trust.",
+    },
+    {
+      key: "public",
+      label: "Public",
+      desc: "Full listing visible to anyone on the platform.",
+    },
+    {
+      key: "hidden",
+      label: "Hidden",
+      desc: "Not discoverable in browse. Only via direct link you share.",
+    },
+  ];
+
+  const ACCESS_ACTIONS: { key: AccessKey; label: string; hint?: string }[] = [
+    { key: "accessSeePreview", label: "See Preview", hint: "Who can see the anonymous preview of your listing" },
+    { key: "accessSeeFull", label: "See Full Listing", hint: "Who can unlock and view the full listing" },
+    { key: "accessRequestBook", label: "Request to Book", hint: "Who can send a booking request" },
+    { key: "accessMessage", label: "Message Host", hint: "Who can send you a message" },
+    { key: "accessRequestIntro", label: "Request Introduction", hint: "Who can ask a mutual connection for an intro" },
+  ];
+
+  const ACCESS_TYPES: { key: AccessType; label: string }[] = [
+    { key: "anyone", label: "Anyone on platform" },
+    { key: "min_score", label: "Min 1\u00B0 score" },
+    { key: "max_degrees", label: "Within N degrees" },
+    { key: "specific_people", label: "Specific people" },
+  ];
+
+  const updateAccessRule = (
+    key: AccessKey,
+    field: keyof AccessRuleState,
+    value: string
+  ) => {
+    const current = state[key];
+    update(key, { ...current, [field]: value });
+  };
+
+  // Quick-fill preset — set visibility_mode AND pre-fill access rules.
+  // Host can still customize each rule afterwards.
+  const applyTemplate = (mode: VisibilityMode) => {
+    update("visibilityMode", mode);
+    if (mode === "public") {
+      update("accessSeePreview", { type: "anyone", threshold: "" });
+      update("accessSeeFull", { type: "anyone", threshold: "" });
+      update("accessRequestBook", { type: "anyone", threshold: "" });
+      update("accessMessage", { type: "anyone", threshold: "" });
+      update("accessRequestIntro", { type: "anyone", threshold: "" });
+    } else if (mode === "preview_gated") {
+      update("accessSeePreview", { type: "anyone", threshold: "" });
+      update("accessSeeFull", { type: "min_score", threshold: "10" });
+      update("accessRequestBook", { type: "min_score", threshold: "20" });
+      update("accessMessage", { type: "min_score", threshold: "10" });
+      update("accessRequestIntro", { type: "anyone", threshold: "" });
+    } else if (mode === "hidden") {
+      // Hidden mode: discoverability off, access rules stay whatever they were.
+      // (Host can customize freely after.)
+    }
+  };
+
+  return (
+    <div>
+      <StepHeading
+        title="Visibility & Access"
+        subtitle="Pick a preset to start, then fine-tune who can do what. Presets just fill in the rules below — everything stays editable."
+      />
+
+      <div className="space-y-8">
+        {/* Template presets */}
+        <div>
+          <div className="text-sm font-semibold text-foreground">Preset</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Click to apply as a starting point.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {VISIBILITY_MODES.map(({ key, label, desc }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => applyTemplate(key)}
+                className={cn(
+                  "flex flex-col items-start rounded-xl border-2 p-5 text-left transition-colors",
+                  state.visibilityMode === key
+                    ? "border-brand bg-brand/5"
+                    : "border-border hover:border-foreground/30"
+                )}
+              >
+                <div className="text-base font-semibold text-foreground">{label}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{desc}</div>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* ──────────────────────────────────────────────────────── */}
-        {/* Section B: Access control — who can do what              */}
-        {/* ──────────────────────────────────────────────────────── */}
+        {/* Access rules */}
         <div className="rounded-2xl border border-border bg-card p-6">
-          <div>
-            <div className="text-base font-semibold text-foreground">
-              Access controls
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              For each action, choose who&apos;s allowed to do it. Edit freely &mdash;
-              your template is only a starting point.
-            </p>
+          <div className="text-base font-semibold text-foreground">
+            Access controls
           </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            For each action, choose who&apos;s allowed to do it.
+          </p>
 
           <div className="mt-5 space-y-3">
             {ACCESS_ACTIONS.map(({ key, label, hint }) => {
@@ -1613,7 +1886,7 @@ function Step7Visibility({
   );
 }
 
-function Step8Review({ state }: { state: WizardState }) {
+function Step9Review({ state }: { state: WizardState }) {
   const row = (label: string, value: React.ReactNode) => (
     <div className="flex items-start justify-between border-b border-border py-3 last:border-0">
       <div className="text-sm text-muted-foreground">{label}</div>

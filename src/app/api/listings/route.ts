@@ -64,6 +64,12 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+  const hasCoverPhoto = photos.some((p: { is_cover?: boolean }) => p.is_cover);
+  // Default the first preview photo to cover if the host didn't explicitly pick one.
+  if (!hasCoverPhoto) {
+    const firstPreview = photos.find((p: { is_preview: boolean }) => p.is_preview);
+    if (firstPreview) (firstPreview as { is_cover: boolean }).is_cover = true;
+  }
 
   // Insert listing
   const { data: listing, error: listingErr } = await supabase
@@ -99,11 +105,21 @@ export async function POST(req: Request) {
 
   // Insert photos
   const photoRows = photos.map(
-    (p: { public_url: string; storage_path?: string; is_preview: boolean; sort_order: number }, i: number) => ({
+    (
+      p: {
+        public_url: string;
+        storage_path?: string;
+        is_preview: boolean;
+        is_cover?: boolean;
+        sort_order: number;
+      },
+      i: number
+    ) => ({
       listing_id: listing.id,
       public_url: p.public_url,
       storage_path: p.storage_path || null,
       is_preview: p.is_preview ?? false,
+      is_cover: p.is_cover ?? false,
       sort_order: p.sort_order ?? i,
     })
   );

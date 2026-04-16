@@ -41,6 +41,9 @@ export interface ListingPhoto {
   listing_id: string;
   storage_path: string | null;
   public_url: string;
+  /** Single-select: main thumbnail / hero image. */
+  is_cover?: boolean;
+  /** Multi-select: included in anonymous preview. */
   is_preview: boolean;
   sort_order: number;
 }

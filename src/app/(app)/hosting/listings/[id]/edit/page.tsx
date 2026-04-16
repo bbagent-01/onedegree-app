@@ -36,13 +36,15 @@ export default async function EditListingPage({ params }: PageProps) {
 
   const { data: photos } = await supabase
     .from("listing_photos")
-    .select("id, public_url, storage_path, is_preview, sort_order")
+    .select("id, public_url, storage_path, is_cover, is_preview, sort_order")
     .eq("listing_id", id)
     .order("sort_order", { ascending: true });
 
   const { meta, body } = parseListingMeta(listing.description);
   const coverPhoto =
-    (photos || []).find((p) => p.is_preview) || (photos || [])[0];
+    (photos || []).find((p) => p.is_cover) ||
+    (photos || []).find((p) => p.is_preview) ||
+    (photos || [])[0];
 
   return (
     <div className="min-h-screen bg-muted/30">

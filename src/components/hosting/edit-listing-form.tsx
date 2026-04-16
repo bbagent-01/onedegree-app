@@ -340,6 +340,7 @@ export function EditListingForm({
             id: p.id,
             public_url: p.public_url,
             storage_path: p.storage_path,
+            is_cover: p.is_cover,
             is_preview: p.is_preview,
             sort_order: i,
           })),
