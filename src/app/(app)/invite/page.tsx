@@ -37,6 +37,7 @@ export default function InvitePage() {
   const [yearsKnown, setYearsKnown] = useState<YearsKnownBucket | null>(null);
   const [saving, setSaving] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [stakeAcknowledged, setStakeAcknowledged] = useState(false);
 
   const score =
     vouchType && yearsKnown ? computeVouchScore(vouchType, yearsKnown) : null;
@@ -375,6 +376,21 @@ export default function InvitePage() {
                     ? `An invitation email will be sent to ${email}.`
                     : null}
             </p>
+
+            {/* Reputation stake acknowledgment */}
+            <label className="mt-4 flex items-start gap-2.5 rounded-lg border border-border bg-muted/30 p-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={stakeAcknowledged}
+                onChange={(e) => setStakeAcknowledged(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-border accent-brand"
+              />
+              <span className="text-xs text-muted-foreground leading-relaxed">
+                I understand that {name.split(" ")[0]}&apos;s guest rating will
+                affect my vouch power.
+              </span>
+            </label>
+
             <div className="mt-5 flex items-center justify-between">
               <Button
                 variant="ghost"
@@ -383,7 +399,11 @@ export default function InvitePage() {
               >
                 Back
               </Button>
-              <Button size="lg" disabled={saving} onClick={handleSubmit}>
+              <Button
+                size="lg"
+                disabled={saving || !stakeAcknowledged}
+                onClick={handleSubmit}
+              >
                 {saving ? "Sending..." : "Send invitation"}
               </Button>
             </div>
@@ -431,6 +451,7 @@ export default function InvitePage() {
                   setVouchType(null);
                   setYearsKnown(null);
                   setInviteUrl(null);
+                  setStakeAcknowledged(false);
                 }}
               >
                 <UserPlus className="h-4 w-4" />

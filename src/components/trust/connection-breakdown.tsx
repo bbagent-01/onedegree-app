@@ -204,7 +204,7 @@ function ConnectionBreakdown({ data }: { data: ConnectionData }) {
 
         <div className="mt-3 space-y-3">
           {data.paths.map((path, i) => (
-            <PathDetail key={path.connector.id} path={path} index={i} />
+            <PathDetail key={path.connector.id} path={path} index={i} targetName={data.targetName} />
           ))}
         </div>
 
@@ -277,8 +277,10 @@ function VouchDetail({
   );
 }
 
-function PathDetail({ path, index }: { path: PathInfo; index: number }) {
+function PathDetail({ path, index, targetName }: { path: PathInfo; index: number; targetName: string }) {
   const isFirst = index === 0;
+  const connectorFirst = path.connector.name.split(" ")[0];
+  const targetFirst = targetName.split(" ")[0];
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-2.5">
       <div className="flex items-center justify-between text-xs">
@@ -296,7 +298,7 @@ function PathDetail({ path, index }: { path: PathInfo; index: number }) {
           </Avatar>
           <span className="font-medium">
             {isFirst ? "Strongest" : `Path ${path.rank}`} — via{" "}
-            {path.connector.name.split(" ")[0]}
+            {connectorFirst}
           </span>
         </div>
         {path.rank > 1 && (
@@ -308,11 +310,11 @@ function PathDetail({ path, index }: { path: PathInfo; index: number }) {
 
       <div className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground font-mono">
         <div>
-          You → {path.connector.name.split(" ")[0]}:{" "}
+          You → {connectorFirst}:{" "}
           <span className="text-foreground">{path.link_a} pts</span>
         </div>
         <div>
-          {path.connector.name.split(" ")[0]} → target:{" "}
+          {connectorFirst} → {targetFirst}:{" "}
           <span className="text-foreground">
             {path.connector_vouch_score} × {path.connector_vouch_power} VP ={" "}
             {path.link_b.toFixed(1)} pts
