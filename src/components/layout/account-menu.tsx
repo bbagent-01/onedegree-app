@@ -141,7 +141,7 @@ export function AccountMenu() {
     {
       items: [
         { href: "/browse", label: "Explore", icon: Search },
-        { href: "/trips", label: "Trips", icon: CalendarDays },
+        { href: "/dashboard/traveling", label: "Trips", icon: CalendarDays },
         { href: "/inbox", label: "Messages", icon: MessageCircle },
         { href: "/wishlists", label: "Wishlists", icon: Heart },
         { href: profileHref, label: "Profile", icon: User },
@@ -179,7 +179,7 @@ export function AccountMenu() {
   const hostingSections: MenuSection[] = [
     {
       items: [
-        { href: "/hosting", label: "Hosting dashboard", icon: LayoutGrid },
+        { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
         { href: "/hosting/create", label: "Create a new listing", icon: Plus },
         { href: "/inbox", label: "Messages", icon: MessageCircle },
         { href: profileHref, label: "Profile", icon: User },

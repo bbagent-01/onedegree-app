@@ -47,17 +47,17 @@ const travelingTabs: Tab[] = [
     match: (p) => p.startsWith("/browse"),
   },
   { href: "/wishlists", label: "Wishlists", icon: Heart, match: (p) => p.startsWith("/wishlists") },
-  { href: "/trips", label: "Trips", icon: CalendarDays },
+  { href: "/dashboard/traveling", label: "Trips", icon: CalendarDays, match: (p) => p.startsWith("/dashboard/traveling") || p.startsWith("/trips") },
   { href: "/inbox", label: "Inbox", icon: MessageCircle, match: (p) => p.startsWith("/inbox") },
   { label: "Menu", icon: Menu, isMenu: true },
 ];
 
 const hostingTabs: Tab[] = [
   {
-    href: "/hosting",
+    href: "/dashboard",
     label: "Today",
     icon: LayoutGrid,
-    match: (p) => p === "/hosting",
+    match: (p) => p === "/dashboard" || p === "/hosting",
   },
   {
     href: "/hosting/create",
@@ -225,7 +225,7 @@ export function MobileNav() {
               {mode === "hosting" && (
                 <div className="mb-3 grid grid-cols-2 gap-3">
                   <Link
-                    href="/hosting"
+                    href="/dashboard"
                     onClick={closeMenu}
                     className="rounded-2xl border border-border bg-white p-4 hover:bg-muted/30"
                   >
@@ -236,7 +236,7 @@ export function MobileNav() {
                     <div className="mt-3 text-2xl font-semibold">$0</div>
                   </Link>
                   <Link
-                    href="/hosting"
+                    href="/dashboard"
                     onClick={closeMenu}
                     className="rounded-2xl border border-border bg-white p-4 hover:bg-muted/30"
                   >
@@ -277,7 +277,7 @@ export function MobileNav() {
                     onClick={closeMenu}
                   />
                   <MenuLink
-                    href="/trips"
+                    href="/dashboard/traveling"
                     icon={CalendarDays}
                     label="Trips"
                     onClick={closeMenu}
