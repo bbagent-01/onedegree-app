@@ -257,11 +257,35 @@ export default function CreateListingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate from localStorage
+  // Hydrate from localStorage. Sanitize any bad values from old drafts
+  // (e.g. lat/lng saved as null) so they don't override the defaults.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setState({ ...initialState, ...JSON.parse(raw) });
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<WizardState>;
+        // Drop any fields that are null or invalid so the spread below
+        // falls back to initialState values for those fields.
+        const clean: Partial<WizardState> = {};
+        for (const [k, v] of Object.entries(parsed)) {
+          if (v === null || v === undefined) continue;
+          (clean as Record<string, unknown>)[k] = v;
+        }
+        // Extra guard: lat/lng must be finite numbers, otherwise drop them.
+        if (
+          "lat" in clean &&
+          (typeof clean.lat !== "number" || !Number.isFinite(clean.lat))
+        ) {
+          delete clean.lat;
+        }
+        if (
+          "lng" in clean &&
+          (typeof clean.lng !== "number" || !Number.isFinite(clean.lng))
+        ) {
+          delete clean.lng;
+        }
+        setState({ ...initialState, ...clean });
+      }
     } catch {}
     setHydrated(true);
   }, []);
@@ -716,7 +740,22 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
     }
   };
 
-  const hasPin = state.lat && state.lng;
+  // Defensive: map always renders. Fall back to NYC if state.lat/lng are
+  // missing or not finite numbers (could happen if a stale localStorage
+  // draft saved them as null/string/undefined).
+  const mapLat =
+    typeof state.lat === "number" && Number.isFinite(state.lat)
+      ? state.lat
+      : 40.7128;
+  const mapLng =
+    typeof state.lng === "number" && Number.isFinite(state.lng)
+      ? state.lng
+      : -74.006;
+  const hasPin =
+    typeof state.lat === "number" &&
+    Number.isFinite(state.lat) &&
+    typeof state.lng === "number" &&
+    Number.isFinite(state.lng);
 
   return (
     <div>
@@ -726,7 +765,12 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
       />
       <div className="space-y-4">
         <div className="relative">
-          <Label className="mb-2 block text-sm font-semibold">Street address</Label>
+          <Label className="mb-2 block text-sm font-semibold">
+            Street address
+            <span className="ml-2 font-normal text-muted-foreground">
+              — start typing for suggestions
+            </span>
+          </Label>
           <Input
             className={BIG_INPUT}
             value={state.street}
@@ -826,21 +870,21 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
             to fine-tune.
           </span>
         </div>
-        {hasPin && (
-          <div className="space-y-2">
-            <LocationPreview
-              lat={state.lat}
-              lng={state.lng}
-              onChange={(newLat, newLng) => {
-                update("lat", newLat);
-                update("lng", newLng);
-              }}
-            />
-            <p className="text-xs font-medium text-muted-foreground">
-              Pinned at {state.lat.toFixed(4)}, {state.lng.toFixed(4)}
-            </p>
-          </div>
-        )}
+        <div className="space-y-2">
+          <LocationPreview
+            lat={mapLat}
+            lng={mapLng}
+            onChange={(newLat, newLng) => {
+              update("lat", newLat);
+              update("lng", newLng);
+            }}
+          />
+          <p className="text-xs font-medium text-muted-foreground">
+            {hasPin
+              ? `Pinned at ${mapLat.toFixed(4)}, ${mapLng.toFixed(4)} — drag the pin to fine-tune`
+              : "Pick an address above or drag the pin to place your listing"}
+          </p>
+        </div>
       </div>
     </div>
   );
