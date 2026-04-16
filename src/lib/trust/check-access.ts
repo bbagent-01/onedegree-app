@@ -64,12 +64,14 @@ export function checkListingAccess(
 
   // null/undefined visibility_mode treated as preview_gated (default)
 
-  // Anonymous viewers: only see_preview if it's set to "anyone"
+  // Anonymous viewers: only get through rules set to "anyone_anywhere".
+  // Any other type (anyone, min_score, max_degrees, specific_people)
+  // implicitly requires a signed-in viewer.
   if (!viewerId) {
     const settings = listing.access_settings ?? DEFAULT_ACCESS_SETTINGS;
     return {
       can_see_preview: evaluateRule(settings.see_preview, null, score, degrees),
-      can_see_full: false,
+      can_see_full: evaluateRule(settings.see_full, null, score, degrees),
       can_request_book: false,
       can_message: false,
       can_request_intro: false,
@@ -127,17 +129,24 @@ function evaluateRule(
   if (!rule) return false;
 
   switch (rule.type) {
-    case "anyone":
+    case "anyone_anywhere":
+      // Public web — signed-in not required.
       return true;
 
+    case "anyone":
+      // Any signed-in user on the platform.
+      return viewerId != null;
+
     case "min_score":
-      return score >= (rule.threshold ?? 0);
+      // Signed-in + trust score threshold met.
+      return viewerId != null && score >= (rule.threshold ?? 0);
 
     case "specific_people":
       return viewerId != null && (rule.user_ids ?? []).includes(viewerId);
 
     case "max_degrees":
       return (
+        viewerId != null &&
         degrees !== undefined &&
         degrees !== null &&
         degrees <= (rule.threshold ?? 0)

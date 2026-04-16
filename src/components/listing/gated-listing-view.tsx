@@ -22,16 +22,19 @@ interface Props {
  * experience — not a loading state or broken page.
  */
 export function GatedListingView({ listing, trust, isSignedIn }: Props) {
-  // Preview photos are opt-in. If host selected some, show those.
-  // If they didn't, fall back to the cover photo heavily blurred.
-  const previewPhotos = listing.photos.filter((p) => p.is_preview);
-  const hasPreviewPhotos = previewPhotos.length > 0;
+  // Preview photo set — cover always included, blurred if not also
+  // marked is_preview. Other is_preview photos shown unblurred.
   const coverPhoto = listing.photos.find((p) => p.is_cover) || listing.photos[0];
-  const displayPhotos = hasPreviewPhotos
-    ? previewPhotos.slice(0, 3)
-    : coverPhoto
-      ? [coverPhoto]
-      : [];
+  const displayPhotos: { photo: typeof listing.photos[number]; blur: boolean }[] = [];
+  if (coverPhoto) {
+    displayPhotos.push({ photo: coverPhoto, blur: !coverPhoto.is_preview });
+  }
+  for (const p of listing.photos) {
+    if (p === coverPhoto) continue;
+    if (p.is_preview) displayPhotos.push({ photo: p, blur: false });
+  }
+  const limitedDisplay = displayPhotos.slice(0, 3);
+  const hasPreviewPhotos = limitedDisplay.some((p) => !p.blur);
 
   const propertyLabel =
     listing.property_type === "room"
@@ -93,28 +96,28 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
         </div>
       </div>
 
-      {/* Preview photos — constrained gallery, not full gallery */}
+      {/* Preview photos — constrained gallery, per-photo blur */}
       <div className="relative overflow-hidden rounded-2xl">
-        {displayPhotos.length === 1 ? (
+        {limitedDisplay.length === 1 ? (
           <div className="relative aspect-[16/10] w-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={displayPhotos[0].public_url}
+              src={limitedDisplay[0].photo.public_url}
               alt={`Preview of listing in ${listing.area_name}`}
               className={
-                hasPreviewPhotos
-                  ? "h-full w-full object-cover saturate-[0.85]"
-                  : "h-full w-full scale-110 object-cover blur-2xl saturate-[0.7]"
+                limitedDisplay[0].blur
+                  ? "h-full w-full scale-110 object-cover blur-2xl"
+                  : "h-full w-full object-cover saturate-[0.92]"
               }
             />
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-1">
-            {displayPhotos.slice(0, 3).map((photo, i) => (
+            {limitedDisplay.map(({ photo, blur }, i) => (
               <div
                 key={photo.id}
                 className={
-                  i === 0 && displayPhotos.length > 1
+                  i === 0 && limitedDisplay.length > 1
                     ? "col-span-2 aspect-[2/1]"
                     : "aspect-square"
                 }
@@ -124,16 +127,16 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
                   src={photo.public_url}
                   alt={`Preview photo ${i + 1}`}
                   className={
-                    hasPreviewPhotos
-                      ? "h-full w-full object-cover saturate-[0.85]"
-                      : "h-full w-full scale-110 object-cover blur-2xl saturate-[0.7]"
+                    blur
+                      ? "h-full w-full scale-110 object-cover blur-2xl"
+                      : "h-full w-full object-cover saturate-[0.92]"
                   }
                 />
               </div>
             ))}
           </div>
         )}
-        {!hasPreviewPhotos && displayPhotos.length > 0 && (
+        {!hasPreviewPhotos && limitedDisplay.length > 0 && (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-black/40 via-black/10 to-transparent">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-foreground shadow-sm backdrop-blur">
               <Lock className="h-3.5 w-3.5" /> Photos unlocked with access

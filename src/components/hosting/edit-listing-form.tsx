@@ -521,8 +521,8 @@ export function EditListingForm({
     setVisibilityMode("preview_gated");
     if (preset === "public") {
       setAccessRules({
-        see_preview: { type: "anyone" },
-        see_full: { type: "anyone" },
+        see_preview: { type: "anyone_anywhere" },
+        see_full: { type: "min_score", threshold: 30 },
         request_book: { type: "anyone" },
         message: { type: "anyone" },
         request_intro: { type: "anyone" },
@@ -537,11 +537,11 @@ export function EditListingForm({
       });
     } else if (preset === "private") {
       setAccessRules({
-        see_preview: { type: "anyone" },
-        see_full: { type: "min_score", threshold: 30 },
-        request_book: { type: "min_score", threshold: 40 },
-        message: { type: "min_score", threshold: 30 },
-        request_intro: { type: "anyone" },
+        see_preview: { type: "specific_people", user_ids: [] },
+        see_full: { type: "specific_people", user_ids: [] },
+        request_book: { type: "specific_people", user_ids: [] },
+        message: { type: "specific_people", user_ids: [] },
+        request_intro: { type: "min_score", threshold: 30 },
       });
     }
   };
@@ -570,33 +570,40 @@ export function EditListingForm({
     });
   };
 
+  // Preview photos are fully opt-in. Even the cover can be toggled off;
+  // it will be shown blurred in the preview fallback.
   const togglePreviewPhoto = (idx: number) => {
     const next = photos.map((p, i) =>
       i === idx ? { ...p, is_preview: !p.is_preview } : p
     );
-    if (!next.some((p) => p.is_preview) && next.length > 0) {
-      const coverIdx = next.findIndex((p) => p.is_cover);
-      next[coverIdx >= 0 ? coverIdx : 0].is_preview = true;
-    }
     setPhotos(next);
   };
 
   // Infer which preset the current access rules match, so the card stays
   // highlighted when the user re-opens the tab.
   const currentPreset: "standard" | "public" | "private" | null = (() => {
-    const rules = Object.values(accessRules);
-    if (rules.every((r) => r.type === "anyone")) return "public";
+    const isPublic =
+      accessRules.see_preview.type === "anyone_anywhere" &&
+      accessRules.see_full.type === "min_score" &&
+      accessRules.see_full.threshold === 30 &&
+      accessRules.request_book.type === "anyone" &&
+      accessRules.message.type === "anyone" &&
+      accessRules.request_intro.type === "anyone";
+    if (isPublic) return "public";
     const isStandard =
+      accessRules.see_preview.type === "anyone" &&
       accessRules.see_full.type === "min_score" &&
       accessRules.see_full.threshold === 10 &&
       accessRules.request_book.type === "min_score" &&
       accessRules.request_book.threshold === 20;
     if (isStandard) return "standard";
     const isPrivate =
-      accessRules.see_full.type === "min_score" &&
-      accessRules.see_full.threshold === 30 &&
-      accessRules.request_book.type === "min_score" &&
-      accessRules.request_book.threshold === 40;
+      accessRules.see_preview.type === "specific_people" &&
+      accessRules.see_full.type === "specific_people" &&
+      accessRules.request_book.type === "specific_people" &&
+      accessRules.message.type === "specific_people" &&
+      accessRules.request_intro.type === "min_score" &&
+      accessRules.request_intro.threshold === 30;
     if (isPrivate) return "private";
     return null;
   })();
@@ -1149,7 +1156,8 @@ export function EditListingForm({
             </Label>
             <p className="text-xs text-muted-foreground">
               Tap to toggle whether each photo appears in the preview. The cover
-              (set in the Photos tab) is always included.
+              is always included &mdash; but if you don&apos;t mark it as a
+              preview too, it&apos;ll be shown blurred.
             </p>
             {photos.length === 0 ? (
               <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
@@ -1216,8 +1224,8 @@ export function EditListingForm({
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               {([
                 ["standard", "Standard", "Anonymous preview for everyone. Full listing gated by trust."],
-                ["public", "Public", "Full listing visible to anyone on the platform."],
-                ["private", "Private", "Only people with a strong 1° connection can unlock this listing."],
+                ["public", "Public", "Preview is public (no sign-in needed). Full listing requires a 1° score."],
+                ["private", "Private", "Invite-only. Only people you add can see or book. Others can still request an intro."],
               ] as const).map(([key, label, desc]) => (
                 <button
                   key={key}
@@ -1265,7 +1273,8 @@ export function EditListingForm({
                         onChange={(e) => updateRule(key, "type", e.target.value)}
                         className="h-10 rounded-lg border border-border bg-white px-3 text-sm focus-visible:border-brand focus-visible:outline-none"
                       >
-                        <option value="anyone">Anyone on platform</option>
+                        <option value="anyone_anywhere">Anyone (incl. not signed in)</option>
+                        <option value="anyone">Anyone signed in</option>
                         <option value="min_score">Min 1° score</option>
                         <option value="max_degrees">Within N degrees</option>
                         <option value="specific_people">Specific people</option>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import {
   Home,
   DoorOpen,
@@ -49,7 +50,12 @@ type PropertyLabel =
   | "Other";
 
 type VisibilityMode = "public" | "preview_gated" | "hidden";
-type AccessType = "anyone" | "min_score" | "max_degrees" | "specific_people";
+type AccessType =
+  | "anyone_anywhere"
+  | "anyone"
+  | "min_score"
+  | "max_degrees"
+  | "specific_people";
 
 interface AccessRuleState {
   type: AccessType;
@@ -193,6 +199,7 @@ const AMENITY_GROUPS: Record<string, string[]> = {
 };
 
 function buildAccessRule(rule: AccessRuleState): { type: string; threshold?: number; user_ids?: string[] } {
+  if (rule.type === "anyone_anywhere") return { type: "anyone_anywhere" };
   if (rule.type === "anyone") return { type: "anyone" };
   if (rule.type === "min_score") return { type: "min_score", threshold: Number(rule.threshold) || 0 };
   if (rule.type === "max_degrees") return { type: "max_degrees", threshold: Number(rule.threshold) || 2 };
@@ -269,6 +276,21 @@ export default function CreateListingPage() {
   const [state, setState] = useState<WizardState>(initialState);
   const [submitting, setSubmitting] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  // Logged-in user — feeds the Meet Your Host / Hosted by labels in
+  // the preview & review mocks so the host sees their own real name.
+  const { user } = useUser();
+  const viewer = {
+    firstName:
+      user?.firstName ||
+      user?.username ||
+      (user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] ?? "") ||
+      "",
+    fullName:
+      user?.fullName ||
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+      user?.username ||
+      "",
+  };
 
   // Hydrate from localStorage. Sanitize any bad values from old drafts
   // (e.g. lat/lng saved as null) so they don't override the defaults.
@@ -550,11 +572,14 @@ export default function CreateListingPage() {
           <Step5 state={state} update={update} toggleRule={toggleRule} />
         )}
         {state.step === 6 && <Step6 state={state} update={update} />}
-        {state.step === 7 && <Step7Preview state={state} update={update} />}
+        {state.step === 7 && (
+          <Step7Preview state={state} update={update} viewer={viewer} />
+        )}
         {state.step === 8 && <Step8Visibility state={state} update={update} />}
         {state.step === 9 && (
           <Step9Review
             state={state}
+            viewer={viewer}
             onBack={back}
             onPublish={publish}
             submitting={submitting}
@@ -904,6 +929,16 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
             they book &mdash; your exact address stays private. Drag the pin
             to fine-tune.
           </span>
+        </div>
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-foreground">
+          Currently only serving the US market. If you live outside the US,{" "}
+          <a
+            href="mailto:hello@onedegreebnb.com?subject=Add%20my%20region%20to%20One%20Degree%20BNB"
+            className="font-semibold underline underline-offset-2"
+          >
+            contact us here
+          </a>{" "}
+          to request adding your region.
         </div>
         <div className="space-y-2">
           <LocationPreview
@@ -1379,12 +1414,19 @@ type AccessKey =
 // Step 7 — Listing Preview
 // Host controls what shows in the anonymous preview + sees a live mock.
 // ──────────────────────────────────────────────────────────────────
+interface Viewer {
+  firstName: string;
+  fullName: string;
+}
+
 function Step7Preview({
   state,
   update,
+  viewer,
 }: {
   state: WizardState;
   update: UpdateFn;
+  viewer: Viewer;
 }) {
   // Description handled as its own block below with a sub-toggle.
   const PREVIEW_TOGGLES: {
@@ -1403,14 +1445,12 @@ function Step7Preview({
     { key: "previewShowHouseRules", label: "House rules", desc: "Rules you set for guests" },
   ];
 
+  // Preview photos are fully opt-in. Even the cover can be toggled off;
+  // in that case the cover is shown blurred in the preview fallback.
   const togglePreviewPhoto = (idx: number) => {
     const next = state.photos.map((p, i) =>
       i === idx ? { ...p, is_preview: !p.is_preview } : p
     );
-    if (!next.some((p) => p.is_preview) && next.length > 0) {
-      const coverIdx = next.findIndex((p) => p.is_cover);
-      next[coverIdx >= 0 ? coverIdx : 0].is_preview = true;
-    }
     update("photos", next);
   };
 
@@ -1575,7 +1615,8 @@ function Step7Preview({
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Tap the eye to include a photo in the preview. 2&ndash;3 photos work
-            best. The cover (star, set in the Photos step) is always included.
+            best. The cover is always included &mdash; but if you don&apos;t mark
+            it as a preview too, it&apos;ll be shown blurred.
           </p>
           {state.photos.length === 0 ? (
             <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
@@ -1639,13 +1680,13 @@ function Step7Preview({
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Full tile (after unlock)
               </div>
-              <ListingTileMock state={state} mode="full" />
+              <ListingTileMock state={state} mode="full" viewer={viewer} />
             </div>
             <div>
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Preview tile (before unlock)
               </div>
-              <ListingTileMock state={state} mode="preview" />
+              <ListingTileMock state={state} mode="preview" viewer={viewer} />
             </div>
           </div>
         </div>
@@ -1656,7 +1697,7 @@ function Step7Preview({
             <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Preview listing page
             </div>
-            <ListingDetailMock state={state} mode="preview" />
+            <ListingDetailMock state={state} mode="preview" viewer={viewer} />
           </div>
         </div>
       </div>
@@ -1685,33 +1726,55 @@ function getListingDisplay(state: WizardState) {
   return { priceDisplay, previewDesc, coverPhoto, previewPhotos };
 }
 
+/**
+ * Resolve the photos a preview viewer should see, with per-photo blur
+ * state. Rule:
+ *   - The cover is always included (first in the list).
+ *   - Any photo explicitly marked is_preview is included unblurred.
+ *   - If the cover is NOT marked is_preview, it's shown blurred (full
+ *     color — just the blur filter, no desaturation).
+ */
+function getPreviewPhotoSet(
+  photos: UploadedPhoto[]
+): { url: string; blur: boolean }[] {
+  const out: { url: string; blur: boolean }[] = [];
+  const cover = photos.find((p) => p.is_cover) || photos[0];
+  if (cover) {
+    out.push({ url: cover.public_url, blur: !cover.is_preview });
+  }
+  for (const p of photos) {
+    if (p === cover) continue;
+    if (p.is_preview) out.push({ url: p.public_url, blur: false });
+  }
+  return out;
+}
+
 function ListingTileMock({
   state,
   mode,
+  viewer,
 }: {
   state: WizardState;
   mode: "preview" | "full";
+  viewer: Viewer;
 }) {
-  const { priceDisplay, coverPhoto, previewPhotos } = getListingDisplay(state);
+  const { priceDisplay, coverPhoto } = getListingDisplay(state);
   const isPreview = mode === "preview";
-  const hasPreviewPhotos = previewPhotos.length > 0;
   const allPhotos = state.photos;
 
-  // Full mode: carousel through ALL photos (cover first).
-  // Preview mode: carousel through preview photos only; if none, show
-  // a single blurred cover photo (no carousel).
-  const fullImages = allPhotos.length > 0
-    ? [
-        ...(coverPhoto ? [coverPhoto] : []),
-        ...allPhotos.filter((p) => !p.is_cover),
-      ].map((p) => p.public_url)
-    : [];
-  const previewImages = hasPreviewPhotos
-    ? previewPhotos.map((p) => p.public_url)
-    : coverPhoto
-      ? [coverPhoto.public_url]
+  // Full mode: carousel through ALL photos (cover first), never blurred.
+  // Preview mode: use getPreviewPhotoSet — cover always included, blurred
+  // when cover isn't also marked is_preview; other is_preview photos
+  // shown unblurred.
+  const fullImages =
+    allPhotos.length > 0
+      ? [
+          ...(coverPhoto ? [coverPhoto] : []),
+          ...allPhotos.filter((p) => !p.is_cover),
+        ].map((p) => ({ url: p.public_url, blur: false }))
       : [];
-  const images = isPreview ? previewImages : fullImages;
+  const previewSet = getPreviewPhotoSet(allPhotos);
+  const images = isPreview ? previewSet : fullImages;
 
   const [idx, setIdx] = useState(0);
   // Reset index when images array shrinks
@@ -1731,7 +1794,6 @@ function ListingTileMock({
   };
 
   const currentImg = images[idx];
-  const blurPreview = isPreview && !hasPreviewPhotos;
 
   // Resolve the tile's display fields per mode + toggles
   const tileTitle = isPreview
@@ -1748,11 +1810,17 @@ function ListingTileMock({
       : null
     : state.areaName || state.city || "";
 
+  // Host label. In preview: use first name when the toggle is on, else
+  // the anonymous label. In full: use the full name.
   const tileHost = isPreview
     ? state.previewShowHostFirstName
-      ? "Hosted by you"
+      ? viewer.firstName
+        ? `Hosted by ${viewer.firstName}`
+        : "Hosted by you"
       : "Hosted by a verified member"
-    : "Hosted by you";
+    : viewer.fullName
+      ? `Hosted by ${viewer.fullName}`
+      : "Hosted by you";
 
   return (
     <div className="group w-full max-w-xs">
@@ -1760,14 +1828,12 @@ function ListingTileMock({
         {currentImg ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={currentImg}
+            src={currentImg.url}
             alt="Listing photo"
             className={cn(
               "h-full w-full object-cover",
-              isPreview &&
-                (hasPreviewPhotos
-                  ? "saturate-[0.85] brightness-[0.97]"
-                  : "scale-110 blur-lg saturate-[0.7]")
+              isPreview && currentImg.blur && "scale-110 blur-lg",
+              isPreview && !currentImg.blur && "saturate-[0.92]"
             )}
           />
         ) : (
@@ -1782,8 +1848,8 @@ function ListingTileMock({
           </div>
         )}
 
-        {/* Carousel controls — hide when only 1 image or when preview is blurred cover */}
-        {images.length > 1 && !blurPreview && (
+        {/* Carousel controls — always available when there's more than 1 image */}
+        {images.length > 1 && (
           <>
             <button
               onClick={prev}
@@ -1844,26 +1910,25 @@ function ListingTileMock({
 function ListingDetailMock({
   state,
   mode,
+  viewer,
 }: {
   state: WizardState;
   mode: "preview" | "full";
+  viewer: Viewer;
 }) {
-  const { priceDisplay, previewDesc, previewPhotos, coverPhoto } =
-    getListingDisplay(state);
+  const { priceDisplay, previewDesc, coverPhoto } = getListingDisplay(state);
   const isPreview = mode === "preview";
-  const hasPreviewPhotos = previewPhotos.length > 0;
-  // Preview: show selected preview photos (or single blurred cover).
-  // Full: show all photos, cover first.
+  // Preview: cover always included, blurred if not is_preview; other
+  //   is_preview photos shown unblurred.
+  // Full: all photos (cover first), never blurred.
   const photosToShow = isPreview
-    ? hasPreviewPhotos
-      ? previewPhotos.slice(0, 5)
-      : coverPhoto
-        ? [coverPhoto]
-        : []
-    : coverPhoto
-      ? [coverPhoto, ...state.photos.filter((p) => !p.is_cover)].slice(0, 5)
-      : state.photos.slice(0, 5);
-  const blurPhotos = isPreview && !hasPreviewPhotos;
+    ? getPreviewPhotoSet(state.photos).slice(0, 5)
+    : (coverPhoto
+        ? [coverPhoto, ...state.photos.filter((p) => !p.is_cover)]
+        : state.photos
+      )
+        .slice(0, 5)
+        .map((p) => ({ url: p.public_url, blur: false }));
 
   const propertyLabel =
     state.placeKind === "private"
@@ -1887,12 +1952,8 @@ function ListingDetailMock({
 
   return (
     <div className="overflow-hidden rounded-2xl bg-white">
-      {/* Photo grid — adaptive layout based on count */}
-      <AdaptivePhotoGrid
-        photos={photosToShow}
-        blur={blurPhotos}
-        dimmed={isPreview && !blurPhotos}
-      />
+      {/* Photo grid — adaptive layout based on count, per-photo blur */}
+      <AdaptivePhotoGrid photos={photosToShow} dimmed={isPreview} />
 
       <div className="px-4 py-8 md:px-8">
         {/* Title row */}
@@ -1943,15 +2004,21 @@ function ListingDetailMock({
             {/* Host card */}
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-lg font-semibold text-muted-foreground">
-                {isPreview && !show("previewShowHostFirstName") ? "?" : "Y"}
+                {isPreview && !show("previewShowHostFirstName")
+                  ? "?"
+                  : (viewer.firstName || "Y").charAt(0).toUpperCase()}
               </div>
               <div>
                 <div className="text-lg font-semibold">
                   {isPreview
                     ? show("previewShowHostFirstName")
-                      ? "Hosted by you"
+                      ? viewer.firstName
+                        ? `Hosted by ${viewer.firstName}`
+                        : "Hosted by you"
                       : "Hosted by a verified member"
-                    : "Hosted by you"}
+                    : viewer.fullName
+                      ? `Hosted by ${viewer.fullName}`
+                      : "Hosted by you"}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {isPreview && !show("previewShowHostFirstName")
@@ -2184,12 +2251,16 @@ function ListingDetailMock({
             <div className="rounded-xl border border-border/60 p-6 md:col-span-1">
               <div className="flex flex-col items-center text-center">
                 <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted text-2xl font-semibold text-muted-foreground">
-                  {isPreview && !show("previewShowHostFirstName") ? "?" : "Y"}
+                  {isPreview && !show("previewShowHostFirstName")
+                    ? "?"
+                    : (viewer.firstName || "Y").charAt(0).toUpperCase()}
                 </div>
                 <div className="mt-3 text-xl font-semibold">
-                  {isPreview && !show("previewShowHostFirstName")
-                    ? "Verified member"
-                    : "You"}
+                  {isPreview
+                    ? show("previewShowHostFirstName")
+                      ? viewer.firstName || "You"
+                      : "Verified member"
+                    : viewer.fullName || "You"}
                 </div>
               </div>
               <div className="mt-6 space-y-3 border-t border-border/60 pt-4 text-sm">
@@ -2211,7 +2282,9 @@ function ListingDetailMock({
               <p className="whitespace-pre-wrap text-base leading-relaxed">
                 {isPreview && !show("previewShowHostFirstName")
                   ? "Host profile is revealed once you meet the trust threshold."
-                  : "You are a host on One Degree BNB."}
+                  : viewer.fullName
+                    ? `${viewer.fullName} is a host on One Degree BNB.`
+                    : "You are a host on One Degree BNB."}
               </p>
             </div>
           </div>
@@ -2223,15 +2296,14 @@ function ListingDetailMock({
 
 /**
  * Adaptive photo grid — visual layout changes based on how many
- * photos are provided (1, 2, 3, or 4+). Mirrors Airbnb-style galleries.
+ * photos are provided (1, 2, 3, 4, or 5+). Per-photo `blur` lets the
+ * cover stay blurred while other preview photos show in full detail.
  */
 function AdaptivePhotoGrid({
   photos,
-  blur,
   dimmed,
 }: {
-  photos: UploadedPhoto[];
-  blur: boolean;
+  photos: { url: string; blur: boolean }[];
   dimmed: boolean;
 }) {
   if (photos.length === 0) {
@@ -2242,65 +2314,81 @@ function AdaptivePhotoGrid({
     );
   }
 
-  const photoClass = cn(
-    "h-full w-full object-cover transition-all",
-    blur && "scale-110 blur-2xl saturate-[0.7]",
-    !blur && dimmed && "saturate-[0.85]"
-  );
-
-  const Photo = ({ url, alt }: { url: string; alt: string }) => (
-    <div className="h-full w-full overflow-hidden">
+  const Photo = ({
+    url,
+    blur,
+    alt,
+  }: {
+    url: string;
+    blur: boolean;
+    alt: string;
+  }) => (
+    <div className="relative h-full w-full overflow-hidden">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={alt} className={photoClass} />
+      <img
+        src={url}
+        alt={alt}
+        className={cn(
+          "h-full w-full object-cover transition-all",
+          blur
+            ? "scale-110 blur-2xl"
+            : dimmed
+              ? "saturate-[0.92]"
+              : undefined
+        )}
+      />
     </div>
   );
 
   const count = photos.length;
+  // Show the "unlocked with access" overlay only if every shown photo
+  // is blurred (i.e. cover is the only photo and it's not is_preview).
+  const allBlurred = photos.every((p) => p.blur);
 
   return (
-    <div className="relative rounded-t-2xl overflow-hidden md:rounded-t-2xl">
+    <div className="relative overflow-hidden rounded-t-2xl md:rounded-t-2xl">
       {count === 1 && (
         <div className="h-64 md:h-[480px]">
-          <Photo url={photos[0].public_url} alt="Listing photo" />
+          <Photo url={photos[0].url} blur={photos[0].blur} alt="Listing photo" />
         </div>
       )}
       {count === 2 && (
         <div className="grid h-64 grid-cols-2 gap-1 md:h-[480px]">
-          <Photo url={photos[0].public_url} alt="Photo 1" />
-          <Photo url={photos[1].public_url} alt="Photo 2" />
+          <Photo url={photos[0].url} blur={photos[0].blur} alt="Photo 1" />
+          <Photo url={photos[1].url} blur={photos[1].blur} alt="Photo 2" />
         </div>
       )}
       {count === 3 && (
         <div className="grid h-64 grid-cols-2 gap-1 md:h-[480px]">
-          <Photo url={photos[0].public_url} alt="Photo 1" />
+          <Photo url={photos[0].url} blur={photos[0].blur} alt="Photo 1" />
           <div className="grid h-full grid-rows-2 gap-1">
-            <Photo url={photos[1].public_url} alt="Photo 2" />
-            <Photo url={photos[2].public_url} alt="Photo 3" />
+            <Photo url={photos[1].url} blur={photos[1].blur} alt="Photo 2" />
+            <Photo url={photos[2].url} blur={photos[2].blur} alt="Photo 3" />
           </div>
         </div>
       )}
       {count === 4 && (
         <div className="grid h-64 grid-cols-2 grid-rows-2 gap-1 md:h-[480px]">
-          <Photo url={photos[0].public_url} alt="Photo 1" />
-          <Photo url={photos[1].public_url} alt="Photo 2" />
-          <Photo url={photos[2].public_url} alt="Photo 3" />
-          <Photo url={photos[3].public_url} alt="Photo 4" />
+          <Photo url={photos[0].url} blur={photos[0].blur} alt="Photo 1" />
+          <Photo url={photos[1].url} blur={photos[1].blur} alt="Photo 2" />
+          <Photo url={photos[2].url} blur={photos[2].blur} alt="Photo 3" />
+          <Photo url={photos[3].url} blur={photos[3].blur} alt="Photo 4" />
         </div>
       )}
       {/* 5+ photos: classic Airbnb gallery — 1 big hero left, 2x2 on right. */}
       {count >= 5 && (
         <div className="grid h-64 grid-cols-4 grid-rows-2 gap-1 md:h-[480px]">
           <div className="col-span-2 row-span-2">
-            <Photo url={photos[0].public_url} alt="Photo 1" />
+            <Photo url={photos[0].url} blur={photos[0].blur} alt="Photo 1" />
           </div>
-          <Photo url={photos[1].public_url} alt="Photo 2" />
-          <Photo url={photos[2].public_url} alt="Photo 3" />
-          <Photo url={photos[3].public_url} alt="Photo 4" />
-          <Photo url={photos[4].public_url} alt="Photo 5" />
+          <Photo url={photos[1].url} blur={photos[1].blur} alt="Photo 2" />
+          <Photo url={photos[2].url} blur={photos[2].blur} alt="Photo 3" />
+          <Photo url={photos[3].url} blur={photos[3].blur} alt="Photo 4" />
+          <Photo url={photos[4].url} blur={photos[4].blur} alt="Photo 5" />
         </div>
       )}
 
-      {blur && (
+      {allBlurred && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-foreground shadow-sm backdrop-blur">
             <Lock className="h-3.5 w-3.5" /> Photos unlocked with access
@@ -2350,7 +2438,7 @@ function Step8Visibility({
     {
       key: "private",
       label: "Private",
-      desc: "Only people with a strong 1\u00B0 connection can unlock this listing.",
+      desc: "Invite-only. Only people you add can see or book. Others can still request an intro.",
     },
   ];
 
@@ -2363,7 +2451,8 @@ function Step8Visibility({
   ];
 
   const ACCESS_TYPES: { key: AccessType; label: string }[] = [
-    { key: "anyone", label: "Anyone on platform" },
+    { key: "anyone_anywhere", label: "Anyone (incl. not signed in)" },
+    { key: "anyone", label: "Anyone signed in" },
     { key: "min_score", label: "Min 1\u00B0 score" },
     { key: "max_degrees", label: "Within N degrees" },
     { key: "specific_people", label: "Specific people" },
@@ -2384,8 +2473,11 @@ function Step8Visibility({
   const applyPreset = (preset: "standard" | "public" | "private") => {
     update("visibilityMode", "preview_gated");
     if (preset === "public") {
-      update("accessSeePreview", { type: "anyone", threshold: "" });
-      update("accessSeeFull", { type: "anyone", threshold: "" });
+      // Preview visible to the public web (no sign-in required).
+      // Full listing still requires a 1° score of 30. Messaging /
+      // booking / intro open to anyone signed in.
+      update("accessSeePreview", { type: "anyone_anywhere", threshold: "" });
+      update("accessSeeFull", { type: "min_score", threshold: "30" });
       update("accessRequestBook", { type: "anyone", threshold: "" });
       update("accessMessage", { type: "anyone", threshold: "" });
       update("accessRequestIntro", { type: "anyone", threshold: "" });
@@ -2396,36 +2488,42 @@ function Step8Visibility({
       update("accessMessage", { type: "min_score", threshold: "10" });
       update("accessRequestIntro", { type: "anyone", threshold: "" });
     } else if (preset === "private") {
-      update("accessSeePreview", { type: "anyone", threshold: "" });
-      update("accessSeeFull", { type: "min_score", threshold: "30" });
-      update("accessRequestBook", { type: "min_score", threshold: "40" });
-      update("accessMessage", { type: "min_score", threshold: "30" });
-      update("accessRequestIntro", { type: "anyone", threshold: "" });
+      // Strict invite-only feel: almost everything locked to specific
+      // people the host adds. Request Introduction is the one escape
+      // hatch (min_score 30) so outsiders can politely ask.
+      update("accessSeePreview", { type: "specific_people", threshold: "" });
+      update("accessSeeFull", { type: "specific_people", threshold: "" });
+      update("accessRequestBook", { type: "specific_people", threshold: "" });
+      update("accessMessage", { type: "specific_people", threshold: "" });
+      update("accessRequestIntro", { type: "min_score", threshold: "30" });
     }
   };
 
   // Infer which preset most closely matches the current rules, so the
   // selected card keeps highlighting even as the user tweaks settings.
   const currentPreset: "standard" | "public" | "private" | null = (() => {
-    const rules = [
-      state.accessSeePreview,
-      state.accessSeeFull,
-      state.accessRequestBook,
-      state.accessMessage,
-      state.accessRequestIntro,
-    ];
-    if (rules.every((r) => r.type === "anyone")) return "public";
+    const isPublic =
+      state.accessSeePreview.type === "anyone_anywhere" &&
+      state.accessSeeFull.type === "min_score" &&
+      state.accessSeeFull.threshold === "30" &&
+      state.accessRequestBook.type === "anyone" &&
+      state.accessMessage.type === "anyone" &&
+      state.accessRequestIntro.type === "anyone";
+    if (isPublic) return "public";
     const isStandard =
+      state.accessSeePreview.type === "anyone" &&
       state.accessSeeFull.type === "min_score" &&
       state.accessSeeFull.threshold === "10" &&
       state.accessRequestBook.type === "min_score" &&
       state.accessRequestBook.threshold === "20";
     if (isStandard) return "standard";
     const isPrivate =
-      state.accessSeeFull.type === "min_score" &&
-      state.accessSeeFull.threshold === "30" &&
-      state.accessRequestBook.type === "min_score" &&
-      state.accessRequestBook.threshold === "40";
+      state.accessSeePreview.type === "specific_people" &&
+      state.accessSeeFull.type === "specific_people" &&
+      state.accessRequestBook.type === "specific_people" &&
+      state.accessMessage.type === "specific_people" &&
+      state.accessRequestIntro.type === "min_score" &&
+      state.accessRequestIntro.threshold === "30";
     if (isPrivate) return "private";
     return null;
   })();
@@ -2538,11 +2636,13 @@ function Step8Visibility({
 
 function Step9Review({
   state,
+  viewer,
   onBack,
   onPublish,
   submitting,
 }: {
   state: WizardState;
+  viewer: Viewer;
   onBack: () => void;
   onPublish: () => void;
   submitting: boolean;
@@ -2583,7 +2683,7 @@ function Step9Review({
           <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Full listing (this is what unlocked guests see)
           </div>
-          <ListingDetailMock state={state} mode="full" />
+          <ListingDetailMock state={state} mode="full" viewer={viewer} />
         </div>
       </div>
     </div>

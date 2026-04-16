@@ -31,6 +31,10 @@ export async function GET(req: Request) {
   url.searchParams.set("format", "json");
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("addressdetails", "1");
+  // Alpha: restrict results to the US market only. International address
+  // fields (city/state/ZIP conventions) don't fit our form right now;
+  // we'll lift this when we add region-specific handling.
+  url.searchParams.set("countrycodes", "us");
 
   try {
     // NB: `cache: "no-store"` is not implemented on Cloudflare Workers fetch.

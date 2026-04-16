@@ -38,18 +38,26 @@ export function LiveListingCard({
     ? listing.photos.map((p) => p.public_url)
     : [PLACEHOLDER];
 
-  // Preview photos — explicitly marked by the host. May be empty.
-  const previewPhotos = listing.photos.filter((p) => p.is_preview);
-  const hasPreviewPhotos = previewPhotos.length > 0;
+  // Preview set: cover is always included, blurred if cover is not
+  // also marked is_preview. Other is_preview photos shown unblurred.
   const coverPhoto = listing.photos.find((p) => p.is_cover) || listing.photos[0];
-  // If host selected preview photos, use them. Otherwise we fall back
-  // to the cover photo — heavily blurred — so anonymous viewers see
-  // a silhouette-style placeholder instead of the real photos.
-  const previewImages = hasPreviewPhotos
-    ? previewPhotos.slice(0, 3).map((p) => p.public_url)
-    : coverPhoto
-      ? [coverPhoto.public_url]
-      : [PLACEHOLDER];
+  const previewSet: { url: string; blur: boolean }[] = [];
+  if (coverPhoto) {
+    previewSet.push({
+      url: coverPhoto.public_url,
+      blur: !coverPhoto.is_preview,
+    });
+  }
+  for (const p of listing.photos) {
+    if (p === coverPhoto) continue;
+    if (p.is_preview) previewSet.push({ url: p.public_url, blur: false });
+  }
+  const previewImages = previewSet.length > 0
+    ? previewSet.map((p) => p.url)
+    : [PLACEHOLDER];
+  const previewBlurs = previewSet.length > 0
+    ? previewSet.map((p) => p.blur)
+    : [false];
 
   const [currentImage, setCurrentImage] = useState(0);
   const [isSaved, setIsSaved] = useState(initialSaved);
@@ -119,9 +127,9 @@ export function LiveListingCard({
               alt={`Preview of listing in ${listing.area_name}`}
               className={cn(
                 "h-full w-full object-cover",
-                hasPreviewPhotos
-                  ? "saturate-[0.85] brightness-[0.97]"
-                  : "scale-110 blur-lg saturate-[0.7]"
+                previewBlurs[currentImage]
+                  ? "scale-110 blur-lg"
+                  : "saturate-[0.92]"
               )}
             />
 

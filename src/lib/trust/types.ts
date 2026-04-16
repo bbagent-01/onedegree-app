@@ -9,7 +9,19 @@ export type YearsKnownBucket = "lt1" | "1to3" | "3to5" | "5to10" | "10plus";
 
 export type VisibilityMode = "public" | "preview_gated" | "hidden";
 
-export type AccessType = "anyone" | "min_score" | "max_degrees" | "specific_people";
+/**
+ * - "anyone_anywhere": unauthenticated users included (public web)
+ * - "anyone":          any signed-in user on the platform
+ * - "min_score":       signed-in users whose 1° score ≥ threshold
+ * - "max_degrees":     signed-in users within N degrees of the host
+ * - "specific_people": only the listed user IDs
+ */
+export type AccessType =
+  | "anyone_anywhere"
+  | "anyone"
+  | "min_score"
+  | "max_degrees"
+  | "specific_people";
 
 export interface AccessRule {
   type: AccessType;
