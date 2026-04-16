@@ -135,6 +135,10 @@ export default async function EditListingPage({ params }: PageProps) {
               checkout_time: listing.checkout_time || "11:00",
               meta,
               photos: photos || [],
+              // CC-C3 visibility & preview fields
+              visibility_mode: listing.visibility_mode || "preview_gated",
+              preview_description: listing.preview_description || "",
+              access_settings: listing.access_settings || null,
             }}
           />
         </div>

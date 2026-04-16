@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { LocationPreview } from "@/components/hosting/location-preview";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Tabs,
   TabsContent,
@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { Loader2, Check, MapPin } from "lucide-react";
+import { Loader2, Check, MapPin, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import {
   PhotoUploader,
@@ -26,6 +26,29 @@ import {
   propertyTypeToDb,
   type ListingMeta,
 } from "@/lib/listing-meta";
+import type {
+  AccessSettings,
+  AccessRule,
+  AccessType,
+} from "@/lib/trust/types";
+
+type PreviewToggleKey =
+  | "show_price_range"
+  | "show_description"
+  | "show_host_first_name"
+  | "show_neighborhood"
+  | "show_map_area"
+  | "show_rating"
+  | "show_amenities"
+  | "show_bed_counts"
+  | "show_house_rules";
+
+type AccessActionKey =
+  | "see_preview"
+  | "see_full"
+  | "request_book"
+  | "message"
+  | "request_intro";
 
 interface InitialData {
   title: string;
@@ -43,6 +66,10 @@ interface InitialData {
   checkout_time: string;
   meta: ListingMeta;
   photos: UploadedPhoto[];
+  // CC-C3 visibility fields
+  visibility_mode: string;
+  preview_description: string;
+  access_settings: AccessSettings | null;
 }
 
 const BIG_INPUT =
@@ -199,9 +226,51 @@ export function EditListingForm({
   const [checkOut, setCheckOut] = useState(initial.checkout_time);
   const [photos, setPhotos] = useState<UploadedPhoto[]>(initial.photos);
   const [saving, setSaving] = useState(false);
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") || "details";
   const [tab, setTab] = useState(initialTab);
+
+  // ── CC-C3 visibility & preview state ──
+  const [visibilityMode, setVisibilityMode] = useState(initial.visibility_mode);
+  const [previewDescription, setPreviewDescription] = useState(
+    initial.preview_description
+  );
+
+  // Preview content toggles — default true (except host first name) when
+  // the stored access_settings doesn't have preview_content set yet.
+  const pc0 = initial.access_settings?.preview_content;
+  const [previewContent, setPreviewContent] = useState({
+    show_price_range: pc0?.show_price_range ?? true,
+    show_description: pc0?.show_description ?? true,
+    show_host_first_name: pc0?.show_host_first_name ?? false,
+    show_neighborhood: pc0?.show_neighborhood ?? true,
+    show_map_area: pc0?.show_map_area ?? true,
+    show_rating: pc0?.show_rating ?? true,
+    show_amenities: pc0?.show_amenities ?? false,
+    show_bed_counts: pc0?.show_bed_counts ?? true,
+    show_house_rules: pc0?.show_house_rules ?? false,
+  });
+
+  // Access rules — per-action AccessRule objects. Fall back to sensible
+  // defaults if the stored settings don't have the field yet.
+  const as0 = initial.access_settings;
+  const defaultRule = (
+    fallback: AccessRule = { type: "anyone" }
+  ): AccessRule => fallback;
+  const [accessRules, setAccessRules] = useState<Record<AccessActionKey, AccessRule>>({
+    see_preview: as0?.see_preview ?? defaultRule({ type: "anyone" }),
+    see_full: as0?.see_full ?? defaultRule({ type: "min_score", threshold: 10 }),
+    request_book: as0?.request_book ?? defaultRule({ type: "min_score", threshold: 20 }),
+    message: as0?.message ?? defaultRule({ type: "min_score", threshold: 10 }),
+    request_intro: as0?.request_intro ?? defaultRule({ type: "anyone" }),
+  });
+
+  // Delete flow
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+
   useEffect(() => {
     const t = searchParams.get("tab");
     if (t) setTab(t);
@@ -358,6 +427,180 @@ export function EditListingForm({
     }
   };
 
+  // Build the full access_settings payload from local state.
+  const buildAccessSettings = (): AccessSettings => ({
+    see_preview: accessRules.see_preview,
+    see_full: accessRules.see_full,
+    request_book: accessRules.request_book,
+    message: accessRules.message,
+    request_intro: accessRules.request_intro,
+    view_host_profile: initial.access_settings?.view_host_profile ?? {
+      type: "anyone",
+    },
+    preview_content: previewContent,
+  });
+
+  const savePreview = async () => {
+    setSaving(true);
+    try {
+      // Also save any photo changes (preview toggle state)
+      await fetch(`/api/listings/${listingId}/photos`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          photos: photos.map((p, i) => ({
+            id: p.id,
+            public_url: p.public_url,
+            storage_path: p.storage_path,
+            is_cover: p.is_cover,
+            is_preview: p.is_preview,
+            sort_order: i,
+          })),
+        }),
+      });
+      const res = await fetch(`/api/listings/${listingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          preview_description: previewDescription || null,
+          access_settings: buildAccessSettings(),
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast.success("Preview settings saved");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to save preview settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveVisibility = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/listings/${listingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          visibility_mode: visibilityMode,
+          access_settings: buildAccessSettings(),
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast.success("Visibility settings saved");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to save visibility settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteListing = async () => {
+    if (confirmText.trim() !== "DELETE") {
+      toast.error("Type DELETE to confirm");
+      return;
+    }
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/listings/${listingId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast.success("Listing deleted");
+      router.push("/dashboard");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to delete listing");
+      setDeleting(false);
+    }
+  };
+
+  const applyPreset = (preset: "standard" | "public" | "private") => {
+    setVisibilityMode("preview_gated");
+    if (preset === "public") {
+      setAccessRules({
+        see_preview: { type: "anyone" },
+        see_full: { type: "anyone" },
+        request_book: { type: "anyone" },
+        message: { type: "anyone" },
+        request_intro: { type: "anyone" },
+      });
+    } else if (preset === "standard") {
+      setAccessRules({
+        see_preview: { type: "anyone" },
+        see_full: { type: "min_score", threshold: 10 },
+        request_book: { type: "min_score", threshold: 20 },
+        message: { type: "min_score", threshold: 10 },
+        request_intro: { type: "anyone" },
+      });
+    } else if (preset === "private") {
+      setAccessRules({
+        see_preview: { type: "anyone" },
+        see_full: { type: "min_score", threshold: 30 },
+        request_book: { type: "min_score", threshold: 40 },
+        message: { type: "min_score", threshold: 30 },
+        request_intro: { type: "anyone" },
+      });
+    }
+  };
+
+  const updateRule = (
+    key: AccessActionKey,
+    field: "type" | "threshold",
+    value: string
+  ) => {
+    setAccessRules((prev) => {
+      const rule = prev[key];
+      if (field === "type") {
+        const newType = value as AccessType;
+        return {
+          ...prev,
+          [key]: {
+            type: newType,
+            threshold:
+              newType === "min_score" || newType === "max_degrees"
+                ? rule.threshold ?? (newType === "min_score" ? 10 : 2)
+                : undefined,
+          },
+        };
+      }
+      return { ...prev, [key]: { ...rule, threshold: Number(value) || 0 } };
+    });
+  };
+
+  const togglePreviewPhoto = (idx: number) => {
+    const next = photos.map((p, i) =>
+      i === idx ? { ...p, is_preview: !p.is_preview } : p
+    );
+    if (!next.some((p) => p.is_preview) && next.length > 0) {
+      const coverIdx = next.findIndex((p) => p.is_cover);
+      next[coverIdx >= 0 ? coverIdx : 0].is_preview = true;
+    }
+    setPhotos(next);
+  };
+
+  // Infer which preset the current access rules match, so the card stays
+  // highlighted when the user re-opens the tab.
+  const currentPreset: "standard" | "public" | "private" | null = (() => {
+    const rules = Object.values(accessRules);
+    if (rules.every((r) => r.type === "anyone")) return "public";
+    const isStandard =
+      accessRules.see_full.type === "min_score" &&
+      accessRules.see_full.threshold === 10 &&
+      accessRules.request_book.type === "min_score" &&
+      accessRules.request_book.threshold === 20;
+    if (isStandard) return "standard";
+    const isPrivate =
+      accessRules.see_full.type === "min_score" &&
+      accessRules.see_full.threshold === 30 &&
+      accessRules.request_book.type === "min_score" &&
+      accessRules.request_book.threshold === 40;
+    if (isPrivate) return "private";
+    return null;
+  })();
+
   return (
     <Tabs value={tab} onValueChange={setTab} className="w-full !flex-col">
       <TabsList className="mb-6 flex h-auto w-full flex-wrap justify-start gap-2 rounded-2xl border border-border bg-white p-2 shadow-sm">
@@ -367,6 +610,9 @@ export function EditListingForm({
           ["pricing", "Pricing"],
           ["availability", "Calendar"],
           ["rules", "House rules"],
+          ["preview", "Preview"],
+          ["visibility", "Visibility"],
+          ["danger", "Danger zone"],
         ].map(([val, label]) => (
           <TabsTrigger
             key={val}
@@ -801,6 +1047,360 @@ export function EditListingForm({
           />
         </div>
        </SectionCard>
+      </TabsContent>
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* Preview — what's shown before unlock                     */}
+      {/* ──────────────────────────────────────────────────────── */}
+      <TabsContent value="preview" className="mt-0">
+        <SectionCard
+          title="Listing Preview"
+          subtitle="Control what anonymous visitors see before they've unlocked your listing."
+          footer={
+            <SaveBtn saving={saving} onClick={savePreview} label="Save preview settings" />
+          }
+        >
+          <div>
+            <div className="text-sm font-semibold text-foreground">Show in preview</div>
+            <div className="mt-4 space-y-2">
+              {([
+                ["show_price_range", "Price range", "$min–$max / night"],
+                ["show_description", "Description", "Your preview description (or first 100 chars)"],
+                ["show_host_first_name", "Your first name", "If off, shows \"a verified member\""],
+                ["show_neighborhood", "Neighborhood", "City and area name"],
+                ["show_map_area", "Approximate map area", "Blurred radius, no exact pin"],
+                ["show_rating", "Rating & reviews count", "Star rating and how many reviews"],
+                ["show_amenities", "Amenities list", "WiFi, parking, etc."],
+                ["show_bed_counts", "Bedroom / bed / bath count", "\"2 bedrooms · 2 beds · 1 bath\""],
+                ["show_house_rules", "House rules", "Rules you set for guests"],
+              ] as [PreviewToggleKey, string, string][]).map(([key, label, desc]) => (
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-white px-4 py-3 hover:border-foreground/30"
+                >
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={previewContent[key]}
+                    onClick={() =>
+                      setPreviewContent((prev) => ({ ...prev, [key]: !prev[key] }))
+                    }
+                    className={cn(
+                      "relative mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                      previewContent[key] ? "bg-brand" : "bg-zinc-300"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                        previewContent[key] ? "translate-x-4" : "translate-x-0.5"
+                      )}
+                    />
+                  </button>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-foreground">{label}</div>
+                    <div className="text-xs text-muted-foreground">{desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Preview description</Label>
+              <span
+                className={cn(
+                  "text-xs",
+                  previewDescription.length > 200
+                    ? "text-red-600"
+                    : "text-muted-foreground"
+                )}
+              >
+                {previewDescription.length}/200
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Short description shown in preview. Leave blank to auto-generate
+              from your main description.
+            </p>
+            <Textarea
+              className={cn(BIG_TEXTAREA, "mt-2")}
+              rows={3}
+              value={previewDescription}
+              onChange={(e) => setPreviewDescription(e.target.value.slice(0, 200))}
+              placeholder="A charming space in a great neighborhood..."
+              maxLength={200}
+            />
+          </div>
+
+          {/* Preview photo selector */}
+          <div>
+            <Label className="mb-2 block text-sm font-semibold">
+              Preview photos
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Tap to toggle whether each photo appears in the preview. The cover
+              (set in the Photos tab) is always included.
+            </p>
+            {photos.length === 0 ? (
+              <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                Upload photos first in the Photos tab.
+              </div>
+            ) : (
+              <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+                {photos.map((p, i) => (
+                  <button
+                    key={p.public_url}
+                    type="button"
+                    onClick={() => togglePreviewPhoto(i)}
+                    className={cn(
+                      "group relative aspect-square overflow-hidden rounded-lg border-2 transition-all",
+                      p.is_preview
+                        ? "border-brand"
+                        : "border-border opacity-70 hover:opacity-100"
+                    )}
+                    aria-label={p.is_preview ? "Remove from preview" : "Add to preview"}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.public_url}
+                      alt=""
+                      className={cn(
+                        "h-full w-full object-cover",
+                        !p.is_preview && "grayscale"
+                      )}
+                    />
+                    <div className="absolute right-1 top-1 flex gap-1">
+                      {p.is_cover && (
+                        <div className="rounded bg-amber-400 px-1 py-0.5 text-[9px] font-semibold uppercase text-white">
+                          Cover
+                        </div>
+                      )}
+                      {p.is_preview && (
+                        <div className="rounded bg-brand px-1 py-0.5 text-[9px] font-semibold uppercase text-white">
+                          Preview
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      </TabsContent>
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* Visibility & Access                                      */}
+      {/* ──────────────────────────────────────────────────────── */}
+      <TabsContent value="visibility" className="mt-0">
+        <SectionCard
+          title="Visibility & Access"
+          subtitle="Pick a preset, then fine-tune who can do what. Presets are just starting templates — every rule stays editable."
+          footer={
+            <SaveBtn saving={saving} onClick={saveVisibility} label="Save visibility" />
+          }
+        >
+          {/* Presets */}
+          <div>
+            <Label className="mb-2 block text-sm font-semibold">Preset</Label>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {([
+                ["standard", "Standard", "Anonymous preview for everyone. Full listing gated by trust."],
+                ["public", "Public", "Full listing visible to anyone on the platform."],
+                ["private", "Private", "Only people with a strong 1° connection can unlock this listing."],
+              ] as const).map(([key, label, desc]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyPreset(key)}
+                  className={cn(
+                    "flex flex-col items-start rounded-xl border-2 p-4 text-left transition-colors",
+                    currentPreset === key
+                      ? "border-brand bg-brand/5"
+                      : "border-border hover:border-foreground/30"
+                  )}
+                >
+                  <div className="text-base font-semibold text-foreground">{label}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Access rules */}
+          <div>
+            <Label className="mb-2 block text-sm font-semibold">Access controls</Label>
+            <p className="text-xs text-muted-foreground">
+              For each action, choose who&apos;s allowed to do it.
+            </p>
+            <div className="mt-4 space-y-3">
+              {([
+                ["see_preview", "See Preview", "Who can see the anonymous preview"],
+                ["see_full", "See Full Listing", "Who can unlock and view the full listing"],
+                ["request_book", "Request to Book", "Who can send a booking request"],
+                ["message", "Message Host", "Who can send you a message"],
+                ["request_intro", "Request Introduction", "Who can ask a mutual connection for an intro"],
+              ] as [AccessActionKey, string, string][]).map(([key, label, hint]) => {
+                const rule = accessRules[key];
+                return (
+                  <div
+                    key={key}
+                    className="rounded-lg border border-border bg-white p-4"
+                  >
+                    <div className="text-sm font-medium text-foreground">{label}</div>
+                    <div className="text-xs text-muted-foreground">{hint}</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <select
+                        value={rule.type}
+                        onChange={(e) => updateRule(key, "type", e.target.value)}
+                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm focus-visible:border-brand focus-visible:outline-none"
+                      >
+                        <option value="anyone">Anyone on platform</option>
+                        <option value="min_score">Min 1° score</option>
+                        <option value="max_degrees">Within N degrees</option>
+                        <option value="specific_people">Specific people</option>
+                      </select>
+                      {(rule.type === "min_score" || rule.type === "max_degrees") && (
+                        <Input
+                          type="number"
+                          min={0}
+                          className="h-10 w-24 rounded-lg border border-border bg-white px-3 text-sm"
+                          value={rule.threshold ?? ""}
+                          onChange={(e) =>
+                            updateRule(key, "threshold", e.target.value)
+                          }
+                          placeholder={rule.type === "min_score" ? "Score" : "Degrees"}
+                        />
+                      )}
+                      {rule.type === "specific_people" && (
+                        <span className="text-xs text-muted-foreground">
+                          (User picker coming soon)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Hidden/discoverability toggle — exposed for advanced hosts who
+              explicitly want to take the listing out of browse without
+              losing their access rules. */}
+          <div>
+            <Label className="mb-2 block text-sm font-semibold">Discoverability</Label>
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-white px-4 py-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={visibilityMode !== "hidden"}
+                onClick={() =>
+                  setVisibilityMode(
+                    visibilityMode === "hidden" ? "preview_gated" : "hidden"
+                  )
+                }
+                className={cn(
+                  "relative mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                  visibilityMode !== "hidden" ? "bg-brand" : "bg-zinc-300"
+                )}
+              >
+                <span
+                  className={cn(
+                    "block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                    visibilityMode !== "hidden" ? "translate-x-4" : "translate-x-0.5"
+                  )}
+                />
+              </button>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-foreground">
+                  Show in browse
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  When off, your listing is only accessible via the direct URL
+                  you share. Access rules above still apply.
+                </div>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+      </TabsContent>
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* Danger zone — delete listing                             */}
+      {/* ──────────────────────────────────────────────────────── */}
+      <TabsContent value="danger" className="mt-0">
+        <div className="mb-6 overflow-hidden rounded-2xl border-2 border-red-200 bg-white shadow-sm">
+          <div className="border-b border-red-200 bg-red-50 px-6 py-5 md:px-8">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+              <div>
+                <h2 className="text-lg font-bold text-red-900">Danger zone</h2>
+                <p className="mt-1 text-sm text-red-800">
+                  Deleting a listing is permanent. Photos, availability, and
+                  the listing itself will be removed. This cannot be undone.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-4 px-6 py-6 md:px-8">
+            {!confirmDelete ? (
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  If you no longer want to host this space, you can permanently
+                  delete the listing. Past bookings and reviews will remain in
+                  the system for record-keeping.
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="mt-4 !h-12 !rounded-xl !px-5 !text-sm !font-semibold bg-red-600 text-white hover:bg-red-700"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete listing
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3 rounded-xl border border-red-300 bg-red-50 p-5">
+                <div className="text-sm font-semibold text-red-900">
+                  Type <span className="font-mono">DELETE</span> to confirm
+                </div>
+                <Input
+                  className={cn(BIG_INPUT, "border-red-300 focus-visible:border-red-500")}
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  autoComplete="off"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setConfirmDelete(false);
+                      setConfirmText("");
+                    }}
+                    disabled={deleting}
+                    className="!h-11 !rounded-xl !px-5 !text-sm !font-semibold"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={deleteListing}
+                    disabled={deleting || confirmText.trim() !== "DELETE"}
+                    className="!h-11 !rounded-xl !px-5 !text-sm !font-semibold bg-red-600 text-white hover:bg-red-700"
+                  >
+                    {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Permanently delete
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </TabsContent>
     </Tabs>
   );
