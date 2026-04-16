@@ -102,3 +102,95 @@ users, listings, bookings, reviews, messages, message_threads, wishlists, listin
 
 ## Alpha-C Session Sequence
 CC-C0 (smoke test agent, deferred) → CC-C1a (schema + core computation) → CC-C1b (degrees + seed data) → CC-C2 (vouch + invite flows) → CC-C3 (listing visibility + host controls) → CC-C4 (trust UI integration) → CC-C5 (contact flow + reviews) → CC-C6 (branding + polish) → CC-C7 (legal) → CC-C8 (smoke test + ship)
+
+---
+
+# Standing Rules — Read Before Every Session
+
+## 1. Autonomous Execution (NON-NEGOTIABLE)
+
+Loren is non-technical. Claude must ALWAYS attempt to complete tasks autonomously. Asking Loren to do something is the exception, not the norm.
+
+**Always attempt first:**
+- Running migrations (use Supabase CLI, MCP, or credentials in .env.local)
+- Installing packages, running scripts, executing commands
+- Reading files, searching the codebase, inspecting the database
+- Deploying code (git push triggers deploy)
+- Debugging by reading logs, testing endpoints, inspecting schema
+
+**Only ask Loren when genuinely blocked:**
+- Personal account credentials Claude cannot access
+- Manual approval in a third-party UI Claude cannot automate (DNS settings, billing, OAuth consent screens)
+- Product decisions requiring Loren's judgment (copy tone, feature choices)
+
+**When asking is unavoidable, EVERY request must include:**
+- A clickable hyperlink to the EXACT page (not "go to Cloudflare" — link to https://dash.cloudflare.com/[account_id]/pages/view/[project]/settings)
+- Numbered or bulleted steps assuming zero prior context and zero technical knowledge
+- A copy-block for EVERY piece of text Loren needs to enter anywhere — form field values, search terms, button labels, config keys, commit messages, URLs, everything
+- Visual landmarks when useful ("the button is top-right, blue, labeled 'Deploy'")
+
+**Never say:** "Go to X and do Y."
+**Always say:** "Click [this exact URL](https://...). You'll land on a page with a field labeled `Name` — paste this value: `[copy block]`. Then click the button labeled `Save` in the top-right corner."
+
+Every time Claude is about to ask Loren to do something, pause and ask: can I do this myself? If the answer is even possibly yes, try first.
+
+## 2. End-of-Session Recap (Required Output)
+
+Every session ends with a structured recap in ONE copy-block in this exact format:
+
+## CC-[ID] — [Name]
+**Date:** [YYYY-MM-DD]
+**Branch:** [branch name]
+**Commits:** [hash, hash, ...]
+
+### What was done
+- [bullets]
+
+### What was preserved
+- [backward-compat items kept intact, deprecated-but-not-deleted files, etc.]
+
+### Corrections made during session
+- [Bugs in the spec, wrong expected values, missed edge cases, mid-session changes Loren requested. Each correction includes a one-line "lesson" for future sessions. If no corrections were needed, write "None."]
+
+### What's needed next
+- [Explicit handoff to next session — blockers, prerequisites, open questions]
+
+The recap must be wrapped in a single copy-paste-ready block. No markdown tables, no split sections.
+
+## 3. Branch Safety
+
+**Run `git branch --show-current` before writing any code in every CC session.**
+
+| Folder | Expected Branch | If Wrong |
+|---|---|---|
+| onedegree-app-track-b | `track-b/1db-overlay` | STOP — wrong branch. Never checkout main. |
+
+**Never run `git checkout main` from the Track B folder.**
+**Never commit to `main` from the Track B folder.**
+
+## 4. Testing Handoff (Claude Tells Loren What to Test)
+
+Before producing the final session recap, Claude tells Loren what to test. Loren does not know the build details and is not reading the code — Claude is responsible for translating the session's output into a concrete test walkthrough.
+
+**The testing handoff must include:**
+- A short plain-language summary of what was built (1–3 sentences, no jargon)
+- A numbered list of specific things to verify, each with:
+  - The exact URL to visit (clickable hyperlink)
+  - Zero-assumption click-path ("Click the button labeled X in the top-right")
+  - What Loren should see if it's working
+  - What Loren should see if it's broken
+  - Any text to paste provided as a copy-block
+
+Wait for Loren to confirm the tests pass (or report issues) before producing the recap. If Loren reports an issue, fix it in the same session and re-propose the test.
+
+**Never ask Loren "what do you want to test?" — Claude proposes the tests. Loren executes and confirms.**
+
+## 5. No Assumptions About Loren's Technical Knowledge
+
+Loren is the founder, not an engineer. Assume zero knowledge of:
+- Git commands, terminal syntax, npm scripts
+- Database schemas, SQL, Supabase internals
+- Cloudflare, Clerk, deployment pipelines
+- React component structure, TypeScript types, file paths
+
+If any instruction or test step requires technical knowledge, rewrite it in plain language with the exact steps and copy-blocks needed.
