@@ -135,9 +135,11 @@ function evaluateRule(
       return viewerId != null && (rule.user_ids ?? []).includes(viewerId);
 
     case "max_degrees":
-      // TODO: Implement in CC-C1b when degree computation is added
-      // For now, return false (most restrictive default)
-      return false;
+      return (
+        degrees !== undefined &&
+        degrees !== null &&
+        degrees <= (rule.threshold ?? 0)
+      );
 
     default:
       return false;

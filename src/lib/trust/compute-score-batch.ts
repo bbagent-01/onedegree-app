@@ -8,7 +8,7 @@
 
 import { getSupabaseAdmin } from "../supabase";
 import type { OneDegreeResult, TrustPath } from "./types";
-import { fallbackQuery } from "./compute-score";
+import { fallbackQuery, hydrateConnectors } from "./compute-score";
 
 const EMPTY_RESULT: OneDegreeResult = {
   score: 0,
@@ -103,6 +103,12 @@ export async function compute1DegreeScores(
   // Fill in self / missing targets
   for (const id of targetIds) {
     if (!results.has(id)) results.set(id, EMPTY_RESULT);
+  }
+
+  // Hydrate connector profiles in a single batched query
+  const allPaths = [...results.values()].flatMap((r) => r.paths);
+  if (allPaths.length > 0) {
+    await hydrateConnectors(supabase, allPaths);
   }
 
   return results;

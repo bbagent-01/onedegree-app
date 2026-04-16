@@ -10,7 +10,7 @@
  */
 
 import { getSupabaseAdmin } from "../supabase";
-import type { OneDegreeResult, TrustPath } from "./types";
+import type { OneDegreeResult, TrustPath, HydratedConnector } from "./types";
 
 const EMPTY_RESULT: OneDegreeResult = {
   score: 0,
@@ -55,7 +55,14 @@ export async function compute1DegreeScore(
     rows = await fallbackQuery(supabase, viewerId, [targetId]);
   }
 
-  return assembleResult(rows.filter((r) => r.target_id === targetId));
+  const result = assembleResult(rows.filter((r) => r.target_id === targetId));
+
+  // Hydrate connector profiles
+  if (result.paths.length > 0) {
+    await hydrateConnectors(supabase, result.paths);
+  }
+
+  return result;
 }
 
 /**
@@ -163,4 +170,36 @@ async function fallbackQuery(
   );
 }
 
-export { assembleResult, fallbackQuery };
+/**
+ * Hydrate connector profiles in a single batched query.
+ * Mutates paths in-place to add connector { id, name, avatar_url }.
+ */
+async function hydrateConnectors(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  paths: TrustPath[]
+): Promise<void> {
+  const connectorIds = [...new Set(paths.map((p) => p.connector_id))];
+  if (connectorIds.length === 0) return;
+
+  const { data: users } = await supabase
+    .from("users")
+    .select("id, name, avatar_url")
+    .in("id", connectorIds);
+
+  if (!users) return;
+
+  const userMap = new Map(
+    (users as Array<{ id: string; name: string; avatar_url: string | null }>).map(
+      (u) => [u.id, { id: u.id, name: u.name, avatar_url: u.avatar_url }]
+    )
+  );
+
+  for (const path of paths) {
+    const user = userMap.get(path.connector_id);
+    if (user) {
+      path.connector = user;
+    }
+  }
+}
+
+export { assembleResult, fallbackQuery, hydrateConnectors };

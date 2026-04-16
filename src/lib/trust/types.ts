@@ -26,14 +26,28 @@ export interface AccessSettings {
   view_host_profile: AccessRule;
 }
 
+export interface HydratedConnector {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+}
+
 export interface TrustPath {
   connector_id: string;
-  connector_name?: string;
-  connector_avatar?: string | null;
+  connector?: HydratedConnector;
   viewer_vouch_score: number;
   connector_vouch_score: number;
   connector_vouch_power: number;
   path_strength: number;
+}
+
+export interface DegreesResult {
+  degrees: number | null;
+}
+
+export interface BatchDegreesResult {
+  target_id: string;
+  degrees: number | null;
 }
 
 export interface OneDegreeResult {

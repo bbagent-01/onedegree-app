@@ -2,6 +2,44 @@
 
 Schema changes introduced by Track B sessions. Each entry documents what was added and why.
 
+## CC-C1b — Degrees of Separation (migration 015)
+
+**Migration:** `supabase/migrations/015_degrees_of_separation.sql`
+
+### New RPCs
+
+| RPC | Purpose |
+|-----|---------|
+| `get_degrees_of_separation_batch(viewer_id, target_ids[])` | Recursive CTE computing minimum hop count from viewer to each target via the vouches graph. Vouches are bidirectional edges. Capped at 4 hops. Returns `{ target_id, degrees }` — degrees is NULL if no path exists within the cap. |
+
+### New TypeScript modules
+
+| Module | Purpose |
+|--------|---------|
+| `src/lib/trust/degrees.ts` | `computeDegreesOfSeparation(viewerId, targetId)` — single target. `computeDegreesOfSeparationBatch(viewerId, targetIds[])` — batch. Both use the RPC with JS-side BFS fallback. |
+
+### Updated TypeScript modules
+
+| Module | Change |
+|--------|--------|
+| `src/lib/trust/types.ts` | Added `HydratedConnector`, `DegreesResult`, `BatchDegreesResult` types. Replaced `connector_name`/`connector_avatar` on `TrustPath` with a `connector?: HydratedConnector` object. |
+| `src/lib/trust/check-access.ts` | Completed `max_degrees` access type: `degrees !== null && degrees <= threshold`. |
+| `src/lib/trust/compute-score.ts` | Added `hydrateConnectors()` — batched user lookup to populate `connector` field on trust paths. Single-target `compute1DegreeScore` now returns hydrated paths. |
+| `src/lib/trust/compute-score-batch.ts` | Batch `compute1DegreeScores` now hydrates connector profiles in a single batched query after assembly. |
+| `src/lib/trust/index.ts` | Re-exports `computeDegreesOfSeparation`, `computeDegreesOfSeparationBatch`, new types. |
+
+### New scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/seed-trust-data.ts` | Creates 10 test users + Loren's account, rich vouch graph (16 vouches), 3 test listings (min_score, max_degrees, specific_people), 4 stays with reviews. Verifies 1° score, vouch power, degrees of separation, and all 4 access types. Idempotent (safe to re-run). |
+
+### Why this shape
+
+The degrees computation uses a single recursive CTE (`WITH RECURSIVE`) over the vouches table, treating each vouch as a bidirectional edge. This is the most expensive query in the trust engine — capped at 4 hops to bound runtime. The batch version handles 50–100 targets in one query by using `unnest(target_ids)` with a LEFT JOIN on the BFS result. At alpha scale (~50 users, ~200 vouches), this should execute in <500ms. At >5K users, consider materialized views or Neo4j migration.
+
+---
+
 ## CC-C1a — Alpha-C Trust Model (migration 014)
 
 **Migration:** `supabase/migrations/014_alpha_c_trust_model.sql`

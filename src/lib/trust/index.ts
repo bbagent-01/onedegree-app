@@ -10,9 +10,16 @@ export { compute1DegreeScore } from "./compute-score";
 export { compute1DegreeScores } from "./compute-score-batch";
 export { computeVouchPower, persistVouchPower } from "./vouch-power";
 export { checkListingAccess } from "./check-access";
+export {
+  computeDegreesOfSeparation,
+  computeDegreesOfSeparationBatch,
+} from "./degrees";
 export type {
   OneDegreeResult,
   TrustPath,
+  HydratedConnector,
+  DegreesResult,
+  BatchDegreesResult,
   ListingAccessResult,
   VouchPowerResult,
   AccessSettings,
