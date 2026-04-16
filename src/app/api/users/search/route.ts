@@ -29,13 +29,14 @@ export async function GET(req: Request) {
     .eq("clerk_id", userId)
     .single();
 
-  // Normalize phone query: strip spaces, dashes, parens for matching
-  const phoneNormalized = q.replace(/[\s\-\(\)\+]/g, "");
-  const isPhoneQuery = /^\+/.test(q) || /^\d{4,}$/.test(phoneNormalized);
+  // Strip non-digit chars to get pure digits for phone matching
+  const digitsOnly = q.replace(/\D/g, "");
+  const isPhoneQuery = /^\+/.test(q) || digitsOnly.length >= 4;
 
   // Search users by name, email, OR phone_number
   const pattern = `%${q}%`;
-  const phonePattern = `%${phoneNormalized}%`;
+  // For phone matching, search for the digits as a substring in the stored E.164 value
+  const phonePattern = digitsOnly ? `%${digitsOnly}%` : null;
 
   let query = supabase
     .from("users")
@@ -43,15 +44,16 @@ export async function GET(req: Request) {
     .neq("clerk_id", userId)
     .limit(20);
 
-  if (isPhoneQuery) {
-    // Phone-first: prioritize phone matches, also search name/email
+  if (isPhoneQuery && phonePattern) {
+    // Phone-first: match digits against stored phone_number
     query = query.or(
       `phone_number.ilike.${phonePattern},name.ilike.${pattern},email.ilike.${pattern}`
     );
   } else {
-    query = query.or(
-      `name.ilike.${pattern},email.ilike.${pattern},phone_number.ilike.${phonePattern}`
-    );
+    // Name/email primary, also match phone if digits present
+    const filters = [`name.ilike.${pattern}`, `email.ilike.${pattern}`];
+    if (phonePattern) filters.push(`phone_number.ilike.${phonePattern}`);
+    query = query.or(filters.join(","));
   }
 
   const { data: users, error } = await query;

@@ -95,11 +95,6 @@ export function ConnectionPopover({
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
-  // Don't show popover on self
-  if (isSelf) {
-    return <>{children}</>;
-  }
-
   const fetchData = useCallback(async () => {
     if (data) return; // Already fetched
     setLoading(true);
@@ -117,6 +112,11 @@ export function ConnectionPopover({
     }
   }, [targetUserId, data]);
 
+  // Don't show popover on self — must be after all hooks
+  if (isSelf) {
+    return <>{children}</>;
+  }
+
   return (
     <Popover
       open={open}
@@ -126,9 +126,8 @@ export function ConnectionPopover({
       }}
     >
       <PopoverTrigger
-        className="cursor-pointer"
+        className="inline-flex cursor-pointer"
         onClick={(e) => {
-          e.preventDefault();
           e.stopPropagation();
         }}
       >

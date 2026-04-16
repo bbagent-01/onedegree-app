@@ -21,7 +21,7 @@ import {
   Copy,
 } from "lucide-react";
 import { toast } from "sonner";
-import { parsePhoneNumberFromString, AsYouType } from "libphonenumber-js";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 const BIG_INPUT =
   "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
@@ -145,9 +145,15 @@ export default function InvitePage() {
                 <Input
                   id="phone"
                   value={phone}
-                  onChange={(e) => {
-                    const formatted = new AsYouType("US").input(e.target.value);
-                    setPhone(formatted);
+                  onChange={(e) => setPhone(e.target.value)}
+                  onBlur={() => {
+                    // Format on blur so typing isn't disrupted
+                    if (phone.trim()) {
+                      const parsed = parsePhoneNumberFromString(phone.trim(), "US");
+                      if (parsed?.isValid()) {
+                        setPhone(parsed.formatNational());
+                      }
+                    }
                   }}
                   placeholder="(555) 123-4567"
                   className={`mt-1.5 ${BIG_INPUT}`}

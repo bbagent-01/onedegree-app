@@ -172,12 +172,9 @@ function PersonRow({ person }: { person: NetworkPerson }) {
   const isInnerCircle = person.vouch_type === "inner_circle";
 
   return (
-    <Link
-      href={`/profile/${person.user_id}`}
-      className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
-    >
+    <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
       <ConnectionPopover targetUserId={person.user_id}>
-        <Avatar className="h-9 w-9">
+        <Avatar className="h-9 w-9 cursor-pointer">
           {person.user_avatar && (
             <AvatarImage src={person.user_avatar} alt={person.user_name} />
           )}
@@ -186,12 +183,15 @@ function PersonRow({ person }: { person: NetworkPerson }) {
           </AvatarFallback>
         </Avatar>
       </ConnectionPopover>
-      <div className="min-w-0 flex-1">
+      <Link
+        href={`/profile/${person.user_id}`}
+        className="min-w-0 flex-1 hover:underline"
+      >
         <div className="truncate text-sm font-medium">{person.user_name}</div>
         <div className="text-xs text-muted-foreground">
           {yearsLabel(person.years_known_bucket)}
         </div>
-      </div>
+      </Link>
       <div className="flex shrink-0 items-center gap-2">
         <Badge
           className={
@@ -213,7 +213,7 @@ function PersonRow({ person }: { person: NetworkPerson }) {
           </span>
         )}
       </div>
-    </Link>
+    </div>
   );
 }
 

@@ -98,7 +98,7 @@ export default function VouchPage() {
           Vouch for someone
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Search by name or email. If they&rsquo;re not on 1&deg; B&B yet, you
+          Search by name, email, or phone. If they&rsquo;re not on 1&deg; B&B yet, you
           can invite them.
         </p>
       </div>
@@ -108,7 +108,7 @@ export default function VouchPage() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name or email..."
+          placeholder="Search by name, email, or phone..."
           className={`${BIG_INPUT} pl-11`}
         />
       </div>
