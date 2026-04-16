@@ -22,12 +22,16 @@ interface Props {
  * experience — not a loading state or broken page.
  */
 export function GatedListingView({ listing, trust, isSignedIn }: Props) {
-  // Preview photos: those marked is_preview, or first 2
+  // Preview photos are opt-in. If host selected some, show those.
+  // If they didn't, fall back to the cover photo heavily blurred.
   const previewPhotos = listing.photos.filter((p) => p.is_preview);
-  const displayPhotos =
-    previewPhotos.length > 0
-      ? previewPhotos.slice(0, 3)
-      : listing.photos.slice(0, 2);
+  const hasPreviewPhotos = previewPhotos.length > 0;
+  const coverPhoto = listing.photos.find((p) => p.is_cover) || listing.photos[0];
+  const displayPhotos = hasPreviewPhotos
+    ? previewPhotos.slice(0, 3)
+    : coverPhoto
+      ? [coverPhoto]
+      : [];
 
   const propertyLabel =
     listing.property_type === "room"
@@ -90,14 +94,18 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
       </div>
 
       {/* Preview photos — constrained gallery, not full gallery */}
-      <div className="overflow-hidden rounded-2xl">
+      <div className="relative overflow-hidden rounded-2xl">
         {displayPhotos.length === 1 ? (
           <div className="relative aspect-[16/10] w-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={displayPhotos[0].public_url}
               alt={`Preview of listing in ${listing.area_name}`}
-              className="h-full w-full object-cover saturate-[0.85]"
+              className={
+                hasPreviewPhotos
+                  ? "h-full w-full object-cover saturate-[0.85]"
+                  : "h-full w-full scale-110 object-cover blur-2xl saturate-[0.7]"
+              }
             />
           </div>
         ) : (
@@ -115,10 +123,21 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
                 <img
                   src={photo.public_url}
                   alt={`Preview photo ${i + 1}`}
-                  className="h-full w-full object-cover saturate-[0.85]"
+                  className={
+                    hasPreviewPhotos
+                      ? "h-full w-full object-cover saturate-[0.85]"
+                      : "h-full w-full scale-110 object-cover blur-2xl saturate-[0.7]"
+                  }
                 />
               </div>
             ))}
+          </div>
+        )}
+        {!hasPreviewPhotos && displayPhotos.length > 0 && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-black/40 via-black/10 to-transparent">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-foreground shadow-sm backdrop-blur">
+              <Lock className="h-3.5 w-3.5" /> Photos unlocked with access
+            </div>
           </div>
         )}
       </div>

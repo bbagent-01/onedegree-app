@@ -33,6 +33,8 @@ export interface AccessSettings {
 }
 
 export interface PreviewContentSettings {
+  /** Show the listing title (otherwise a generic "Private listing in [area]") */
+  show_title?: boolean;
   /** Show price range ($min–$max / night) */
   show_price_range?: boolean;
   /** Show preview description (or truncated full description) */
@@ -51,18 +53,23 @@ export interface PreviewContentSettings {
   show_bed_counts?: boolean;
   /** Show house rules */
   show_house_rules?: boolean;
+  /** When true, use the host-written preview_description instead of the
+   *  full listing description in preview mode. */
+  use_preview_specific_description?: boolean;
 }
 
 export const DEFAULT_PREVIEW_CONTENT: PreviewContentSettings = {
+  show_title: true,
   show_price_range: true,
   show_description: true,
-  show_host_first_name: false,
+  show_host_first_name: true,
   show_neighborhood: true,
   show_map_area: true,
   show_rating: true,
-  show_amenities: false,
+  show_amenities: true,
   show_bed_counts: true,
-  show_house_rules: false,
+  show_house_rules: true,
+  use_preview_specific_description: false,
 };
 
 export interface HydratedConnector {

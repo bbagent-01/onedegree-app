@@ -237,19 +237,19 @@ export function EditListingForm({
     initial.preview_description
   );
 
-  // Preview content toggles — default true (except host first name) when
-  // the stored access_settings doesn't have preview_content set yet.
+  // Preview content toggles — default all ON when the stored settings
+  // don't have preview_content set yet.
   const pc0 = initial.access_settings?.preview_content;
   const [previewContent, setPreviewContent] = useState({
     show_price_range: pc0?.show_price_range ?? true,
     show_description: pc0?.show_description ?? true,
-    show_host_first_name: pc0?.show_host_first_name ?? false,
+    show_host_first_name: pc0?.show_host_first_name ?? true,
     show_neighborhood: pc0?.show_neighborhood ?? true,
     show_map_area: pc0?.show_map_area ?? true,
     show_rating: pc0?.show_rating ?? true,
-    show_amenities: pc0?.show_amenities ?? false,
+    show_amenities: pc0?.show_amenities ?? true,
     show_bed_counts: pc0?.show_bed_counts ?? true,
-    show_house_rules: pc0?.show_house_rules ?? false,
+    show_house_rules: pc0?.show_house_rules ?? true,
   });
 
   // Access rules — per-action AccessRule objects. Fall back to sensible
@@ -928,9 +928,13 @@ export function EditListingForm({
                 className={BIG_INPUT}
                 type="number"
                 min={0}
-                max={90}
+                max={99}
                 value={weeklyDiscount}
-                onChange={(e) => setWeeklyDiscount(e.target.value)}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (e.target.value === "") setWeeklyDiscount("");
+                  else if (n >= 0 && n <= 99) setWeeklyDiscount(String(n));
+                }}
                 placeholder="10"
               />
             </div>
@@ -940,9 +944,13 @@ export function EditListingForm({
                 className={BIG_INPUT}
                 type="number"
                 min={0}
-                max={90}
+                max={99}
                 value={monthlyDiscount}
-                onChange={(e) => setMonthlyDiscount(e.target.value)}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (e.target.value === "") setMonthlyDiscount("");
+                  else if (n >= 0 && n <= 99) setMonthlyDiscount(String(n));
+                }}
                 placeholder="20"
               />
             </div>

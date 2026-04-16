@@ -17,6 +17,7 @@ import {
   Minus,
   Plus as PlusIcon,
   MapPin,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +98,7 @@ interface WizardState {
   accessMessage: AccessRuleState;
   accessRequestIntro: AccessRuleState;
   // Preview content toggles
+  previewShowTitle: boolean;
   previewShowPriceRange: boolean;
   previewShowDescription: boolean;
   previewShowHostFirstName: boolean;
@@ -106,6 +108,9 @@ interface WizardState {
   previewShowAmenities: boolean;
   previewShowBedCounts: boolean;
   previewShowHouseRules: boolean;
+  /** When true, use the preview-specific description textarea instead
+   *  of the full description in preview mode. */
+  usePreviewSpecificDescription: boolean;
   // Default availability
   defaultAvailability: "available" | "unavailable" | "possibly";
 }
@@ -152,15 +157,17 @@ const initialState: WizardState = {
   accessRequestBook: { type: "min_score", threshold: "20" },
   accessMessage: { type: "min_score", threshold: "10" },
   accessRequestIntro: { type: "anyone", threshold: "" },
+  previewShowTitle: true,
   previewShowPriceRange: true,
   previewShowDescription: true,
-  previewShowHostFirstName: false,
+  previewShowHostFirstName: true,
   previewShowNeighborhood: true,
   previewShowMapArea: true,
   previewShowRating: true,
-  previewShowAmenities: false,
+  previewShowAmenities: true,
   previewShowBedCounts: true,
-  previewShowHouseRules: false,
+  previewShowHouseRules: true,
+  usePreviewSpecificDescription: false,
   defaultAvailability: "available",
 };
 
@@ -351,11 +358,8 @@ export default function CreateListingPage() {
       case 3:
         return state.guests >= 1 && state.bedrooms >= 0;
       case 4:
-        return (
-          state.photos.length >= 3 &&
-          state.photos.some((p) => p.is_cover) &&
-          state.photos.some((p) => p.is_preview)
-        );
+        // Preview photos are optional (cover photo is auto-assigned).
+        return state.photos.length >= 3;
       case 5:
         return state.title.trim().length > 0 && state.title.length <= 50;
       case 6:
@@ -442,6 +446,7 @@ export default function CreateListingPage() {
           request_intro: buildAccessRule(state.accessRequestIntro),
           view_host_profile: { type: "anyone" },
           preview_content: {
+            show_title: state.previewShowTitle,
             show_price_range: state.previewShowPriceRange,
             show_description: state.previewShowDescription,
             show_host_first_name: state.previewShowHostFirstName,
@@ -451,6 +456,7 @@ export default function CreateListingPage() {
             show_amenities: state.previewShowAmenities,
             show_bed_counts: state.previewShowBedCounts,
             show_house_rules: state.previewShowHouseRules,
+            use_preview_specific_description: state.usePreviewSpecificDescription,
           },
         },
         photos: state.photos.map((p, i) => ({
@@ -1233,9 +1239,13 @@ function Step6({ state, update }: { state: WizardState; update: UpdateFn }) {
                 className={BIG_INPUT}
                 type="number"
                 min={0}
-                max={90}
+                max={99}
                 value={state.weeklyDiscount}
-                onChange={(e) => update("weeklyDiscount", e.target.value)}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (e.target.value === "") update("weeklyDiscount", "");
+                  else if (n >= 0 && n <= 99) update("weeklyDiscount", String(n));
+                }}
                 placeholder="10"
               />
             </div>
@@ -1245,9 +1255,13 @@ function Step6({ state, update }: { state: WizardState; update: UpdateFn }) {
                 className={BIG_INPUT}
                 type="number"
                 min={0}
-                max={90}
+                max={99}
                 value={state.monthlyDiscount}
-                onChange={(e) => update("monthlyDiscount", e.target.value)}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (e.target.value === "") update("monthlyDiscount", "");
+                  else if (n >= 0 && n <= 99) update("monthlyDiscount", String(n));
+                }}
                 placeholder="20"
               />
             </div>
@@ -1340,6 +1354,7 @@ function Step6({ state, update }: { state: WizardState; update: UpdateFn }) {
 }
 
 type PreviewToggleKey =
+  | "previewShowTitle"
   | "previewShowPriceRange"
   | "previewShowDescription"
   | "previewShowHostFirstName"
@@ -1368,13 +1383,14 @@ function Step7Preview({
   state: WizardState;
   update: UpdateFn;
 }) {
+  // Description handled as its own block below with a sub-toggle.
   const PREVIEW_TOGGLES: {
     key: PreviewToggleKey;
     label: string;
     desc: string;
   }[] = [
+    { key: "previewShowTitle", label: "Listing title", desc: "If off, shows a generic label like \u201CPrivate listing in [area]\u201D" },
     { key: "previewShowPriceRange", label: "Price range", desc: "$min–$max / night" },
-    { key: "previewShowDescription", label: "Description", desc: "Your preview description (or first 100 chars of the main one)" },
     { key: "previewShowHostFirstName", label: "Your first name", desc: "If off, shows \"a verified member\"" },
     { key: "previewShowNeighborhood", label: "Neighborhood", desc: "City and area name" },
     { key: "previewShowMapArea", label: "Approximate map area", desc: "Blurred radius, no exact pin" },
@@ -1439,35 +1455,113 @@ function Step7Preview({
             ))}
           </div>
 
-          {/* Preview description */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Preview description</Label>
-              <span
+          {/* Description block — main toggle + sub-toggle + conditional textarea */}
+          <div className="mt-6 rounded-lg border border-border bg-white p-4">
+            {/* Main toggle: show full description */}
+            <label className="flex cursor-pointer items-start gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={state.previewShowDescription}
+                onClick={() =>
+                  update("previewShowDescription", !state.previewShowDescription)
+                }
                 className={cn(
-                  "text-xs",
-                  state.previewDescription.length > 200
-                    ? "text-red-600"
-                    : "text-muted-foreground"
+                  "relative mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                  state.previewShowDescription ? "bg-brand" : "bg-zinc-300"
                 )}
               >
-                {state.previewDescription.length}/200
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Short description shown in preview. Leave blank to auto-generate
-              from your main description.
-            </p>
-            <Textarea
-              className={cn(BIG_TEXTAREA, "mt-2")}
-              rows={3}
-              value={state.previewDescription}
-              onChange={(e) =>
-                update("previewDescription", e.target.value.slice(0, 200))
-              }
-              placeholder="A charming space in a great neighborhood..."
-              maxLength={200}
-            />
+                <span
+                  className={cn(
+                    "block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                    state.previewShowDescription
+                      ? "translate-x-4"
+                      : "translate-x-0.5"
+                  )}
+                />
+              </button>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-foreground">
+                  Description
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Show the full listing description in the preview.
+                </div>
+              </div>
+            </label>
+
+            {/* Sub-toggle: use preview-specific description instead */}
+            {state.previewShowDescription && (
+              <div className="mt-3 ml-12 border-l-2 border-border pl-4">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={state.usePreviewSpecificDescription}
+                    onClick={() =>
+                      update(
+                        "usePreviewSpecificDescription",
+                        !state.usePreviewSpecificDescription
+                      )
+                    }
+                    className={cn(
+                      "relative mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                      state.usePreviewSpecificDescription
+                        ? "bg-brand"
+                        : "bg-zinc-300"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                        state.usePreviewSpecificDescription
+                          ? "translate-x-4"
+                          : "translate-x-0.5"
+                      )}
+                    />
+                  </button>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-foreground">
+                      Use a preview-specific description
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Write a shorter blurb shown in preview instead of the
+                      full description.
+                    </div>
+                  </div>
+                </label>
+
+                {state.usePreviewSpecificDescription && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold">
+                        Preview description
+                      </Label>
+                      <span
+                        className={cn(
+                          "text-xs",
+                          state.previewDescription.length > 200
+                            ? "text-red-600"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {state.previewDescription.length}/200
+                      </span>
+                    </div>
+                    <Textarea
+                      className={cn(BIG_TEXTAREA, "mt-2")}
+                      rows={3}
+                      value={state.previewDescription}
+                      onChange={(e) =>
+                        update("previewDescription", e.target.value.slice(0, 200))
+                      }
+                      placeholder="A charming space in a great neighborhood..."
+                      maxLength={200}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1575,10 +1669,14 @@ function Step7Preview({
 function getListingDisplay(state: WizardState) {
   const priceDisplay =
     state.price && Number(state.price) > 0 ? `$${state.price}` : null;
-  const previewDesc =
-    state.previewDescription ||
-    state.description.slice(0, 100) +
-      (state.description.length > 100 ? "\u2026" : "");
+  // Preview description resolution:
+  //   - if host wrote a preview-specific one AND opted to use it, show it
+  //   - otherwise show the full description as-is
+  const previewDesc = state.usePreviewSpecificDescription
+    ? state.previewDescription ||
+      state.description.slice(0, 100) +
+        (state.description.length > 100 ? "\u2026" : "")
+    : state.description;
   const coverPhoto = state.photos.find((p) => p.is_cover) || state.photos[0];
   const previewPhotos = state.photos.filter((p) => p.is_preview);
   return { priceDisplay, previewDesc, coverPhoto, previewPhotos };
@@ -1591,21 +1689,82 @@ function ListingTileMock({
   state: WizardState;
   mode: "preview" | "full";
 }) {
-  const { priceDisplay, coverPhoto } = getListingDisplay(state);
+  const { priceDisplay, coverPhoto, previewPhotos } = getListingDisplay(state);
   const isPreview = mode === "preview";
-  const tileImage = coverPhoto?.public_url;
+  const hasPreviewPhotos = previewPhotos.length > 0;
+  const allPhotos = state.photos;
+
+  // Full mode: carousel through ALL photos (cover first).
+  // Preview mode: carousel through preview photos only; if none, show
+  // a single blurred cover photo (no carousel).
+  const fullImages = allPhotos.length > 0
+    ? [
+        ...(coverPhoto ? [coverPhoto] : []),
+        ...allPhotos.filter((p) => !p.is_cover),
+      ].map((p) => p.public_url)
+    : [];
+  const previewImages = hasPreviewPhotos
+    ? previewPhotos.map((p) => p.public_url)
+    : coverPhoto
+      ? [coverPhoto.public_url]
+      : [];
+  const images = isPreview ? previewImages : fullImages;
+
+  const [idx, setIdx] = useState(0);
+  // Reset index when images array shrinks
+  useEffect(() => {
+    if (idx >= images.length && images.length > 0) setIdx(0);
+  }, [idx, images.length]);
+
+  const prev = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIdx((i) => (i === 0 ? images.length - 1 : i - 1));
+  };
+  const next = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIdx((i) => (i === images.length - 1 ? 0 : i + 1));
+  };
+
+  const currentImg = images[idx];
+  const blurPreview = isPreview && !hasPreviewPhotos;
+
+  // Resolve the tile's display fields per mode + toggles
+  const tileTitle = isPreview
+    ? state.previewShowTitle
+      ? state.title || "Your listing"
+      : state.previewShowNeighborhood
+        ? `Private listing in ${state.areaName || state.city || "your area"}`
+        : "Private listing"
+    : state.title || "Your listing";
+
+  const tileNeighborhood = isPreview
+    ? state.previewShowNeighborhood
+      ? state.areaName || state.city || ""
+      : null
+    : state.areaName || state.city || "";
+
+  const tileHost = isPreview
+    ? state.previewShowHostFirstName
+      ? "Hosted by you"
+      : "Hosted by a verified member"
+    : "Hosted by you";
 
   return (
-    <div className="w-full max-w-xs">
+    <div className="group w-full max-w-xs">
       <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
-        {tileImage ? (
+        {currentImg ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={tileImage}
-            alt="Cover"
+            src={currentImg}
+            alt="Listing photo"
             className={cn(
               "h-full w-full object-cover",
-              isPreview && "saturate-[0.85] brightness-[0.97]"
+              isPreview &&
+                (hasPreviewPhotos
+                  ? "saturate-[0.85] brightness-[0.97]"
+                  : "scale-110 blur-lg saturate-[0.7]")
             )}
           />
         ) : (
@@ -1613,32 +1772,60 @@ function ListingTileMock({
             No cover photo yet
           </div>
         )}
+
         {isPreview && (
           <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur">
-            Private listing
+            <Lock className="h-3 w-3" /> Private listing
           </div>
+        )}
+
+        {/* Carousel controls — hide when only 1 image or when preview is blurred cover */}
+        {images.length > 1 && !blurPreview && (
+          <>
+            <button
+              onClick={prev}
+              aria-label="Previous photo"
+              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 p-1 opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={next}
+              aria-label="Next photo"
+              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 p-1 opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-white"
+            >
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 gap-1">
+              {images.map((_, i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full transition-colors",
+                    i === idx ? "bg-white" : "bg-white/50"
+                  )}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
       <div className="mt-3">
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
-            {isPreview
-              ? state.previewShowNeighborhood
-                ? state.areaName || state.city || "Neighborhood"
-                : "Private location"
-              : state.title || state.areaName || state.city || "Your listing"}
+            {tileTitle}
           </h3>
           {(isPreview ? state.previewShowRating : true) && (
             <div className="text-xs text-muted-foreground">&#9733; 4.87</div>
           )}
         </div>
-        {!isPreview && (
+        {tileNeighborhood && (
           <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
-            {state.areaName || state.city || "Location"}
+            {tileNeighborhood}
           </p>
         )}
-        {!isPreview && (
-          <p className="text-sm text-muted-foreground">Hosted by you</p>
+        {tileHost && (
+          <p className="text-sm text-muted-foreground">{tileHost}</p>
         )}
         {(isPreview ? state.previewShowPriceRange : true) && priceDisplay && (
           <p className="mt-1 text-sm">
@@ -1661,15 +1848,19 @@ function ListingDetailMock({
   const { priceDisplay, previewDesc, previewPhotos, coverPhoto } =
     getListingDisplay(state);
   const isPreview = mode === "preview";
-  // For preview mode, use preview photos (fall back to first 2 of all).
-  // For full mode, use all photos in order (cover first).
+  const hasPreviewPhotos = previewPhotos.length > 0;
+  // Preview: show selected preview photos (or single blurred cover).
+  // Full: show all photos, cover first.
   const photosToShow = isPreview
-    ? previewPhotos.length > 0
-      ? previewPhotos.slice(0, 3)
-      : state.photos.slice(0, 2)
+    ? hasPreviewPhotos
+      ? previewPhotos.slice(0, 5)
+      : coverPhoto
+        ? [coverPhoto]
+        : []
     : coverPhoto
       ? [coverPhoto, ...state.photos.filter((p) => !p.is_cover)].slice(0, 5)
       : state.photos.slice(0, 5);
+  const blurPhotos = isPreview && !hasPreviewPhotos;
 
   const propertyLabel =
     state.placeKind === "private"
@@ -1678,221 +1869,453 @@ function ListingDetailMock({
         ? "Shared room"
         : "Entire place";
 
-  // Toggle getters — in "full" mode everything is always shown.
+  // Toggle getter — in "full" mode everything is always shown.
   const show = (key: PreviewToggleKey) => (isPreview ? state[key] : true);
 
   const areaName = state.areaName || state.city || "Neighborhood";
   const fullDescription = state.description || previewDesc;
 
+  // Headline: real title OR generic fallback in preview
+  const displayTitle = isPreview
+    ? show("previewShowTitle")
+      ? state.title || `${propertyLabel} in ${areaName}`
+      : `${propertyLabel}${show("previewShowNeighborhood") ? ` in ${areaName}` : ""}`
+    : state.title || `${propertyLabel} in ${areaName}`;
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-white">
-      {/* Photo gallery */}
-      {photosToShow.length > 0 ? (
-        <div className="grid grid-cols-4 gap-1">
-          <div className="col-span-4 md:col-span-2 md:row-span-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photosToShow[0].public_url}
-              alt=""
-              className={cn(
-                "h-64 w-full object-cover md:h-[480px]",
-                isPreview && "saturate-[0.85]"
+    <div className="overflow-hidden rounded-2xl bg-white">
+      {/* Photo grid — adaptive layout based on count */}
+      <AdaptivePhotoGrid
+        photos={photosToShow}
+        blur={blurPhotos}
+        dimmed={isPreview && !blurPhotos}
+      />
+
+      <div className="px-4 py-8 md:px-8">
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
+              {displayTitle}
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+              {show("previewShowRating") && (
+                <>
+                  <span>&#9733;</span>
+                  <span className="font-semibold">4.87</span>
+                  <span className="text-muted-foreground">&middot;</span>
+                  <span className="font-semibold underline">24 reviews</span>
+                  <span className="text-muted-foreground">&middot;</span>
+                </>
               )}
-            />
+              {show("previewShowNeighborhood") && (
+                <span className="font-semibold underline">{areaName}</span>
+              )}
+            </div>
           </div>
-          {photosToShow.slice(1, 5).map((p, i) => (
-            <div
-              key={p.public_url}
-              className={cn(
-                "hidden md:block",
-                i < 2 ? "col-span-1" : "col-span-1"
+        </div>
+
+        {/* Two-column layout — content + sticky booking sidebar */}
+        <div className="mt-8 grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-16">
+          <div className="md:col-span-2">
+            {/* Subtitle + bed counts */}
+            <div>
+              <h2 className="text-xl font-semibold md:text-2xl">
+                {propertyLabel}
+                {show("previewShowNeighborhood") ? ` in ${areaName}` : ""}
+              </h2>
+              {show("previewShowBedCounts") && (
+                <p className="mt-1 text-muted-foreground">
+                  {state.guests} guest{state.guests !== 1 ? "s" : ""} &middot;{" "}
+                  {state.bedrooms} bedroom{state.bedrooms !== 1 ? "s" : ""}{" "}
+                  &middot; {state.beds} bed{state.beds !== 1 ? "s" : ""}{" "}
+                  &middot; {state.bathrooms} bath
+                  {state.bathrooms !== 1 ? "s" : ""}
+                </p>
               )}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={p.public_url}
-                alt=""
-                className={cn(
-                  "h-[238px] w-full object-cover",
-                  isPreview && "saturate-[0.85]"
-                )}
-              />
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex h-64 items-center justify-center bg-muted text-sm text-muted-foreground">
-          No photos yet
-        </div>
-      )}
 
-      <div className="grid grid-cols-1 gap-8 px-6 py-8 md:grid-cols-3 md:px-10">
-        <div className="md:col-span-2">
-          {/* Title area */}
-          <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
-            {isPreview
-              ? `${propertyLabel}${show("previewShowNeighborhood") ? ` in ${areaName}` : ""}`
-              : state.title || "Your listing"}
-          </h1>
+            <div className="my-8 h-px bg-border" />
 
-          {!isPreview && (
-            <p className="mt-2 text-sm text-muted-foreground">{areaName}</p>
-          )}
-
-          {show("previewShowRating") && (
-            <div className="mt-2 flex items-center gap-2 text-sm">
-              <span>&#9733;</span>
-              <span className="font-semibold">4.87</span>
-              <span className="text-muted-foreground">&middot; 24 reviews</span>
-            </div>
-          )}
-
-          {show("previewShowBedCounts") && (
-            <div className="mt-3 text-sm text-muted-foreground">
-              {state.guests} guest{state.guests !== 1 ? "s" : ""} &middot;{" "}
-              {state.bedrooms} bedroom{state.bedrooms !== 1 ? "s" : ""} &middot;{" "}
-              {state.beds} bed{state.beds !== 1 ? "s" : ""} &middot;{" "}
-              {state.bathrooms} bath{state.bathrooms !== 1 ? "s" : ""}
-            </div>
-          )}
-
-          <div className="mt-6 border-t border-border pt-6">
+            {/* Host card */}
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-lg font-semibold text-muted-foreground">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted text-lg font-semibold text-muted-foreground">
                 {isPreview && !show("previewShowHostFirstName") ? "?" : "Y"}
               </div>
               <div>
-                <div className="text-base font-semibold">
+                <div className="text-lg font-semibold">
                   {isPreview
                     ? show("previewShowHostFirstName")
                       ? "Hosted by you"
                       : "Hosted by a verified member"
                     : "Hosted by you"}
                 </div>
-                {!isPreview && (
-                  <div className="text-xs text-muted-foreground">Host</div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Description */}
-          {(!isPreview || show("previewShowDescription")) && (
-            <div className="mt-6 border-t border-border pt-6">
-              <h2 className="mb-3 text-lg font-semibold">About this place</h2>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                {isPreview ? previewDesc : fullDescription}
-              </p>
-              {!isPreview && state.propertyOverview && (
-                <>
-                  <h3 className="mt-5 mb-2 text-sm font-semibold">
-                    Your property
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {state.propertyOverview}
-                  </p>
-                </>
-              )}
-              {!isPreview && state.guestAccess && (
-                <>
-                  <h3 className="mt-5 mb-2 text-sm font-semibold">
-                    Guest access
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {state.guestAccess}
-                  </p>
-                </>
-              )}
-              {!isPreview && state.interactionWithGuests && (
-                <>
-                  <h3 className="mt-5 mb-2 text-sm font-semibold">
-                    Interaction with guests
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {state.interactionWithGuests}
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Amenities */}
-          {(!isPreview || show("previewShowAmenities")) &&
-            state.amenities.length > 0 && (
-              <div className="mt-6 border-t border-border pt-6">
-                <h2 className="mb-3 text-lg font-semibold">
-                  What this place offers
-                </h2>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  {state.amenities
-                    .slice(0, isPreview ? 6 : 20)
-                    .map((a) => (
-                      <div
-                        key={a}
-                        className="flex items-center gap-2 text-muted-foreground"
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-                        {a}
-                      </div>
-                    ))}
+                <div className="text-sm text-muted-foreground">
+                  {isPreview && !show("previewShowHostFirstName")
+                    ? "Host identity revealed once you meet the trust threshold"
+                    : "Host"}
                 </div>
               </div>
-            )}
+            </div>
 
-          {/* House rules */}
-          {(!isPreview || show("previewShowHouseRules")) &&
-            (state.houseRules.length > 0 || state.customRules) && (
-              <div className="mt-6 border-t border-border pt-6">
-                <h2 className="mb-3 text-lg font-semibold">House rules</h2>
-                <ul className="space-y-1 text-sm text-muted-foreground">
-                  {state.houseRules.map((r) => (
-                    <li key={r}>&middot; {r}</li>
-                  ))}
-                  {state.customRules && (
-                    <li className="whitespace-pre-wrap pt-2 text-foreground">
-                      {state.customRules}
-                    </li>
+            <div className="my-8 h-px bg-border" />
+
+            {/* Description */}
+            {(!isPreview || show("previewShowDescription")) && (
+              <>
+                <section>
+                  <h2 className="mb-4 text-xl font-semibold">About this place</h2>
+                  <p className="whitespace-pre-wrap text-base leading-relaxed text-muted-foreground">
+                    {isPreview ? previewDesc : fullDescription}
+                  </p>
+                  {!isPreview && state.propertyOverview && (
+                    <>
+                      <h3 className="mt-5 mb-2 text-base font-semibold text-foreground">
+                        Your property
+                      </h3>
+                      <p className="text-base text-muted-foreground">
+                        {state.propertyOverview}
+                      </p>
+                    </>
                   )}
-                </ul>
-              </div>
+                  {!isPreview && state.guestAccess && (
+                    <>
+                      <h3 className="mt-5 mb-2 text-base font-semibold text-foreground">
+                        Guest access
+                      </h3>
+                      <p className="text-base text-muted-foreground">
+                        {state.guestAccess}
+                      </p>
+                    </>
+                  )}
+                  {!isPreview && state.interactionWithGuests && (
+                    <>
+                      <h3 className="mt-5 mb-2 text-base font-semibold text-foreground">
+                        Interaction with guests
+                      </h3>
+                      <p className="text-base text-muted-foreground">
+                        {state.interactionWithGuests}
+                      </p>
+                    </>
+                  )}
+                </section>
+                <div className="my-8 h-px bg-border" />
+              </>
             )}
 
-          {/* Map */}
-          {show("previewShowMapArea") && (
-            <div className="mt-6 border-t border-border pt-6">
-              <h2 className="mb-3 text-lg font-semibold">Location</h2>
-              <div className="text-sm text-muted-foreground">
+            {/* Amenities */}
+            {(!isPreview || show("previewShowAmenities")) && (
+              <>
+                <section>
+                  <h2 className="mb-6 text-xl font-semibold">
+                    What this place offers
+                  </h2>
+                  {state.amenities.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {state.amenities.map((a) => (
+                        <div
+                          key={a}
+                          className="flex items-center gap-3 border-b border-border/50 py-2 text-sm last:border-0"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
+                          {a}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No amenities selected yet.
+                    </p>
+                  )}
+                </section>
+                <div className="my-8 h-px bg-border" />
+              </>
+            )}
+
+            {/* Calendar — disabled visual mock */}
+            <section>
+              <h2 className="mb-2 text-xl font-semibold">Select check-in date</h2>
+              <p className="mb-6 text-sm text-muted-foreground">
+                Add your travel dates for exact pricing
+              </p>
+              <MockCalendar disabled />
+            </section>
+          </div>
+
+          {/* Right column — booking sidebar */}
+          <aside className="md:col-span-1">
+            <div className="sticky top-24 rounded-xl border border-border bg-white p-6 shadow-xl">
+              {show("previewShowPriceRange") && priceDisplay ? (
+                <div className="flex items-baseline justify-between">
+                  <div>
+                    <span className="text-2xl font-semibold">{priceDisplay}</span>
+                    <span className="text-base text-muted-foreground">
+                      {" "}
+                      / night
+                    </span>
+                  </div>
+                  {show("previewShowRating") && (
+                    <div className="text-sm text-muted-foreground">
+                      &#9733; 4.87 &middot; 24 reviews
+                    </div>
+                  )}
+                </div>
+              ) : isPreview ? (
+                <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Pricing shown after access
+                </div>
+              ) : null}
+
+              <div
+                className="mt-4 overflow-hidden rounded-lg border border-foreground/20 opacity-90"
+                aria-disabled
+              >
+                <div className="grid grid-cols-2">
+                  <div className="border-r border-foreground/20 p-3 text-left">
+                    <div className="text-[10px] font-semibold uppercase">
+                      Check-in
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Add date
+                    </div>
+                  </div>
+                  <div className="p-3 text-left">
+                    <div className="text-[10px] font-semibold uppercase">
+                      Checkout
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Add date
+                    </div>
+                  </div>
+                </div>
+                <div className="border-t border-foreground/20 p-3 text-left">
+                  <div className="text-[10px] font-semibold uppercase">
+                    Guests
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    1 guest
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled
+                aria-disabled
+                className="mt-4 h-12 w-full rounded-lg bg-brand text-base font-semibold text-white opacity-80"
+                onClick={(e) => e.preventDefault()}
+              >
+                Request to Book
+              </button>
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                Payment arranged directly with your host off-platform
+              </p>
+            </div>
+          </aside>
+        </div>
+
+        <div className="my-10 h-px bg-border" />
+
+        {/* Map / location */}
+        {show("previewShowMapArea") && (
+          <>
+            <section>
+              <h2 className="mb-2 text-xl font-semibold">Where you&apos;ll be</h2>
+              <p className="mb-6 text-sm text-muted-foreground">
                 {show("previewShowNeighborhood") ? areaName : "Private location"}
+              </p>
+              <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 text-sm text-muted-foreground">
+                {isPreview ? "Approximate map area" : "Map with exact pin"}
               </div>
-              <div className="mt-3 flex h-40 items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
-                {isPreview ? "Approximate map area" : "Map pin"}
-              </div>
+            </section>
+            <div className="my-10 h-px bg-border" />
+          </>
+        )}
+
+        {/* House rules */}
+        {(!isPreview || show("previewShowHouseRules")) &&
+          (state.houseRules.length > 0 || state.customRules) && (
+            <>
+              <section>
+                <h2 className="mb-6 text-xl font-semibold">Things to know</h2>
+                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                  <div>
+                    <h3 className="mb-3 font-semibold">House rules</h3>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      <li>Check-in: {state.checkIn}</li>
+                      <li>Checkout: {state.checkOut}</li>
+                      <li>
+                        Minimum stay: {state.minNights} night
+                        {state.minNights !== "1" ? "s" : ""}
+                      </li>
+                      {state.houseRules.map((r) => (
+                        <li key={r}>&middot; {r}</li>
+                      ))}
+                      {state.customRules && (
+                        <li className="whitespace-pre-wrap pt-2 text-foreground">
+                          {state.customRules}
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="mb-3 font-semibold">Safety &amp; property</h3>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      <li>Smoke alarm</li>
+                      <li>Carbon monoxide alarm</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Adaptive photo grid — visual layout changes based on how many
+ * photos are provided (1, 2, 3, or 4+). Mirrors Airbnb-style galleries.
+ */
+function AdaptivePhotoGrid({
+  photos,
+  blur,
+  dimmed,
+}: {
+  photos: UploadedPhoto[];
+  blur: boolean;
+  dimmed: boolean;
+}) {
+  if (photos.length === 0) {
+    return (
+      <div className="flex h-64 items-center justify-center bg-muted text-sm text-muted-foreground">
+        No photos yet
+      </div>
+    );
+  }
+
+  const photoClass = cn(
+    "h-full w-full object-cover transition-all",
+    blur && "scale-110 blur-2xl saturate-[0.7]",
+    !blur && dimmed && "saturate-[0.85]"
+  );
+
+  const Photo = ({ url, alt }: { url: string; alt: string }) => (
+    <div className="h-full w-full overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt={alt} className={photoClass} />
+    </div>
+  );
+
+  const count = photos.length;
+
+  return (
+    <div className="relative rounded-t-2xl overflow-hidden md:rounded-t-2xl">
+      {count === 1 && (
+        <div className="h-64 md:h-[480px]">
+          <Photo url={photos[0].public_url} alt="Listing photo" />
+        </div>
+      )}
+      {count === 2 && (
+        <div className="grid h-64 grid-cols-2 gap-1 md:h-[480px]">
+          <Photo url={photos[0].public_url} alt="Photo 1" />
+          <Photo url={photos[1].public_url} alt="Photo 2" />
+        </div>
+      )}
+      {count === 3 && (
+        <div className="grid h-64 grid-cols-2 gap-1 md:h-[480px]">
+          <Photo url={photos[0].public_url} alt="Photo 1" />
+          <div className="grid h-full grid-rows-2 gap-1">
+            <Photo url={photos[1].public_url} alt="Photo 2" />
+            <Photo url={photos[2].public_url} alt="Photo 3" />
+          </div>
+        </div>
+      )}
+      {count >= 4 && (
+        <div className="grid h-64 grid-cols-4 gap-1 md:h-[480px]">
+          <div className="col-span-2 h-full">
+            <Photo url={photos[0].public_url} alt="Photo 1" />
+          </div>
+          <div className="h-full">
+            <Photo url={photos[1].public_url} alt="Photo 2" />
+          </div>
+          <div className="h-full">
+            <Photo url={photos[2].public_url} alt="Photo 3" />
+          </div>
+          <div className="h-full">
+            <Photo url={photos[3].public_url} alt="Photo 4" />
+          </div>
+          {photos[4] && (
+            <div className="h-full">
+              <Photo url={photos[4].public_url} alt="Photo 5" />
             </div>
           )}
         </div>
+      )}
 
-        {/* Right column — booking card */}
-        <aside className="md:col-span-1">
-          <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-            {show("previewShowPriceRange") && priceDisplay && (
-              <div className="mb-4">
-                <span className="text-2xl font-semibold">{priceDisplay}</span>
-                <span className="text-muted-foreground"> / night</span>
-              </div>
-            )}
-            {!isPreview && (
-              <div className="text-xs text-muted-foreground">
-                Dates, calendar, and booking flow appear here.
-              </div>
-            )}
-            {isPreview && (
-              <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
-                Unlock this listing to see full pricing, calendar, and host
-                details.
-              </div>
-            )}
+      {blur && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-foreground shadow-sm backdrop-blur">
+            <Lock className="h-3.5 w-3.5" /> Photos unlocked with access
           </div>
-        </aside>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Visual-only month calendar — purely for the mock. Shows a current month
+ * grid with weekday headers and 35 day cells. Disabled state mirrors the
+ * locked-from-editing vibe on the preview/review step.
+ */
+function MockCalendar({ disabled }: { disabled?: boolean }) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthName = today.toLocaleString("default", { month: "long" });
+  const days = Array.from({ length: 35 }, (_, i) => {
+    const day = i - firstDay + 1;
+    if (day < 1 || day > daysInMonth) return null;
+    return day;
+  });
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-border bg-white p-4",
+        disabled && "pointer-events-none opacity-90"
+      )}
+    >
+      <div className="mb-3 text-center text-sm font-semibold">
+        {monthName} {year}
+      </div>
+      <div className="mb-1 grid grid-cols-7 text-center text-[10px] font-semibold uppercase text-muted-foreground">
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+          <div key={d} className="py-1">
+            {d}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-xs">
+        {days.map((d, i) => (
+          <div
+            key={i}
+            className={cn(
+              "flex h-8 items-center justify-center rounded-full",
+              d === null
+                ? ""
+                : d < today.getDate()
+                  ? "text-muted-foreground/40 line-through"
+                  : "text-foreground hover:bg-muted"
+            )}
+          >
+            {d ?? ""}
+          </div>
+        ))}
       </div>
     </div>
   );

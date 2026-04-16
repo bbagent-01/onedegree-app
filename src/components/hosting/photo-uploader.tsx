@@ -76,11 +76,8 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
       if (!next.some((p) => p.is_cover) && next.length > 0) {
         next[0].is_cover = true;
       }
-      // If no preview photos yet, default the cover into preview too.
-      if (!next.some((p) => p.is_preview) && next.length > 0) {
-        const coverIdx = next.findIndex((p) => p.is_cover);
-        if (coverIdx >= 0) next[coverIdx].is_preview = true;
-      }
+      // Preview is opt-in — do NOT auto-mark. Listings with zero preview
+      // photos render the cover photo blurred in preview mode.
       onChange(next.map((p, i) => ({ ...p, sort_order: i })));
       setUploading(false);
     },
@@ -99,15 +96,11 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
     const next = photos
       .filter((_, i) => i !== idx)
       .map((p, i) => ({ ...p, sort_order: i }));
-    // Keep at least one cover.
+    // Keep at least one cover (first photo if none).
     if (!next.some((p) => p.is_cover) && next.length > 0) {
       next[0].is_cover = true;
     }
-    // Keep at least one preview.
-    if (!next.some((p) => p.is_preview) && next.length > 0) {
-      const coverIdx = next.findIndex((p) => p.is_cover);
-      if (coverIdx >= 0) next[coverIdx].is_preview = true;
-    }
+    // Preview photos are optional — no forced backfill.
     onChange(next);
   };
 
@@ -117,15 +110,11 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
   };
 
   // Multi-select: toggle whether photo idx is in the preview.
-  // Always keep at least one photo in the preview (the cover).
+  // Zero preview photos is valid — the cover photo is shown blurred.
   const togglePreview = (idx: number) => {
     const next = photos.map((p, i) =>
       i === idx ? { ...p, is_preview: !p.is_preview } : p
     );
-    if (!next.some((p) => p.is_preview) && next.length > 0) {
-      const coverIdx = next.findIndex((p) => p.is_cover);
-      next[coverIdx >= 0 ? coverIdx : 0].is_preview = true;
-    }
     onChange(next);
   };
 
@@ -289,7 +278,8 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Eye className="h-3.5 w-3.5 text-brand" /> Preview &mdash; shown to
-            anyone before they unlock the listing (pick any)
+            anyone before they unlock the listing (optional; if none are
+            selected, the cover photo is shown blurred)
           </span>
         </div>
       )}

@@ -57,18 +57,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const hasPreviewPhoto = photos.some((p: { is_preview: boolean }) => p.is_preview);
-  if (!hasPreviewPhoto) {
-    return Response.json(
-      { error: "At least one photo must be marked as a preview photo." },
-      { status: 400 }
-    );
-  }
+  // Preview photos are optional. If none are selected, the cover photo
+  // is shown blurred in preview mode. Cover photo is required though.
   const hasCoverPhoto = photos.some((p: { is_cover?: boolean }) => p.is_cover);
-  // Default the first preview photo to cover if the host didn't explicitly pick one.
-  if (!hasCoverPhoto) {
-    const firstPreview = photos.find((p: { is_preview: boolean }) => p.is_preview);
-    if (firstPreview) (firstPreview as { is_cover: boolean }).is_cover = true;
+  if (!hasCoverPhoto && photos.length > 0) {
+    // Default the first photo to cover if the host didn't explicitly pick one.
+    (photos[0] as { is_cover: boolean }).is_cover = true;
   }
 
   // Insert listing

@@ -38,12 +38,18 @@ export function LiveListingCard({
     ? listing.photos.map((p) => p.public_url)
     : [PLACEHOLDER];
 
-  // Preview photos: those marked is_preview, or first 2
+  // Preview photos — explicitly marked by the host. May be empty.
   const previewPhotos = listing.photos.filter((p) => p.is_preview);
-  const previewImages =
-    previewPhotos.length > 0
-      ? previewPhotos.slice(0, 3).map((p) => p.public_url)
-      : allImages.slice(0, 2);
+  const hasPreviewPhotos = previewPhotos.length > 0;
+  const coverPhoto = listing.photos.find((p) => p.is_cover) || listing.photos[0];
+  // If host selected preview photos, use them. Otherwise we fall back
+  // to the cover photo — heavily blurred — so anonymous viewers see
+  // a silhouette-style placeholder instead of the real photos.
+  const previewImages = hasPreviewPhotos
+    ? previewPhotos.slice(0, 3).map((p) => p.public_url)
+    : coverPhoto
+      ? [coverPhoto.public_url]
+      : [PLACEHOLDER];
 
   const [currentImage, setCurrentImage] = useState(0);
   const [isSaved, setIsSaved] = useState(initialSaved);
@@ -111,7 +117,12 @@ export function LiveListingCard({
             <img
               src={images[currentImage] ?? PLACEHOLDER}
               alt={`Preview of listing in ${listing.area_name}`}
-              className="h-full w-full object-cover saturate-[0.85] brightness-[0.97]"
+              className={cn(
+                "h-full w-full object-cover",
+                hasPreviewPhotos
+                  ? "saturate-[0.85] brightness-[0.97]"
+                  : "scale-110 blur-lg saturate-[0.7]"
+              )}
             />
 
             {/* Lock badge — top-left */}

@@ -49,14 +49,9 @@ export async function PUT(
     return Response.json({ error: "photos array required" }, { status: 400 });
   }
 
-  if (body.photos.length > 0 && !body.photos.some((p) => p.is_preview)) {
-    // Force first as preview if nothing marked
-    body.photos[0].is_preview = true;
-  }
+  // Preview photos are optional. Cover is required — default to first.
   if (body.photos.length > 0 && !body.photos.some((p) => p.is_cover)) {
-    // Force first preview as cover if no cover is set
-    const firstPreview = body.photos.find((p) => p.is_preview);
-    if (firstPreview) firstPreview.is_cover = true;
+    body.photos[0].is_cover = true;
   }
 
   // Current rows
