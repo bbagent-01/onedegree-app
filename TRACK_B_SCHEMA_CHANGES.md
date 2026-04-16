@@ -2,6 +2,88 @@
 
 Schema changes introduced by Track B sessions. Each entry documents what was added and why.
 
+## CC-C1a — Alpha-C Trust Model (migration 014)
+
+**Migration:** `supabase/migrations/014_alpha_c_trust_model.sql`
+
+### years_known_bucket_enum — extended
+
+New values added: `lt1`, `1to3`, `3to5`, `5to10`, `10plus`. Old values (`lt1yr`, `1to3yr`, `4to7yr`, `8to15yr`, `15plusyr`) remain for backward compatibility but are not used by new code.
+
+### vouches table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| vouch_score | NUMERIC | Computed on insert/update: base_points × years_multiplier. Standard=15, Inner Circle=25. |
+| is_post_stay | BOOLEAN NOT NULL DEFAULT false | Whether this vouch was created after a confirmed stay. |
+| source_booking_id | UUID nullable | Reference to the contact request that prompted this vouch. |
+| is_staked | BOOLEAN NOT NULL DEFAULT false | Whether the voucher has staked reputation on this vouch. |
+| updated_at | TIMESTAMPTZ DEFAULT now() | Auto-bumped by trigger on vouch_type or years_known_bucket change. |
+
+**Trigger:** `trg_compute_vouch_score` — BEFORE INSERT/UPDATE on vouch_type or years_known_bucket, computes vouch_score and updates vouch counts on both users.
+
+### users table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| vouch_count_given | INTEGER NOT NULL DEFAULT 0 | Count of vouches this user has given. Maintained by trigger. |
+| vouch_count_received | INTEGER NOT NULL DEFAULT 0 | Count of vouches this user has received. Maintained by trigger. |
+
+- `vouch_power` default changed from NULL to 1.0 (benefit of the doubt for new users).
+- Existing NULL vouch_power values backfilled to 1.0.
+
+### listings table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| visibility_mode | TEXT NOT NULL DEFAULT 'preview_gated' | One of: public, preview_gated, hidden. Replaces old preview_visibility/full_visibility system. |
+| preview_photos | JSONB nullable | Subset of photos shown to gated viewers. |
+| preview_description | TEXT nullable | Teaser description for gated viewers. |
+| access_settings | JSONB NOT NULL | Per-action access rules. Default: see_preview=anyone, see_full=min_score(10), request_book=min_score(20), message=min_score(10), request_intro=anyone, view_host_profile=anyone. |
+
+- `min_trust_gate` (from 013) stays for backward compat but `access_settings` is the canonical source of truth.
+- Old columns (`preview_visibility`, `full_visibility`, `min_trust_score`, `specific_user_ids`) untouched — Track A schema, not used by new code.
+
+### invites table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| invitee_name | TEXT nullable | Display name for the invitee. |
+| pre_vouch_data | JSONB nullable | Pre-vouch information (vouch type, years known, etc.) as flexible JSON. |
+| status | TEXT NOT NULL DEFAULT 'sent' | One of: sent, clicked, joined. |
+
+### New RPCs
+
+| RPC | Purpose |
+|-----|---------|
+| `get_trust_data_for_viewer(viewer_id, target_ids[])` | Single query returning all vouch path data for 1° score computation. Returns one row per connector path. |
+| `recalculate_vouch_power_for_user(user_id)` | Recompute + store vouch_power. New formula: avg(guest_rating)/4.0 clamped [0.5, 1.5]. |
+| `get_user_network(user_id)` | Returns vouched-for and vouched-by relationships with user profiles. |
+
+### New/Updated Triggers
+
+| Trigger | Table | Fires On | Purpose |
+|---------|-------|----------|---------|
+| `trg_compute_vouch_score` | vouches | BEFORE INSERT/UPDATE | Computes vouch_score, updates user vouch counts. |
+| `trg_vouch_power` | users | AFTER UPDATE OF guest_rating | Recalculates vouch_power for all vouchers of this user. New formula: rating/4.0 clamped [0.5, 1.5]. |
+| `trg_update_user_ratings` | stay_confirmations | AFTER UPDATE OF guest/host/listing_rating | Updates user avg ratings and listing avg rating. |
+| `trg_update_user_ratings_insert` | stay_confirmations | AFTER INSERT (with ratings) | Same as above, for insert case. |
+
+### New TypeScript modules
+
+| Module | Purpose |
+|--------|---------|
+| `src/lib/trust/types.ts` | Shared types, constants (VOUCH_BASE_POINTS, YEARS_MULTIPLIER, DEFAULT_ACCESS_SETTINGS) |
+| `src/lib/trust/compute-score.ts` | `compute1DegreeScore(viewerId, targetId)` — single-target 1° score |
+| `src/lib/trust/compute-score-batch.ts` | `compute1DegreeScores(viewerId, targetIds[])` — batch, 1-2 queries max |
+| `src/lib/trust/vouch-power.ts` | `computeVouchPower(userId)`, `persistVouchPower(userId)` |
+| `src/lib/trust/check-access.ts` | `checkListingAccess(viewerId, listing, score, degrees?)` |
+| `src/lib/trust/index.ts` | Re-exports public API |
+
+### Why this shape
+
+The Alpha-C model replaces B7a's trust_level 1/6/8/10 scale with vouch_type (standard/inner_circle) + years_known_bucket. Vouch scores are now pre-computed and stored on the vouch row. The 1° score computation uses a single RPC that returns all path data in one query, avoiding N+1. The old `trust-data.ts` and `calculate_one_degree_scores` RPC are preserved for backward compat — CC-C3 will rewire the browse/detail pages to use the new `src/lib/trust/` modules.
+
 ## CC-B7a — Listing trust gate (migration 013)
 
 **Migration:** `supabase/migrations/013_min_trust_gate.sql`
