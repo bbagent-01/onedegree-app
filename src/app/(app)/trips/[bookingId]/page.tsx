@@ -14,6 +14,7 @@ import { getTripDetail } from "@/lib/trips-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { TripDetailActions } from "@/components/trips/trip-detail-actions";
+import { PostStayVouchBanner } from "@/components/trust/post-stay-vouch-banner";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -82,6 +83,19 @@ export default async function TripDetailPage({ params }: PageProps) {
         <ChevronLeft className="h-4 w-4" />
         Back to trips
       </Link>
+
+      {/* Post-stay vouch prompt — guest vouching for host */}
+      {isPostCheckout && trip.host && (
+        <div className="mt-4">
+          <PostStayVouchBanner
+            targetId={trip.host.id}
+            targetName={trip.host.name ?? "your host"}
+            targetAvatar={trip.host.avatar_url}
+            contextLabel={`You stayed at ${trip.listing?.title ?? "this listing"}`}
+            bookingId={bookingId}
+          />
+        </div>
+      )}
 
       {/* Header card */}
       <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-white">

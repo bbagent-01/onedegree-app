@@ -18,6 +18,8 @@ import {
   User,
   Globe,
   HelpCircle,
+  Shield,
+  UserPlus,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -143,6 +145,8 @@ export function AccountMenu() {
         { href: "/inbox", label: "Messages", icon: MessageCircle },
         { href: "/wishlists", label: "Wishlists", icon: Heart },
         { href: profileHref, label: "Profile", icon: User },
+        { href: "/vouch", label: "Vouch for a member", icon: Shield },
+        { href: "/invite", label: "Invite someone", icon: UserPlus },
       ],
     },
     {
@@ -179,6 +183,8 @@ export function AccountMenu() {
         { href: "/hosting/create", label: "Create a new listing", icon: Plus },
         { href: "/inbox", label: "Messages", icon: MessageCircle },
         { href: profileHref, label: "Profile", icon: User },
+        { href: "/vouch", label: "Vouch for a member", icon: Shield },
+        { href: "/invite", label: "Invite someone", icon: UserPlus },
       ],
     },
     {

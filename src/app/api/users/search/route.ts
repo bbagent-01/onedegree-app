@@ -3,6 +3,11 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+/**
+ * GET /api/users/search?q=...
+ * Search members by name or email. Returns up to 20 results.
+ * Excludes the requesting user from results.
+ */
 export async function GET(req: Request) {
   const { userId } = await auth();
   if (!userId) {
@@ -11,7 +16,7 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const q = url.searchParams.get("q")?.trim();
-  if (!q) {
+  if (!q || q.length < 2) {
     return Response.json([]);
   }
 
@@ -24,13 +29,14 @@ export async function GET(req: Request) {
     .eq("clerk_id", userId)
     .single();
 
-  // Search users
+  // Search users by name OR email
+  const pattern = `%${q}%`;
   const { data: users, error } = await supabase
     .from("users")
     .select("id, clerk_id, name, email, avatar_url")
-    .ilike("name", `%${q}%`)
+    .or(`name.ilike.${pattern},email.ilike.${pattern}`)
     .neq("clerk_id", userId)
-    .limit(10);
+    .limit(20);
 
   if (error) {
     return new Response("Search failed", { status: 500 });

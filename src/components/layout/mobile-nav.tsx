@@ -16,6 +16,8 @@ import {
   User,
   Globe,
   HelpCircle,
+  Shield,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -303,6 +305,21 @@ export function MobileNav() {
                   onClick={closeMenu}
                 />
               )}
+
+              <Divider />
+
+              <MenuLink
+                href="/vouch"
+                icon={Shield}
+                label="Vouch for a member"
+                onClick={closeMenu}
+              />
+              <MenuLink
+                href="/invite"
+                icon={UserPlus}
+                label="Invite someone"
+                onClick={closeMenu}
+              />
 
               <Divider />
 

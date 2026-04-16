@@ -1,17 +1,23 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getHostDashboardData } from "@/lib/hosting-data";
+import { getNetworkData } from "@/lib/network-data";
 import { StatsCards } from "@/components/hosting/stats-cards";
 import { ReservationsSection } from "@/components/hosting/reservations-section";
 import { ListingsSection } from "@/components/hosting/listings-section";
 import { EarningsSection } from "@/components/hosting/earnings-section";
+import { NetworkSection } from "@/components/trust/network-section";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Plus } from "lucide-react";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 export default async function HostingPage() {
-  const data = await getHostDashboardData();
+  const [data, networkData] = await Promise.all([
+    getHostDashboardData(),
+    getNetworkData(),
+  ]);
   if (!data) redirect("/");
 
   const firstName = data.user.name?.split(" ")[0] || "there";
@@ -70,6 +76,14 @@ export default async function HostingPage() {
       <div className="mt-12">
         <EarningsSection earnings={data.earnings} />
       </div>
+
+      {networkData && (
+        <div className="mt-12">
+          <TooltipProvider>
+            <NetworkSection data={networkData} />
+          </TooltipProvider>
+        </div>
+      )}
     </div>
   );
 }

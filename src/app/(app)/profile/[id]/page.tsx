@@ -6,6 +6,7 @@ import { getProfileById, type ProfileReview } from "@/lib/profile-data";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileReviews } from "@/components/profile/profile-reviews";
+import { VouchButton } from "@/components/trust/vouch-button";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -100,12 +101,21 @@ export default async function ProfilePage({
               Edit profile
             </Link>
           ) : (
-            <Link
-              href="/inbox"
-              className="rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
-            >
-              Contact
-            </Link>
+            <>
+              <VouchButton
+                targetId={user.id}
+                targetName={user.name}
+                targetAvatar={user.avatar_url}
+                isOwnProfile={isOwn}
+                variant="outline"
+              />
+              <Link
+                href="/inbox"
+                className="rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Contact
+              </Link>
+            </>
           )}
         </div>
       </div>

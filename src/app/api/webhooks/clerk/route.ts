@@ -42,22 +42,99 @@ export async function POST(req: Request) {
     const name = [first_name, last_name].filter(Boolean).join(" ") || "User";
     const phone = phone_numbers?.[0]?.phone_number ?? null;
 
-    const { error } = await getSupabaseAdmin().from("users").upsert(
-      {
-        clerk_id: id,
-        name,
-        email,
-        avatar_url: image_url,
-        phone_number: phone,
-      },
-      { onConflict: "clerk_id" }
-    );
+    const supabase = getSupabaseAdmin();
+
+    const { data: user, error } = await supabase
+      .from("users")
+      .upsert(
+        {
+          clerk_id: id,
+          name,
+          email,
+          avatar_url: image_url,
+          phone_number: phone,
+        },
+        { onConflict: "clerk_id" }
+      )
+      .select("id")
+      .single();
 
     if (error) {
       console.error("Supabase upsert error:", error);
       return new Response("Database error", { status: 500 });
     }
+
+    // On new user creation, claim any pending invites
+    if (evt.type === "user.created" && user) {
+      await claimPendingInvites(supabase, user.id, email ?? null, phone);
+    }
   }
 
   return new Response("OK", { status: 200 });
+}
+
+/**
+ * When a new user signs up, check for pending invites matching their
+ * phone number or email. For each match, auto-create the vouch record
+ * from the pre_vouch_data and mark the invite as claimed.
+ */
+async function claimPendingInvites(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  newUserId: string,
+  email: string | null,
+  phone: string | null
+) {
+  if (!email && !phone) return;
+
+  // Build OR filter for matching invites
+  const conditions: string[] = [];
+  if (phone) conditions.push(`invitee_phone.eq.${phone}`);
+  if (email) conditions.push(`invitee_email.eq.${email}`);
+
+  const { data: invites } = await supabase
+    .from("invites")
+    .select("id, inviter_id, pre_vouch_data, vouch_type, years_known_bucket")
+    .or(conditions.join(","))
+    .is("claimed_by", null);
+
+  if (!invites || invites.length === 0) return;
+
+  for (const invite of invites) {
+    try {
+      // Use pre_vouch_data if available, otherwise fall back to direct fields
+      const pvd = invite.pre_vouch_data as {
+        vouch_type?: string;
+        years_known_bucket?: string;
+      } | null;
+
+      const vouchType = pvd?.vouch_type || invite.vouch_type || "standard";
+      const yearsKnown = pvd?.years_known_bucket || invite.years_known_bucket || "lt1";
+
+      // Create the vouch (the DB trigger computes vouch_score)
+      await supabase.from("vouches").upsert(
+        {
+          voucher_id: invite.inviter_id,
+          vouchee_id: newUserId,
+          vouch_type: vouchType,
+          years_known_bucket: yearsKnown,
+          is_post_stay: false,
+          is_staked: false,
+        },
+        { onConflict: "voucher_id,vouchee_id" }
+      );
+
+      // Mark invite as claimed
+      await supabase
+        .from("invites")
+        .update({
+          status: "joined",
+          claimed_by: newUserId,
+          claimed_at: new Date().toISOString(),
+        })
+        .eq("id", invite.id);
+    } catch (e) {
+      // Log but don't fail the webhook for invite claim errors
+      console.error(`Failed to claim invite ${invite.id}:`, e);
+    }
+  }
 }

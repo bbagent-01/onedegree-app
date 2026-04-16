@@ -357,6 +357,44 @@ export async function emailReviewReminder(p: ReviewReminderPayload) {
   });
 }
 
+/* ---------- Invitation ---------- */
+
+interface InvitationPayload {
+  inviterName: string;
+  inviteeName: string;
+  inviteeEmail: string;
+  inviteUrl: string;
+}
+
+export async function emailInvitation(p: InvitationPayload) {
+  const resend = getResend();
+  if (!resend) {
+    console.log(`[email] RESEND_API_KEY missing — would send invite to ${p.inviteeEmail}`);
+    return { skipped: true as const };
+  }
+
+  const body = `
+    ${para(`<strong>${escapeHtml(p.inviterName)}</strong> vouched for you and invited you to join their trusted network on 1&deg; B&B.`)}
+    ${para("1&deg; B&B is a trust-based short-term rental platform where every guest and host is connected through personal vouches. Your invitation means someone trusts you enough to stake their reputation.")}
+    ${button("Join 1\u00B0 B&B", p.inviteUrl)}
+    ${para('<span style="color:#9CA3AF;font-size:12px;">If you didn\'t expect this invitation, you can safely ignore it.</span>')}
+  `;
+
+  try {
+    const result = await resend.emails.send({
+      from: FROM,
+      to: p.inviteeEmail,
+      replyTo: REPLY_TO,
+      subject: `${p.inviterName} invited you to 1\u00B0 B&B`,
+      html: wrap(`Hi ${firstName(p.inviteeName)}!`, body),
+    });
+    return { ok: true as const, id: result.data?.id };
+  } catch (e) {
+    console.error("[email] invite send failed:", e);
+    return { ok: false as const, error: String(e) };
+  }
+}
+
 /* ---------- Utilities ---------- */
 
 function escapeHtml(s: string) {

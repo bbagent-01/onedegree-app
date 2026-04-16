@@ -2,6 +2,46 @@
 
 Schema changes introduced by Track B sessions. Each entry documents what was added and why.
 
+## CC-C2 — Vouch & Invite Flows (no new migrations)
+
+**No new database tables or columns.** CC-C2 uses the schema created by CC-C1a/C1b.
+
+### Updated API Routes
+
+| Route | Changes |
+|-------|---------|
+| `POST /api/vouches` | Now uses `is_post_stay`, `source_booking_id`, `is_staked` fields from 014b. Returns `vouchScore`. |
+| `GET /api/vouches` | Now returns `vouch_score`, `is_post_stay`, `is_staked`. |
+| `POST /api/invites` | Now uses `invitee_name`, `pre_vouch_data` (JSONB), `status` from 014b. Sends invitation email via Resend. |
+| `GET /api/invites` | Now returns `invitee_name`, `pre_vouch_data`, `status`. |
+| `GET /api/users/search` | Now searches by email in addition to name. |
+| `POST /api/webhooks/clerk` | `user.created` event now claims pending invites by matching phone/email, auto-creates vouches from `pre_vouch_data`. |
+
+### New Components
+
+| Component | Purpose |
+|-----------|---------|
+| `src/components/trust/vouch-modal.tsx` | 2-step vouch modal (type + years). Dialog on desktop, Sheet on mobile. |
+| `src/components/trust/vouch-button.tsx` | Trigger button that checks for existing vouch. |
+| `src/components/trust/post-stay-vouch-banner.tsx` | Post-stay prompt shown on trip detail and hosting pages. |
+| `src/components/trust/network-section.tsx` | "Your Network" section for host dashboard. |
+
+### New Pages
+
+| Page | Purpose |
+|------|---------|
+| `/vouch` | Search members and vouch for them. |
+| `/invite` | 4-step invite form (info → type → years → preview/send). |
+
+### New Modules
+
+| Module | Purpose |
+|--------|---------|
+| `src/lib/network-data.ts` | Server-side data for the network section (uses `get_user_network` RPC). |
+| `src/hooks/use-media-query.ts` | Client hook for responsive Dialog/Sheet switching. |
+
+---
+
 ## CC-C1b — Degrees of Separation (migration 015)
 
 **Migration:** `supabase/migrations/015_degrees_of_separation.sql`

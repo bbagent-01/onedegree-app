@@ -18,7 +18,6 @@ export async function GET(req: Request) {
 
   const supabase = getSupabaseAdmin();
 
-  // Get current user's DB id
   const { data: currentUser } = await supabase
     .from("users")
     .select("id")
@@ -31,7 +30,7 @@ export async function GET(req: Request) {
 
   const { data } = await supabase
     .from("vouches")
-    .select("vouch_type, years_known_bucket, reputation_stake_confirmed")
+    .select("vouch_type, years_known_bucket, vouch_score, is_post_stay, is_staked")
     .eq("voucher_id", currentUser.id)
     .eq("vouchee_id", targetId)
     .maybeSingle();
@@ -47,7 +46,13 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const { targetUserId, vouchType, yearsKnownBucket, stayConfirmationId } = body;
+  const {
+    targetUserId,
+    vouchType,
+    yearsKnownBucket,
+    isPostStay,
+    sourceBookingId,
+  } = body;
 
   if (!targetUserId || !vouchType || !yearsKnownBucket) {
     return new Response("Missing fields", { status: 400 });
@@ -55,7 +60,6 @@ export async function POST(req: Request) {
 
   const supabase = getSupabaseAdmin();
 
-  // Get current user's DB id
   const { data: currentUser } = await supabase
     .from("users")
     .select("id")
@@ -67,38 +71,41 @@ export async function POST(req: Request) {
   }
 
   if (currentUser.id === targetUserId) {
-    return Response.json({ error: "You can't vouch for yourself." }, { status: 400 });
+    return Response.json(
+      { error: "You can't vouch for yourself." },
+      { status: 400 }
+    );
   }
 
-  // Post-stay vouches must use lt1yr bucket
-  if (stayConfirmationId && yearsKnownBucket !== "lt1yr") {
+  // Post-stay vouches must use lt1 bucket
+  if (isPostStay && yearsKnownBucket !== "lt1") {
     return Response.json(
       { error: "Post-stay vouches must use the <1 year bucket." },
       { status: 400 }
     );
   }
 
-  const { error: upsertError } = await supabase.from("vouches").upsert(
-    {
-      voucher_id: currentUser.id,
-      vouchee_id: targetUserId,
-      vouch_type: vouchType,
-      years_known_bucket: yearsKnownBucket,
-      reputation_stake_confirmed: true,
-      ...(stayConfirmationId ? { stay_confirmation_id: stayConfirmationId } : {}),
-    },
-    { onConflict: "voucher_id,vouchee_id" }
-  );
+  const { data: vouch, error: upsertError } = await supabase
+    .from("vouches")
+    .upsert(
+      {
+        voucher_id: currentUser.id,
+        vouchee_id: targetUserId,
+        vouch_type: vouchType,
+        years_known_bucket: yearsKnownBucket,
+        is_post_stay: !!isPostStay,
+        is_staked: false, // Hidden for alpha — always false
+        ...(sourceBookingId ? { source_booking_id: sourceBookingId } : {}),
+      },
+      { onConflict: "voucher_id,vouchee_id" }
+    )
+    .select("vouch_score")
+    .single();
 
   if (upsertError) {
     console.error("Vouch upsert error:", upsertError);
     return new Response("Failed to save vouch", { status: 500 });
   }
 
-  // Refresh vouch_power
-  await supabase.rpc("calculate_vouch_power", {
-    p_user_id: currentUser.id,
-  });
-
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, vouchScore: vouch?.vouch_score ?? null });
 }
