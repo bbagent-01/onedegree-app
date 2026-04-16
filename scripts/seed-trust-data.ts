@@ -556,7 +556,11 @@ async function main() {
     },
     { key: "jake", expected: 0.75, note: "avg(alex:3)=3.0 → 3.0/4=0.75" },
     { key: "maya_t", expected: 0.75, note: "avg(alex:3)=3.0 → 3.0/4=0.75" },
-    { key: "david", expected: 1.0, note: "avg(jake:4)=4.0 → 4.0/4=1.0" },
+    {
+      key: "david",
+      expected: 0.88,
+      note: "avg(jake:4, alex:3)=3.5 → 3.5/4=0.875≈0.88",
+    },
   ];
 
   // Recalculate vouch_power for each
@@ -594,8 +598,8 @@ async function main() {
   // From PROJECT_PLAN:
   //   Jake path: avg(22.5, 18 × 0.75) = avg(22.5, 13.5) = 18.0
   //   Maya_T path: avg(45, 37.5 × 0.75) = avg(45, 28.125) = 36.5625
-  //   David path: avg(15, 15 × 1.0) = avg(15, 15) = 15.0
-  //   Total = 18.0 + 36.5625 + 15.0 = 69.5625 ≈ 69.56
+  //   David path: avg(15, 15 × 0.88) = avg(15, 13.2) = 14.10
+  //   Total = 18.0 + 36.5625 + 14.10 = 68.6625 ≈ 68.66
 
   const alexId = userMap["alex"];
   if (alexId) {
@@ -628,7 +632,7 @@ async function main() {
         );
       }
 
-      const expected = 69.56;
+      const expected = 68.66;
       const actual = Math.round(total * 100) / 100;
       const pass = Math.abs(actual - expected) < 1;
       console.log(
