@@ -1,9 +1,10 @@
 /**
- * Batch 1° Score computation — multiple targets in 1-2 queries.
+ * Batch 1° Vouch Score computation — multiple targets in 1-2 queries.
  * Server-side only. MUST NOT be N+1.
  *
  * Uses the get_trust_data_for_viewer RPC which returns all path data
- * for all targets in a single query.
+ * for all targets in a single query. Applies harmonic dampening
+ * (see compute-score.ts header for formula details).
  */
 
 import { getSupabaseAdmin } from "../supabase";
@@ -17,7 +18,7 @@ const EMPTY_RESULT: OneDegreeResult = {
 };
 
 /**
- * Compute 1° trust scores from viewer to multiple targets.
+ * Compute 1° vouch scores from viewer to multiple targets.
  * Single optimized query — NOT N+1.
  *
  * Returns a Map keyed by targetId.
@@ -79,19 +80,34 @@ export async function compute1DegreeScores(
       continue;
     }
 
-    const paths: TrustPath[] = targetRows.map((r) => {
+    // Compute path strengths
+    const rawPaths = targetRows.map((r) => {
+      const link_a = r.viewer_vouch_score;
       const link_b = r.connector_vouch_score * r.connector_vouch_power;
-      const path_strength = (r.viewer_vouch_score + link_b) / 2;
+      const path_strength = (link_a + link_b) / 2;
       return {
         connector_id: r.connector_id,
         viewer_vouch_score: r.viewer_vouch_score,
         connector_vouch_score: r.connector_vouch_score,
         connector_vouch_power: r.connector_vouch_power,
+        link_a,
+        link_b,
         path_strength,
       };
     });
 
-    const score = paths.reduce((sum, p) => sum + p.path_strength, 0);
+    // Sort descending for harmonic dampening
+    rawPaths.sort((a, b) => b.path_strength - a.path_strength);
+
+    // Apply harmonic weights: rank 1 = 1.0, rank 2 = 0.5, rank 3 = 0.333, ...
+    const paths: TrustPath[] = rawPaths.map((p, i) => {
+      const rank = i + 1;
+      const weight = 1 / rank;
+      const weighted_score = p.path_strength * weight;
+      return { ...p, rank, weight, weighted_score };
+    });
+
+    const score = paths.reduce((sum, p) => sum + p.weighted_score, 0);
 
     results.set(targetId, {
       score: Math.round(score * 100) / 100,

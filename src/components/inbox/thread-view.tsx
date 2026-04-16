@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Send, Check, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { getSupabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -232,15 +233,17 @@ export function ThreadView({
     <div className="flex h-full min-h-0 flex-col">
       {/* Thread header */}
       <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-        <Avatar className="h-10 w-10">
-          {thread.other_user.avatar_url && (
-            <AvatarImage
-              src={thread.other_user.avatar_url}
-              alt={thread.other_user.name}
-            />
-          )}
-          <AvatarFallback>{initials(thread.other_user.name)}</AvatarFallback>
-        </Avatar>
+        <ConnectionPopover targetUserId={thread.other_user.id}>
+          <Avatar className="h-10 w-10 cursor-pointer">
+            {thread.other_user.avatar_url && (
+              <AvatarImage
+                src={thread.other_user.avatar_url}
+                alt={thread.other_user.name}
+              />
+            )}
+            <AvatarFallback>{initials(thread.other_user.name)}</AvatarFallback>
+          </Avatar>
+        </ConnectionPopover>
         <div className="min-w-0 flex-1">
           <div className="truncate text-base font-semibold">
             {thread.other_user.name}

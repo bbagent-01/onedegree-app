@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailInvitation } from "@/lib/email";
+import { sendInviteSMS } from "@/lib/sms/send-invite";
 
 // GET: list current user's invites
 export async function GET() {
@@ -105,15 +106,56 @@ export async function POST(req: Request) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://alpha-c.onedegreebnb.com";
   const inviteUrl = `${baseUrl}/join/${invite.token}`;
 
-  // Send invitation email if email provided
-  if (inviteeEmail) {
-    await emailInvitation({
+  // Delivery orchestration: SMS primary, email fallback
+  let deliveryMethod: "sms" | "email" | "both" | "failed" = "failed";
+  let smsSuccess = false;
+  let emailSuccess = false;
+
+  // Step 1: Try SMS if phone provided
+  if (inviteePhone) {
+    const smsResult = await sendInviteSMS({
+      toPhone: inviteePhone,
       inviterName: currentUser.name,
       inviteeName,
-      inviteeEmail,
       inviteUrl,
     });
+    smsSuccess = smsResult.success;
   }
 
-  return Response.json({ id: invite.id, token: invite.token, inviteUrl });
+  // Step 2: Send email if provided AND (SMS failed OR no phone OR both)
+  if (inviteeEmail && (!smsSuccess || inviteePhone)) {
+    try {
+      await emailInvitation({
+        inviterName: currentUser.name,
+        inviteeName,
+        inviteeEmail,
+        inviteUrl,
+      });
+      emailSuccess = true;
+    } catch (e) {
+      console.error("Email delivery failed:", e);
+    }
+  }
+
+  // Determine delivery method
+  if (smsSuccess && emailSuccess) deliveryMethod = "both";
+  else if (smsSuccess) deliveryMethod = "sms";
+  else if (emailSuccess) deliveryMethod = "email";
+  else deliveryMethod = "failed";
+
+  // Update invite with delivery status
+  await supabase
+    .from("invites")
+    .update({
+      delivery_method: deliveryMethod,
+      delivery_status: deliveryMethod === "failed" ? "failed" : "delivered",
+    })
+    .eq("id", invite.id);
+
+  return Response.json({
+    id: invite.id,
+    token: invite.token,
+    inviteUrl,
+    deliveryMethod,
+  });
 }

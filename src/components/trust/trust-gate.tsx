@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import type { TrustPathUser } from "@/lib/trust-data";
 
 interface TrustGateProps {
-  /** The viewer's current trust score to the host. 0 if no connection. */
+  /** The viewer's current 1° vouch score to the host. 0 if no connection. */
   userScore: number;
   /** The host's min_trust_gate — score required for full access. */
   requiredScore: number;
@@ -62,7 +62,7 @@ export function TrustGate({
           <Lock className="h-5 w-5 shrink-0 text-amber-600" />
           <div className="text-sm">
             <div className="font-semibold text-amber-900">
-              Requires trust score of {requiredScore}
+              Requires 1° Score of {requiredScore}
             </div>
             <p className="mt-0.5 text-amber-800/80">
               Yours is {userScore}. Ask one of your mutual connections below

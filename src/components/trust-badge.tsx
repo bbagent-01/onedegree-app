@@ -8,7 +8,7 @@ interface TrustBadgeProps {
 }
 
 /**
- * Visual indicator of the viewer's trust score to a target user.
+ * Visual indicator of the viewer's 1° vouch score to a target user.
  *
  * - sm: colored dot + number (listing cards, thread rows)
  * - md: number + label + colored ring (sidebars, profile cards)
@@ -78,7 +78,7 @@ export function TrustBadge({ score, size = "sm", className }: TrustBadgeProps) {
         </span>
       </div>
       <div className="text-xs text-muted-foreground">
-        Your trust score with this host
+        Your 1° Score with this host
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
  * Server-side only.
  *
  * Evaluates access_settings JSON from a listing against a viewer's
- * trust score and degree count.
+ * 1° vouch score and degree count.
  */
 
 import type { AccessRule, AccessSettings, ListingAccessResult } from "./types";

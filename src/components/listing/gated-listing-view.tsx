@@ -125,7 +125,7 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
               <li>City: {listing.area_name}</li>
               <li>Property type: {propertyLabel}</li>
               <li>
-                Host&apos;s required trust score:{" "}
+                Host&apos;s required 1° Score:{" "}
                 <span className="font-mono tabular-nums">
                   {listing.min_trust_gate}
                 </span>

@@ -2,6 +2,72 @@
 
 Schema changes introduced by Track B sessions. Each entry documents what was added and why.
 
+## CC-C2.1 — Formula + Phone + Transparency
+
+**Migration:** `supabase/migrations/016_invite_delivery_tracking.sql`
+
+### Schema Changes
+
+| Table | Column | Type | Purpose |
+|-------|--------|------|---------|
+| `invites` | `delivery_method` | TEXT | How invite was delivered: `sms`, `email`, `both`, or `failed` |
+| `invites` | `delivery_status` | TEXT | Delivery outcome: `delivered` or `failed` |
+
+### Formula Change: Harmonic Dampening
+
+The 1° score formula was updated from additive sum to harmonic dampening:
+- **Old:** `1° score = Σ path_strengths` (additive)
+- **New:** Sort paths descending, `1° vouch score = Σ (path_strength / rank)` (harmonic)
+- One strong connection now outweighs many weak ones
+- No DB column changes — computation is server-side only
+
+### Terminology Rename
+
+- **Composite score** renamed from "trust score" → "1° Vouch Score" (full) / "1° Score" (short)
+- **Per-vouch score** stays as "vouch score" (unchanged)
+- No DB column renames — labels only
+
+### New Components
+
+| Component | Purpose |
+|-----------|---------|
+| `src/components/trust/connection-breakdown.tsx` | ConnectionPopover wrapper + breakdown content for avatars |
+| `src/lib/sms/send-invite.ts` | Twilio SMS invite delivery with graceful fallback |
+
+### New API Routes
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/trust/connection?targetId=...` | Connection breakdown data for popover |
+
+### Updated Defaults
+
+Default `access_settings` updated for alpha phase:
+- `see_preview`: anyone (unchanged)
+- `see_full`: **anyone** (was min_score 10)
+- `request_book`: **min_score 30** (was 20)
+- `message`: **min_score 15** (was 10)
+- `request_intro`: anyone (unchanged)
+- `view_host_profile`: anyone (unchanged)
+
+### Clerk Phone Capture
+
+The Clerk webhook already captures `phone_numbers[0].phone_number` in E.164 format.
+**Action needed from Loren:** In Clerk Dashboard, ensure the signup form requests phone number.
+- URL: https://dashboard.clerk.com → User & Authentication → Email, Phone, Username
+- Enable "Phone number" and set to "Required" or "Optional"
+
+### Twilio SMS Setup (Loren Action Required)
+
+Add these env vars to `.env.local` and Cloudflare Pages environment:
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_PHONE_NUMBER` (E.164 format, e.g. `+15551234567`)
+
+If missing at runtime, SMS delivery falls back to email only.
+
+---
+
 ## CC-C2 — Vouch & Invite Flows (no new migrations)
 
 **No new database tables or columns.** CC-C2 uses the schema created by CC-C1a/C1b.

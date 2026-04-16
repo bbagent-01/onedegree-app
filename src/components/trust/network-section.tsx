@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import type { NetworkData, NetworkPerson, PendingInvite } from "@/lib/network-data";
 import { YEARS_KNOWN_BUCKETS } from "@/lib/vouch-constants";
 import {
@@ -175,14 +176,16 @@ function PersonRow({ person }: { person: NetworkPerson }) {
       href={`/profile/${person.user_id}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
     >
-      <Avatar className="h-9 w-9">
-        {person.user_avatar && (
-          <AvatarImage src={person.user_avatar} alt={person.user_name} />
-        )}
-        <AvatarFallback className="text-xs">
-          {initials(person.user_name)}
-        </AvatarFallback>
-      </Avatar>
+      <ConnectionPopover targetUserId={person.user_id}>
+        <Avatar className="h-9 w-9">
+          {person.user_avatar && (
+            <AvatarImage src={person.user_avatar} alt={person.user_name} />
+          )}
+          <AvatarFallback className="text-xs">
+            {initials(person.user_name)}
+          </AvatarFallback>
+        </Avatar>
+      </ConnectionPopover>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{person.user_name}</div>
         <div className="text-xs text-muted-foreground">
@@ -234,14 +237,35 @@ function InviteRow({ invite }: { invite: PendingInvite }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">
-          {invite.invitee_name || invite.invitee_email || invite.invitee_phone}
+          {invite.invitee_name || invite.invitee_phone || invite.invitee_email}
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          {invite.invitee_phone && (
+            <span>{invite.invitee_phone}</span>
+          )}
+          {invite.invitee_phone && invite.invitee_email && (
+            <span className="mx-0.5">·</span>
+          )}
+          {invite.invitee_email && (
+            <span>{invite.invitee_email}</span>
+          )}
+          <span className="mx-0.5">·</span>
           <Clock className="h-3 w-3" />
           {formatDate(invite.created_at)}
         </div>
       </div>
-      <Badge className={config.className}>{config.label}</Badge>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {invite.delivery_method && invite.delivery_method !== "failed" && (
+          <Badge className="bg-muted text-muted-foreground hover:bg-muted text-[10px] px-1.5 py-0">
+            {invite.delivery_method === "both"
+              ? "SMS + Email"
+              : invite.delivery_method === "sms"
+                ? "SMS"
+                : "Email"}
+          </Badge>
+        )}
+        <Badge className={config.className}>{config.label}</Badge>
+      </div>
     </div>
   );
 }

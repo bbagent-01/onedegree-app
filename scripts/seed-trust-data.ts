@@ -372,10 +372,10 @@ async function main() {
     {
       key: "trust_listing_score",
       title: "Trust Test: Min Score Listing",
-      description: "Requires min_score of 20 to see full details.",
+      description: "Alpha defaults: most actions open. Message requires 15, book requires 30.",
       access_settings: {
         see_preview: { type: "anyone" },
-        see_full: { type: "min_score", threshold: 20 },
+        see_full: { type: "anyone" },
         request_book: { type: "min_score", threshold: 30 },
         message: { type: "min_score", threshold: 15 },
         request_intro: { type: "anyone" },
@@ -594,12 +594,15 @@ async function main() {
   // ═══════════════════════════════════════════
   // Step 7: VERIFY — 1° Score (Loren → Alex)
   // ═══════════════════════════════════════════
-  console.log("── 6b: 1° Score (Loren → Alex) ──");
-  // From PROJECT_PLAN:
-  //   Jake path: avg(22.5, 18 × 0.75) = avg(22.5, 13.5) = 18.0
+  console.log("── 6b: 1° Vouch Score (Loren → Alex) — Harmonic Dampening ──");
+  // Path strengths (before dampening):
   //   Maya_T path: avg(45, 37.5 × 0.75) = avg(45, 28.125) = 36.5625
-  //   David path: avg(15, 15 × 0.88) = avg(15, 13.2) = 14.10
-  //   Total = 18.0 + 36.5625 + 14.10 = 68.6625 ≈ 68.66
+  //   Jake path:   avg(22.5, 18 × 0.75) = avg(22.5, 13.5) = 18.0
+  //   David path:  avg(15, 15 × 0.88) = avg(15, 13.2) = 14.10
+  // Sorted descending: [36.5625, 18.0, 14.10]
+  // Harmonic weights: rank1=1.0, rank2=0.5, rank3=0.333
+  //   36.5625 × 1.0 + 18.0 × 0.5 + 14.10 × 0.333
+  //   = 36.5625 + 9.0 + 4.70 = 50.26
 
   const alexId = userMap["alex"];
   if (alexId) {
@@ -612,31 +615,42 @@ async function main() {
     );
 
     if (trustData && trustData.length > 0) {
-      let total = 0;
-      for (const row of trustData as Array<{
+      // Compute path strengths
+      const pathData = (trustData as Array<{
         connector_id: string;
         viewer_vouch_score: number;
         connector_vouch_score: number;
         connector_vouch_power: number;
-      }>) {
+      }>).map((row) => {
+        const linkA = row.viewer_vouch_score;
         const linkB = row.connector_vouch_score * row.connector_vouch_power;
-        const pathStrength = (row.viewer_vouch_score + linkB) / 2;
-        total += pathStrength;
-
-        // Find connector name
+        const pathStrength = (linkA + linkB) / 2;
         const connKey = Object.entries(userMap).find(
           ([, id]) => id === row.connector_id
         )?.[0];
+        return { connKey, linkA, linkB, pathStrength, row };
+      });
+
+      // Sort descending for harmonic dampening
+      pathData.sort((a, b) => b.pathStrength - a.pathStrength);
+
+      let total = 0;
+      for (let i = 0; i < pathData.length; i++) {
+        const { connKey, row, pathStrength } = pathData[i];
+        const rank = i + 1;
+        const weight = 1 / rank;
+        const weighted = pathStrength * weight;
+        total += weighted;
         console.log(
-          `  Path via ${connKey}: avg(${row.viewer_vouch_score}, ${row.connector_vouch_score} × ${row.connector_vouch_power}) = ${pathStrength.toFixed(2)}`
+          `  Rank ${rank} via ${connKey}: avg(${row.viewer_vouch_score}, ${row.connector_vouch_score} × ${row.connector_vouch_power}) = ${pathStrength.toFixed(2)} × ${weight.toFixed(3)} = ${weighted.toFixed(2)}`
         );
       }
 
-      const expected = 68.66;
+      const expected = 50.26;
       const actual = Math.round(total * 100) / 100;
       const pass = Math.abs(actual - expected) < 1;
       console.log(
-        `  ${pass ? "✅" : "❌"} 1° Score (Loren → Alex) = ${actual} (expected ~${expected})`
+        `  ${pass ? "✅" : "❌"} 1° Vouch Score (Loren → Alex) = ${actual} (expected ~${expected})`
       );
     } else {
       console.log("  ⚠️  No trust data returned (RPC may not be deployed)");
@@ -718,11 +732,12 @@ async function main() {
   // ═══════════════════════════════════════════
   console.log("── 6d: Access Checking ──");
 
-  // Test 1: min_score listing
-  // Alex's 1° score to Loren ≈ 69.56 → should pass min_score=20
-  console.log("  ── min_score listing (threshold=20 for see_full) ──");
-  console.log(`  Alex's 1° score ≈ 69.56 → should PASS`);
-  console.log(`  Frank (isolated) → score=0 → should FAIL`);
+  // Test 1: min_score listing (alpha defaults: see_full=anyone, message=15, book=30)
+  // Alex's 1° vouch score to Loren ≈ 50.26 (harmonic) → should pass message=15 and book=30
+  console.log("  ── min_score listing (alpha defaults) ──");
+  console.log(`  see_full = anyone → all users PASS`);
+  console.log(`  message threshold=15 → Alex (50.26) PASS, Frank (0) FAIL`);
+  console.log(`  book threshold=30 → Alex (50.26) PASS, Frank (0) FAIL`);
 
   // Test 2: max_degrees listing
   // Alex is 2 degrees from Loren → threshold=2 → should PASS
@@ -783,24 +798,24 @@ async function main() {
 
   const accessTests = [
     {
-      label: "Alex → min_score listing (see_full)",
+      label: "Alex → min_score listing (see_full=anyone)",
       result: evalRule(
         scoreListing.access_settings.see_full as { type: string; threshold?: number },
         userMap["alex"],
-        69.56,
+        50.26,
         2
       ),
       expected: true,
     },
     {
-      label: "Frank → min_score listing (see_full)",
+      label: "Frank → min_score listing (see_full=anyone)",
       result: evalRule(
         scoreListing.access_settings.see_full as { type: string; threshold?: number },
         userMap["frank"],
         0,
         null
       ),
-      expected: false,
+      expected: true, // anyone → all pass
     },
     {
       label: "Alex → max_degrees listing (see_full, threshold=2)",

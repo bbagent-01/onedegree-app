@@ -17,6 +17,7 @@ export interface PendingInvite {
   invitee_email: string | null;
   invitee_phone: string | null;
   status: string;
+  delivery_method: string | null;
   created_at: string;
 }
 
@@ -107,7 +108,7 @@ export async function getNetworkData(): Promise<NetworkData | null> {
   // Fetch pending invites
   const { data: invites } = await supabase
     .from("invites")
-    .select("id, invitee_name, invitee_email, invitee_phone, status, created_at")
+    .select("id, invitee_name, invitee_email, invitee_phone, status, delivery_method, created_at")
     .eq("inviter_id", user.id)
     .neq("status", "joined")
     .order("created_at", { ascending: false })

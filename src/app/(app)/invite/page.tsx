@@ -19,9 +19,9 @@ import {
   Check,
   ChevronRight,
   Copy,
-  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
+import { parsePhoneNumberFromString, AsYouType } from "libphonenumber-js";
 
 const BIG_INPUT =
   "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
@@ -41,7 +41,14 @@ export default function InvitePage() {
   const score =
     vouchType && yearsKnown ? computeVouchScore(vouchType, yearsKnown) : null;
 
-  const canProceedInfo = name.trim() && (phone.trim() || email.trim());
+  // Phone is now required (primary), email is optional
+  const parsedPhone = phone.trim()
+    ? parsePhoneNumberFromString(phone.trim(), "US")
+    : null;
+  const phoneValid = parsedPhone?.isValid() ?? false;
+  const phoneE164 = parsedPhone?.format("E.164") ?? "";
+  const phoneFormatted = parsedPhone?.formatNational() ?? phone;
+  const canProceedInfo = name.trim() && phone.trim() && phoneValid;
 
   const handleSubmit = async () => {
     if (!vouchType || !yearsKnown || !name.trim()) return;
@@ -52,7 +59,7 @@ export default function InvitePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           inviteeName: name.trim(),
-          inviteePhone: phone.trim() || undefined,
+          inviteePhone: phoneE164 || undefined,
           inviteeEmail: email.trim() || undefined,
           vouchType,
           yearsKnownBucket: yearsKnown,
@@ -129,21 +136,34 @@ export default function InvitePage() {
                 />
               </div>
               <div>
-                <Label htmlFor="phone">Phone number</Label>
+                <Label htmlFor="phone">
+                  Phone number{" "}
+                  <span className="text-muted-foreground font-normal">
+                    (required)
+                  </span>
+                </Label>
                 <Input
                   id="phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 (555) 123-4567"
+                  onChange={(e) => {
+                    const formatted = new AsYouType("US").input(e.target.value);
+                    setPhone(formatted);
+                  }}
+                  placeholder="(555) 123-4567"
                   className={`mt-1.5 ${BIG_INPUT}`}
                   type="tel"
                 />
+                {phone.trim() && !phoneValid && (
+                  <p className="mt-1 text-xs text-red-500">
+                    Enter a valid phone number
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="email">
                   Email{" "}
                   <span className="text-muted-foreground font-normal">
-                    (optional if phone provided)
+                    (optional — for email delivery)
                   </span>
                 </Label>
                 <Input
@@ -307,7 +327,7 @@ export default function InvitePage() {
                 {phone && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Phone</span>
-                    <span className="font-medium">{phone}</span>
+                    <span className="font-medium">{phoneFormatted}</span>
                   </div>
                 )}
                 {email && (
@@ -340,11 +360,15 @@ export default function InvitePage() {
                 </div>
               </div>
             </div>
-            {email && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                An invitation email will be sent to {email}.
-              </p>
-            )}
+            <p className="mt-3 text-xs text-muted-foreground">
+              {phone && email
+                ? `An invite will be sent via SMS to ${phoneFormatted} and email to ${email}.`
+                : phone
+                  ? `An invite will be sent via SMS to ${phoneFormatted}.`
+                  : email
+                    ? `An invitation email will be sent to ${email}.`
+                    : null}
+            </p>
             <div className="mt-5 flex items-center justify-between">
               <Button
                 variant="ghost"

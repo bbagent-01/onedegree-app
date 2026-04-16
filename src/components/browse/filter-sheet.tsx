@@ -253,7 +253,7 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
               Minimum connection strength
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Only show stays where your trust score to the host is at least
+              Only show stays where your 1° Score to the host is at least
               this value. 0 means anyone in your network.
             </p>
             <div className="mt-4">

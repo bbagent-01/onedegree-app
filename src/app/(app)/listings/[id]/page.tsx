@@ -13,6 +13,7 @@ import { AmenitiesSection } from "@/components/listing/amenities-section";
 import { ReviewsSection } from "@/components/listing/reviews-section";
 import { BookingSidebar } from "@/components/listing/booking-sidebar";
 import { AvailabilityCalendarWrapper } from "@/components/listing/availability-calendar-wrapper";
+import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { LocationMapClient } from "@/components/listing/location-map-client";
 import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
 import { GatedListingView } from "@/components/listing/gated-listing-view";
@@ -170,25 +171,27 @@ export default async function ListingPage({
           {listing.host && (
             <>
               <div className="flex items-center gap-4">
-                <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted">
-                  {listing.host.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={listing.host.avatar_url}
-                      alt={listing.host.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-base font-semibold">
-                      {initials(listing.host.name)}
-                    </div>
-                  )}
-                  {isSuperhost && (
-                    <div className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white ring-2 ring-white">
-                      <Medal className="h-3 w-3" />
-                    </div>
-                  )}
-                </div>
+                <ConnectionPopover targetUserId={listing.host.id}>
+                  <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted cursor-pointer">
+                    {listing.host.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={listing.host.avatar_url}
+                        alt={listing.host.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-base font-semibold">
+                        {initials(listing.host.name)}
+                      </div>
+                    )}
+                    {isSuperhost && (
+                      <div className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white ring-2 ring-white">
+                        <Medal className="h-3 w-3" />
+                      </div>
+                    )}
+                  </div>
+                </ConnectionPopover>
                 <div>
                   <div className="text-lg font-semibold">
                     Hosted by {listing.host.name}
@@ -340,20 +343,22 @@ export default async function ListingPage({
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               <div className="rounded-xl border border-border/60 p-6 md:col-span-1">
                 <div className="flex flex-col items-center text-center">
-                  <div className="relative h-24 w-24 overflow-hidden rounded-full bg-muted">
-                    {listing.host.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={listing.host.avatar_url}
-                        alt={listing.host.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-2xl font-semibold">
-                        {initials(listing.host.name)}
-                      </div>
-                    )}
-                  </div>
+                  <ConnectionPopover targetUserId={listing.host.id}>
+                    <div className="relative h-24 w-24 overflow-hidden rounded-full bg-muted cursor-pointer">
+                      {listing.host.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={listing.host.avatar_url}
+                          alt={listing.host.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-2xl font-semibold">
+                          {initials(listing.host.name)}
+                        </div>
+                      )}
+                    </div>
+                  </ConnectionPopover>
                   <div className="mt-3 text-xl font-semibold">
                     {listing.host.name}
                   </div>

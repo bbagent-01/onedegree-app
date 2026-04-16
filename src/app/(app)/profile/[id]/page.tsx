@@ -7,6 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileReviews } from "@/components/profile/profile-reviews";
 import { VouchButton } from "@/components/trust/vouch-button";
+import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -55,14 +56,16 @@ export default async function ProfilePage({
     <div className="mx-auto w-full max-w-[1040px] px-4 py-6 md:px-6 md:py-10">
       {/* Header card */}
       <div className="flex flex-col items-start gap-6 rounded-2xl border border-border bg-white p-6 md:flex-row md:items-center md:p-8">
-        <Avatar className="h-28 w-28 md:h-32 md:w-32">
-          {user.avatar_url && (
-            <AvatarImage src={user.avatar_url} alt={user.name} />
-          )}
-          <AvatarFallback className="text-2xl">
-            {initials(user.name)}
-          </AvatarFallback>
-        </Avatar>
+        <ConnectionPopover targetUserId={user.id} isSelf={isOwn}>
+          <Avatar className="h-28 w-28 md:h-32 md:w-32 cursor-pointer">
+            {user.avatar_url && (
+              <AvatarImage src={user.avatar_url} alt={user.name} />
+            )}
+            <AvatarFallback className="text-2xl">
+              {initials(user.name)}
+            </AvatarFallback>
+          </Avatar>
+        </ConnectionPopover>
 
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold md:text-3xl">{user.name}</h1>

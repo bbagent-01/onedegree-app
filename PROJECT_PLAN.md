@@ -69,9 +69,12 @@ Auto-derived from the average guest_rating of everyone a user has vouched for.
 - Scale: rating / 4.0, clamped to [0.5, 1.5]
 - No data = 1.0× (benefit of doubt)
 
-### 1° Score (between two users)
+### 1° Vouch Score (between two users)
 For each mutual connector: `path_strength = avg(your_vouch_score_for_connector, connector_vouch_score_for_target × connector_vouch_power)`
-`1degree_score = Σ path_strengths`
+Sort all path strengths descending: p1 ≥ p2 ≥ p3 ≥ … ≥ pN
+`1° vouch score = Σ (pi / i) for i = 1 to N` (harmonic dampening)
+Weights: P1 = 1.0, P2 = 0.5, P3 = 0.333, P4 = 0.25, etc.
+One strong connection outweighs many weak ones.
 
 ### Three Rating Types (post-stay)
 - Guest Rating (1–5★) — host rates guest behavior → feeds vouch power

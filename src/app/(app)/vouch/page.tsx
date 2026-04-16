@@ -15,6 +15,7 @@ interface SearchResult {
   id: string;
   name: string;
   email: string | null;
+  phone_number: string | null;
   avatar_url: string | null;
   already_vouched: boolean;
 }
@@ -162,9 +163,11 @@ export default function VouchPage() {
                   >
                     {user.name}
                   </Link>
-                  {user.email && (
+                  {(user.phone_number || user.email) && (
                     <div className="truncate text-xs text-muted-foreground">
-                      {user.email}
+                      {user.phone_number && user.email
+                        ? `${user.phone_number} · ${user.email}`
+                        : user.phone_number || user.email}
                     </div>
                   )}
                 </div>

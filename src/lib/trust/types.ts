@@ -38,7 +38,18 @@ export interface TrustPath {
   viewer_vouch_score: number;
   connector_vouch_score: number;
   connector_vouch_power: number;
+  /** link_a = viewer's vouch score for the connector (same as viewer_vouch_score) */
+  link_a: number;
+  /** link_b = connector_vouch_score × connector_vouch_power */
+  link_b: number;
+  /** path_strength = avg(link_a, link_b) */
   path_strength: number;
+  /** 1-based rank after sorting all paths descending by path_strength */
+  rank: number;
+  /** Harmonic weight = 1 / rank */
+  weight: number;
+  /** weighted_score = path_strength × weight */
+  weighted_score: number;
 }
 
 export interface DegreesResult {
@@ -91,12 +102,17 @@ export const YEARS_MULTIPLIER: Record<string, number> = {
   "15plusyr": 1.8,
 };
 
-/** Default access_settings for new listings */
+/**
+ * Default access_settings for new listings.
+ * Alpha-phase defaults: most gates open so testers see the full UI.
+ * Only message and request-to-book are gated — enough to feel the
+ * mechanic without blocking exploration.
+ */
 export const DEFAULT_ACCESS_SETTINGS: AccessSettings = {
   see_preview: { type: "anyone" },
-  see_full: { type: "min_score", threshold: 10 },
-  request_book: { type: "min_score", threshold: 20 },
-  message: { type: "min_score", threshold: 10 },
+  see_full: { type: "anyone" },
+  request_book: { type: "min_score", threshold: 30 },
+  message: { type: "min_score", threshold: 15 },
   request_intro: { type: "anyone" },
   view_host_profile: { type: "anyone" },
 };

@@ -29,14 +29,32 @@ export async function GET(req: Request) {
     .eq("clerk_id", userId)
     .single();
 
-  // Search users by name OR email
+  // Normalize phone query: strip spaces, dashes, parens for matching
+  const phoneNormalized = q.replace(/[\s\-\(\)\+]/g, "");
+  const isPhoneQuery = /^\+/.test(q) || /^\d{4,}$/.test(phoneNormalized);
+
+  // Search users by name, email, OR phone_number
   const pattern = `%${q}%`;
-  const { data: users, error } = await supabase
+  const phonePattern = `%${phoneNormalized}%`;
+
+  let query = supabase
     .from("users")
-    .select("id, clerk_id, name, email, avatar_url")
-    .or(`name.ilike.${pattern},email.ilike.${pattern}`)
+    .select("id, clerk_id, name, email, avatar_url, phone_number")
     .neq("clerk_id", userId)
     .limit(20);
+
+  if (isPhoneQuery) {
+    // Phone-first: prioritize phone matches, also search name/email
+    query = query.or(
+      `phone_number.ilike.${phonePattern},name.ilike.${pattern},email.ilike.${pattern}`
+    );
+  } else {
+    query = query.or(
+      `name.ilike.${pattern},email.ilike.${pattern},phone_number.ilike.${phonePattern}`
+    );
+  }
+
+  const { data: users, error } = await query;
 
   if (error) {
     return new Response("Search failed", { status: 500 });
@@ -52,12 +70,12 @@ export async function GET(req: Request) {
       .in("vouchee_id", userIds);
 
     const vouchedIds = new Set(existingVouches?.map((v) => v.vouchee_id) || []);
-    const results = users.map((u) => ({
+    const results = users.map((u: Record<string, unknown>) => ({
       ...u,
-      already_vouched: vouchedIds.has(u.id),
+      already_vouched: vouchedIds.has(u.id as string),
     }));
     return Response.json(results);
   }
 
-  return Response.json(users?.map((u) => ({ ...u, already_vouched: false })) || []);
+  return Response.json(users?.map((u: Record<string, unknown>) => ({ ...u, already_vouched: false })) || []);
 }
