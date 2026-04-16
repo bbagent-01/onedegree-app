@@ -88,8 +88,17 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
     onChange(next);
   };
 
-  const setCover = (idx: number) => {
-    onChange(photos.map((p, i) => ({ ...p, is_preview: i === idx })));
+  // Toggle whether a photo is included in the preview. Multi-select.
+  // The first preview photo (by sort_order) also acts as the cover.
+  const togglePreview = (idx: number) => {
+    const next = photos.map((p, i) =>
+      i === idx ? { ...p, is_preview: !p.is_preview } : p
+    );
+    // Always ensure at least one photo is marked as preview (the cover).
+    if (!next.some((p) => p.is_preview) && next.length > 0) {
+      next[0].is_preview = true;
+    }
+    onChange(next);
   };
 
   const reorder = (from: number, to: number) => {
@@ -167,14 +176,14 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
               </div>
               <button
                 type="button"
-                onClick={() => setCover(i)}
+                onClick={() => togglePreview(i)}
                 className={cn(
                   "absolute right-1.5 top-1.5 rounded-full p-1.5 shadow-sm transition-colors",
                   p.is_preview
                     ? "bg-brand text-white"
                     : "bg-white/90 text-zinc-700 opacity-0 hover:bg-white group-hover:opacity-100"
                 )}
-                title={p.is_preview ? "Cover photo" : "Set as cover"}
+                title={p.is_preview ? "Included in preview — click to remove" : "Include in preview"}
               >
                 <Star
                   className={cn("h-4 w-4", p.is_preview && "fill-current")}
@@ -190,7 +199,7 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
               </button>
               {p.is_preview && (
                 <div className="absolute bottom-1.5 left-1.5 rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
-                  Cover
+                  Preview
                 </div>
               )}
             </div>
@@ -199,13 +208,21 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
       )}
 
       <div className="mt-3 text-xs text-muted-foreground">
-        {photos.length} of {max} photos
+        {photos.length} of {max} photos &middot;{" "}
+        {photos.filter((p) => p.is_preview).length} in preview
         {photos.length < 3 && (
           <span className="ml-2 text-amber-600">
-            · {3 - photos.length} more required
+            &middot; {3 - photos.length} more required
           </span>
         )}
       </div>
+      {photos.length > 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Tap the star to include a photo in your preview. 2&ndash;3 preview
+          photos are shown to anyone before they&apos;ve unlocked your full
+          listing. The first preview photo is used as the cover.
+        </p>
+      )}
     </div>
   );
 }

@@ -34,6 +34,8 @@ export interface ListingMeta {
   // Pricing extras
   weeklyDiscount?: number; // percentage
   monthlyDiscount?: number; // percentage
+  // Default availability behavior (CC-C3)
+  defaultAvailability?: "available" | "unavailable" | "possibly";
 }
 
 const META_RE = /^<!--meta:(\{.*?\})-->\s*\n?/;

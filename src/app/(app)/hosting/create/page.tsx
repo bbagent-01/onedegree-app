@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -17,6 +17,7 @@ import {
   Minus,
   Plus as PlusIcon,
   ExternalLink,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import {
   PhotoUploader,
   type UploadedPhoto,
 } from "@/components/hosting/photo-uploader";
+import { LocationPreview } from "@/components/hosting/location-preview";
 import {
   encodeListingMeta,
   propertyTypeToDb,
@@ -95,6 +97,16 @@ interface WizardState {
   accessRequestBook: AccessRuleState;
   accessMessage: AccessRuleState;
   accessRequestIntro: AccessRuleState;
+  // Preview content toggles
+  previewShowPriceRange: boolean;
+  previewShowDescription: boolean;
+  previewShowHostFirstName: boolean;
+  previewShowNeighborhood: boolean;
+  previewShowMapArea: boolean;
+  previewShowRating: boolean;
+  previewShowAmenities: boolean;
+  // Default availability
+  defaultAvailability: "available" | "unavailable" | "possibly";
 }
 
 const initialState: WizardState = {
@@ -139,6 +151,14 @@ const initialState: WizardState = {
   accessRequestBook: { type: "min_score", threshold: "20" },
   accessMessage: { type: "min_score", threshold: "10" },
   accessRequestIntro: { type: "anyone", threshold: "" },
+  previewShowPriceRange: true,
+  previewShowDescription: true,
+  previewShowHostFirstName: false,
+  previewShowNeighborhood: true,
+  previewShowMapArea: true,
+  previewShowRating: true,
+  previewShowAmenities: false,
+  defaultAvailability: "available",
 };
 
 const STORAGE_KEY = "track-b:create-listing-draft";
@@ -337,6 +357,7 @@ export default function CreateListingPage() {
         monthlyDiscount: state.monthlyDiscount
           ? Number(state.monthlyDiscount)
           : undefined,
+        defaultAvailability: state.defaultAvailability,
       };
       const houseRulesText = [
         ...state.houseRules,
@@ -369,6 +390,15 @@ export default function CreateListingPage() {
           message: buildAccessRule(state.accessMessage),
           request_intro: buildAccessRule(state.accessRequestIntro),
           view_host_profile: { type: "anyone" },
+          preview_content: {
+            show_price_range: state.previewShowPriceRange,
+            show_description: state.previewShowDescription,
+            show_host_first_name: state.previewShowHostFirstName,
+            show_neighborhood: state.previewShowNeighborhood,
+            show_map_area: state.previewShowMapArea,
+            show_rating: state.previewShowRating,
+            show_amenities: state.previewShowAmenities,
+          },
         },
         photos: state.photos.map((p, i) => ({
           public_url: p.public_url,
@@ -594,7 +624,100 @@ function Step1({ state, update }: { state: WizardState; update: UpdateFn }) {
   );
 }
 
+type AddrSuggestion = {
+  lat: number;
+  lng: number;
+  display_name: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+};
+
 function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
+  const [suggestions, setSuggestions] = useState<AddrSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loadingSug, setLoadingSug] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const suppressNextFetchRef = useRef(false);
+
+  // Debounced Nominatim suggestions when the host types in the street field.
+  useEffect(() => {
+    if (suppressNextFetchRef.current) {
+      suppressNextFetchRef.current = false;
+      return;
+    }
+    const q = state.street.trim();
+    if (q.length < 4) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSug(true);
+    const t = setTimeout(async () => {
+      try {
+        const hint = [state.city, state.state].filter(Boolean).join(", ");
+        const full = hint ? `${q}, ${hint}` : q;
+        const res = await fetch(
+          `/api/geocode?q=${encodeURIComponent(full)}&limit=5`
+        );
+        if (!res.ok) {
+          if (!cancelled) setSuggestions([]);
+          return;
+        }
+        const data = (await res.json()) as { results?: AddrSuggestion[] };
+        if (!cancelled) setSuggestions(data.results || []);
+      } catch {
+        if (!cancelled) setSuggestions([]);
+      } finally {
+        if (!cancelled) setLoadingSug(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.street, state.city, state.state]);
+
+  const pickSuggestion = (s: AddrSuggestion) => {
+    suppressNextFetchRef.current = true;
+    if (s.street) update("street", s.street);
+    if (s.city) update("city", s.city);
+    if (s.state) update("state", s.state);
+    if (s.zip) update("zip", s.zip);
+    update("lat", s.lat);
+    update("lng", s.lng);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
+
+  const geocodeAddress = async () => {
+    const parts = [state.street, state.city, state.state, state.zip]
+      .filter(Boolean)
+      .join(", ");
+    if (!parts) {
+      toast.error("Enter an address first");
+      return;
+    }
+    setGeocoding(true);
+    try {
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(parts)}`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { lat: number; lng: number };
+      update("lat", data.lat);
+      update("lng", data.lng);
+      toast.success("Location pinned");
+    } catch (e) {
+      console.error(e);
+      toast.error("Couldn't find that address");
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
+  const hasPin = state.lat && state.lng;
+
   return (
     <div>
       <StepHeading
@@ -602,16 +725,48 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
         subtitle="Address is hidden from guests until they book."
       />
       <div className="space-y-4">
-        <div>
+        <div className="relative">
           <Label className="mb-2 block text-sm font-semibold">Street address</Label>
           <Input
             className={BIG_INPUT}
             value={state.street}
-            onChange={(e) => update("street", e.target.value)}
+            onChange={(e) => {
+              update("street", e.target.value);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => {
+              setTimeout(() => setShowSuggestions(false), 150);
+            }}
             placeholder="123 Main St"
+            autoComplete="off"
           />
+          {showSuggestions && (suggestions.length > 0 || loadingSug) && (
+            <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-border bg-white shadow-lg">
+              {loadingSug && suggestions.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-muted-foreground">
+                  Searching&hellip;
+                </div>
+              ) : (
+                suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pickSuggestion(s);
+                    }}
+                    className="flex w-full items-start gap-2 border-b border-border/50 px-4 py-3 text-left text-sm last:border-b-0 hover:bg-muted/40"
+                  >
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="line-clamp-2">{s.display_name}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
             <Label className="mb-2 block text-sm font-semibold">City</Label>
             <Input
@@ -622,7 +777,7 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
             />
           </div>
           <div>
-            <Label className="mb-2 block text-sm font-semibold">State / Region</Label>
+            <Label className="mb-2 block text-sm font-semibold">State</Label>
             <Input
               className={BIG_INPUT}
               value={state.state}
@@ -630,10 +785,8 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
               placeholder="NY"
             />
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="mb-2 block text-sm font-semibold">Postal code</Label>
+            <Label className="mb-2 block text-sm font-semibold">ZIP</Label>
             <Input
               className={BIG_INPUT}
               value={state.zip}
@@ -641,20 +794,53 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
               placeholder="11201"
             />
           </div>
-          <div>
-            <Label className="mb-2 block text-sm font-semibold">Neighborhood (shown publicly)</Label>
-            <Input
-              className={BIG_INPUT}
-              value={state.areaName}
-              onChange={(e) => update("areaName", e.target.value)}
-              placeholder="Williamsburg"
+        </div>
+        <div>
+          <Label className="mb-2 block text-sm font-semibold">
+            Neighborhood (shown publicly)
+          </Label>
+          <Input
+            className={BIG_INPUT}
+            value={state.areaName}
+            onChange={(e) => update("areaName", e.target.value)}
+            placeholder="Williamsburg"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            onClick={geocodeAddress}
+            disabled={geocoding}
+            className="!h-12 !rounded-xl !px-5 !text-sm !font-semibold bg-brand hover:bg-brand-600"
+          >
+            {geocoding ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <MapPin className="mr-2 h-4 w-4" />
+            )}
+            Find on map
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            The purple circle shows the approximate area guests see before
+            they book &mdash; your exact address stays private. Drag the pin
+            to fine-tune.
+          </span>
+        </div>
+        {hasPin && (
+          <div className="space-y-2">
+            <LocationPreview
+              lat={state.lat}
+              lng={state.lng}
+              onChange={(newLat, newLng) => {
+                update("lat", newLat);
+                update("lng", newLng);
+              }}
             />
+            <p className="text-xs font-medium text-muted-foreground">
+              Pinned at {state.lat.toFixed(4)}, {state.lng.toFixed(4)}
+            </p>
           </div>
-        </div>
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-          Map pin placement (drag-to-confirm) will appear here in a future
-          update. For now, the area name you entered is what guests see.
-        </div>
+        )}
       </div>
     </div>
   );
@@ -756,7 +942,7 @@ function Step4({
     <div>
       <StepHeading
         title="Add some photos of your place"
-        subtitle="Choose at least 3 — the cover photo is what guests see first."
+        subtitle="Choose at least 3 — star 2–3 to include in the anonymous preview."
       />
       <PhotoUploader photos={photos} onChange={onChange} />
     </div>
@@ -1036,21 +1222,85 @@ function Step6({ state, update }: { state: WizardState; update: UpdateFn }) {
           </div>
         </div>
 
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-          By default, all dates are available. You can block specific dates
-          from the calendar after publishing.
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Default availability
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            You can always override specific dates from the calendar after publishing.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {([
+              {
+                key: "available" as const,
+                label: "All dates available",
+                desc: "Guests can request any date (recommended).",
+              },
+              {
+                key: "unavailable" as const,
+                label: "All dates unavailable",
+                desc: "Block everything; open specific dates manually.",
+              },
+              {
+                key: "possibly" as const,
+                label: "Possibly available",
+                desc: "Guests can inquire; you confirm per request.",
+              },
+            ]).map(({ key, label, desc }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => update("defaultAvailability", key)}
+                className={cn(
+                  "flex flex-col items-start rounded-xl border-2 p-4 text-left transition-colors",
+                  state.defaultAvailability === key
+                    ? "border-brand bg-brand/5"
+                    : "border-border hover:border-foreground/30"
+                )}
+              >
+                <div className="text-sm font-semibold text-foreground">{label}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{desc}</div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function Step7Visibility({ state, update }: { state: WizardState; update: UpdateFn }) {
-  const VISIBILITY_MODES: { key: VisibilityMode; label: string; desc: string }[] = [
+type PreviewToggleKey =
+  | "previewShowPriceRange"
+  | "previewShowDescription"
+  | "previewShowHostFirstName"
+  | "previewShowNeighborhood"
+  | "previewShowMapArea"
+  | "previewShowRating"
+  | "previewShowAmenities";
+
+type AccessKey =
+  | "accessSeePreview"
+  | "accessSeeFull"
+  | "accessRequestBook"
+  | "accessMessage"
+  | "accessRequestIntro";
+
+function Step7Visibility({
+  state,
+  update,
+}: {
+  state: WizardState;
+  update: UpdateFn;
+}) {
+  const VISIBILITY_MODES: {
+    key: VisibilityMode;
+    label: string;
+    desc: string;
+  }[] = [
     {
       key: "preview_gated",
       label: "Standard",
-      desc: "Anonymous preview visible to all. Full listing gated by trust.",
+      desc: "Anonymous preview for everyone. Full listing gated by trust.",
     },
     {
       key: "public",
@@ -1064,15 +1314,12 @@ function Step7Visibility({ state, update }: { state: WizardState; update: Update
     },
   ];
 
-  const ACCESS_ACTIONS: {
-    key: keyof Pick<WizardState, "accessSeePreview" | "accessSeeFull" | "accessRequestBook" | "accessMessage" | "accessRequestIntro">;
-    label: string;
-  }[] = [
-    { key: "accessSeePreview", label: "See Preview" },
-    { key: "accessSeeFull", label: "See Full Listing" },
-    { key: "accessRequestBook", label: "Request to Book" },
-    { key: "accessMessage", label: "Message Host" },
-    { key: "accessRequestIntro", label: "Request Introduction" },
+  const ACCESS_ACTIONS: { key: AccessKey; label: string; hint?: string }[] = [
+    { key: "accessSeePreview", label: "See Preview", hint: "Who can see the anonymous preview of your listing" },
+    { key: "accessSeeFull", label: "See Full Listing", hint: "Who can unlock and view the full listing" },
+    { key: "accessRequestBook", label: "Request to Book", hint: "Who can send a booking request" },
+    { key: "accessMessage", label: "Message Host", hint: "Who can send you a message" },
+    { key: "accessRequestIntro", label: "Request Introduction", hint: "Who can ask a mutual connection for an intro" },
   ];
 
   const ACCESS_TYPES: { key: AccessType; label: string }[] = [
@@ -1082,8 +1329,18 @@ function Step7Visibility({ state, update }: { state: WizardState; update: Update
     { key: "specific_people", label: "Specific people" },
   ];
 
+  const PREVIEW_TOGGLES: { key: PreviewToggleKey; label: string; desc: string }[] = [
+    { key: "previewShowPriceRange", label: "Price range", desc: "$min–$max / night" },
+    { key: "previewShowDescription", label: "Description", desc: "Your preview description (or first 100 chars of the main one)" },
+    { key: "previewShowHostFirstName", label: "Your first name", desc: "If off, shows \"a verified member\"" },
+    { key: "previewShowNeighborhood", label: "Neighborhood", desc: "City and area name" },
+    { key: "previewShowMapArea", label: "Approximate map area", desc: "Blurred radius, no exact pin" },
+    { key: "previewShowRating", label: "Rating & reviews count", desc: "Star rating and how many reviews" },
+    { key: "previewShowAmenities", label: "Amenities list", desc: "WiFi, parking, etc." },
+  ];
+
   const updateAccessRule = (
-    key: keyof Pick<WizardState, "accessSeePreview" | "accessSeeFull" | "accessRequestBook" | "accessMessage" | "accessRequestIntro">,
+    key: AccessKey,
     field: keyof AccessRuleState,
     value: string
   ) => {
@@ -1091,23 +1348,48 @@ function Step7Visibility({ state, update }: { state: WizardState; update: Update
     update(key, { ...current, [field]: value });
   };
 
+  // Quick-fill templates — set visibility_mode AND pre-fill access rules.
+  // Host can still customize each rule afterwards.
+  const applyTemplate = (mode: VisibilityMode) => {
+    update("visibilityMode", mode);
+    if (mode === "public") {
+      update("accessSeePreview", { type: "anyone", threshold: "" });
+      update("accessSeeFull", { type: "anyone", threshold: "" });
+      update("accessRequestBook", { type: "anyone", threshold: "" });
+      update("accessMessage", { type: "anyone", threshold: "" });
+      update("accessRequestIntro", { type: "anyone", threshold: "" });
+    } else if (mode === "preview_gated") {
+      update("accessSeePreview", { type: "anyone", threshold: "" });
+      update("accessSeeFull", { type: "min_score", threshold: "10" });
+      update("accessRequestBook", { type: "min_score", threshold: "20" });
+      update("accessMessage", { type: "min_score", threshold: "10" });
+      update("accessRequestIntro", { type: "anyone", threshold: "" });
+    } else if (mode === "hidden") {
+      // Hidden: discoverability off, but access rules stay as whatever they were.
+      // User can tweak each field after if they want.
+    }
+  };
+
   return (
     <div>
       <StepHeading
-        title="Visibility & Trust"
-        subtitle="Control who can see and access your listing."
+        title="Visibility & Access"
+        subtitle="Pick a template to start, then fine-tune what's shown in the preview and who can do what."
       />
 
-      {/* Visibility Mode */}
-      <div className="space-y-6">
+      <div className="space-y-8">
+        {/* Template quick-fill */}
         <div>
-          <div className="text-sm font-semibold text-foreground">Listing visibility</div>
+          <div className="text-sm font-semibold text-foreground">Visibility template</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            These are starting points — every setting below is still editable.
+          </p>
           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
             {VISIBILITY_MODES.map(({ key, label, desc }) => (
               <button
                 key={key}
                 type="button"
-                onClick={() => update("visibilityMode", key)}
+                onClick={() => applyTemplate(key)}
                 className={cn(
                   "flex flex-col items-start rounded-xl border-2 p-5 text-left transition-colors",
                   state.visibilityMode === key
@@ -1122,84 +1404,166 @@ function Step7Visibility({ state, update }: { state: WizardState; update: Update
           </div>
         </div>
 
-        {/* Per-action access settings — only for preview_gated mode */}
-        {state.visibilityMode === "preview_gated" && (
+        {/* ──────────────────────────────────────────────────────── */}
+        {/* Section A: Preview content — what shows in the preview   */}
+        {/* ──────────────────────────────────────────────────────── */}
+        <div className="rounded-2xl border border-border bg-card p-6">
           <div>
-            <div className="text-sm font-semibold text-foreground">Access settings</div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Set who can perform each action on your listing.
-            </p>
-            <div className="mt-4 space-y-4">
-              {ACCESS_ACTIONS.map(({ key, label }) => {
-                const rule = state[key];
-                return (
-                  <div key={key} className="rounded-xl border border-border bg-card p-4">
-                    <div className="text-sm font-medium text-foreground">{label}</div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <select
-                        value={rule.type}
-                        onChange={(e) => updateAccessRule(key, "type", e.target.value)}
-                        className={cn(
-                          "h-10 rounded-lg border border-border bg-white px-3 text-sm",
-                          "focus-visible:border-brand focus-visible:outline-none"
-                        )}
-                      >
-                        {ACCESS_TYPES.map(({ key: ak, label: al }) => (
-                          <option key={ak} value={ak}>{al}</option>
-                        ))}
-                      </select>
-                      {(rule.type === "min_score" || rule.type === "max_degrees") && (
-                        <Input
-                          type="number"
-                          min={0}
-                          className="h-10 w-24 rounded-lg border border-border bg-white px-3 text-sm"
-                          value={rule.threshold}
-                          onChange={(e) => updateAccessRule(key, "threshold", e.target.value)}
-                          placeholder={rule.type === "min_score" ? "Score" : "Degrees"}
-                        />
-                      )}
-                      {rule.type === "specific_people" && (
-                        <span className="text-xs text-muted-foreground">
-                          (User picker coming soon)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="text-base font-semibold text-foreground">
+              Preview content
             </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              When someone sees your preview (before they&apos;ve unlocked the full
+              listing), show&hellip;
+            </p>
+          </div>
+
+          <div className="mt-5 space-y-2">
+            {PREVIEW_TOGGLES.map(({ key, label, desc }) => (
+              <label
+                key={key}
+                className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-white px-4 py-3 hover:border-foreground/30"
+              >
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={state[key]}
+                  onClick={() => update(key, !state[key])}
+                  className={cn(
+                    "relative mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                    state[key] ? "bg-brand" : "bg-zinc-300"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                      state[key] ? "translate-x-4" : "translate-x-0.5"
+                    )}
+                  />
+                </button>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-foreground">{label}</div>
+                  <div className="text-xs text-muted-foreground">{desc}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {/* Preview description */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Preview description</Label>
+              <span
+                className={cn(
+                  "text-xs",
+                  state.previewDescription.length > 200
+                    ? "text-red-600"
+                    : "text-muted-foreground"
+                )}
+              >
+                {state.previewDescription.length}/200
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Short description shown in preview. Leave blank to auto-generate
+              from your main description.
+            </p>
+            <Textarea
+              className={cn(BIG_TEXTAREA, "mt-2")}
+              rows={3}
+              value={state.previewDescription}
+              onChange={(e) =>
+                update("previewDescription", e.target.value.slice(0, 200))
+              }
+              placeholder="A charming space in a great neighborhood..."
+              maxLength={200}
+            />
+          </div>
+
+          <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+            Preview photos are chosen in the Photos step &mdash; star 2&ndash;3
+            photos to include in the preview.
+          </div>
+        </div>
+
+        {/* ──────────────────────────────────────────────────────── */}
+        {/* Section B: Access control — who can do what              */}
+        {/* ──────────────────────────────────────────────────────── */}
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div>
+            <div className="text-base font-semibold text-foreground">
+              Access controls
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              For each action, choose who&apos;s allowed to do it. Edit freely &mdash;
+              your template is only a starting point.
+            </p>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {ACCESS_ACTIONS.map(({ key, label, hint }) => {
+              const rule = state[key];
+              return (
+                <div
+                  key={key}
+                  className="rounded-lg border border-border bg-white p-4"
+                >
+                  <div className="text-sm font-medium text-foreground">
+                    {label}
+                  </div>
+                  {hint && (
+                    <div className="text-xs text-muted-foreground">{hint}</div>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <select
+                      value={rule.type}
+                      onChange={(e) =>
+                        updateAccessRule(key, "type", e.target.value)
+                      }
+                      className={cn(
+                        "h-10 rounded-lg border border-border bg-white px-3 text-sm",
+                        "focus-visible:border-brand focus-visible:outline-none"
+                      )}
+                    >
+                      {ACCESS_TYPES.map(({ key: ak, label: al }) => (
+                        <option key={ak} value={ak}>
+                          {al}
+                        </option>
+                      ))}
+                    </select>
+                    {(rule.type === "min_score" ||
+                      rule.type === "max_degrees") && (
+                      <Input
+                        type="number"
+                        min={0}
+                        className="h-10 w-24 rounded-lg border border-border bg-white px-3 text-sm"
+                        value={rule.threshold}
+                        onChange={(e) =>
+                          updateAccessRule(key, "threshold", e.target.value)
+                        }
+                        placeholder={
+                          rule.type === "min_score" ? "Score" : "Degrees"
+                        }
+                      />
+                    )}
+                    {rule.type === "specific_people" && (
+                      <span className="text-xs text-muted-foreground">
+                        (User picker coming soon)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {state.visibilityMode === "hidden" && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-foreground">
+            <strong>Hidden mode:</strong> your listing won&apos;t appear in browse
+            or search. Only people with the direct URL can access it.
           </div>
         )}
-
-        {/* Preview description */}
-        <div>
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-semibold">Preview description</Label>
-            <span
-              className={cn(
-                "text-xs",
-                state.previewDescription.length > 200 ? "text-red-600" : "text-muted-foreground"
-              )}
-            >
-              {state.previewDescription.length}/200
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Short description shown to users who haven&apos;t unlocked your listing. If empty, we&apos;ll use the first 100 characters of your main description.
-          </p>
-          <Textarea
-            className={cn(BIG_TEXTAREA, "mt-2")}
-            rows={3}
-            value={state.previewDescription}
-            onChange={(e) => update("previewDescription", e.target.value.slice(0, 200))}
-            placeholder="A charming space in a great neighborhood..."
-            maxLength={200}
-          />
-        </div>
-
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-          Preview photos are selected in the Photos step — mark 2–3 photos as &quot;preview&quot; to control what anonymous visitors see.
-        </div>
       </div>
     </div>
   );

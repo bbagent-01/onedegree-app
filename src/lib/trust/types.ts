@@ -24,7 +24,40 @@ export interface AccessSettings {
   message: AccessRule;
   request_intro: AccessRule;
   view_host_profile: AccessRule;
+  /**
+   * Preview content visibility toggles. Controls which pieces of
+   * the listing are shown in preview mode (before a viewer unlocks
+   * the full listing). Missing fields default to true (show).
+   */
+  preview_content?: PreviewContentSettings;
 }
+
+export interface PreviewContentSettings {
+  /** Show price range ($min–$max / night) */
+  show_price_range?: boolean;
+  /** Show preview description (or truncated full description) */
+  show_description?: boolean;
+  /** Show host first name (otherwise "Hosted by a verified member") */
+  show_host_first_name?: boolean;
+  /** Show neighborhood / city */
+  show_neighborhood?: boolean;
+  /** Show approximate map area (blurred radius, no pin) */
+  show_map_area?: boolean;
+  /** Show listing rating and review count */
+  show_rating?: boolean;
+  /** Show amenities list */
+  show_amenities?: boolean;
+}
+
+export const DEFAULT_PREVIEW_CONTENT: PreviewContentSettings = {
+  show_price_range: true,
+  show_description: true,
+  show_host_first_name: false,
+  show_neighborhood: true,
+  show_map_area: true,
+  show_rating: true,
+  show_amenities: false,
+};
 
 export interface HydratedConnector {
   id: string;
@@ -114,4 +147,5 @@ export const DEFAULT_ACCESS_SETTINGS: AccessSettings = {
   message: { type: "min_score", threshold: 10 },
   request_intro: { type: "anyone" },
   view_host_profile: { type: "anyone" },
+  preview_content: DEFAULT_PREVIEW_CONTENT,
 };

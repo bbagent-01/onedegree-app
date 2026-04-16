@@ -50,6 +50,16 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
         (listing.description.length > 100 ? "..." : "")
       : null);
 
+  // Preview content toggles (default true for most, false for host name)
+  const pc = listing.access_settings?.preview_content;
+  const showPriceRange = pc?.show_price_range ?? true;
+  const showDescription = pc?.show_description ?? true;
+  const showHostFirstName = pc?.show_host_first_name ?? false;
+  const showNeighborhood = pc?.show_neighborhood ?? true;
+  const showMapArea = pc?.show_map_area ?? true;
+  const showRating = pc?.show_rating ?? true;
+  const showAmenities = pc?.show_amenities ?? false;
+
   // Price range display
   const hasPriceRange =
     listing.price_min && listing.price_max && listing.price_min !== listing.price_max;
@@ -120,9 +130,10 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
-                  {propertyLabel} in {listing.area_name}
+                  {propertyLabel}
+                  {showNeighborhood ? ` in ${listing.area_name}` : ""}
                 </h1>
-                {listing.avg_rating !== null && listing.review_count > 0 && (
+                {showRating && listing.avg_rating !== null && listing.review_count > 0 && (
                   <div className="mt-2 flex items-center gap-2 text-sm">
                     <Star className="h-3.5 w-3.5 fill-foreground text-foreground" />
                     <span className="font-semibold">
@@ -142,17 +153,21 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
 
           <Separator className="my-8" />
 
-          {/* Anonymous host section */}
+          {/* Host section */}
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
               <Shield className="h-6 w-6 text-muted-foreground" />
             </div>
             <div>
               <div className="text-lg font-semibold">
-                Hosted by a verified member
+                {showHostFirstName && listing.host?.name
+                  ? `Hosted by ${listing.host.name.split(" ")[0]}`
+                  : "Hosted by a verified member"}
               </div>
               <div className="text-sm text-muted-foreground">
-                Host identity is revealed once you meet the trust threshold
+                {showHostFirstName
+                  ? "Full profile revealed once you meet the trust threshold"
+                  : "Host identity is revealed once you meet the trust threshold"}
               </div>
             </div>
           </div>
@@ -160,7 +175,7 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
           <Separator className="my-8" />
 
           {/* Preview description */}
-          {previewDesc && (
+          {showDescription && previewDesc && (
             <>
               <section>
                 <h2 className="mb-4 text-xl font-semibold">About this place</h2>
@@ -172,23 +187,45 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
             </>
           )}
 
-          {/* Location — approximate area with note */}
-          <section>
-            <h2 className="mb-2 text-xl font-semibold">Location</h2>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              <span>{listing.area_name}</span>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Exact address shared after you unlock the full listing.
-            </p>
-            {/* Approximate area circle placeholder */}
-            <div className="mt-4 flex h-48 items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
-              Approximate area &middot; {listing.area_name}
-            </div>
-          </section>
+          {/* Amenities */}
+          {showAmenities && listing.amenities && listing.amenities.length > 0 && (
+            <>
+              <section>
+                <h2 className="mb-4 text-xl font-semibold">What this place offers</h2>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {listing.amenities.slice(0, 10).map((a) => (
+                    <div key={a} className="flex items-center gap-2 text-muted-foreground">
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                      {a}
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <Separator className="my-8" />
+            </>
+          )}
 
-          <Separator className="my-8" />
+          {/* Location — approximate area */}
+          {showMapArea && (
+            <>
+              <section>
+                <h2 className="mb-2 text-xl font-semibold">Location</h2>
+                {showNeighborhood && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    <span>{listing.area_name}</span>
+                  </div>
+                )}
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Exact address shared after you unlock the full listing.
+                </p>
+                <div className="mt-4 flex h-48 items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
+                  Approximate area{showNeighborhood ? ` · ${listing.area_name}` : ""}
+                </div>
+              </section>
+              <Separator className="my-8" />
+            </>
+          )}
 
           {/* Trust path */}
           <section>
@@ -245,17 +282,17 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
               What you can see right now
             </h3>
             <ul className="list-disc space-y-1 pl-5">
-              <li>City: {listing.area_name}</li>
+              {showNeighborhood && <li>City: {listing.area_name}</li>}
               <li>Property type: {propertyLabel}</li>
-              {priceDisplay && <li>Price range: {priceDisplay}</li>}
-              {listing.avg_rating && (
+              {showPriceRange && priceDisplay && <li>Price range: {priceDisplay}</li>}
+              {showRating && listing.avg_rating !== null && (
                 <li>Rating: {listing.avg_rating.toFixed(2)} ({listing.review_count} reviews)</li>
               )}
             </ul>
             <p className="mt-4">
-              Title, all photos, exact location, amenities, full pricing,
-              calendar, and the host&apos;s identity are hidden until you meet the
-              trust threshold.
+              The full listing &mdash; exact address, calendar, and everything
+              the host has hidden &mdash; is unlocked once you meet the trust
+              threshold.
             </p>
           </div>
         </div>
@@ -263,11 +300,11 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
         {/* Right column — sidebar with CTA */}
         <aside className="md:col-span-1">
           <div className="sticky top-24 rounded-2xl border border-border bg-white p-5 shadow-sm">
-            {priceDisplay && (
+            {showPriceRange && priceDisplay && (
               <div className="mb-4 text-center">
                 <span className="text-2xl font-semibold">
                   {hasPriceRange
-                    ? `$${listing.price_min}–$${listing.price_max}`
+                    ? `$${listing.price_min}\u2013$${listing.price_max}`
                     : `$${listing.price_min}`}
                 </span>
                 <span className="text-muted-foreground"> / night</span>

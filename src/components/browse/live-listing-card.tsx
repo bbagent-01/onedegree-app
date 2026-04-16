@@ -85,6 +85,12 @@ export function LiveListingCard({
   const hasPriceRange =
     listing.price_min && listing.price_max && listing.price_min !== listing.price_max;
 
+  // Preview content toggles — missing fields default to true (except host name).
+  const previewContent = listing.access_settings?.preview_content;
+  const showPriceRange = previewContent?.show_price_range ?? true;
+  const showNeighborhood = previewContent?.show_neighborhood ?? true;
+  const showRating = previewContent?.show_rating ?? true;
+
   // Choose which images set to use based on access level
   const images = canSeeFull ? allImages : previewImages;
 
@@ -172,9 +178,9 @@ export function LiveListingCard({
           <div className="mt-3">
             <div className="flex items-start justify-between gap-2">
               <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
-                {listing.area_name}
+                {showNeighborhood ? listing.area_name : "Private location"}
               </h3>
-              {rating > 0 && (
+              {showRating && rating > 0 && (
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Star className="h-3.5 w-3.5 fill-muted-foreground text-muted-foreground" />
                   <span>{rating.toFixed(2)}</span>
@@ -182,21 +188,23 @@ export function LiveListingCard({
               )}
             </div>
             {/* No host name/photo in preview mode */}
-            <p className="mt-1">
-              {hasPriceRange ? (
-                <>
-                  <span className="font-semibold">
-                    ${listing.price_min}–${listing.price_max}
-                  </span>
-                  <span className="text-muted-foreground"> / night</span>
-                </>
-              ) : (
-                <>
-                  <span className="font-semibold">${price}</span>
-                  <span className="text-muted-foreground"> night</span>
-                </>
-              )}
-            </p>
+            {showPriceRange && (
+              <p className="mt-1">
+                {hasPriceRange ? (
+                  <>
+                    <span className="font-semibold">
+                      ${listing.price_min}&ndash;${listing.price_max}
+                    </span>
+                    <span className="text-muted-foreground"> / night</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold">${price}</span>
+                    <span className="text-muted-foreground"> night</span>
+                  </>
+                )}
+              </p>
+            )}
           </div>
         </Link>
 
