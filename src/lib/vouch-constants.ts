@@ -10,13 +10,13 @@ export const VOUCH_TYPES = [
   {
     value: "standard" as const,
     label: "Standard",
-    description: "I know them and would recommend them",
+    description: "I know them and would trust them in my home",
     basePoints: 15,
   },
   {
     value: "inner_circle" as const,
     label: "Inner Circle",
-    description: "They're close to me \u2014 I'd trust them in my home",
+    description: "They're basically family",
     basePoints: 25,
   },
 ] as const;

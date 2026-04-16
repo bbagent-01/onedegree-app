@@ -26,7 +26,7 @@ import {
   type VouchType,
   type YearsKnownBucket,
 } from "@/lib/vouch-constants";
-import { Shield, Star, Check, ChevronRight, Trash2 } from "lucide-react";
+import { Shield, Star, Check, ChevronRight, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 interface VouchTarget {
@@ -87,6 +87,7 @@ export function VouchModal({
   const [vouchType, setVouchType] = useState<VouchType | null>(null);
   const [yearsKnown, setYearsKnown] = useState<YearsKnownBucket | null>(null);
   const [stakeAcknowledged, setStakeAcknowledged] = useState(false);
+  const [showVouchPowerInfo, setShowVouchPowerInfo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [savedScore, setSavedScore] = useState<number | null>(null);
@@ -101,6 +102,7 @@ export function VouchModal({
       setVouchType(existingVouch?.vouch_type ?? null);
       setYearsKnown(normalizedBucket ?? (isPostStay ? "lt1" : null));
       setStakeAcknowledged(false);
+      setShowVouchPowerInfo(false);
       setSaving(false);
       setRemoving(false);
       setSavedScore(null);
@@ -238,20 +240,7 @@ export function VouchModal({
             </button>
           ))}
         </div>
-        <div className="mt-5 flex items-center justify-between">
-          {isUpdate && (
-            <Button
-              variant="destructive"
-              size="lg"
-              disabled={removing}
-              onClick={handleRemove}
-              className="gap-1"
-            >
-              <Trash2 className="h-4 w-4" />
-              {removing ? "Removing..." : "Remove vouch"}
-            </Button>
-          )}
-          {!isUpdate && <div />}
+        <div className="mt-5 flex items-center justify-end">
           <Button
             size="lg"
             disabled={!vouchType}
@@ -264,7 +253,7 @@ export function VouchModal({
         </div>
       </div>
 
-      {/* Step 2: Years Known */}
+      {/* Step 2: Years Known + Acknowledgment */}
       <div
         className={cn(
           "transition-all duration-300 ease-in-out",
@@ -320,26 +309,65 @@ export function VouchModal({
             onChange={(e) => setStakeAcknowledged(e.target.checked)}
             className="mt-0.5 h-4 w-4 rounded border-border accent-brand"
           />
-          <span className="text-xs text-muted-foreground leading-relaxed">
-            I understand that {firstName}&apos;s guest rating will affect my vouch power.
+          <span className="text-sm text-muted-foreground leading-relaxed">
+            I understand that {firstName}&apos;s guest rating will affect my
+            vouch power.
           </span>
         </label>
+
+        {/* Vouch power explainer — expandable */}
+        <button
+          type="button"
+          onClick={() => setShowVouchPowerInfo(!showVouchPowerInfo)}
+          className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {showVouchPowerInfo ? (
+            <EyeOff className="h-3.5 w-3.5" />
+          ) : (
+            <Eye className="h-3.5 w-3.5" />
+          )}
+          What is vouch power?
+        </button>
+        {showVouchPowerInfo && (
+          <div className="mt-2 rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground leading-relaxed animate-in slide-in-from-top-1 duration-200">
+            <strong className="text-foreground">Vouch power</strong> determines
+            how much weight your vouches carry. It&apos;s based on the average
+            guest rating of people you&apos;ve vouched for. If they&apos;re great
+            guests, your vouch power goes up. If they&apos;re not, it goes down.
+            This only affects how much your vouch counts — it does not affect
+            your own guest rating.
+          </div>
+        )}
 
         <div className="mt-5 flex items-center justify-between">
           <Button variant="ghost" size="lg" onClick={() => setStep("type")}>
             Back
           </Button>
-          <Button
-            size="lg"
-            disabled={!yearsKnown || !stakeAcknowledged || saving}
-            onClick={handleSubmit}
-          >
-            {saving
-              ? "Saving..."
-              : isUpdate
-                ? "Update vouch"
-                : `Vouch for ${firstName}`}
-          </Button>
+          <div className="flex items-center gap-2">
+            {isUpdate && (
+              <Button
+                variant="destructive"
+                size="lg"
+                disabled={removing}
+                onClick={handleRemove}
+                className="gap-1"
+              >
+                <Trash2 className="h-4 w-4" />
+                {removing ? "Removing..." : "Remove"}
+              </Button>
+            )}
+            <Button
+              size="lg"
+              disabled={!yearsKnown || !stakeAcknowledged || saving}
+              onClick={handleSubmit}
+            >
+              {saving
+                ? "Saving..."
+                : isUpdate
+                  ? "Update vouch"
+                  : `Vouch for ${firstName}`}
+            </Button>
+          </div>
         </div>
       </div>
 
