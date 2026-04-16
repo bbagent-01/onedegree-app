@@ -37,6 +37,24 @@ export const VOUCH_TYPE_POINTS = {
 export type VouchType = "standard" | "inner_circle";
 export type YearsKnownBucket = (typeof YEARS_KNOWN_BUCKETS)[number]["value"];
 
+/** Map old DB bucket values to new Alpha-C values. */
+const BUCKET_MAP: Record<string, YearsKnownBucket> = {
+  lt1: "lt1",
+  lt1yr: "lt1",
+  "1to3": "1to3",
+  "1to3yr": "1to3",
+  "3to5": "3to5",
+  "4to7yr": "3to5",
+  "5to10": "5to10",
+  "8to15yr": "5to10",
+  "10plus": "10plus",
+  "15plusyr": "10plus",
+};
+
+export function normalizeBucket(raw: string): YearsKnownBucket {
+  return BUCKET_MAP[raw] ?? "lt1";
+}
+
 /** Compute a vouch score client-side (mirrors the DB trigger logic). */
 export function computeVouchScore(
   type: VouchType,

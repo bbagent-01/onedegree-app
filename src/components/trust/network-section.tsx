@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { NetworkData, NetworkPerson, PendingInvite } from "@/lib/network-data";
 import { YEARS_KNOWN_BUCKETS } from "@/lib/vouch-constants";
 import {
@@ -10,7 +9,6 @@ import {
   UserPlus,
   Users,
   Zap,
-  Info,
   Send,
   Clock,
 } from "lucide-react";
@@ -41,30 +39,36 @@ function formatDate(iso: string): string {
 }
 
 export function NetworkSection({ data }: { data: NetworkData }) {
+  const { vouchPower, avgGuestRatingOfVouchees } = data.stats;
+  const hasRatingData = avgGuestRatingOfVouchees !== null;
+
   return (
     <section>
       <h2 className="text-xl font-semibold text-foreground">Your Network</h2>
 
       {/* Stats */}
       <div className="mt-4 grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-border bg-white p-4 text-center">
-          <Tooltip>
-            <TooltipTrigger>
-              <div className="flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground">
-                <Zap className="h-3 w-3" />
-                Vouch Power
-                <Info className="h-3 w-3" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-[220px]">
-              <p className="text-xs">
-                Your vouch power is based on the average guest rating of people
-                you&apos;ve vouched for. Higher ratings = stronger vouches.
-              </p>
-            </TooltipContent>
-          </Tooltip>
+        <div className="rounded-xl border border-border bg-white p-4">
+          <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <Zap className="h-3 w-3" />
+            Vouch Power
+          </div>
           <div className="mt-1 text-2xl font-bold">
-            {data.stats.vouchPower.toFixed(1)}x
+            {vouchPower.toFixed(2)}x
+          </div>
+          <div className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
+            {hasRatingData ? (
+              <>
+                <div>
+                  Avg guest rating: {avgGuestRatingOfVouchees!.toFixed(2)}
+                </div>
+                <div>
+                  {avgGuestRatingOfVouchees!.toFixed(2)} / 4.0 = {vouchPower.toFixed(2)}x
+                </div>
+              </>
+            ) : (
+              <div>No guest data yet (default 1.0x)</div>
+            )}
           </div>
         </div>
         <div className="rounded-xl border border-border bg-white p-4 text-center">
@@ -111,7 +115,7 @@ export function NetworkSection({ data }: { data: NetworkData }) {
           </h3>
           <div className="mt-2 divide-y divide-border rounded-xl border border-border bg-white">
             {data.vouchedFor.map((p) => (
-              <PersonRow key={p.user_id} person={p} direction="given" />
+              <PersonRow key={p.user_id} person={p} />
             ))}
           </div>
         </div>
@@ -125,7 +129,7 @@ export function NetworkSection({ data }: { data: NetworkData }) {
           </h3>
           <div className="mt-2 divide-y divide-border rounded-xl border border-border bg-white">
             {data.vouchedBy.map((p) => (
-              <PersonRow key={p.user_id} person={p} direction="received" />
+              <PersonRow key={p.user_id} person={p} />
             ))}
           </div>
         </div>
@@ -163,13 +167,7 @@ export function NetworkSection({ data }: { data: NetworkData }) {
   );
 }
 
-function PersonRow({
-  person,
-  direction,
-}: {
-  person: NetworkPerson;
-  direction: "given" | "received";
-}) {
+function PersonRow({ person }: { person: NetworkPerson }) {
   const isInnerCircle = person.vouch_type === "inner_circle";
 
   return (

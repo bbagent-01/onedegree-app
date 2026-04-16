@@ -23,6 +23,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+const BIG_INPUT =
+  "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
+
 type Step = "info" | "vouch" | "years" | "preview" | "done";
 
 export default function InvitePage() {
@@ -122,7 +125,7 @@ export default function InvitePage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Their full name"
-                  className="mt-1.5"
+                  className={`mt-1.5 ${BIG_INPUT}`}
                 />
               </div>
               <div>
@@ -132,7 +135,7 @@ export default function InvitePage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+1 (555) 123-4567"
-                  className="mt-1.5"
+                  className={`mt-1.5 ${BIG_INPUT}`}
                   type="tel"
                 />
               </div>
@@ -148,7 +151,7 @@ export default function InvitePage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com"
-                  className="mt-1.5"
+                  className={`mt-1.5 ${BIG_INPUT}`}
                   type="email"
                 />
               </div>

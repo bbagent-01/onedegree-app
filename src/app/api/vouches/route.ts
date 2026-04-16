@@ -109,3 +109,64 @@ export async function POST(req: Request) {
 
   return Response.json({ ok: true, vouchScore: vouch?.vouch_score ?? null });
 }
+
+// DELETE: remove a vouch
+export async function DELETE(req: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const body = await req.json();
+  const { targetUserId } = body;
+  if (!targetUserId) {
+    return new Response("Missing targetUserId", { status: 400 });
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  const { data: currentUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("clerk_id", userId)
+    .single();
+
+  if (!currentUser) {
+    return new Response("User not found", { status: 404 });
+  }
+
+  // Delete the vouch
+  const { error } = await supabase
+    .from("vouches")
+    .delete()
+    .eq("voucher_id", currentUser.id)
+    .eq("vouchee_id", targetUserId);
+
+  if (error) {
+    console.error("Vouch delete error:", error);
+    return new Response("Failed to remove vouch", { status: 500 });
+  }
+
+  // Recount vouches for both users
+  const { count: givenCount } = await supabase
+    .from("vouches")
+    .select("*", { count: "exact", head: true })
+    .eq("voucher_id", currentUser.id);
+
+  const { count: receivedCount } = await supabase
+    .from("vouches")
+    .select("*", { count: "exact", head: true })
+    .eq("vouchee_id", targetUserId);
+
+  await supabase
+    .from("users")
+    .update({ vouch_count_given: givenCount ?? 0 })
+    .eq("id", currentUser.id);
+
+  await supabase
+    .from("users")
+    .update({ vouch_count_received: receivedCount ?? 0 })
+    .eq("id", targetUserId);
+
+  return Response.json({ ok: true });
+}

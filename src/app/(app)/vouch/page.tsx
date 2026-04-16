@@ -1,11 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VouchModal } from "@/components/trust/vouch-modal";
-import { Search, Shield, UserCheck, Users } from "lucide-react";
+import { Search, Shield, UserCheck, Users, UserPlus } from "lucide-react";
+
+const BIG_INPUT =
+  "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
 
 interface SearchResult {
   id: string;
@@ -74,7 +78,6 @@ export default function VouchPage() {
   };
 
   const handleVouchSaved = () => {
-    // Mark user as vouched in local state
     if (vouchTarget) {
       setResults((prev) =>
         prev.map((r) =>
@@ -91,20 +94,21 @@ export default function VouchPage() {
           <Shield className="h-6 w-6" />
         </div>
         <h1 className="mt-4 text-2xl font-bold md:text-3xl">
-          Vouch for a member
+          Vouch for someone
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Search by name or email to vouch for someone you know and trust.
+          Search by name or email. If they&rsquo;re not on 1&deg; B&B yet, you
+          can invite them.
         </p>
       </div>
 
       <div className="relative mt-8">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name or email..."
-          className="pl-10"
+          className={`${BIG_INPUT} pl-11`}
         />
       </div>
 
@@ -117,11 +121,20 @@ export default function VouchPage() {
         )}
 
         {!searching && hasSearched && results.length === 0 && (
-          <div className="py-12 text-center">
+          <div className="py-10 text-center">
             <Users className="mx-auto h-8 w-8 text-muted-foreground/50" />
             <p className="mt-3 text-sm text-muted-foreground">
               No members found for &ldquo;{query}&rdquo;
             </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              They might not be on 1&deg; B&B yet. Invite them to join!
+            </p>
+            <Link href="/invite">
+              <Button size="lg" className="mt-4 gap-1.5">
+                <UserPlus className="h-4 w-4" />
+                Invite them to 1&deg; B&B
+              </Button>
+            </Link>
           </div>
         )}
 
@@ -132,18 +145,23 @@ export default function VouchPage() {
                 key={user.id}
                 className="flex items-center gap-3 px-4 py-3"
               >
-                <Avatar className="h-10 w-10">
-                  {user.avatar_url && (
-                    <AvatarImage src={user.avatar_url} alt={user.name} />
-                  )}
-                  <AvatarFallback className="text-xs">
-                    {initials(user.name)}
-                  </AvatarFallback>
-                </Avatar>
+                <Link href={`/profile/${user.id}`}>
+                  <Avatar className="h-10 w-10 ring-2 ring-transparent hover:ring-brand/30 transition-all cursor-pointer">
+                    {user.avatar_url && (
+                      <AvatarImage src={user.avatar_url} alt={user.name} />
+                    )}
+                    <AvatarFallback className="text-xs">
+                      {initials(user.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">
+                  <Link
+                    href={`/profile/${user.id}`}
+                    className="truncate text-sm font-medium hover:underline"
+                  >
                     {user.name}
-                  </div>
+                  </Link>
                   {user.email && (
                     <div className="truncate text-xs text-muted-foreground">
                       {user.email}
@@ -174,6 +192,22 @@ export default function VouchPage() {
             ))}
           </div>
         )}
+
+        {/* Always show invite link at the bottom when there are results too */}
+        {!searching && hasSearched && results.length > 0 && (
+          <div className="mt-4 text-center">
+            <p className="text-xs text-muted-foreground">
+              Don&rsquo;t see who you&rsquo;re looking for?
+            </p>
+            <Link
+              href="/invite"
+              className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Invite them to join
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Vouch modal */}
@@ -188,6 +222,17 @@ export default function VouchPage() {
           }}
           existingVouch={vouchTarget.already_vouched ? undefined : null}
           onVouchSaved={handleVouchSaved}
+          onVouchRemoved={() => {
+            if (vouchTarget) {
+              setResults((prev) =>
+                prev.map((r) =>
+                  r.id === vouchTarget.id
+                    ? { ...r, already_vouched: false }
+                    : r
+                )
+              );
+            }
+          }}
         />
       )}
     </div>

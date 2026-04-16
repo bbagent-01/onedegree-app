@@ -1,54 +1,51 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/messaging-data";
 import { getHostDashboardData } from "@/lib/hosting-data";
 import { getNetworkData } from "@/lib/network-data";
+import { getTripsForGuest } from "@/lib/trips-data";
 import { StatsCards } from "@/components/hosting/stats-cards";
 import { ReservationsSection } from "@/components/hosting/reservations-section";
 import { ListingsSection } from "@/components/hosting/listings-section";
 import { EarningsSection } from "@/components/hosting/earnings-section";
 import { NetworkSection } from "@/components/trust/network-section";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TripsList } from "@/components/trips/trips-list";
+import { UnifiedDashboard } from "./unified-dashboard";
 import { Plus } from "lucide-react";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 export default async function HostingPage() {
-  const [data, networkData] = await Promise.all([
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/");
+
+  const [hostData, networkData, trips] = await Promise.all([
     getHostDashboardData(),
     getNetworkData(),
+    getTripsForGuest(currentUser.id),
   ]);
-  if (!data) redirect("/");
 
-  const firstName = data.user.name?.split(" ")[0] || "there";
-  const hasListings = data.listings.length > 0;
+  if (!hostData) redirect("/");
 
-  return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 lg:px-10">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">
-          Welcome back, {firstName}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Here&apos;s what&apos;s happening with your listings and guests.
-        </p>
-      </div>
+  const firstName = hostData.user.name?.split(" ")[0] || "there";
+  const hasListings = hostData.listings.length > 0;
 
+  const hostingContent = (
+    <>
       <div className="mt-8">
-        <StatsCards stats={data.stats} />
+        <StatsCards stats={hostData.stats} />
       </div>
-
       <div className="mt-12">
         <ReservationsSection
-          upcoming={data.reservations.upcoming}
-          completed={data.reservations.completed}
-          cancelled={data.reservations.cancelled}
+          upcoming={hostData.reservations.upcoming}
+          completed={hostData.reservations.completed}
+          cancelled={hostData.reservations.cancelled}
         />
       </div>
-
       <div className="mt-12">
         {hasListings ? (
-          <ListingsSection listings={data.listings} />
+          <ListingsSection listings={hostData.listings} />
         ) : (
           <section>
             <h2 className="text-xl font-semibold text-foreground">
@@ -72,18 +69,40 @@ export default async function HostingPage() {
           </section>
         )}
       </div>
-
       <div className="mt-12">
-        <EarningsSection earnings={data.earnings} />
+        <EarningsSection earnings={hostData.earnings} />
+      </div>
+    </>
+  );
+
+  const travelingContent = (
+    <div className="mt-8">
+      <TripsList trips={trips} />
+    </div>
+  );
+
+  const networkContent = networkData ? (
+    <div className="mt-8">
+      <NetworkSection data={networkData} />
+    </div>
+  ) : null;
+
+  return (
+    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 lg:px-10">
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">
+          Welcome back, {firstName}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Your dashboard for hosting, traveling, and your trust network.
+        </p>
       </div>
 
-      {networkData && (
-        <div className="mt-12">
-          <TooltipProvider>
-            <NetworkSection data={networkData} />
-          </TooltipProvider>
-        </div>
-      )}
+      <UnifiedDashboard
+        hostingContent={hostingContent}
+        travelingContent={travelingContent}
+        networkContent={networkContent}
+      />
     </div>
   );
 }

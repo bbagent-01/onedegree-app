@@ -26,6 +26,7 @@ export interface NetworkData {
   pendingInvites: PendingInvite[];
   stats: {
     vouchPower: number;
+    avgGuestRatingOfVouchees: number | null;
     vouchesGiven: number;
     vouchesReceived: number;
   };
@@ -72,6 +73,37 @@ export async function getNetworkData(): Promise<NetworkData | null> {
     }
   }
 
+  // Compute the actual avg guest rating of vouchees for the math display
+  // This is the input to the vouch power formula: avg_rating / 4.0, clamped [0.5, 1.5]
+  let avgGuestRatingOfVouchees: number | null = null;
+  if (vouchedFor.length > 0) {
+    const voucheeIds = vouchedFor.map((p) => p.user_id);
+    const { data: voucheeUsers } = await supabase
+      .from("users")
+      .select("guest_rating")
+      .in("id", voucheeIds)
+      .not("guest_rating", "is", null);
+
+    if (voucheeUsers && voucheeUsers.length > 0) {
+      const sum = voucheeUsers.reduce(
+        (acc, u) => acc + (u.guest_rating ?? 0),
+        0
+      );
+      avgGuestRatingOfVouchees =
+        Math.round((sum / voucheeUsers.length) * 100) / 100;
+    }
+  }
+
+  // Recompute vouch power from the actual avg to ensure display accuracy
+  let correctVouchPower = 1.0;
+  if (avgGuestRatingOfVouchees !== null) {
+    correctVouchPower = Math.min(
+      1.5,
+      Math.max(0.5, avgGuestRatingOfVouchees / 4.0)
+    );
+    correctVouchPower = Math.round(correctVouchPower * 100) / 100;
+  }
+
   // Fetch pending invites
   const { data: invites } = await supabase
     .from("invites")
@@ -86,7 +118,8 @@ export async function getNetworkData(): Promise<NetworkData | null> {
     vouchedBy,
     pendingInvites: (invites ?? []) as PendingInvite[],
     stats: {
-      vouchPower: user.vouch_power ?? 1.0,
+      vouchPower: correctVouchPower,
+      avgGuestRatingOfVouchees,
       vouchesGiven: user.vouch_count_given ?? 0,
       vouchesReceived: user.vouch_count_received ?? 0,
     },

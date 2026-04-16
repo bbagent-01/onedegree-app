@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Dialog,
@@ -21,10 +22,11 @@ import {
   VOUCH_TYPES,
   YEARS_KNOWN_BUCKETS,
   computeVouchScore,
+  normalizeBucket,
   type VouchType,
   type YearsKnownBucket,
 } from "@/lib/vouch-constants";
-import { Shield, Star, Check, ChevronRight } from "lucide-react";
+import { Shield, Star, Check, ChevronRight, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface VouchTarget {
@@ -35,7 +37,7 @@ interface VouchTarget {
 
 interface ExistingVouch {
   vouch_type: VouchType;
-  years_known_bucket: YearsKnownBucket;
+  years_known_bucket: string; // could be old or new format
   vouch_score?: number | null;
 }
 
@@ -51,6 +53,8 @@ interface VouchModalProps {
   sourceBookingId?: string | null;
   /** Callback after vouch is successfully saved */
   onVouchSaved?: (score: number) => void;
+  /** Callback after vouch is removed */
+  onVouchRemoved?: () => void;
 }
 
 type Step = "type" | "years" | "confirm";
@@ -74,30 +78,34 @@ export function VouchModal({
   isPostStay = false,
   sourceBookingId,
   onVouchSaved,
+  onVouchRemoved,
 }: VouchModalProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const prevOpenRef = useRef(false);
 
   const [step, setStep] = useState<Step>("type");
-  const [vouchType, setVouchType] = useState<VouchType | null>(
-    existingVouch?.vouch_type ?? null
-  );
-  const [yearsKnown, setYearsKnown] = useState<YearsKnownBucket | null>(
-    existingVouch?.years_known_bucket ?? (isPostStay ? "lt1" : null)
-  );
+  const [vouchType, setVouchType] = useState<VouchType | null>(null);
+  const [yearsKnown, setYearsKnown] = useState<YearsKnownBucket | null>(null);
+  const [stakeAcknowledged, setStakeAcknowledged] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [savedScore, setSavedScore] = useState<number | null>(null);
 
-  // Reset state when modal opens/target changes
+  // Only reset state on open transition (false → true), not on every prop change
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
+      const normalizedBucket = existingVouch
+        ? normalizeBucket(existingVouch.years_known_bucket)
+        : null;
       setStep("type");
       setVouchType(existingVouch?.vouch_type ?? null);
-      setYearsKnown(
-        existingVouch?.years_known_bucket ?? (isPostStay ? "lt1" : null)
-      );
+      setYearsKnown(normalizedBucket ?? (isPostStay ? "lt1" : null));
+      setStakeAcknowledged(false);
       setSaving(false);
+      setRemoving(false);
       setSavedScore(null);
     }
+    prevOpenRef.current = open;
   }, [open, existingVouch, isPostStay]);
 
   const computedScore =
@@ -141,6 +149,25 @@ export function VouchModal({
     computedScore,
     onVouchSaved,
   ]);
+
+  const handleRemove = useCallback(async () => {
+    setRemoving(true);
+    try {
+      const res = await fetch("/api/vouches", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: target.id }),
+      });
+      if (!res.ok) throw new Error("Failed to remove vouch");
+      toast.success("Vouch removed");
+      onVouchRemoved?.();
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to remove vouch");
+    } finally {
+      setRemoving(false);
+    }
+  }, [target.id, onVouchRemoved, onOpenChange]);
 
   const isUpdate = !!existingVouch;
   const firstName = target.name.split(" ")[0];
@@ -211,7 +238,20 @@ export function VouchModal({
             </button>
           ))}
         </div>
-        <div className="mt-5 flex justify-end">
+        <div className="mt-5 flex items-center justify-between">
+          {isUpdate && (
+            <Button
+              variant="destructive"
+              size="lg"
+              disabled={removing}
+              onClick={handleRemove}
+              className="gap-1"
+            >
+              <Trash2 className="h-4 w-4" />
+              {removing ? "Removing..." : "Remove vouch"}
+            </Button>
+          )}
+          {!isUpdate && <div />}
           <Button
             size="lg"
             disabled={!vouchType}
@@ -271,13 +311,27 @@ export function VouchModal({
             );
           })}
         </div>
+
+        {/* Reputation stake acknowledgment */}
+        <label className="mt-4 flex items-start gap-2.5 rounded-lg border border-border bg-muted/30 p-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={stakeAcknowledged}
+            onChange={(e) => setStakeAcknowledged(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-border accent-brand"
+          />
+          <span className="text-xs text-muted-foreground leading-relaxed">
+            I understand that {firstName}&apos;s guest rating will affect my vouch power.
+          </span>
+        </label>
+
         <div className="mt-5 flex items-center justify-between">
           <Button variant="ghost" size="lg" onClick={() => setStep("type")}>
             Back
           </Button>
           <Button
             size="lg"
-            disabled={!yearsKnown || saving}
+            disabled={!yearsKnown || !stakeAcknowledged || saving}
             onClick={handleSubmit}
           >
             {saving
@@ -299,8 +353,8 @@ export function VouchModal({
         )}
       >
         <div className="flex flex-col items-center py-4 text-center">
-          <div className="relative">
-            <Avatar className="h-16 w-16">
+          <Link href={`/profile/${target.id}`} className="relative group">
+            <Avatar className="h-16 w-16 ring-2 ring-transparent group-hover:ring-brand/30 transition-all">
               {target.avatar_url && (
                 <AvatarImage src={target.avatar_url} alt={target.name} />
               )}
@@ -311,9 +365,12 @@ export function VouchModal({
             <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm animate-in zoom-in-50 duration-300">
               <Check className="h-4 w-4" />
             </div>
-          </div>
+          </Link>
           <h3 className="mt-4 text-lg font-semibold">
-            You&rsquo;ve vouched for {target.name}
+            You&rsquo;ve vouched for{" "}
+            <Link href={`/profile/${target.id}`} className="hover:underline">
+              {target.name}
+            </Link>
           </h3>
           <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-sm">
             <span className="capitalize">

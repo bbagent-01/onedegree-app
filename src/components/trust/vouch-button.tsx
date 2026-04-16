@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { VouchModal } from "./vouch-modal";
 import { Shield } from "lucide-react";
-import type { VouchType, YearsKnownBucket } from "@/lib/vouch-constants";
+import type { VouchType } from "@/lib/vouch-constants";
 
 interface VouchButtonProps {
   targetId: string;
@@ -25,7 +25,7 @@ interface VouchButtonProps {
 
 interface ExistingVouch {
   vouch_type: VouchType;
-  years_known_bucket: YearsKnownBucket;
+  years_known_bucket: string;
   vouch_score?: number | null;
 }
 
@@ -93,8 +93,17 @@ export function VouchButton({
         isPostStay={isPostStay}
         sourceBookingId={sourceBookingId}
         onVouchSaved={(score) => {
-          setExistingVouch((prev) => (prev ? { ...prev, vouch_score: score } : null));
+          // Refresh existing vouch state
+          fetch(`/api/vouches?targetId=${targetId}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+              if (data?.vouch) setExistingVouch(data.vouch);
+            })
+            .catch(() => {});
           onVouchSaved?.(score);
+        }}
+        onVouchRemoved={() => {
+          setExistingVouch(null);
         }}
       />
     </>
