@@ -16,7 +16,6 @@ import {
   Loader2,
   Minus,
   Plus as PlusIcon,
-  ExternalLink,
   MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -544,20 +543,27 @@ export default function CreateListingPage() {
         {state.step === 6 && <Step6 state={state} update={update} />}
         {state.step === 7 && <Step7Preview state={state} update={update} />}
         {state.step === 8 && <Step8Visibility state={state} update={update} />}
-        {state.step === 9 && <Step9Review state={state} />}
+        {state.step === 9 && (
+          <Step9Review
+            state={state}
+            onBack={back}
+            onPublish={publish}
+            submitting={submitting}
+          />
+        )}
       </div>
 
-      <div className="mt-10 flex items-center justify-between border-t border-border pt-6">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={back}
-          disabled={state.step === 1}
-          className={BIG_BUTTON}
-        >
-          <ArrowLeft className="mr-1 h-4 w-4" /> Back
-        </Button>
-        {state.step < TOTAL_STEPS ? (
+      {state.step < TOTAL_STEPS && (
+        <div className="mt-10 flex items-center justify-between border-t border-border pt-6">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={back}
+            disabled={state.step === 1}
+            className={BIG_BUTTON}
+          >
+            <ArrowLeft className="mr-1 h-4 w-4" /> Back
+          </Button>
           <Button
             type="button"
             onClick={next}
@@ -566,20 +572,8 @@ export default function CreateListingPage() {
           >
             Next <ArrowRight className="ml-1 h-4 w-4" />
           </Button>
-        ) : (
-          <Button
-            type="button"
-            onClick={publish}
-            disabled={submitting}
-            className={BIG_BUTTON_PRIMARY}
-          >
-            {submitting ? (
-              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-            ) : null}
-            Publish listing
-          </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1401,22 +1395,11 @@ function Step7Preview({
     update("photos", next);
   };
 
-  // ── Derived values for the mocks ──
-  const firstName = "you"; // placeholder; we don't have the host's name in wizard state
-  const priceDisplay =
-    state.price && Number(state.price) > 0 ? `$${state.price}` : null;
-  const previewDesc =
-    state.previewDescription ||
-    state.description.slice(0, 100) + (state.description.length > 100 ? "\u2026" : "");
-  const previewPhotos = state.photos.filter((p) => p.is_preview);
-  const coverPhoto = state.photos.find((p) => p.is_cover) || previewPhotos[0];
-  const tileImage = coverPhoto?.public_url;
-
   return (
     <div>
       <StepHeading
         title="Listing Preview"
-        subtitle="This is what anyone sees before they've unlocked your listing. You control exactly what's shown — then on the next step, you control who can see it."
+        subtitle="This is a preview of your listing to show parts of it without showing all of it. Below you control exactly what's shown in the preview. Then on the next step, you control who can see it."
       />
 
       <div className="space-y-8">
@@ -1425,9 +1408,6 @@ function Step7Preview({
           <div className="text-base font-semibold text-foreground">
             Show in preview
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Toggle what anonymous visitors see.
-          </p>
           <div className="mt-5 space-y-2">
             {PREVIEW_TOGGLES.map(({ key, label, desc }) => (
               <label
@@ -1547,7 +1527,7 @@ function Step7Preview({
           )}
         </div>
 
-        {/* Live mocks */}
+        {/* Live mocks — two tiles side by side, then full-width preview listing */}
         <div className="rounded-2xl border border-border bg-card p-6">
           <div className="text-base font-semibold text-foreground">
             How your preview will look
@@ -1556,140 +1536,363 @@ function Step7Preview({
             Updates live as you change settings above.
           </p>
 
-          <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Tile mock */}
+          {/* Two tiles side by side */}
+          <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Browse tile
+                Full tile (after unlock)
               </div>
-              <div className="w-full max-w-xs">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
-                  {tileImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={tileImage}
-                      alt="Preview"
-                      className="h-full w-full object-cover saturate-[0.85] brightness-[0.97]"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-                      No cover photo yet
-                    </div>
-                  )}
-                  <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur">
-                    Private listing
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
-                      {state.previewShowNeighborhood
-                        ? state.areaName || state.city || "Neighborhood"
-                        : "Private location"}
-                    </h3>
-                    {state.previewShowRating && (
-                      <div className="text-xs text-muted-foreground">
-                        &#9733; 4.87
-                      </div>
-                    )}
-                  </div>
-                  {state.previewShowPriceRange && priceDisplay && (
-                    <p className="mt-1 text-sm">
-                      <span className="font-semibold">{priceDisplay}</span>
-                      <span className="text-muted-foreground"> / night</span>
-                    </p>
-                  )}
-                </div>
-              </div>
+              <ListingTileMock state={state} mode="full" />
             </div>
-
-            {/* Detail mock */}
             <div>
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Detail page
+                Preview tile (before unlock)
               </div>
-              <div className="rounded-xl border border-border bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-lg font-semibold leading-tight">
-                    {state.placeKind === "private"
-                      ? "Private room"
-                      : state.placeKind === "shared"
-                        ? "Shared room"
-                        : "Entire place"}
-                    {state.previewShowNeighborhood
-                      ? ` in ${state.areaName || state.city || "the neighborhood"}`
-                      : ""}
-                  </h3>
-                  {state.previewShowRating && (
-                    <div className="shrink-0 text-xs text-muted-foreground">
-                      &#9733; 4.87 &middot; 24 reviews
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-2 text-xs font-medium text-muted-foreground">
-                  Hosted by{" "}
-                  {state.previewShowHostFirstName
-                    ? firstName
-                    : "a verified member"}
-                </div>
-
-                {state.previewShowBedCounts && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    {state.bedrooms} bedroom{state.bedrooms !== 1 ? "s" : ""}{" "}
-                    &middot; {state.beds} bed{state.beds !== 1 ? "s" : ""}{" "}
-                    &middot; {state.bathrooms} bath
-                    {state.bathrooms !== 1 ? "s" : ""}
-                  </div>
-                )}
-
-                {state.previewShowPriceRange && priceDisplay && (
-                  <div className="mt-3 text-base font-semibold">
-                    {priceDisplay}{" "}
-                    <span className="text-xs font-normal text-muted-foreground">
-                      / night (range)
-                    </span>
-                  </div>
-                )}
-
-                {state.previewShowDescription && previewDesc && (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    {previewDesc}
-                  </p>
-                )}
-
-                {state.previewShowMapArea && (
-                  <div className="mt-3 flex h-20 items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
-                    Approximate map area
-                  </div>
-                )}
-
-                {state.previewShowAmenities && state.amenities.length > 0 && (
-                  <div className="mt-3">
-                    <div className="text-xs font-semibold text-foreground">Amenities</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {state.amenities.slice(0, 5).join(" \u00B7 ")}
-                      {state.amenities.length > 5
-                        ? ` \u00B7 +${state.amenities.length - 5} more`
-                        : ""}
-                    </div>
-                  </div>
-                )}
-
-                {state.previewShowHouseRules &&
-                  (state.houseRules.length > 0 || state.customRules) && (
-                    <div className="mt-3">
-                      <div className="text-xs font-semibold text-foreground">House rules</div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {state.houseRules.slice(0, 3).join(" \u00B7 ")}
-                        {state.customRules ? ` \u00B7 ${state.customRules}` : ""}
-                      </div>
-                    </div>
-                  )}
-              </div>
+              <ListingTileMock state={state} mode="preview" />
             </div>
           </div>
         </div>
+
+        {/* Full-width preview listing — breaks out of the 880px wizard container */}
+        <div className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 bg-muted/30 py-8">
+          <div className="mx-auto w-full max-w-[1200px] px-4 md:px-8">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Preview listing page
+            </div>
+            <ListingDetailMock state={state} mode="preview" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Shared mock components — render the wizard state as a listing tile
+// or listing detail page, in either "preview" or "full" mode.
+// ──────────────────────────────────────────────────────────────────
+
+function getListingDisplay(state: WizardState) {
+  const priceDisplay =
+    state.price && Number(state.price) > 0 ? `$${state.price}` : null;
+  const previewDesc =
+    state.previewDescription ||
+    state.description.slice(0, 100) +
+      (state.description.length > 100 ? "\u2026" : "");
+  const coverPhoto = state.photos.find((p) => p.is_cover) || state.photos[0];
+  const previewPhotos = state.photos.filter((p) => p.is_preview);
+  return { priceDisplay, previewDesc, coverPhoto, previewPhotos };
+}
+
+function ListingTileMock({
+  state,
+  mode,
+}: {
+  state: WizardState;
+  mode: "preview" | "full";
+}) {
+  const { priceDisplay, coverPhoto } = getListingDisplay(state);
+  const isPreview = mode === "preview";
+  const tileImage = coverPhoto?.public_url;
+
+  return (
+    <div className="w-full max-w-xs">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
+        {tileImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={tileImage}
+            alt="Cover"
+            className={cn(
+              "h-full w-full object-cover",
+              isPreview && "saturate-[0.85] brightness-[0.97]"
+            )}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+            No cover photo yet
+          </div>
+        )}
+        {isPreview && (
+          <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur">
+            Private listing
+          </div>
+        )}
+      </div>
+      <div className="mt-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
+            {isPreview
+              ? state.previewShowNeighborhood
+                ? state.areaName || state.city || "Neighborhood"
+                : "Private location"
+              : state.title || state.areaName || state.city || "Your listing"}
+          </h3>
+          {(isPreview ? state.previewShowRating : true) && (
+            <div className="text-xs text-muted-foreground">&#9733; 4.87</div>
+          )}
+        </div>
+        {!isPreview && (
+          <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
+            {state.areaName || state.city || "Location"}
+          </p>
+        )}
+        {!isPreview && (
+          <p className="text-sm text-muted-foreground">Hosted by you</p>
+        )}
+        {(isPreview ? state.previewShowPriceRange : true) && priceDisplay && (
+          <p className="mt-1 text-sm">
+            <span className="font-semibold">{priceDisplay}</span>
+            <span className="text-muted-foreground"> / night</span>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ListingDetailMock({
+  state,
+  mode,
+}: {
+  state: WizardState;
+  mode: "preview" | "full";
+}) {
+  const { priceDisplay, previewDesc, previewPhotos, coverPhoto } =
+    getListingDisplay(state);
+  const isPreview = mode === "preview";
+  // For preview mode, use preview photos (fall back to first 2 of all).
+  // For full mode, use all photos in order (cover first).
+  const photosToShow = isPreview
+    ? previewPhotos.length > 0
+      ? previewPhotos.slice(0, 3)
+      : state.photos.slice(0, 2)
+    : coverPhoto
+      ? [coverPhoto, ...state.photos.filter((p) => !p.is_cover)].slice(0, 5)
+      : state.photos.slice(0, 5);
+
+  const propertyLabel =
+    state.placeKind === "private"
+      ? "Private room"
+      : state.placeKind === "shared"
+        ? "Shared room"
+        : "Entire place";
+
+  // Toggle getters — in "full" mode everything is always shown.
+  const show = (key: PreviewToggleKey) => (isPreview ? state[key] : true);
+
+  const areaName = state.areaName || state.city || "Neighborhood";
+  const fullDescription = state.description || previewDesc;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-white">
+      {/* Photo gallery */}
+      {photosToShow.length > 0 ? (
+        <div className="grid grid-cols-4 gap-1">
+          <div className="col-span-4 md:col-span-2 md:row-span-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photosToShow[0].public_url}
+              alt=""
+              className={cn(
+                "h-64 w-full object-cover md:h-[480px]",
+                isPreview && "saturate-[0.85]"
+              )}
+            />
+          </div>
+          {photosToShow.slice(1, 5).map((p, i) => (
+            <div
+              key={p.public_url}
+              className={cn(
+                "hidden md:block",
+                i < 2 ? "col-span-1" : "col-span-1"
+              )}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={p.public_url}
+                alt=""
+                className={cn(
+                  "h-[238px] w-full object-cover",
+                  isPreview && "saturate-[0.85]"
+                )}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex h-64 items-center justify-center bg-muted text-sm text-muted-foreground">
+          No photos yet
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-8 px-6 py-8 md:grid-cols-3 md:px-10">
+        <div className="md:col-span-2">
+          {/* Title area */}
+          <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
+            {isPreview
+              ? `${propertyLabel}${show("previewShowNeighborhood") ? ` in ${areaName}` : ""}`
+              : state.title || "Your listing"}
+          </h1>
+
+          {!isPreview && (
+            <p className="mt-2 text-sm text-muted-foreground">{areaName}</p>
+          )}
+
+          {show("previewShowRating") && (
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              <span>&#9733;</span>
+              <span className="font-semibold">4.87</span>
+              <span className="text-muted-foreground">&middot; 24 reviews</span>
+            </div>
+          )}
+
+          {show("previewShowBedCounts") && (
+            <div className="mt-3 text-sm text-muted-foreground">
+              {state.guests} guest{state.guests !== 1 ? "s" : ""} &middot;{" "}
+              {state.bedrooms} bedroom{state.bedrooms !== 1 ? "s" : ""} &middot;{" "}
+              {state.beds} bed{state.beds !== 1 ? "s" : ""} &middot;{" "}
+              {state.bathrooms} bath{state.bathrooms !== 1 ? "s" : ""}
+            </div>
+          )}
+
+          <div className="mt-6 border-t border-border pt-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-lg font-semibold text-muted-foreground">
+                {isPreview && !show("previewShowHostFirstName") ? "?" : "Y"}
+              </div>
+              <div>
+                <div className="text-base font-semibold">
+                  {isPreview
+                    ? show("previewShowHostFirstName")
+                      ? "Hosted by you"
+                      : "Hosted by a verified member"
+                    : "Hosted by you"}
+                </div>
+                {!isPreview && (
+                  <div className="text-xs text-muted-foreground">Host</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Description */}
+          {(!isPreview || show("previewShowDescription")) && (
+            <div className="mt-6 border-t border-border pt-6">
+              <h2 className="mb-3 text-lg font-semibold">About this place</h2>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                {isPreview ? previewDesc : fullDescription}
+              </p>
+              {!isPreview && state.propertyOverview && (
+                <>
+                  <h3 className="mt-5 mb-2 text-sm font-semibold">
+                    Your property
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {state.propertyOverview}
+                  </p>
+                </>
+              )}
+              {!isPreview && state.guestAccess && (
+                <>
+                  <h3 className="mt-5 mb-2 text-sm font-semibold">
+                    Guest access
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {state.guestAccess}
+                  </p>
+                </>
+              )}
+              {!isPreview && state.interactionWithGuests && (
+                <>
+                  <h3 className="mt-5 mb-2 text-sm font-semibold">
+                    Interaction with guests
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {state.interactionWithGuests}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Amenities */}
+          {(!isPreview || show("previewShowAmenities")) &&
+            state.amenities.length > 0 && (
+              <div className="mt-6 border-t border-border pt-6">
+                <h2 className="mb-3 text-lg font-semibold">
+                  What this place offers
+                </h2>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {state.amenities
+                    .slice(0, isPreview ? 6 : 20)
+                    .map((a) => (
+                      <div
+                        key={a}
+                        className="flex items-center gap-2 text-muted-foreground"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                        {a}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+          {/* House rules */}
+          {(!isPreview || show("previewShowHouseRules")) &&
+            (state.houseRules.length > 0 || state.customRules) && (
+              <div className="mt-6 border-t border-border pt-6">
+                <h2 className="mb-3 text-lg font-semibold">House rules</h2>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {state.houseRules.map((r) => (
+                    <li key={r}>&middot; {r}</li>
+                  ))}
+                  {state.customRules && (
+                    <li className="whitespace-pre-wrap pt-2 text-foreground">
+                      {state.customRules}
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+
+          {/* Map */}
+          {show("previewShowMapArea") && (
+            <div className="mt-6 border-t border-border pt-6">
+              <h2 className="mb-3 text-lg font-semibold">Location</h2>
+              <div className="text-sm text-muted-foreground">
+                {show("previewShowNeighborhood") ? areaName : "Private location"}
+              </div>
+              <div className="mt-3 flex h-40 items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
+                {isPreview ? "Approximate map area" : "Map pin"}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right column — booking card */}
+        <aside className="md:col-span-1">
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+            {show("previewShowPriceRange") && priceDisplay && (
+              <div className="mb-4">
+                <span className="text-2xl font-semibold">{priceDisplay}</span>
+                <span className="text-muted-foreground"> / night</span>
+              </div>
+            )}
+            {!isPreview && (
+              <div className="text-xs text-muted-foreground">
+                Dates, calendar, and booking flow appear here.
+              </div>
+            )}
+            {isPreview && (
+              <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
+                Unlock this listing to see full pricing, calendar, and host
+                details.
+              </div>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );
@@ -1706,13 +1909,17 @@ function Step8Visibility({
   state: WizardState;
   update: UpdateFn;
 }) {
-  const VISIBILITY_MODES: {
-    key: VisibilityMode;
+  // Three UI presets. They all store visibility_mode="preview_gated"
+  // in the DB — the difference is just which access rules get pre-filled.
+  // "Private" = strict trust gates (high min_score), "Public" = anyone
+  // for everything, "Standard" = balanced defaults.
+  const PRESETS: {
+    key: "standard" | "public" | "private";
     label: string;
     desc: string;
   }[] = [
     {
-      key: "preview_gated",
+      key: "standard",
       label: "Standard",
       desc: "Anonymous preview for everyone. Full listing gated by trust.",
     },
@@ -1722,9 +1929,9 @@ function Step8Visibility({
       desc: "Full listing visible to anyone on the platform.",
     },
     {
-      key: "hidden",
-      label: "Hidden",
-      desc: "Not discoverable in browse. Only via direct link you share.",
+      key: "private",
+      label: "Private",
+      desc: "Only people with a strong 1\u00B0 connection can unlock this listing.",
     },
   ];
 
@@ -1752,27 +1959,57 @@ function Step8Visibility({
     update(key, { ...current, [field]: value });
   };
 
-  // Quick-fill preset — set visibility_mode AND pre-fill access rules.
-  // Host can still customize each rule afterwards.
-  const applyTemplate = (mode: VisibilityMode) => {
-    update("visibilityMode", mode);
-    if (mode === "public") {
+  // Quick-fill presets — pre-populate access rules. Always stored as
+  // visibility_mode="preview_gated" (listings are always discoverable
+  // in browse; strictness comes from the access rules themselves).
+  const applyPreset = (preset: "standard" | "public" | "private") => {
+    update("visibilityMode", "preview_gated");
+    if (preset === "public") {
       update("accessSeePreview", { type: "anyone", threshold: "" });
       update("accessSeeFull", { type: "anyone", threshold: "" });
       update("accessRequestBook", { type: "anyone", threshold: "" });
       update("accessMessage", { type: "anyone", threshold: "" });
       update("accessRequestIntro", { type: "anyone", threshold: "" });
-    } else if (mode === "preview_gated") {
+    } else if (preset === "standard") {
       update("accessSeePreview", { type: "anyone", threshold: "" });
       update("accessSeeFull", { type: "min_score", threshold: "10" });
       update("accessRequestBook", { type: "min_score", threshold: "20" });
       update("accessMessage", { type: "min_score", threshold: "10" });
       update("accessRequestIntro", { type: "anyone", threshold: "" });
-    } else if (mode === "hidden") {
-      // Hidden mode: discoverability off, access rules stay whatever they were.
-      // (Host can customize freely after.)
+    } else if (preset === "private") {
+      update("accessSeePreview", { type: "anyone", threshold: "" });
+      update("accessSeeFull", { type: "min_score", threshold: "30" });
+      update("accessRequestBook", { type: "min_score", threshold: "40" });
+      update("accessMessage", { type: "min_score", threshold: "30" });
+      update("accessRequestIntro", { type: "anyone", threshold: "" });
     }
   };
+
+  // Infer which preset most closely matches the current rules, so the
+  // selected card keeps highlighting even as the user tweaks settings.
+  const currentPreset: "standard" | "public" | "private" | null = (() => {
+    const rules = [
+      state.accessSeePreview,
+      state.accessSeeFull,
+      state.accessRequestBook,
+      state.accessMessage,
+      state.accessRequestIntro,
+    ];
+    if (rules.every((r) => r.type === "anyone")) return "public";
+    const isStandard =
+      state.accessSeeFull.type === "min_score" &&
+      state.accessSeeFull.threshold === "10" &&
+      state.accessRequestBook.type === "min_score" &&
+      state.accessRequestBook.threshold === "20";
+    if (isStandard) return "standard";
+    const isPrivate =
+      state.accessSeeFull.type === "min_score" &&
+      state.accessSeeFull.threshold === "30" &&
+      state.accessRequestBook.type === "min_score" &&
+      state.accessRequestBook.threshold === "40";
+    if (isPrivate) return "private";
+    return null;
+  })();
 
   return (
     <div>
@@ -1786,17 +2023,17 @@ function Step8Visibility({
         <div>
           <div className="text-sm font-semibold text-foreground">Preset</div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Click to apply as a starting point.
+            Click to apply as a starting point. All settings below stay editable &mdash; presets are just convenient defaults.
           </p>
           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-            {VISIBILITY_MODES.map(({ key, label, desc }) => (
+            {PRESETS.map(({ key, label, desc }) => (
               <button
                 key={key}
                 type="button"
-                onClick={() => applyTemplate(key)}
+                onClick={() => applyPreset(key)}
                 className={cn(
                   "flex flex-col items-start rounded-xl border-2 p-5 text-left transition-colors",
-                  state.visibilityMode === key
+                  currentPreset === key
                     ? "border-brand bg-brand/5"
                     : "border-border hover:border-foreground/30"
                 )}
@@ -1875,89 +2112,60 @@ function Step8Visibility({
           </div>
         </div>
 
-        {state.visibilityMode === "hidden" && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-foreground">
-            <strong>Hidden mode:</strong> your listing won&apos;t appear in browse
-            or search. Only people with the direct URL can access it.
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
-function Step9Review({ state }: { state: WizardState }) {
-  const row = (label: string, value: React.ReactNode) => (
-    <div className="flex items-start justify-between border-b border-border py-3 last:border-0">
-      <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="max-w-[60%] text-right text-sm font-medium text-foreground">
-        {value || <span className="text-muted-foreground">—</span>}
-      </div>
-    </div>
-  );
-
-  const cover = state.photos.find((p) => p.is_preview) || state.photos[0];
-
+function Step9Review({
+  state,
+  onBack,
+  onPublish,
+  submitting,
+}: {
+  state: WizardState;
+  onBack: () => void;
+  onPublish: () => void;
+  submitting: boolean;
+}) {
   return (
     <div>
       <StepHeading
         title="Review your listing"
-        subtitle="Make sure everything looks right, then publish."
+        subtitle="Take one more look at the full listing below, then publish when you're ready."
       />
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        {cover && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={cover.public_url}
-            alt=""
-            className="h-56 w-full object-cover"
-          />
-        )}
-        <div className="px-5 py-4">
-          <div className="text-xl font-semibold text-foreground">
-            {state.title || "Untitled listing"}
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {state.areaName || state.city || "Location"}
-          </div>
-          <div className="mt-5 text-sm">
-            {row(
-              "Type",
-              `${state.placeKind || "—"} · ${state.propertyLabel || "—"}`
-            )}
-            {row(
-              "Capacity",
-              `${state.guests} guests · ${state.bedrooms} bedrooms · ${state.beds} beds · ${state.bathrooms} baths`
-            )}
-            {row("Photos", `${state.photos.length} uploaded`)}
-            {row(
-              "Amenities",
-              state.amenities.length > 0
-                ? state.amenities.slice(0, 4).join(", ") +
-                    (state.amenities.length > 4
-                      ? ` +${state.amenities.length - 4} more`
-                      : "")
-                : null
-            )}
-            {row(
-              "Price",
-              state.price ? `$${state.price} / night` : null
-            )}
-            {row(
-              "Cleaning fee",
-              state.cleaningFee ? `$${state.cleaningFee}` : null
-            )}
-            {row("Minimum stay", `${state.minNights} night(s)`)}
-            {row(
-              "Check in / out",
-              `${state.checkIn} / ${state.checkOut}`
-            )}
-          </div>
-        </div>
+
+      {/* Buttons moved up under the title */}
+      <div className="flex items-center justify-between gap-3 border-y border-border py-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onBack}
+          className={BIG_BUTTON}
+        >
+          <ArrowLeft className="mr-1 h-4 w-4" /> Back
+        </Button>
+        <Button
+          type="button"
+          onClick={onPublish}
+          disabled={submitting}
+          className={BIG_BUTTON_PRIMARY}
+        >
+          {submitting ? (
+            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+          ) : null}
+          Publish listing
+        </Button>
       </div>
-      <div className="mt-4 flex items-center gap-3 text-sm text-muted-foreground">
-        <ExternalLink className="h-4 w-4" />
-        Preview opens after publishing from the host dashboard.
+
+      {/* Full-width full-listing preview — breaks out of the wizard container */}
+      <div className="relative left-1/2 right-1/2 mt-8 w-screen -translate-x-1/2 bg-muted/30 py-8">
+        <div className="mx-auto w-full max-w-[1200px] px-4 md:px-8">
+          <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Full listing (this is what unlocked guests see)
+          </div>
+          <ListingDetailMock state={state} mode="full" />
+        </div>
       </div>
     </div>
   );
