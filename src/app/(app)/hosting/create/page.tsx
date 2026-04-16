@@ -2232,25 +2232,24 @@ function AdaptivePhotoGrid({
           </div>
         </div>
       )}
-      {count >= 4 && (
-        <div className="grid h-64 grid-cols-4 gap-1 md:h-[480px]">
-          <div className="col-span-2 h-full">
+      {count === 4 && (
+        <div className="grid h-64 grid-cols-2 grid-rows-2 gap-1 md:h-[480px]">
+          <Photo url={photos[0].public_url} alt="Photo 1" />
+          <Photo url={photos[1].public_url} alt="Photo 2" />
+          <Photo url={photos[2].public_url} alt="Photo 3" />
+          <Photo url={photos[3].public_url} alt="Photo 4" />
+        </div>
+      )}
+      {/* 5+ photos: classic Airbnb gallery — 1 big hero left, 2x2 on right. */}
+      {count >= 5 && (
+        <div className="grid h-64 grid-cols-4 grid-rows-2 gap-1 md:h-[480px]">
+          <div className="col-span-2 row-span-2">
             <Photo url={photos[0].public_url} alt="Photo 1" />
           </div>
-          <div className="h-full">
-            <Photo url={photos[1].public_url} alt="Photo 2" />
-          </div>
-          <div className="h-full">
-            <Photo url={photos[2].public_url} alt="Photo 3" />
-          </div>
-          <div className="h-full">
-            <Photo url={photos[3].public_url} alt="Photo 4" />
-          </div>
-          {photos[4] && (
-            <div className="h-full">
-              <Photo url={photos[4].public_url} alt="Photo 5" />
-            </div>
-          )}
+          <Photo url={photos[1].public_url} alt="Photo 2" />
+          <Photo url={photos[2].public_url} alt="Photo 3" />
+          <Photo url={photos[3].public_url} alt="Photo 4" />
+          <Photo url={photos[4].public_url} alt="Photo 5" />
         </div>
       )}
 
