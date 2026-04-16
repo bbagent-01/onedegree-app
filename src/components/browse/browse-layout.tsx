@@ -164,7 +164,7 @@ export function BrowseLayout({
                 </div>
                 <div className="flex gap-2">
                   <Link
-                    href="/network?tab=invite"
+                    href="/invite"
                     className="inline-flex h-9 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-600"
                   >
                     Invite Friends

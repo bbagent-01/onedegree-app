@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "./supabase";
+import { computeTrustPaths } from "./trust-data";
 
 export type TripTab = "upcoming" | "completed" | "cancelled";
 
@@ -25,6 +26,8 @@ export interface TripCard {
   thread_id: string | null;
   stay_confirmation_id: string | null;
   guest_left_review: boolean;
+  /** Guest's 1° vouch score to this host. 0 if none. */
+  trust_score: number;
 }
 
 const todayISO = () => new Date().toISOString().split("T")[0];
@@ -92,6 +95,9 @@ export async function getTripsForGuest(guestId: string): Promise<TripCard[]> {
 
   const listingMap = new Map((listings || []).map((l) => [l.id, l]));
   const hostMap = new Map((hosts || []).map((u) => [u.id, u]));
+  const trustByHost = hostIds.length
+    ? await computeTrustPaths(guestId, hostIds)
+    : {};
   const thumbMap = new Map<string, string>();
   for (const p of photos || []) {
     // Prefer is_preview=true, otherwise first by sort_order
@@ -146,6 +152,7 @@ export async function getTripsForGuest(guestId: string): Promise<TripCard[]> {
         threadByRequest.get(r.id) || threadByListing.get(r.listing_id) || null,
       stay_confirmation_id: stay?.id || null,
       guest_left_review: !!stay?.hostRated,
+      trust_score: trustByHost[r.host_id]?.score ?? 0,
     } satisfies TripCard;
   });
 }
@@ -220,6 +227,10 @@ export async function getTripDetail(
     (photos || [])[0]?.public_url ||
     null;
 
+  const trust = host?.id
+    ? (await computeTrustPaths(guestId, [host.id]))[host.id]
+    : null;
+
   return {
     id: request.id,
     listing_id: request.listing_id,
@@ -243,6 +254,7 @@ export async function getTripDetail(
     thread_id: thread?.id || null,
     stay_confirmation_id: stay?.id || null,
     guest_left_review: stay?.host_rating !== null && stay?.host_rating !== undefined,
+    trust_score: trust?.score ?? 0,
     message: request.message || null,
     host_response_message: request.host_response_message || null,
     responded_at: request.responded_at || null,

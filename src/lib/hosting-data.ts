@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "./supabase";
+import { computeTrustPaths } from "./trust-data";
 
 export interface HostingListing {
   id: string;
@@ -31,6 +32,8 @@ export interface HostingReservation {
   status: "pending" | "accepted" | "declined" | "cancelled";
   created_at: string;
   responded_at: string | null;
+  /** Host's 1° vouch score to this guest. 0 if none. */
+  trust_score: number;
 }
 
 export type ReservationBucket = "upcoming" | "completed" | "cancelled";
@@ -119,6 +122,9 @@ export async function getHostDashboardData(): Promise<HostDashboardData | null> 
     : { data: [] as Array<{ id: string; name: string; avatar_url: string | null }> };
 
   const guestById = new Map((guestUsers || []).map((g) => [g.id, g]));
+  const trustByGuest = guestIds.length
+    ? await computeTrustPaths(hostId, guestIds)
+    : {};
   const listingTitleById = new Map(
     (listingsData || []).map((l) => [l.id, l.title as string])
   );
@@ -151,6 +157,7 @@ export async function getHostDashboardData(): Promise<HostDashboardData | null> 
       status: r.status as HostingReservation["status"],
       created_at: r.created_at,
       responded_at: r.responded_at,
+      trust_score: trustByGuest[r.guest_id]?.score ?? 0,
     };
 
     if (r.status === "cancelled" || r.status === "declined") {

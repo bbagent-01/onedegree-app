@@ -16,9 +16,11 @@ import { ReviewsSection } from "@/components/listing/reviews-section";
 import { BookingSidebar } from "@/components/listing/booking-sidebar";
 import { AvailabilityCalendarWrapper } from "@/components/listing/availability-calendar-wrapper";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
+import { ConnectionPath } from "@/components/trust/connection-path";
 import { LocationMapClient } from "@/components/listing/location-map-client";
 import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
 import { GatedListingView } from "@/components/listing/gated-listing-view";
+import { ListingTrustStatus } from "@/components/listing/listing-trust-status";
 import { TrustBadge } from "@/components/trust-badge";
 
 export const runtime = "edge";
@@ -124,7 +126,11 @@ export default async function ListingPage({
             {listing.title}
           </h1>
           {trust && trust.score > 0 && (
-            <TrustBadge score={trust.score} size="md" />
+            <TrustBadge
+              score={trust.score}
+              size="md"
+              connectionCount={trust.connectionCount}
+            />
           )}
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
@@ -273,8 +279,50 @@ export default async function ListingPage({
             reviewCount={listing.review_count}
             blockedRanges={listing.blockedRanges}
           />
+          {!isHost && trust && listing.host && (
+            <div className="mt-4 hidden md:block">
+              <ListingTrustStatus
+                listingId={listing.id}
+                listingTitle={listing.title}
+                hostName={listing.host.name}
+                score={trust.score}
+                requiredScore={listing.min_trust_gate ?? 0}
+                canRequestBook={access.can_request_book}
+                canMessage={access.can_message}
+                canRequestIntro={access.can_request_intro}
+                mutualConnections={trust.mutualConnections}
+              />
+              {trust.path.length >= 2 && (
+                <div className="mt-3 rounded-2xl border border-border bg-white p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Your connection
+                  </div>
+                  <div className="mt-3 overflow-x-auto">
+                    <ConnectionPath path={trust.path} compact />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Mobile: trust status below the grid */}
+      {!isHost && trust && listing.host && (
+        <div className="mt-6 md:hidden">
+          <ListingTrustStatus
+            listingId={listing.id}
+            listingTitle={listing.title}
+            hostName={listing.host.name}
+            score={trust.score}
+            requiredScore={listing.min_trust_gate ?? 0}
+            canRequestBook={access.can_request_book}
+            canMessage={access.can_message}
+            canRequestIntro={access.can_request_intro}
+            mutualConnections={trust.mutualConnections}
+          />
+        </div>
+      )}
 
       {/*
         Sticky anchor bar sentinel — placed at the end of the main booking

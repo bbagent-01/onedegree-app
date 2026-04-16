@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { DashboardTabs, type DashboardTab } from "@/components/dashboard/dashboard-tabs";
 
 interface UnifiedDashboardProps {
@@ -10,30 +11,26 @@ interface UnifiedDashboardProps {
   networkContent: React.ReactNode;
 }
 
-const TAB_PATHS: Record<DashboardTab, string> = {
-  hosting: "/dashboard",
-  traveling: "/dashboard/traveling",
-  network: "/dashboard/network",
-};
-
-function tabFromPath(path: string): DashboardTab {
-  if (path.startsWith("/dashboard/traveling")) return "traveling";
-  if (path.startsWith("/dashboard/network")) return "network";
-  return "hosting";
-}
-
+/**
+ * Single-page dashboard. All three tabs' content is rendered up-front
+ * (already fetched in parallel server-side) and switched via CSS, so
+ * tab changes feel instant. The URL stays in sync via history.replaceState
+ * so each tab is still bookmark- and share-able at /dashboard?tab=…
+ */
 export function UnifiedDashboard({
   defaultTab,
   hostingContent,
   travelingContent,
   networkContent,
 }: UnifiedDashboardProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const tab = tabFromPath(pathname) || defaultTab;
+  const [tab, setTab] = useState<DashboardTab>(defaultTab);
 
   const handleTabChange = (newTab: DashboardTab) => {
-    router.push(TAB_PATHS[newTab]);
+    setTab(newTab);
+    if (typeof window !== "undefined") {
+      const qs = newTab === "hosting" ? "" : `?tab=${newTab}`;
+      window.history.replaceState(null, "", `/dashboard${qs}`);
+    }
   };
 
   return (
@@ -42,9 +39,11 @@ export function UnifiedDashboard({
         <DashboardTabs active={tab} onChange={handleTabChange} />
       </div>
 
-      {tab === "hosting" && hostingContent}
-      {tab === "traveling" && travelingContent}
-      {tab === "network" && networkContent}
+      <div className={cn(tab !== "hosting" && "hidden")}>{hostingContent}</div>
+      <div className={cn(tab !== "traveling" && "hidden")}>
+        {travelingContent}
+      </div>
+      <div className={cn(tab !== "network" && "hidden")}>{networkContent}</div>
     </>
   );
 }

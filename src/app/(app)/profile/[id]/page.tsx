@@ -1,13 +1,18 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { CheckCircle2, MapPin, Briefcase, Languages } from "lucide-react";
+import { CheckCircle2, MapPin, Briefcase, Languages, Info, Star } from "lucide-react";
 import { getProfileById, type ProfileReview } from "@/lib/profile-data";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import {
+  computeTrustPath,
+  getInternalUserIdFromClerk,
+} from "@/lib/trust-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileReviews } from "@/components/profile/profile-reviews";
 import { VouchButton } from "@/components/trust/vouch-button";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
+import { ConnectionPath } from "@/components/trust/connection-path";
+import { TrustBadge } from "@/components/trust-badge";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -41,16 +46,13 @@ export default async function ProfilePage({
 
   // Figure out whether this is the signed-in user viewing their own profile.
   const { userId: clerkId } = await auth();
-  let isOwn = false;
-  if (clerkId) {
-    const supabase = getSupabaseAdmin();
-    const { data } = await supabase
-      .from("users")
-      .select("id")
-      .eq("clerk_id", clerkId)
-      .maybeSingle();
-    isOwn = data?.id === user.id;
-  }
+  const viewerId = await getInternalUserIdFromClerk(clerkId);
+  const isOwn = !!viewerId && viewerId === user.id;
+
+  // Compute viewer → this-profile trust only when the viewer isn't
+  // looking at themselves.
+  const trust =
+    viewerId && !isOwn ? await computeTrustPath(viewerId, user.id) : null;
 
   return (
     <div className="mx-auto w-full max-w-[1040px] px-4 py-6 md:px-6 md:py-10">
@@ -122,6 +124,13 @@ export default async function ProfilePage({
           )}
         </div>
       </div>
+
+      {/* Trust / vouch section — different content for own vs other */}
+      {isOwn ? (
+        <OwnTrustSection user={user} />
+      ) : trust ? (
+        <OtherTrustSection user={user} trust={trust} />
+      ) : null}
 
       {/* About */}
       <Section title="About">
@@ -208,6 +217,169 @@ function Section({
       <h2 className="text-lg font-semibold md:text-xl">{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
+  );
+}
+
+function initialsOf(name: string) {
+  return (
+    name
+      .split(" ")
+      .map((p) => p[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "U"
+  );
+}
+
+function OwnTrustSection({
+  user,
+}: {
+  user: Awaited<ReturnType<typeof getProfileById>> extends infer T
+    ? T extends { user: infer U }
+      ? U
+      : never
+    : never;
+}) {
+  const power = user.vouch_power ?? 1;
+  const given = user.vouch_count_given ?? 0;
+  const received = user.vouch_count_received ?? 0;
+  return (
+    <Section title="Your 1° Vouch Score">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          primary={`${power.toFixed(2)}×`}
+          label="Vouch power"
+          hint="Boosts the weight of every vouch you write. Derived from the avg guest rating of people you've vouched for."
+        />
+        <StatCard
+          primary={String(given)}
+          secondary={String(received)}
+          label="Vouches given · received"
+          hint="Track your network activity. Each vouch you receive raises your 1° score with everyone the voucher knows."
+        />
+        <StatCard
+          primary={
+            user.host_rating !== null ? user.host_rating.toFixed(2) : "—"
+          }
+          secondary={
+            user.guest_rating !== null ? user.guest_rating.toFixed(2) : "—"
+          }
+          label="Host · Guest rating"
+          hint="Your average ratings from people who've stayed with you or whom you've stayed with."
+          star
+        />
+      </div>
+    </Section>
+  );
+}
+
+function StatCard({
+  primary,
+  secondary,
+  label,
+  hint,
+  star = false,
+}: {
+  primary: string;
+  secondary?: string;
+  label: string;
+  hint: string;
+  star?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+      <div className="flex items-baseline gap-2">
+        <span className="text-3xl font-semibold tabular-nums text-foreground">
+          {primary}
+        </span>
+        {secondary !== undefined && (
+          <>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-2xl font-semibold tabular-nums text-foreground">
+              {secondary}
+            </span>
+          </>
+        )}
+        {star && (
+          <Star className="ml-1 h-4 w-4 fill-amber-400 text-amber-400" />
+        )}
+      </div>
+      <div className="mt-1 text-sm font-semibold text-foreground">{label}</div>
+      <div className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+        <Info className="mt-0.5 h-3 w-3 shrink-0" />
+        <span>{hint}</span>
+      </div>
+    </div>
+  );
+}
+
+function OtherTrustSection({
+  user,
+  trust,
+}: {
+  user: { id: string; name: string };
+  trust: NonNullable<Awaited<ReturnType<typeof computeTrustPath>>>;
+}) {
+  const first = user.name.split(" ")[0];
+  return (
+    <Section title={`Your connection to ${first}`}>
+      <div className="grid gap-4 md:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">
+        <TrustBadge
+          score={trust.score}
+          size="lg"
+          connectionCount={trust.connectionCount}
+        />
+        <div className="rounded-2xl border border-border bg-white p-5">
+          {trust.path.length >= 2 ? (
+            <>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Strongest path
+              </div>
+              <div className="mt-3 overflow-x-auto">
+                <ConnectionPath path={trust.path} />
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              You don&apos;t share any connections with {first} yet. Grow your
+              network and these paths will light up automatically.
+            </div>
+          )}
+          {trust.mutualConnections.length > 0 && (
+            <>
+              <div className="mt-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Mutual connections
+              </div>
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {trust.mutualConnections.slice(0, 8).map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      href={`/profile/${c.id}`}
+                      className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+                    >
+                      <Avatar className="h-5 w-5">
+                        {c.avatar_url && (
+                          <AvatarImage src={c.avatar_url} alt={c.name} />
+                        )}
+                        <AvatarFallback className="text-[9px]">
+                          {initialsOf(c.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {c.name.split(" ")[0]}
+                    </Link>
+                  </li>
+                ))}
+                {trust.mutualConnections.length > 8 && (
+                  <li className="inline-flex items-center rounded-full bg-muted/30 px-2.5 py-1.5 text-xs text-muted-foreground">
+                    +{trust.mutualConnections.length - 8} more
+                  </li>
+                )}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+    </Section>
   );
 }
 

@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ReviewModal } from "./review-modal";
 import { categorizeTrip, type TripCard, type TripTab } from "@/lib/trips-data";
+import { TrustBadge } from "@/components/trust-badge";
+import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 
 interface Props {
   trips: TripCard[];
@@ -160,15 +162,25 @@ export function TripsList({ trips }: Props) {
                   </div>
                   {t.host && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      <Avatar className="h-5 w-5">
-                        {t.host.avatar_url && (
-                          <AvatarImage src={t.host.avatar_url} alt={t.host.name} />
-                        )}
-                        <AvatarFallback className="text-[10px]">
-                          {initials(t.host.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      Hosted by {t.host.name}
+                      <ConnectionPopover targetUserId={t.host.id}>
+                        <Avatar className="h-5 w-5 cursor-pointer">
+                          {t.host.avatar_url && (
+                            <AvatarImage src={t.host.avatar_url} alt={t.host.name} />
+                          )}
+                          <AvatarFallback className="text-[10px]">
+                            {initials(t.host.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </ConnectionPopover>
+                      <Link
+                        href={`/profile/${t.host.id}`}
+                        className="hover:underline"
+                      >
+                        Hosted by {t.host.name}
+                      </Link>
+                      {t.trust_score > 0 && (
+                        <TrustBadge score={t.trust_score} size="sm" />
+                      )}
                     </div>
                   )}
                   <div className="mt-4 flex flex-wrap gap-2">

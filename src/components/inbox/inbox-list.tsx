@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
+import { TrustBadge } from "@/components/trust-badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { InboxThread } from "@/lib/messaging-data";
@@ -147,14 +148,19 @@ export function InboxList({ threads, selectedId }: Props) {
                     </ConnectionPopover>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
-                        <span
-                          className={cn(
-                            "truncate text-sm",
-                            isUnread ? "font-semibold" : "font-medium"
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <span
+                            className={cn(
+                              "truncate text-sm",
+                              isUnread ? "font-semibold" : "font-medium"
+                            )}
+                          >
+                            {t.other_user.name}
+                          </span>
+                          {t.trust_score > 0 && (
+                            <TrustBadge score={t.trust_score} size="sm" />
                           )}
-                        >
-                          {t.other_user.name}
-                        </span>
+                        </div>
                         <span className="shrink-0 text-[11px] text-muted-foreground">
                           {relTime(t.last_message_at)}
                         </span>

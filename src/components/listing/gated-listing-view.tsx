@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Lock, MessageCircle, Star, Info, MapPin, Shield } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Lock, Star, Info, MapPin, Shield } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { TrustBadge } from "@/components/trust-badge";
 import { TrustGate } from "@/components/trust/trust-gate";
 import { ConnectionPath } from "@/components/trust/connection-path";
+import { GatedListingCTA } from "./gated-listing-cta";
 import type { ListingDetail } from "@/lib/listing-detail-data";
 import type { TrustResult } from "@/lib/trust-data";
 import type { ListingAccessResult } from "@/lib/trust/types";
@@ -21,7 +21,7 @@ interface Props {
  * preview but not the full listing. Provides a premium, intentional
  * experience — not a loading state or broken page.
  */
-export function GatedListingView({ listing, trust, isSignedIn }: Props) {
+export function GatedListingView({ listing, trust, access, isSignedIn }: Props) {
   // Preview photo set — cover always included, blurred if not also
   // marked is_preview. Other is_preview photos shown unblurred.
   const coverPhoto = listing.photos.find((p) => p.is_cover) || listing.photos[0];
@@ -178,7 +178,13 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
                   </div>
                 )}
               </div>
-              {score > 0 && <TrustBadge score={score} size="md" />}
+              {score > 0 && (
+                <TrustBadge
+                  score={score}
+                  size="md"
+                  connectionCount={trust?.connectionCount}
+                />
+              )}
             </div>
           </div>
 
@@ -357,55 +363,15 @@ export function GatedListingView({ listing, trust, isSignedIn }: Props) {
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Unlock this listing
             </div>
-            {isSignedIn ? (
-              mutuals.length > 0 ? (
-                <>
-                  <p className="mt-2 text-sm text-foreground">
-                    Ask a mutual connection to vouch for you or introduce you
-                    to the host. One stronger vouch usually does it.
-                  </p>
-                  <Button
-                    disabled
-                    className="mt-4 flex h-10 w-full gap-2"
-                    aria-label="Request an introduction"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    Request introduction
-                  </Button>
-                  <p className="mt-2 text-center text-xs text-muted-foreground">
-                    Introductions coming soon
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="mt-2 text-sm text-foreground">
-                    You don&apos;t share any connections with this host yet.
-                    Grow your network &mdash; once someone you know vouches for
-                    someone in this host&apos;s circle, the listing unlocks
-                    automatically.
-                  </p>
-                  <Link
-                    href="/network?tab=invite"
-                    className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-                  >
-                    Grow your network
-                  </Link>
-                </>
-              )
-            ) : (
-              <>
-                <p className="mt-2 text-sm text-foreground">
-                  Sign in to see your connection to this host. If you share
-                  friends, the listing unlocks automatically.
-                </p>
-                <Link
-                  href="/sign-in"
-                  className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-                >
-                  Sign in
-                </Link>
-              </>
-            )}
+            <GatedListingCTA
+              listingId={listing.id}
+              listingTitle={listing.title}
+              hostName={listing.host?.name || "the host"}
+              isSignedIn={isSignedIn}
+              canMessage={access?.can_message ?? false}
+              canRequestIntro={access?.can_request_intro ?? false}
+              mutualConnections={mutuals}
+            />
           </div>
         </aside>
       </div>

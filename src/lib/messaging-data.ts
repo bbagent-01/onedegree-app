@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "./supabase";
+import { computeTrustPaths } from "./trust-data";
 
 export type ThreadRole = "guest" | "host";
 
@@ -24,6 +25,8 @@ export interface InboxThread {
     area_name: string;
     thumbnail_url: string | null;
   } | null;
+  /** Viewer's 1° vouch score with the other participant. 0 if none. */
+  trust_score: number;
 }
 
 export interface ThreadMessage {
@@ -109,6 +112,9 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
     if (!thumbMap.has(p.listing_id)) thumbMap.set(p.listing_id, p.public_url);
   }
 
+  // Batch trust scores for every other-participant in one call.
+  const trustByTarget = await computeTrustPaths(currentUserId, otherUserIds);
+
   return threads.map((t) => {
     const isGuest = t.guest_id === currentUserId;
     const role: ThreadRole = isGuest ? "guest" : "host";
@@ -138,6 +144,7 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
             thumbnail_url: thumbMap.get(listing.id) || null,
           }
         : null,
+      trust_score: trustByTarget[otherId]?.score ?? 0,
     } satisfies InboxThread;
   });
 }
@@ -214,6 +221,8 @@ export async function getThreadDetail(
     )
     .eq("id", threadId);
 
+  const trust = (await computeTrustPaths(currentUserId, [otherId]))[otherId];
+
   return {
     id: thread.id,
     listing_id: thread.listing_id,
@@ -237,6 +246,7 @@ export async function getThreadDetail(
           thumbnail_url: photos?.[0]?.public_url || null,
         }
       : null,
+    trust_score: trust?.score ?? 0,
     messages: (messages || []) as ThreadMessage[],
     booking: booking
       ? {

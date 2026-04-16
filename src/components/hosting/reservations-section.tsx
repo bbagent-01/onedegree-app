@@ -8,6 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageCircle, Check, X } from "lucide-react";
 import type { HostingReservation } from "@/lib/hosting-data";
 import { toast } from "sonner";
+import { TrustBadge } from "@/components/trust-badge";
+import { ConnectionPopover } from "@/components/trust/connection-breakdown";
+import Link from "next/link";
 
 function formatDateRange(checkIn: string | null, checkOut: string | null) {
   if (!checkIn || !checkOut) return "Dates TBD";
@@ -63,19 +66,29 @@ function ReservationCard({
   return (
     <div className="rounded-xl border border-border bg-white p-5 transition-shadow hover:shadow-sm">
       <div className="flex items-start gap-4">
-        <Avatar className="h-12 w-12 shrink-0">
-          {reservation.guest_avatar && (
-            <AvatarImage src={reservation.guest_avatar} alt={reservation.guest_name} />
-          )}
-          <AvatarFallback>{initials(reservation.guest_name)}</AvatarFallback>
-        </Avatar>
+        <ConnectionPopover targetUserId={reservation.guest_id}>
+          <Avatar className="h-12 w-12 shrink-0 cursor-pointer">
+            {reservation.guest_avatar && (
+              <AvatarImage src={reservation.guest_avatar} alt={reservation.guest_name} />
+            )}
+            <AvatarFallback>{initials(reservation.guest_name)}</AvatarFallback>
+          </Avatar>
+        </ConnectionPopover>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate font-semibold text-foreground">
-                {reservation.guest_name}
-              </p>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/profile/${reservation.guest_id}`}
+                  className="truncate font-semibold text-foreground hover:underline"
+                >
+                  {reservation.guest_name}
+                </Link>
+                {reservation.trust_score > 0 && (
+                  <TrustBadge score={reservation.trust_score} size="sm" />
+                )}
+              </div>
               <p className="truncate text-sm text-muted-foreground">
                 {reservation.listing_title}
               </p>

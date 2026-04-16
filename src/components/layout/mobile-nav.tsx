@@ -4,13 +4,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Search,
-  CalendarDays,
   MessageCircle,
   Menu,
   LayoutGrid,
   Plus,
   Settings,
-  ArrowLeftRight,
   LogOut,
   Heart,
   User,
@@ -18,6 +16,7 @@ import {
   HelpCircle,
   Shield,
   UserPlus,
+  CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -29,7 +28,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { getNavMode, modeSwitchHref } from "@/lib/nav-mode";
 
 interface Tab {
   href?: string;
@@ -39,40 +37,42 @@ interface Tab {
   isMenu?: boolean;
 }
 
-const travelingTabs: Tab[] = [
+// Single unified bottom nav — the dashboard is the hub for both
+// hosting and traveling. No mode switch.
+const tabs: Tab[] = [
   {
     href: "/browse",
     label: "Explore",
     icon: Search,
     match: (p) => p.startsWith("/browse"),
   },
-  { href: "/wishlists", label: "Wishlists", icon: Heart, match: (p) => p.startsWith("/wishlists") },
-  { href: "/dashboard/traveling", label: "Trips", icon: CalendarDays, match: (p) => p.startsWith("/dashboard/traveling") || p.startsWith("/trips") },
-  { href: "/inbox", label: "Inbox", icon: MessageCircle, match: (p) => p.startsWith("/inbox") },
-  { label: "Menu", icon: Menu, isMenu: true },
-];
-
-const hostingTabs: Tab[] = [
+  {
+    href: "/wishlists",
+    label: "Wishlists",
+    icon: Heart,
+    match: (p) => p.startsWith("/wishlists"),
+  },
   {
     href: "/dashboard",
-    label: "Today",
+    label: "Dashboard",
     icon: LayoutGrid,
-    match: (p) => p === "/dashboard" || p === "/hosting",
+    match: (p) =>
+      p === "/dashboard" ||
+      p.startsWith("/dashboard") ||
+      p.startsWith("/hosting") ||
+      p.startsWith("/trips"),
   },
   {
-    href: "/hosting/create",
-    label: "Create",
-    icon: Plus,
-    match: (p) => p.startsWith("/hosting/create"),
+    href: "/inbox",
+    label: "Inbox",
+    icon: MessageCircle,
+    match: (p) => p.startsWith("/inbox"),
   },
-  { href: "/inbox", label: "Inbox", icon: MessageCircle, match: (p) => p.startsWith("/inbox") },
   { label: "Menu", icon: Menu, isMenu: true },
 ];
 
 export function MobileNav() {
   const pathname = usePathname() || "/";
-  const mode = getNavMode(pathname);
-  const tabs = mode === "hosting" ? hostingTabs : travelingTabs;
   const [menuOpen, setMenuOpen] = useState(false);
   const { isSignedIn, user } = useUser();
   const { signOut } = useClerk();
@@ -221,93 +221,51 @@ export function MobileNav() {
             </div>
           ) : (
             <div className="mt-4 space-y-1">
-              {/* Hosting summary cards (purely visual for now) */}
-              {mode === "hosting" && (
-                <div className="mb-3 grid grid-cols-2 gap-3">
-                  <Link
-                    href="/dashboard"
-                    onClick={closeMenu}
-                    className="rounded-2xl border border-border bg-white p-4 hover:bg-muted/30"
-                  >
-                    <div className="text-sm font-semibold">Earnings</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      This month
-                    </div>
-                    <div className="mt-3 text-2xl font-semibold">$0</div>
-                  </Link>
-                  <Link
-                    href="/dashboard"
-                    onClick={closeMenu}
-                    className="rounded-2xl border border-border bg-white p-4 hover:bg-muted/30"
-                  >
-                    <div className="text-sm font-semibold">Insights</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      Listing performance
-                    </div>
-                    <div className="mt-3 text-xs text-muted-foreground">
-                      Coming soon
-                    </div>
-                  </Link>
-                </div>
-              )}
-
-              {mode === "hosting" && (
-                <Link
-                  href="/hosting/create"
-                  onClick={closeMenu}
-                  className="mb-2 flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm font-semibold hover:bg-muted"
-                >
-                  <Plus className="h-4 w-4" />
-                  Create a new listing
-                </Link>
-              )}
-
-              {mode === "traveling" && (
-                <>
-                  <MenuLink
-                    href="/browse"
-                    icon={Search}
-                    label="Explore"
-                    onClick={closeMenu}
-                  />
-                  <MenuLink
-                    href="/wishlists"
-                    icon={Heart}
-                    label="Wishlists"
-                    onClick={closeMenu}
-                  />
-                  <MenuLink
-                    href="/dashboard/traveling"
-                    icon={CalendarDays}
-                    label="Trips"
-                    onClick={closeMenu}
-                  />
-                  <MenuLink
-                    href="/inbox"
-                    icon={MessageCircle}
-                    label="Messages"
-                    onClick={closeMenu}
-                  />
-                  <MenuLink
-                    href={profileHref}
-                    icon={User}
-                    label="Profile"
-                    onClick={closeMenu}
-                  />
-                </>
-              )}
-
-              {mode === "hosting" && (
-                <MenuLink
-                  href={profileHref}
-                  icon={User}
-                  label="Profile"
-                  onClick={closeMenu}
-                />
-              )}
+              <MenuLink
+                href="/browse"
+                icon={Search}
+                label="Explore"
+                onClick={closeMenu}
+              />
+              <MenuLink
+                href="/wishlists"
+                icon={Heart}
+                label="Wishlists"
+                onClick={closeMenu}
+              />
+              <MenuLink
+                href="/dashboard"
+                icon={LayoutGrid}
+                label="Dashboard"
+                onClick={closeMenu}
+              />
+              <MenuLink
+                href="/dashboard?tab=traveling"
+                icon={CalendarDays}
+                label="Trips"
+                onClick={closeMenu}
+              />
+              <MenuLink
+                href="/inbox"
+                icon={MessageCircle}
+                label="Messages"
+                onClick={closeMenu}
+              />
+              <MenuLink
+                href={profileHref}
+                icon={User}
+                label="Profile"
+                onClick={closeMenu}
+              />
 
               <Divider />
 
+              <MenuLink
+                href="/hosting/create"
+                icon={Plus}
+                label="Create a listing"
+                onClick={closeMenu}
+              />
               <MenuLink
                 href="/vouch"
                 icon={Shield}
@@ -334,19 +292,6 @@ export function MobileNav() {
                 href="/help"
                 icon={HelpCircle}
                 label="Help Center"
-                onClick={closeMenu}
-              />
-
-              <Divider />
-
-              <MenuLink
-                href={modeSwitchHref(mode)}
-                icon={ArrowLeftRight}
-                label={
-                  mode === "hosting"
-                    ? "Switch to traveling"
-                    : "Switch to hosting"
-                }
                 onClick={closeMenu}
               />
 

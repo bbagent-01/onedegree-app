@@ -482,45 +482,101 @@ async function computeIndirectFallback(
 
 /**
  * Tier configuration used by TrustBadge, TrustGate, and filter UI.
- * Thresholds match PROJECT_PLAN.md § Trust Mechanics and the B7a spec.
+ * The 1° vouch score scale (updated for harmonic dampening formula):
+ *   0        Not connected          zinc
+ *   1–14     Weak                   red
+ *   15–29    Modest                 orange
+ *   30–49    Strong                 lime
+ *   50–74    Very strong            emerald
+ *   75+      Extremely strong       blue
  */
-export function trustTier(score: number): {
-  key: "new" | "building" | "solid" | "strong";
+export type TrustTierKey =
+  | "none"
+  | "weak"
+  | "modest"
+  | "strong"
+  | "very_strong"
+  | "extremely_strong";
+
+export interface TrustTier {
+  key: TrustTierKey;
   label: string;
+  /** Dot / accent color. */
   dotClass: string;
+  /** Ring color used for md/lg pill outlines. */
   ringClass: string;
+  /** Foreground text color used when on a white background. */
   textClass: string;
-} {
-  if (score >= 75)
+  /** Soft tinted background + text used on small badges over photos. */
+  tintClass: string;
+  /** Solid colored background used when emphasis is needed. */
+  solidClass: string;
+}
+
+export function trustTier(score: number): TrustTier {
+  if (score >= 75) {
     return {
-      key: "strong",
-      label: "Strong connection",
+      key: "extremely_strong",
+      label: "Extremely strong",
       dotClass: "bg-blue-500",
       ringClass: "ring-blue-500/40",
       textClass: "text-blue-700",
+      tintClass: "bg-blue-50 text-blue-800 ring-blue-200",
+      solidClass: "bg-blue-600 text-white",
     };
-  if (score >= 50)
+  }
+  if (score >= 50) {
     return {
-      key: "solid",
-      label: "Solid connection",
+      key: "very_strong",
+      label: "Very strong",
       dotClass: "bg-emerald-500",
       ringClass: "ring-emerald-500/40",
       textClass: "text-emerald-700",
+      tintClass: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+      solidClass: "bg-emerald-600 text-white",
     };
-  if (score >= 25)
+  }
+  if (score >= 30) {
     return {
-      key: "building",
-      label: "Building",
-      dotClass: "bg-amber-500",
-      ringClass: "ring-amber-500/40",
-      textClass: "text-amber-700",
+      key: "strong",
+      label: "Strong",
+      dotClass: "bg-lime-500",
+      ringClass: "ring-lime-500/40",
+      textClass: "text-lime-700",
+      tintClass: "bg-lime-50 text-lime-800 ring-lime-200",
+      solidClass: "bg-lime-600 text-white",
     };
+  }
+  if (score >= 15) {
+    return {
+      key: "modest",
+      label: "Modest",
+      dotClass: "bg-orange-500",
+      ringClass: "ring-orange-500/40",
+      textClass: "text-orange-700",
+      tintClass: "bg-orange-50 text-orange-800 ring-orange-200",
+      solidClass: "bg-orange-500 text-white",
+    };
+  }
+  if (score >= 1) {
+    return {
+      key: "weak",
+      label: "Weak",
+      dotClass: "bg-red-500",
+      ringClass: "ring-red-500/40",
+      textClass: "text-red-700",
+      tintClass: "bg-red-50 text-red-800 ring-red-200",
+      solidClass: "bg-red-500 text-white",
+    };
+  }
   return {
-    key: "new",
-    label: "Distant",
-    dotClass: "bg-rose-500",
-    ringClass: "ring-rose-500/40",
-    textClass: "text-rose-700",
+    key: "none",
+    label: "Not connected",
+    dotClass: "bg-zinc-400",
+    ringClass: "ring-zinc-300",
+    textClass: "text-zinc-600",
+    tintClass: "bg-zinc-50 text-zinc-700 ring-zinc-200",
+    solidClass: "bg-zinc-500 text-white",
   };
 }
 

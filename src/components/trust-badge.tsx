@@ -4,35 +4,42 @@ import { trustTier } from "@/lib/trust-data";
 interface TrustBadgeProps {
   score: number;
   size?: "sm" | "md" | "lg";
+  /** Number of distinct connectors feeding the score — shown on md/lg. */
+  connectionCount?: number;
   className?: string;
 }
 
 /**
- * Visual indicator of the viewer's 1° vouch score to a target user.
+ * 1° vouch score badge. Three sizes:
  *
- * - sm: colored dot + number (listing cards, thread rows)
- * - md: number + label + colored ring (sidebars, profile cards)
- * - lg: number + breakdown + colored ring (profile headers)
+ *   sm  pill — "[score] 1°" on a tinted background. Used on listing cards,
+ *       thread rows, reservation / trip cards.
+ *   md  card — score + "1° Vouch Score" label + tier color + connection
+ *       count. Used in sidebars and listing detail headers.
+ *   lg  panel — same as md but larger, for profile pages.
  *
- * Thresholds match PROJECT_PLAN.md § Trust Mechanics:
- *   <25   "Distant"       rose
- *   25-49 "Building"      amber
- *   50-74 "Solid"         emerald
- *   75+   "Strong"        blue
+ * Scale: 0 gray · 1–14 red · 15–29 orange · 30–49 lime · 50–74 emerald · 75+ blue.
  */
-export function TrustBadge({ score, size = "sm", className }: TrustBadgeProps) {
+export function TrustBadge({
+  score,
+  size = "sm",
+  connectionCount,
+  className,
+}: TrustBadgeProps) {
   const tier = trustTier(score);
 
   if (size === "sm") {
     return (
       <div
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2 py-0.5 text-xs font-semibold shadow-sm ring-1 ring-black/5",
+          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums shadow-sm ring-1",
+          tier.tintClass,
           className
         )}
+        title={`1° vouch score: ${score} (${tier.label})`}
       >
-        <span className={cn("h-2 w-2 rounded-full", tier.dotClass)} />
-        <span className={cn("tabular-nums", tier.textClass)}>{score}</span>
+        <span>{score}</span>
+        <span className="text-[11px] font-semibold opacity-70">1°</span>
       </div>
     );
   }
@@ -41,16 +48,33 @@ export function TrustBadge({ score, size = "sm", className }: TrustBadgeProps) {
     return (
       <div
         className={cn(
-          "inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-medium shadow-sm ring-2",
+          "inline-flex flex-col items-start gap-0.5 rounded-xl bg-white px-3.5 py-2 text-sm shadow-sm ring-2",
           tier.ringClass,
           className
         )}
       >
-        <span className={cn("h-2.5 w-2.5 rounded-full", tier.dotClass)} />
-        <span className={cn("tabular-nums font-semibold", tier.textClass)}>
-          {score}
-        </span>
-        <span className="text-foreground/80">{tier.label}</span>
+        <div className="flex items-baseline gap-2">
+          <span
+            className={cn(
+              "text-xl font-semibold leading-none tabular-nums",
+              tier.textClass
+            )}
+          >
+            {score}
+          </span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            1° Vouch Score
+          </span>
+        </div>
+        <div className="mt-1 flex items-center gap-1.5 text-xs">
+          <span className={cn("h-2 w-2 rounded-full", tier.dotClass)} />
+          <span className="font-medium text-foreground/80">{tier.label}</span>
+          {typeof connectionCount === "number" && connectionCount > 0 && (
+            <span className="text-muted-foreground">
+              · {connectionCount} connection{connectionCount !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
       </div>
     );
   }
@@ -59,27 +83,36 @@ export function TrustBadge({ score, size = "sm", className }: TrustBadgeProps) {
   return (
     <div
       className={cn(
-        "inline-flex flex-col items-start gap-0.5 rounded-2xl bg-white px-4 py-3 shadow-sm ring-2",
+        "rounded-2xl bg-white p-5 shadow-sm ring-2",
         tier.ringClass,
         className
       )}
     >
-      <div className="flex items-baseline gap-2">
+      <div className="flex items-baseline gap-3">
         <span
           className={cn(
-            "text-2xl font-semibold tabular-nums",
+            "text-4xl font-semibold leading-none tabular-nums",
             tier.textClass
           )}
         >
           {score}
         </span>
-        <span className="text-sm font-medium text-foreground/80">
-          {tier.label}
-        </span>
+        <div>
+          <div className="text-sm font-semibold text-foreground">
+            1° Vouch Score
+          </div>
+          <div className={cn("text-xs font-medium", tier.textClass)}>
+            {tier.label}
+          </div>
+        </div>
       </div>
-      <div className="text-xs text-muted-foreground">
-        Your 1° Score with this host
-      </div>
+      {typeof connectionCount === "number" && connectionCount > 0 && (
+        <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className={cn("h-1.5 w-1.5 rounded-full", tier.dotClass)} />
+          Based on {connectionCount} connection
+          {connectionCount !== 1 ? "s" : ""}
+        </div>
+      )}
     </div>
   );
 }

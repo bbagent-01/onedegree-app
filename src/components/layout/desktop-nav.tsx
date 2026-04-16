@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "./account-menu";
-import { ModeToggle } from "./mode-toggle";
 
 export function DesktopNav() {
-  const { isSignedIn } = useUser();
   const pathname = usePathname();
   const isListing = pathname?.startsWith("/listings/") ?? false;
 
@@ -84,9 +81,6 @@ export function DesktopNav() {
             hidePrimaryNarrow ? "hidden min-[1900px]:flex" : "flex"
           )}
         >
-          {/* Mode toggle — "Switch to hosting" / "Switch to traveling".
-              Hidden below lg so the browse search pill has room. */}
-          {isSignedIn && <ModeToggle />}
           <AccountMenu />
         </div>
       </div>

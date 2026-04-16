@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useUser, useClerk, SignInButton, SignUpButton } from "@clerk/nextjs";
 import {
   Menu,
@@ -13,7 +12,6 @@ import {
   Search,
   LogOut,
   Settings,
-  ArrowLeftRight,
   Heart,
   User,
   Globe,
@@ -24,7 +22,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { getNavMode, modeSwitchHref } from "@/lib/nav-mode";
 
 interface MenuItem {
   href?: string;
@@ -51,8 +48,6 @@ function initials(name: string | null | undefined) {
 export function AccountMenu() {
   const { user, isSignedIn } = useUser();
   const { signOut } = useClerk();
-  const pathname = usePathname();
-  const mode = getNavMode(pathname);
   const [open, setOpen] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
 
@@ -134,17 +129,22 @@ export function AccountMenu() {
     );
   }
 
-  // Build mode-aware menu sections. Only include links to routes that
-  // actually exist in the app today — easier to extend later than to leave
-  // dead links lying around.
-  const travelingSections: MenuSection[] = [
+  // Unified menu — no mode switching. The dashboard is the single hub
+  // for hosting, traveling, and network activity.
+  const sections: MenuSection[] = [
     {
       items: [
         { href: "/browse", label: "Explore", icon: Search },
-        { href: "/dashboard/traveling", label: "Trips", icon: CalendarDays },
+        { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
         { href: "/inbox", label: "Messages", icon: MessageCircle },
         { href: "/wishlists", label: "Wishlists", icon: Heart },
         { href: profileHref, label: "Profile", icon: User },
+      ],
+    },
+    {
+      items: [
+        { href: "/hosting/create", label: "Create a listing", icon: Plus },
+        { href: "/dashboard?tab=traveling", label: "Trips", icon: CalendarDays },
         { href: "/vouch", label: "Vouch for a member", icon: Shield },
         { href: "/invite", label: "Invite someone", icon: UserPlus },
       ],
@@ -161,60 +161,9 @@ export function AccountMenu() {
       ],
     },
     {
-      items: [
-        {
-          href: modeSwitchHref("traveling"),
-          label: "Switch to hosting",
-          icon: ArrowLeftRight,
-        },
-      ],
-    },
-    {
-      items: [
-        { label: "Log out", icon: LogOut, onClick: handleSignOut },
-      ],
+      items: [{ label: "Log out", icon: LogOut, onClick: handleSignOut }],
     },
   ];
-
-  const hostingSections: MenuSection[] = [
-    {
-      items: [
-        { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-        { href: "/hosting/create", label: "Create a new listing", icon: Plus },
-        { href: "/inbox", label: "Messages", icon: MessageCircle },
-        { href: profileHref, label: "Profile", icon: User },
-        { href: "/vouch", label: "Vouch for a member", icon: Shield },
-        { href: "/invite", label: "Invite someone", icon: UserPlus },
-      ],
-    },
-    {
-      items: [
-        {
-          href: "/settings",
-          label: "Account settings",
-          icon: Settings,
-        },
-        { label: "Languages & currency", icon: Globe, disabled: true },
-        { href: "/help", label: "Help Center", icon: HelpCircle },
-      ],
-    },
-    {
-      items: [
-        {
-          href: modeSwitchHref("hosting"),
-          label: "Switch to traveling",
-          icon: ArrowLeftRight,
-        },
-      ],
-    },
-    {
-      items: [
-        { label: "Log out", icon: LogOut, onClick: handleSignOut },
-      ],
-    },
-  ];
-
-  const sections = mode === "hosting" ? hostingSections : travelingSections;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

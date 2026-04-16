@@ -15,6 +15,9 @@ export interface UserProfile {
   host_review_count: number | null;
   guest_rating: number | null;
   guest_review_count: number | null;
+  vouch_power: number | null;
+  vouch_count_given: number | null;
+  vouch_count_received: number | null;
 }
 
 export interface ProfileListing {
@@ -96,6 +99,9 @@ export async function getProfileById(
     host_review_count: (raw.host_review_count as number) ?? null,
     guest_rating: (raw.guest_rating as number) ?? null,
     guest_review_count: (raw.guest_review_count as number) ?? null,
+    vouch_power: (raw.vouch_power as number) ?? null,
+    vouch_count_given: (raw.vouch_count_given as number) ?? null,
+    vouch_count_received: (raw.vouch_count_received as number) ?? null,
   };
 
   const [listingsRes, reviewsOfRes, reviewsByRes] = await Promise.all([
