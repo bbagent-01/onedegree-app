@@ -1294,44 +1294,6 @@ export function EditListingForm({
             </div>
           </div>
 
-          {/* Hidden/discoverability toggle — exposed for advanced hosts who
-              explicitly want to take the listing out of browse without
-              losing their access rules. */}
-          <div>
-            <Label className="mb-2 block text-sm font-semibold">Discoverability</Label>
-            <div className="flex items-start gap-3 rounded-lg border border-border bg-white px-4 py-3">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={visibilityMode !== "hidden"}
-                onClick={() =>
-                  setVisibilityMode(
-                    visibilityMode === "hidden" ? "preview_gated" : "hidden"
-                  )
-                }
-                className={cn(
-                  "relative mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
-                  visibilityMode !== "hidden" ? "bg-brand" : "bg-zinc-300"
-                )}
-              >
-                <span
-                  className={cn(
-                    "block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
-                    visibilityMode !== "hidden" ? "translate-x-4" : "translate-x-0.5"
-                  )}
-                />
-              </button>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-foreground">
-                  Show in browse
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  When off, your listing is only accessible via the direct URL
-                  you share. Access rules above still apply.
-                </div>
-              </div>
-            </div>
-          </div>
         </SectionCard>
       </TabsContent>
 
