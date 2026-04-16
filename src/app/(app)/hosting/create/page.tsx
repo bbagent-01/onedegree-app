@@ -30,6 +30,9 @@ import {
   type UploadedPhoto,
 } from "@/components/hosting/photo-uploader";
 import { LocationPreview } from "@/components/hosting/location-preview";
+import { AmenitiesSection } from "@/components/listing/amenities-section";
+import { AvailabilityCalendarWrapper } from "@/components/listing/availability-calendar-wrapper";
+import { LocationMapClient } from "@/components/listing/location-map-client";
 import {
   encodeListingMeta,
   propertyTypeToDb,
@@ -2003,42 +2006,28 @@ function ListingDetailMock({
               </>
             )}
 
-            {/* Amenities */}
+            {/* Amenities — uses the real AmenitiesSection component so icons match */}
             {(!isPreview || show("previewShowAmenities")) && (
               <>
                 <section>
                   <h2 className="mb-6 text-xl font-semibold">
                     What this place offers
                   </h2>
-                  {state.amenities.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {state.amenities.map((a) => (
-                        <div
-                          key={a}
-                          className="flex items-center gap-3 border-b border-border/50 py-2 text-sm last:border-0"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                          {a}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No amenities selected yet.
-                    </p>
-                  )}
+                  <AmenitiesSection amenities={state.amenities} />
                 </section>
                 <div className="my-8 h-px bg-border" />
               </>
             )}
 
-            {/* Calendar — disabled visual mock */}
+            {/* Calendar — real AvailabilityCalendar, wrapped to block interaction */}
             <section>
               <h2 className="mb-2 text-xl font-semibold">Select check-in date</h2>
               <p className="mb-6 text-sm text-muted-foreground">
                 Add your travel dates for exact pricing
               </p>
-              <MockCalendar disabled />
+              <div className="pointer-events-none select-none opacity-90">
+                <AvailabilityCalendarWrapper blockedRanges={[]} />
+              </div>
             </section>
           </div>
 
@@ -2116,7 +2105,7 @@ function ListingDetailMock({
 
         <div className="my-10 h-px bg-border" />
 
-        {/* Map / location */}
+        {/* Map / location — real LocationMapClient (same as real listing) */}
         {show("previewShowMapArea") && (
           <>
             <section>
@@ -2124,51 +2113,109 @@ function ListingDetailMock({
               <p className="mb-6 text-sm text-muted-foreground">
                 {show("previewShowNeighborhood") ? areaName : "Private location"}
               </p>
-              <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 text-sm text-muted-foreground">
-                {isPreview ? "Approximate map area" : "Map with exact pin"}
+              {state.lat && state.lng ? (
+                <div className="pointer-events-none select-none">
+                  <LocationMapClient
+                    lat={state.lat}
+                    lng={state.lng}
+                    areaName={areaName}
+                  />
+                </div>
+              ) : (
+                <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 text-sm text-muted-foreground">
+                  Add an address in Step 2 to see the map
+                </div>
+              )}
+            </section>
+            <div className="my-10 h-px bg-border" />
+          </>
+        )}
+
+        {/* House rules / Things to know */}
+        {(!isPreview || show("previewShowHouseRules")) && (
+          <>
+            <section>
+              <h2 className="mb-6 text-xl font-semibold">Things to know</h2>
+              <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                <div>
+                  <h3 className="mb-3 font-semibold">House rules</h3>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    <li>Check-in: {state.checkIn}</li>
+                    <li>Checkout: {state.checkOut}</li>
+                    <li>
+                      Minimum stay: {state.minNights} night
+                      {state.minNights !== "1" ? "s" : ""}
+                    </li>
+                    {state.houseRules.map((r) => (
+                      <li key={r}>&middot; {r}</li>
+                    ))}
+                    {state.customRules && (
+                      <li className="whitespace-pre-wrap pt-2 text-foreground">
+                        {state.customRules}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="mb-3 font-semibold">Safety &amp; property</h3>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    <li>Smoke alarm</li>
+                    <li>Carbon monoxide alarm</li>
+                    <li>Security camera not on property</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="mb-3 font-semibold">Cancellation policy</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Free cancellation before 48 hours of check-in. Review the
+                    full policy at the time of booking.
+                  </p>
+                </div>
               </div>
             </section>
             <div className="my-10 h-px bg-border" />
           </>
         )}
 
-        {/* House rules */}
-        {(!isPreview || show("previewShowHouseRules")) &&
-          (state.houseRules.length > 0 || state.customRules) && (
-            <>
-              <section>
-                <h2 className="mb-6 text-xl font-semibold">Things to know</h2>
-                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-                  <div>
-                    <h3 className="mb-3 font-semibold">House rules</h3>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>Check-in: {state.checkIn}</li>
-                      <li>Checkout: {state.checkOut}</li>
-                      <li>
-                        Minimum stay: {state.minNights} night
-                        {state.minNights !== "1" ? "s" : ""}
-                      </li>
-                      {state.houseRules.map((r) => (
-                        <li key={r}>&middot; {r}</li>
-                      ))}
-                      {state.customRules && (
-                        <li className="whitespace-pre-wrap pt-2 text-foreground">
-                          {state.customRules}
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                  <div>
-                    <h3 className="mb-3 font-semibold">Safety &amp; property</h3>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>Smoke alarm</li>
-                      <li>Carbon monoxide alarm</li>
-                    </ul>
-                  </div>
+        {/* Meet your host */}
+        <section>
+          <h2 className="mb-6 text-xl font-semibold">Meet your host</h2>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="rounded-xl border border-border/60 p-6 md:col-span-1">
+              <div className="flex flex-col items-center text-center">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted text-2xl font-semibold text-muted-foreground">
+                  {isPreview && !show("previewShowHostFirstName") ? "?" : "Y"}
                 </div>
-              </section>
-            </>
-          )}
+                <div className="mt-3 text-xl font-semibold">
+                  {isPreview && !show("previewShowHostFirstName")
+                    ? "Verified member"
+                    : "You"}
+                </div>
+              </div>
+              <div className="mt-6 space-y-3 border-t border-border/60 pt-4 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Reviews</span>
+                  <span className="font-semibold">0</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Rating</span>
+                  <span className="font-semibold">&mdash;</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Years hosting</span>
+                  <span className="font-semibold">&lt; 1</span>
+                </div>
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <p className="whitespace-pre-wrap text-base leading-relaxed">
+                {isPreview && !show("previewShowHostFirstName")
+                  ? "Host profile is revealed once you meet the trust threshold."
+                  : "You are a host on One Degree BNB."}
+              </p>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -2265,60 +2312,10 @@ function AdaptivePhotoGrid({
 }
 
 /**
- * Visual-only month calendar — purely for the mock. Shows a current month
- * grid with weekday headers and 35 day cells. Disabled state mirrors the
- * locked-from-editing vibe on the preview/review step.
+ * Unused — we now embed the real AvailabilityCalendar inside a
+ * pointer-events-none wrapper on the preview/review step. Keeping the
+ * comment as a breadcrumb in case someone greps for MockCalendar.
  */
-function MockCalendar({ disabled }: { disabled?: boolean }) {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthName = today.toLocaleString("default", { month: "long" });
-  const days = Array.from({ length: 35 }, (_, i) => {
-    const day = i - firstDay + 1;
-    if (day < 1 || day > daysInMonth) return null;
-    return day;
-  });
-
-  return (
-    <div
-      className={cn(
-        "rounded-xl border border-border bg-white p-4",
-        disabled && "pointer-events-none opacity-90"
-      )}
-    >
-      <div className="mb-3 text-center text-sm font-semibold">
-        {monthName} {year}
-      </div>
-      <div className="mb-1 grid grid-cols-7 text-center text-[10px] font-semibold uppercase text-muted-foreground">
-        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-          <div key={d} className="py-1">
-            {d}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-xs">
-        {days.map((d, i) => (
-          <div
-            key={i}
-            className={cn(
-              "flex h-8 items-center justify-center rounded-full",
-              d === null
-                ? ""
-                : d < today.getDate()
-                  ? "text-muted-foreground/40 line-through"
-                  : "text-foreground hover:bg-muted"
-            )}
-          >
-            {d ?? ""}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ──────────────────────────────────────────────────────────────────
 // Step 8 — Visibility & Access
