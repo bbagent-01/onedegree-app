@@ -43,12 +43,17 @@ type PreviewToggleKey =
   | "show_bed_counts"
   | "show_house_rules";
 
-type AccessActionKey =
-  | "see_preview"
-  | "see_full"
-  | "request_book"
-  | "message"
-  | "request_intro";
+// Collapsed access model: two configurable gates + one toggle.
+type AccessActionKey = "see_preview" | "full_listing_contact";
+
+/** Order rules from most-permissive (low) to most-restrictive (high).
+ *  Used to clamp the inner gate against the outer. */
+function rank(rule: AccessRule): number {
+  if (rule.type === "anyone") return 0;
+  if (rule.type === "min_score") return 1 + (rule.threshold ?? 0);
+  if (rule.type === "specific_people") return 9999;
+  return 0;
+}
 
 interface InitialData {
   title: string;
@@ -252,19 +257,24 @@ export function EditListingForm({
     show_house_rules: pc0?.show_house_rules ?? true,
   });
 
-  // Access rules — per-action AccessRule objects. Fall back to sensible
-  // defaults if the stored settings don't have the field yet.
+  // Access rules — collapsed 2-gate model. Legacy rows are normalized
+  // into full_listing_contact at read time by normalizeAccessSettings.
   const as0 = initial.access_settings;
-  const defaultRule = (
-    fallback: AccessRule = { type: "anyone" }
-  ): AccessRule => fallback;
-  const [accessRules, setAccessRules] = useState<Record<AccessActionKey, AccessRule>>({
-    see_preview: as0?.see_preview ?? defaultRule({ type: "anyone" }),
-    see_full: as0?.see_full ?? defaultRule({ type: "min_score", threshold: 10 }),
-    request_book: as0?.request_book ?? defaultRule({ type: "min_score", threshold: 20 }),
-    message: as0?.message ?? defaultRule({ type: "min_score", threshold: 10 }),
-    request_intro: as0?.request_intro ?? defaultRule({ type: "anyone" }),
+  const legacyFullContact =
+    as0?.full_listing_contact ??
+    as0?.see_full ??
+    as0?.message ??
+    as0?.request_book ??
+    ({ type: "min_score", threshold: 15 } as AccessRule);
+  const [accessRules, setAccessRules] = useState<
+    Record<AccessActionKey, AccessRule>
+  >({
+    see_preview: as0?.see_preview ?? { type: "anyone" },
+    full_listing_contact: legacyFullContact,
   });
+  const [allowIntroRequests, setAllowIntroRequests] = useState<boolean>(
+    as0?.allow_intro_requests ?? true
+  );
 
   // Delete flow
   const [deleting, setDeleting] = useState(false);
@@ -427,18 +437,21 @@ export function EditListingForm({
     }
   };
 
-  // Build the full access_settings payload from local state.
-  const buildAccessSettings = (): AccessSettings => ({
-    see_preview: accessRules.see_preview,
-    see_full: accessRules.see_full,
-    request_book: accessRules.request_book,
-    message: accessRules.message,
-    request_intro: accessRules.request_intro,
-    view_host_profile: initial.access_settings?.view_host_profile ?? {
-      type: "anyone",
-    },
-    preview_content: previewContent,
-  });
+  // Build the full access_settings payload from local state. Uses the
+  // collapsed 2-gate model; the validator clamps full_listing_contact
+  // if the host accidentally sets it looser than see_preview.
+  const buildAccessSettings = (): AccessSettings => {
+    const seePreview = accessRules.see_preview;
+    let fullGate = accessRules.full_listing_contact;
+    // Enforce: full gate is never more permissive than see_preview.
+    if (rank(fullGate) < rank(seePreview)) fullGate = seePreview;
+    return {
+      see_preview: seePreview,
+      full_listing_contact: fullGate,
+      allow_intro_requests: allowIntroRequests,
+      preview_content: previewContent,
+    };
+  };
 
   const savePreview = async () => {
     setSaving(true);
@@ -517,32 +530,26 @@ export function EditListingForm({
     }
   };
 
-  const applyPreset = (preset: "standard" | "public" | "private") => {
+  const applyPreset = (preset: "standard" | "open" | "private") => {
     setVisibilityMode("preview_gated");
-    if (preset === "public") {
+    if (preset === "open") {
       setAccessRules({
-        see_preview: { type: "anyone_anywhere" },
-        see_full: { type: "min_score", threshold: 30 },
-        request_book: { type: "anyone" },
-        message: { type: "anyone" },
-        request_intro: { type: "anyone" },
+        see_preview: { type: "anyone" },
+        full_listing_contact: { type: "anyone" },
       });
+      setAllowIntroRequests(true);
     } else if (preset === "standard") {
       setAccessRules({
         see_preview: { type: "anyone" },
-        see_full: { type: "min_score", threshold: 10 },
-        request_book: { type: "min_score", threshold: 20 },
-        message: { type: "min_score", threshold: 10 },
-        request_intro: { type: "anyone" },
+        full_listing_contact: { type: "min_score", threshold: 15 },
       });
+      setAllowIntroRequests(true);
     } else if (preset === "private") {
       setAccessRules({
-        see_preview: { type: "specific_people", user_ids: [] },
-        see_full: { type: "specific_people", user_ids: [] },
-        request_book: { type: "specific_people", user_ids: [] },
-        message: { type: "specific_people", user_ids: [] },
-        request_intro: { type: "min_score", threshold: 30 },
+        see_preview: { type: "min_score", threshold: 30 },
+        full_listing_contact: { type: "specific_people", user_ids: [] },
       });
+      setAllowIntroRequests(true);
     }
   };
 
@@ -560,8 +567,8 @@ export function EditListingForm({
           [key]: {
             type: newType,
             threshold:
-              newType === "min_score" || newType === "max_degrees"
-                ? rule.threshold ?? (newType === "min_score" ? 10 : 2)
+              newType === "min_score"
+                ? rule.threshold ?? 15
                 : undefined,
           },
         };
@@ -581,30 +588,18 @@ export function EditListingForm({
 
   // Infer which preset the current access rules match, so the card stays
   // highlighted when the user re-opens the tab.
-  const currentPreset: "standard" | "public" | "private" | null = (() => {
-    const isPublic =
-      accessRules.see_preview.type === "anyone_anywhere" &&
-      accessRules.see_full.type === "min_score" &&
-      accessRules.see_full.threshold === 30 &&
-      accessRules.request_book.type === "anyone" &&
-      accessRules.message.type === "anyone" &&
-      accessRules.request_intro.type === "anyone";
-    if (isPublic) return "public";
-    const isStandard =
-      accessRules.see_preview.type === "anyone" &&
-      accessRules.see_full.type === "min_score" &&
-      accessRules.see_full.threshold === 10 &&
-      accessRules.request_book.type === "min_score" &&
-      accessRules.request_book.threshold === 20;
-    if (isStandard) return "standard";
-    const isPrivate =
-      accessRules.see_preview.type === "specific_people" &&
-      accessRules.see_full.type === "specific_people" &&
-      accessRules.request_book.type === "specific_people" &&
-      accessRules.message.type === "specific_people" &&
-      accessRules.request_intro.type === "min_score" &&
-      accessRules.request_intro.threshold === 30;
-    if (isPrivate) return "private";
+  const currentPreset: "standard" | "open" | "private" | null = (() => {
+    const sp = accessRules.see_preview;
+    const full = accessRules.full_listing_contact;
+    if (sp.type === "anyone" && full.type === "anyone") return "open";
+    if (
+      sp.type === "anyone" &&
+      full.type === "min_score" &&
+      full.threshold === 15
+    )
+      return "standard";
+    if (sp.type === "min_score" && full.type === "specific_people")
+      return "private";
     return null;
   })();
 
@@ -1223,9 +1218,9 @@ export function EditListingForm({
             <Label className="mb-2 block text-sm font-semibold">Preset</Label>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               {([
-                ["standard", "Standard", "Anonymous preview for everyone. Full listing gated by trust."],
-                ["public", "Public", "Preview is public (no sign-in needed). Full listing requires a 1° score."],
-                ["private", "Private", "Invite-only. Only people you add can see or book. Others can still request an intro."],
+                ["standard", "Standard", "Preview for anyone signed-in. Full listing + booking gated by trust score."],
+                ["open", "Open network", "Any signed-in member can see and request to book."],
+                ["private", "Private", "Only people you add can book. Others with a minimum trust score can still request an intro."],
               ] as const).map(([key, label, desc]) => (
                 <button
                   key={key}
@@ -1245,62 +1240,112 @@ export function EditListingForm({
             </div>
           </div>
 
-          {/* Access rules */}
+          {/* Access rules — collapsed 2-gate model */}
           <div>
-            <Label className="mb-2 block text-sm font-semibold">Access controls</Label>
+            <Label className="mb-2 block text-sm font-semibold">
+              Access controls
+            </Label>
             <p className="text-xs text-muted-foreground">
-              For each action, choose who&apos;s allowed to do it.
+              Two gates form concentric rings. See Preview is the outer
+              ring; Full Listing + Contact is the inner ring, and must
+              be at least as strict as See Preview.
             </p>
             <div className="mt-4 space-y-3">
               {([
-                ["see_preview", "See Preview", "Who can see the anonymous preview"],
-                ["see_full", "See Full Listing", "Who can unlock and view the full listing"],
-                ["request_book", "Request to Book", "Who can send a booking request"],
-                ["message", "Message Host", "Who can send you a message"],
-                ["request_intro", "Request Introduction", "Who can ask a mutual connection for an intro"],
-              ] as [AccessActionKey, string, string][]).map(([key, label, hint]) => {
-                const rule = accessRules[key];
-                return (
-                  <div
-                    key={key}
-                    className="rounded-lg border border-border bg-white p-4"
-                  >
-                    <div className="text-sm font-medium text-foreground">{label}</div>
-                    <div className="text-xs text-muted-foreground">{hint}</div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <select
-                        value={rule.type}
-                        onChange={(e) => updateRule(key, "type", e.target.value)}
-                        className="h-10 rounded-lg border border-border bg-white px-3 text-sm focus-visible:border-brand focus-visible:outline-none"
-                      >
-                        <option value="anyone_anywhere">Anyone (incl. not signed in)</option>
-                        <option value="anyone">Anyone signed in</option>
-                        <option value="min_score">Min 1° score</option>
-                        <option value="max_degrees">Within N degrees</option>
-                        <option value="specific_people">Specific people</option>
-                      </select>
-                      {(rule.type === "min_score" || rule.type === "max_degrees") && (
-                        <Input
-                          type="number"
-                          min={0}
-                          className="h-10 w-24 rounded-lg border border-border bg-white px-3 text-sm"
-                          value={rule.threshold ?? ""}
+                [
+                  "see_preview",
+                  "See Preview",
+                  "Who can see the preview card and request an intro.",
+                ],
+                [
+                  "full_listing_contact",
+                  "Full Listing + Contact",
+                  "Who can view the full listing, message you, and request to book.",
+                ],
+              ] as [AccessActionKey, string, string][]).map(
+                ([key, label, hint]) => {
+                  const rule = accessRules[key];
+                  return (
+                    <div
+                      key={key}
+                      className="rounded-lg border border-border bg-white p-4"
+                    >
+                      <div className="text-sm font-medium text-foreground">
+                        {label}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {hint}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <select
+                          value={rule.type}
                           onChange={(e) =>
-                            updateRule(key, "threshold", e.target.value)
+                            updateRule(key, "type", e.target.value)
                           }
-                          placeholder={rule.type === "min_score" ? "Score" : "Degrees"}
-                        />
-                      )}
-                      {rule.type === "specific_people" && (
-                        <span className="text-xs text-muted-foreground">
-                          (User picker coming soon)
-                        </span>
-                      )}
+                          className="h-10 rounded-lg border border-border bg-white px-3 text-sm focus-visible:border-brand focus-visible:outline-none"
+                        >
+                          <option value="anyone">Anyone signed in</option>
+                          <option value="min_score">Min 1° score</option>
+                          <option value="specific_people">
+                            Specific people
+                          </option>
+                        </select>
+                        {rule.type === "min_score" && (
+                          <Input
+                            type="number"
+                            min={0}
+                            className="h-10 w-24 rounded-lg border border-border bg-white px-3 text-sm"
+                            value={rule.threshold ?? ""}
+                            onChange={(e) =>
+                              updateRule(key, "threshold", e.target.value)
+                            }
+                            placeholder="Score"
+                          />
+                        )}
+                        {rule.type === "specific_people" && (
+                          <span className="text-xs text-muted-foreground">
+                            (User picker coming soon)
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                }
+              )}
             </div>
+
+            {/* Allow intro requests toggle */}
+            <div className="mt-4 flex items-start justify-between gap-4 rounded-lg border border-border bg-white p-4">
+              <div>
+                <div className="text-sm font-medium text-foreground">
+                  Allow introduction requests
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Anyone who can see the preview can ask for an intro —
+                  either through a mutual connection, or anonymously
+                  into your inbox. Your identity stays hidden from the
+                  sender until you reply.
+                </div>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  checked={allowIntroRequests}
+                  onChange={(e) => setAllowIntroRequests(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="h-6 w-11 rounded-full bg-muted after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-brand peer-checked:after:translate-x-5" />
+              </label>
+            </div>
+
+            {/* Validation warning */}
+            {rank(accessRules.full_listing_contact) <
+              rank(accessRules.see_preview) && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                Full Listing + Contact can&apos;t be more permissive than
+                See Preview — we&apos;ll clamp it to match on save.
+              </div>
+            )}
           </div>
 
         </SectionCard>

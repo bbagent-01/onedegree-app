@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import {
   getBrowseListings,
@@ -31,6 +32,10 @@ export default async function BrowsePage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  // Auth wall — private-network model means no anonymous browsing.
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in?redirect_url=/browse");
+
   const params = await searchParams;
   const filters = parseBrowseParams(params);
   const filterCount = activeFilterCount(filters);

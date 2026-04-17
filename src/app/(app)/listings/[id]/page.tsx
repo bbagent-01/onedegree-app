@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { Star, Medal } from "lucide-react";
 import { getListingDetail } from "@/lib/listing-detail-data";
@@ -20,7 +20,6 @@ import { ConnectionPath } from "@/components/trust/connection-path";
 import { LocationMapClient } from "@/components/listing/location-map-client";
 import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
 import { GatedListingView } from "@/components/listing/gated-listing-view";
-import { ListingTrustStatus } from "@/components/listing/listing-trust-status";
 import { HostInlineMeta } from "@/components/trust/host-inline-meta";
 
 export const runtime = "edge";
@@ -61,12 +60,19 @@ export default async function ListingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // Auth wall — 1° B&B is a private network. No anonymous listing
+  // access, full or preview. Bounce to sign-in with a return URL.
+  const { userId: clerkId } = await auth();
+  if (!clerkId) {
+    redirect(`/sign-in?redirect_url=${encodeURIComponent(`/listings/${id}`)}`);
+  }
+
   const listing = await getListingDetail(id);
   if (!listing) notFound();
 
   // Trust gating — compute viewer → host path, decide whether to show
   // the full listing or a gated preview. Host always sees their own.
-  const { userId: clerkId } = await auth();
   const viewerId = await getInternalUserIdFromClerk(clerkId);
   const isHost = viewerId && viewerId === listing.host_id;
   const trust =
@@ -118,7 +124,6 @@ export default async function ListingPage({
         pricePerNight={price}
         avgRating={listing.avg_rating}
         reviewCount={listing.review_count}
-        canBook={isHost || access.can_request_book}
       />
       {/* Title (mobile: below photos, desktop: above). Trust info
           lives with the host, not the listing — see host card below. */}
@@ -255,89 +260,48 @@ export default async function ListingPage({
 
           <Separator className="my-8" />
 
-          {/* Availability Calendar — desktop only, and only when the
-              viewer can actually request to book. Hiding the calendar
-              for gated viewers keeps the "booking isn't available yet"
-              message from feeling contradicted by a clickable picker. */}
-          {(isHost || access.can_request_book) && (
-            <section className="hidden md:block">
-              <h2 className="mb-2 text-xl font-semibold">
-                Select check-in date
-              </h2>
-              <p className="mb-6 text-sm text-muted-foreground">
-                Add your travel dates for exact pricing
-              </p>
-              <AvailabilityCalendarWrapper
-                blockedRanges={listing.blockedRanges}
-              />
-            </section>
-          )}
-        </div>
-
-        {/* Right column: booking sidebar OR trust status when booking
-            is gated. We replace the date picker entirely when the viewer
-            hasn't met the request_book threshold so they can't try to
-            book something they can't request. */}
-        <div className="md:col-span-1">
-          {isHost || access.can_request_book ? (
-            <BookingSidebar
-              listingId={listing.id}
-              pricePerNight={price}
-              minNights={listing.min_nights}
-              maxNights={listing.max_nights}
-              avgRating={listing.avg_rating}
-              reviewCount={listing.review_count}
+          {/* Availability Calendar — desktop only. Always shown on
+              the full listing page under the collapsed model. */}
+          <section className="hidden md:block">
+            <h2 className="mb-2 text-xl font-semibold">
+              Select check-in date
+            </h2>
+            <p className="mb-6 text-sm text-muted-foreground">
+              Add your travel dates for exact pricing
+            </p>
+            <AvailabilityCalendarWrapper
               blockedRanges={listing.blockedRanges}
             />
-          ) : (
-            trust &&
-            listing.host && (
-              <div className="hidden md:block">
-                <ListingTrustStatus
-                  listingId={listing.id}
-                  listingTitle={listing.title}
-                  hostName={listing.host.name}
-                  score={trust.score}
-                  requiredScore={listing.min_trust_gate ?? 0}
-                  canRequestBook={access.can_request_book}
-                  canMessage={access.can_message}
-                  canRequestIntro={access.can_request_intro}
-                  mutualConnections={trust.mutualConnections}
-                  pricePerNight={price}
-                />
-                {trust.path.length >= 2 && (
-                  <div className="mt-3 rounded-2xl border border-border bg-white p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Your connection
-                    </div>
-                    <div className="mt-3 overflow-x-auto">
-                      <ConnectionPath path={trust.path} compact />
-                    </div>
-                  </div>
-                )}
+          </section>
+        </div>
+
+        {/* Right column: booking sidebar. Under the collapsed model
+            anyone who can see the full listing can also request to
+            book (one gate), so we always render the full sidebar here
+            — if the viewer was gated we'd have rendered GatedListingView
+            at the top of the route instead. */}
+        <div className="md:col-span-1">
+          <BookingSidebar
+            listingId={listing.id}
+            pricePerNight={price}
+            minNights={listing.min_nights}
+            maxNights={listing.max_nights}
+            avgRating={listing.avg_rating}
+            reviewCount={listing.review_count}
+            blockedRanges={listing.blockedRanges}
+          />
+          {!isHost && trust && trust.path.length >= 2 && (
+            <div className="mt-3 hidden rounded-2xl border border-border bg-white p-4 md:block">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Your connection
               </div>
-            )
+              <div className="mt-3 overflow-x-auto">
+                <ConnectionPath path={trust.path} compact />
+              </div>
+            </div>
           )}
         </div>
       </div>
-
-      {/* Mobile: trust status replaces the booking bar when gated. */}
-      {!isHost && !access.can_request_book && trust && listing.host && (
-        <div className="mt-6 md:hidden">
-          <ListingTrustStatus
-            listingId={listing.id}
-            listingTitle={listing.title}
-            hostName={listing.host.name}
-            score={trust.score}
-            requiredScore={listing.min_trust_gate ?? 0}
-            canRequestBook={access.can_request_book}
-            canMessage={access.can_message}
-            canRequestIntro={access.can_request_intro}
-            mutualConnections={trust.mutualConnections}
-            pricePerNight={price}
-          />
-        </div>
-      )}
 
       {/*
         Sticky anchor bar sentinel — placed at the end of the main booking

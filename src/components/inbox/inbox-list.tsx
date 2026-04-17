@@ -41,17 +41,28 @@ function relTime(iso: string) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-type Filter = "all" | "host" | "guest";
+type Filter = "messages" | "intros";
 
 export function InboxList({ threads, selectedId }: Props) {
   const router = useRouter();
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>("messages");
   const [query, setQuery] = useState("");
 
+  // Split threads by intro-request status first. Anything that's an
+  // intro request and not yet promoted lives in the Intro Requests
+  // tab; everything else is in Messages.
+  const introThreads = useMemo(
+    () => threads.filter((t) => t.is_intro_request),
+    [threads]
+  );
+  const messageThreads = useMemo(
+    () => threads.filter((t) => !t.is_intro_request),
+    [threads]
+  );
+
   const filtered = useMemo(() => {
-    return threads.filter((t) => {
-      if (filter === "host" && t.role !== "host") return false;
-      if (filter === "guest" && t.role !== "guest") return false;
+    const source = filter === "intros" ? introThreads : messageThreads;
+    return source.filter((t) => {
       if (query.trim()) {
         const q = query.toLowerCase();
         const hay = `${t.other_user.name} ${t.listing?.title || ""} ${t.last_message_preview || ""}`.toLowerCase();
@@ -59,7 +70,7 @@ export function InboxList({ threads, selectedId }: Props) {
       }
       return true;
     });
-  }, [threads, filter, query]);
+  }, [messageThreads, introThreads, filter, query]);
 
   return (
     <div className="flex h-full flex-col">
@@ -84,22 +95,26 @@ export function InboxList({ threads, selectedId }: Props) {
             className="h-auto w-full justify-start gap-4 border-b border-border !rounded-none bg-transparent p-0"
           >
             <TabsTrigger
-              value="all"
+              value="messages"
               className="!h-auto !flex-none !px-0 pb-2 text-sm !rounded-none data-active:!bg-transparent data-active:after:!opacity-100 after:!bottom-[-1px] after:!h-0.5 after:!bg-foreground"
             >
-              All
+              Messages
+              {messageThreads.length > 0 && (
+                <span className="ml-1 text-xs text-muted-foreground">
+                  {messageThreads.length}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger
-              value="host"
+              value="intros"
               className="!h-auto !flex-none !px-0 pb-2 text-sm !rounded-none data-active:!bg-transparent data-active:after:!opacity-100 after:!bottom-[-1px] after:!h-0.5 after:!bg-foreground"
             >
-              Hosting
-            </TabsTrigger>
-            <TabsTrigger
-              value="guest"
-              className="!h-auto !flex-none !px-0 pb-2 text-sm !rounded-none data-active:!bg-transparent data-active:after:!opacity-100 after:!bottom-[-1px] after:!h-0.5 after:!bg-foreground"
-            >
-              Traveling
+              Intro Requests
+              {introThreads.length > 0 && (
+                <span className="ml-1 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-800">
+                  {introThreads.length}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -130,22 +145,34 @@ export function InboxList({ threads, selectedId }: Props) {
                     }}
                     className={cn(
                       "flex w-full items-start gap-3 border-b border-border px-3 py-3 text-left transition-colors hover:bg-muted/60",
-                      isSelected && "bg-muted"
+                      isSelected && "bg-muted",
+                      t.is_intro_request && "bg-amber-50/40"
                     )}
                   >
-                    <ConnectionPopover targetUserId={t.other_user.id}>
-                      <Avatar className="h-12 w-12 shrink-0 cursor-pointer">
-                        {t.other_user.avatar_url && (
-                          <AvatarImage
-                            src={t.other_user.avatar_url}
-                            alt={t.other_user.name}
-                          />
-                        )}
-                        <AvatarFallback>
-                          {initials(t.other_user.name)}
+                    {t.is_intro_request && t.sender_anonymous ? (
+                      // Anonymous intro — don't link to a profile or
+                      // show a ConnectionPopover. Identity reveals only
+                      // after the host replies.
+                      <Avatar className="h-12 w-12 shrink-0">
+                        <AvatarFallback className="bg-amber-100 text-amber-700">
+                          ?
                         </AvatarFallback>
                       </Avatar>
-                    </ConnectionPopover>
+                    ) : (
+                      <ConnectionPopover targetUserId={t.other_user.id}>
+                        <Avatar className="h-12 w-12 shrink-0 cursor-pointer">
+                          {t.other_user.avatar_url && (
+                            <AvatarImage
+                              src={t.other_user.avatar_url}
+                              alt={t.other_user.name}
+                            />
+                          )}
+                          <AvatarFallback>
+                            {initials(t.other_user.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </ConnectionPopover>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-1.5">
@@ -170,6 +197,11 @@ export function InboxList({ threads, selectedId }: Props) {
                           {relTime(t.last_message_at)}
                         </span>
                       </div>
+                      {t.is_intro_request && (
+                        <div className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                          Intro request
+                        </div>
+                      )}
                       {t.listing && (
                         <div className="truncate text-xs text-muted-foreground">
                           {t.listing.title}

@@ -381,29 +381,24 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
 }
 
 /**
- * Generate access requirement messaging based on the listing's access_settings.
+ * Generate access requirement messaging based on the listing's
+ * full_listing_contact gate (new collapsed model). Falls back to the
+ * legacy see_full rule for rows written under the older schema.
  */
 function getAccessMessage(
   listing: ListingDetail,
   userScore: number,
-  degree: 1 | 2 | null | undefined
+  _degree?: 1 | 2 | null
 ): { title: string; body: string } | null {
   const settings = listing.access_settings;
-  if (!settings?.see_full) return null;
+  const rule = settings?.full_listing_contact ?? settings?.see_full;
+  if (!rule) return null;
 
-  const rule = settings.see_full;
   switch (rule.type) {
     case "min_score":
       return {
         title: `This listing requires a 1\u00B0 score of ${rule.threshold ?? 0}`,
         body: `Your current score: ${userScore}. Connect with more people to increase your score.`,
-      };
-    case "max_degrees":
-      return {
-        title: `This listing is available within ${rule.threshold ?? 2} degrees of connection`,
-        body: degree
-          ? `You're ${degree} degree${degree > 1 ? "s" : ""} away.`
-          : `You're not connected to this host yet.`,
       };
     case "specific_people":
       return {

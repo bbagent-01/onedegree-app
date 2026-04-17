@@ -31,6 +31,12 @@ export interface InboxThread {
   trust_connection_count: number;
   /** Viewer has personally vouched for the other participant. */
   trust_is_direct: boolean;
+  /** True for pending intro requests. Hidden from Messages tab. */
+  is_intro_request: boolean;
+  /** When populated, the intro was promoted to a normal conversation. */
+  intro_promoted_at: string | null;
+  /** When true, hide sender identity until host replies. */
+  sender_anonymous: boolean;
 }
 
 export interface ThreadMessage {
@@ -77,7 +83,7 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
   const { data: threads } = await supabase
     .from("message_threads")
     .select(
-      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count"
+      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_promoted_at, sender_anonymous"
     )
     .or(`guest_id.eq.${currentUserId},host_id.eq.${currentUserId}`)
     .order("last_message_at", { ascending: false });
@@ -125,6 +131,11 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
     const otherId = isGuest ? t.host_id : t.guest_id;
     const otherUser = userMap.get(otherId);
     const listing = listingMap.get(t.listing_id);
+    const isIntro = Boolean(t.is_intro_request) && !t.intro_promoted_at;
+    // Anonymize the sender when the host is viewing an un-replied
+    // anonymous intro request. The guest side always sees the host.
+    const hideIdentity =
+      isIntro && !isGuest && Boolean(t.sender_anonymous);
     return {
       id: t.id,
       listing_id: t.listing_id,
@@ -137,8 +148,8 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
       role,
       other_user: {
         id: otherId,
-        name: otherUser?.name || "User",
-        avatar_url: otherUser?.avatar_url || null,
+        name: hideIdentity ? "Someone on 1° B&B" : otherUser?.name || "User",
+        avatar_url: hideIdentity ? null : otherUser?.avatar_url || null,
       },
       listing: listing
         ? {
@@ -148,9 +159,16 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
             thumbnail_url: thumbMap.get(listing.id) || null,
           }
         : null,
-      trust_score: trustByTarget[otherId]?.score ?? 0,
-      trust_connection_count: trustByTarget[otherId]?.connectionCount ?? 0,
-      trust_is_direct: trustByTarget[otherId]?.hasDirectVouch ?? false,
+      trust_score: hideIdentity ? 0 : trustByTarget[otherId]?.score ?? 0,
+      trust_connection_count: hideIdentity
+        ? 0
+        : trustByTarget[otherId]?.connectionCount ?? 0,
+      trust_is_direct: hideIdentity
+        ? false
+        : trustByTarget[otherId]?.hasDirectVouch ?? false,
+      is_intro_request: isIntro,
+      intro_promoted_at: t.intro_promoted_at ?? null,
+      sender_anonymous: Boolean(t.sender_anonymous),
     } satisfies InboxThread;
   });
 }
@@ -168,7 +186,7 @@ export async function getThreadDetail(
   const { data: thread } = await supabase
     .from("message_threads")
     .select(
-      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count"
+      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_promoted_at, sender_anonymous"
     )
     .eq("id", threadId)
     .single();
@@ -181,6 +199,10 @@ export async function getThreadDetail(
   const isGuest = thread.guest_id === currentUserId;
   const role: ThreadRole = isGuest ? "guest" : "host";
   const otherId = isGuest ? thread.host_id : thread.guest_id;
+  const isIntro =
+    Boolean(thread.is_intro_request) && !thread.intro_promoted_at;
+  const hideIdentity =
+    isIntro && !isGuest && Boolean(thread.sender_anonymous);
 
   const [
     { data: messages },
@@ -227,7 +249,9 @@ export async function getThreadDetail(
     )
     .eq("id", threadId);
 
-  const trust = (await computeTrustPaths(currentUserId, [otherId]))[otherId];
+  const trust = hideIdentity
+    ? undefined
+    : (await computeTrustPaths(currentUserId, [otherId]))[otherId];
 
   return {
     id: thread.id,
@@ -241,8 +265,8 @@ export async function getThreadDetail(
     role,
     other_user: {
       id: otherId,
-      name: otherUser?.name || "User",
-      avatar_url: otherUser?.avatar_url || null,
+      name: hideIdentity ? "Someone on 1° B&B" : otherUser?.name || "User",
+      avatar_url: hideIdentity ? null : otherUser?.avatar_url || null,
     },
     listing: listing
       ? {
@@ -255,6 +279,9 @@ export async function getThreadDetail(
     trust_score: trust?.score ?? 0,
     trust_connection_count: trust?.connectionCount ?? 0,
     trust_is_direct: trust?.hasDirectVouch ?? false,
+    is_intro_request: isIntro,
+    intro_promoted_at: thread.intro_promoted_at ?? null,
+    sender_anonymous: Boolean(thread.sender_anonymous),
     messages: (messages || []) as ThreadMessage[],
     booking: booking
       ? {

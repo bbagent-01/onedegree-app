@@ -50,12 +50,7 @@ type PropertyLabel =
   | "Other";
 
 type VisibilityMode = "public" | "preview_gated" | "hidden";
-type AccessType =
-  | "anyone_anywhere"
-  | "anyone"
-  | "min_score"
-  | "max_degrees"
-  | "specific_people";
+type AccessType = "anyone" | "min_score" | "specific_people";
 
 interface AccessRuleState {
   type: AccessType;
@@ -98,14 +93,12 @@ interface WizardState {
   monthlyDiscount: string;
   advanceNoticeDays: string;
   prepDays: string;
-  // Visibility & trust settings (CC-C3)
+  // Visibility & trust settings (collapsed 2-gate model)
   visibilityMode: VisibilityMode;
   previewDescription: string;
   accessSeePreview: AccessRuleState;
-  accessSeeFull: AccessRuleState;
-  accessRequestBook: AccessRuleState;
-  accessMessage: AccessRuleState;
-  accessRequestIntro: AccessRuleState;
+  accessFullListingContact: AccessRuleState;
+  allowIntroRequests: boolean;
   // Preview content toggles
   previewShowTitle: boolean;
   previewShowPriceRange: boolean;
@@ -162,10 +155,8 @@ const initialState: WizardState = {
   visibilityMode: "preview_gated",
   previewDescription: "",
   accessSeePreview: { type: "anyone", threshold: "" },
-  accessSeeFull: { type: "min_score", threshold: "10" },
-  accessRequestBook: { type: "min_score", threshold: "20" },
-  accessMessage: { type: "min_score", threshold: "10" },
-  accessRequestIntro: { type: "anyone", threshold: "" },
+  accessFullListingContact: { type: "min_score", threshold: "15" },
+  allowIntroRequests: true,
   previewShowTitle: true,
   previewShowPriceRange: true,
   previewShowDescription: true,
@@ -198,13 +189,26 @@ const AMENITY_GROUPS: Record<string, string[]> = {
   Safety: ["Smoke alarm", "First aid kit", "Fire extinguisher", "Carbon monoxide alarm"],
 };
 
-function buildAccessRule(rule: AccessRuleState): { type: string; threshold?: number; user_ids?: string[] } {
-  if (rule.type === "anyone_anywhere") return { type: "anyone_anywhere" };
+function buildAccessRule(rule: AccessRuleState): {
+  type: string;
+  threshold?: number;
+  user_ids?: string[];
+} {
   if (rule.type === "anyone") return { type: "anyone" };
-  if (rule.type === "min_score") return { type: "min_score", threshold: Number(rule.threshold) || 0 };
-  if (rule.type === "max_degrees") return { type: "max_degrees", threshold: Number(rule.threshold) || 2 };
-  if (rule.type === "specific_people") return { type: "specific_people", user_ids: [] };
+  if (rule.type === "min_score")
+    return { type: "min_score", threshold: Number(rule.threshold) || 0 };
+  if (rule.type === "specific_people")
+    return { type: "specific_people", user_ids: [] };
   return { type: "anyone" };
+}
+
+/** Mirror of the rank function in edit-listing-form — used to clamp
+ *  the inner gate so it never ends up more permissive than preview. */
+function accessRuleRank(rule: AccessRuleState): number {
+  if (rule.type === "anyone") return 0;
+  if (rule.type === "min_score") return 1 + (Number(rule.threshold) || 0);
+  if (rule.type === "specific_people") return 9999;
+  return 0;
 }
 
 const DEFAULT_HOUSE_RULES = [
@@ -465,11 +469,12 @@ export default function CreateListingPage() {
         preview_description: state.previewDescription || null,
         access_settings: {
           see_preview: buildAccessRule(state.accessSeePreview),
-          see_full: buildAccessRule(state.accessSeeFull),
-          request_book: buildAccessRule(state.accessRequestBook),
-          message: buildAccessRule(state.accessMessage),
-          request_intro: buildAccessRule(state.accessRequestIntro),
-          view_host_profile: { type: "anyone" },
+          full_listing_contact:
+            accessRuleRank(state.accessFullListingContact) <
+            accessRuleRank(state.accessSeePreview)
+              ? buildAccessRule(state.accessSeePreview)
+              : buildAccessRule(state.accessFullListingContact),
+          allow_intro_requests: state.allowIntroRequests,
           preview_content: {
             show_title: state.previewShowTitle,
             show_price_range: state.previewShowPriceRange,
@@ -1403,12 +1408,7 @@ type PreviewToggleKey =
   | "previewShowBedCounts"
   | "previewShowHouseRules";
 
-type AccessKey =
-  | "accessSeePreview"
-  | "accessSeeFull"
-  | "accessRequestBook"
-  | "accessMessage"
-  | "accessRequestIntro";
+type AccessKey = "accessSeePreview" | "accessFullListingContact";
 
 // ──────────────────────────────────────────────────────────────────
 // Step 7 — Listing Preview
@@ -2421,40 +2421,43 @@ function Step8Visibility({
   // "Private" = strict trust gates (high min_score), "Public" = anyone
   // for everything, "Standard" = balanced defaults.
   const PRESETS: {
-    key: "standard" | "public" | "private";
+    key: "standard" | "open" | "private";
     label: string;
     desc: string;
   }[] = [
     {
       key: "standard",
       label: "Standard",
-      desc: "Anonymous preview for everyone. Full listing gated by trust.",
+      desc: "Preview for anyone signed-in. Full listing + booking gated by trust score.",
     },
     {
-      key: "public",
-      label: "Public",
-      desc: "Full listing visible to anyone on the platform.",
+      key: "open",
+      label: "Open network",
+      desc: "Any signed-in member can see and request to book.",
     },
     {
       key: "private",
       label: "Private",
-      desc: "Invite-only. Only people you add can see or book. Others can still request an intro.",
+      desc: "Only people you add can book. Others with a trust score can still request an intro.",
     },
   ];
 
   const ACCESS_ACTIONS: { key: AccessKey; label: string; hint?: string }[] = [
-    { key: "accessSeePreview", label: "See Preview", hint: "Who can see the anonymous preview of your listing" },
-    { key: "accessSeeFull", label: "See Full Listing", hint: "Who can unlock and view the full listing" },
-    { key: "accessRequestBook", label: "Request to Book", hint: "Who can send a booking request" },
-    { key: "accessMessage", label: "Message Host", hint: "Who can send you a message" },
-    { key: "accessRequestIntro", label: "Request Introduction", hint: "Who can ask a mutual connection for an intro" },
+    {
+      key: "accessSeePreview",
+      label: "See Preview",
+      hint: "Who can see the preview card and request an intro",
+    },
+    {
+      key: "accessFullListingContact",
+      label: "Full Listing + Contact",
+      hint: "Who can view the full listing, message you, and request to book",
+    },
   ];
 
   const ACCESS_TYPES: { key: AccessType; label: string }[] = [
-    { key: "anyone_anywhere", label: "Anyone (incl. not signed in)" },
     { key: "anyone", label: "Anyone signed in" },
     { key: "min_score", label: "Min 1\u00B0 score" },
-    { key: "max_degrees", label: "Within N degrees" },
     { key: "specific_people", label: "Specific people" },
   ];
 
@@ -2470,61 +2473,37 @@ function Step8Visibility({
   // Quick-fill presets — pre-populate access rules. Always stored as
   // visibility_mode="preview_gated" (listings are always discoverable
   // in browse; strictness comes from the access rules themselves).
-  const applyPreset = (preset: "standard" | "public" | "private") => {
+  const applyPreset = (preset: "standard" | "open" | "private") => {
     update("visibilityMode", "preview_gated");
-    if (preset === "public") {
-      // Preview visible to the public web (no sign-in required).
-      // Full listing still requires a 1° score of 30. Messaging /
-      // booking / intro open to anyone signed in.
-      update("accessSeePreview", { type: "anyone_anywhere", threshold: "" });
-      update("accessSeeFull", { type: "min_score", threshold: "30" });
-      update("accessRequestBook", { type: "anyone", threshold: "" });
-      update("accessMessage", { type: "anyone", threshold: "" });
-      update("accessRequestIntro", { type: "anyone", threshold: "" });
+    if (preset === "open") {
+      update("accessSeePreview", { type: "anyone", threshold: "" });
+      update("accessFullListingContact", { type: "anyone", threshold: "" });
+      update("allowIntroRequests", true);
     } else if (preset === "standard") {
       update("accessSeePreview", { type: "anyone", threshold: "" });
-      update("accessSeeFull", { type: "min_score", threshold: "10" });
-      update("accessRequestBook", { type: "min_score", threshold: "20" });
-      update("accessMessage", { type: "min_score", threshold: "10" });
-      update("accessRequestIntro", { type: "anyone", threshold: "" });
+      update("accessFullListingContact", { type: "min_score", threshold: "15" });
+      update("allowIntroRequests", true);
     } else if (preset === "private") {
-      // Strict invite-only feel: almost everything locked to specific
-      // people the host adds. Request Introduction is the one escape
-      // hatch (min_score 30) so outsiders can politely ask.
-      update("accessSeePreview", { type: "specific_people", threshold: "" });
-      update("accessSeeFull", { type: "specific_people", threshold: "" });
-      update("accessRequestBook", { type: "specific_people", threshold: "" });
-      update("accessMessage", { type: "specific_people", threshold: "" });
-      update("accessRequestIntro", { type: "min_score", threshold: "30" });
+      update("accessSeePreview", { type: "min_score", threshold: "30" });
+      update("accessFullListingContact", { type: "specific_people", threshold: "" });
+      update("allowIntroRequests", true);
     }
   };
 
   // Infer which preset most closely matches the current rules, so the
   // selected card keeps highlighting even as the user tweaks settings.
-  const currentPreset: "standard" | "public" | "private" | null = (() => {
-    const isPublic =
-      state.accessSeePreview.type === "anyone_anywhere" &&
-      state.accessSeeFull.type === "min_score" &&
-      state.accessSeeFull.threshold === "30" &&
-      state.accessRequestBook.type === "anyone" &&
-      state.accessMessage.type === "anyone" &&
-      state.accessRequestIntro.type === "anyone";
-    if (isPublic) return "public";
-    const isStandard =
-      state.accessSeePreview.type === "anyone" &&
-      state.accessSeeFull.type === "min_score" &&
-      state.accessSeeFull.threshold === "10" &&
-      state.accessRequestBook.type === "min_score" &&
-      state.accessRequestBook.threshold === "20";
-    if (isStandard) return "standard";
-    const isPrivate =
-      state.accessSeePreview.type === "specific_people" &&
-      state.accessSeeFull.type === "specific_people" &&
-      state.accessRequestBook.type === "specific_people" &&
-      state.accessMessage.type === "specific_people" &&
-      state.accessRequestIntro.type === "min_score" &&
-      state.accessRequestIntro.threshold === "30";
-    if (isPrivate) return "private";
+  const currentPreset: "standard" | "open" | "private" | null = (() => {
+    const sp = state.accessSeePreview;
+    const full = state.accessFullListingContact;
+    if (sp.type === "anyone" && full.type === "anyone") return "open";
+    if (
+      sp.type === "anyone" &&
+      full.type === "min_score" &&
+      full.threshold === "15"
+    )
+      return "standard";
+    if (sp.type === "min_score" && full.type === "specific_people")
+      return "private";
     return null;
   })();
 
@@ -2568,8 +2547,18 @@ function Step8Visibility({
             Access controls
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            For each action, choose who&apos;s allowed to do it.
+            Two concentric rings. See Preview is the outer gate; Full
+            Listing + Contact is the inner — and must be at least as
+            strict as See Preview.
           </p>
+
+          {accessRuleRank(state.accessFullListingContact) <
+            accessRuleRank(state.accessSeePreview) && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              Full Listing + Contact is looser than See Preview —
+              we&apos;ll clamp it to match on save.
+            </div>
+          )}
 
           <div className="mt-5 space-y-3">
             {ACCESS_ACTIONS.map(({ key, label, hint }) => {
@@ -2602,8 +2591,7 @@ function Step8Visibility({
                         </option>
                       ))}
                     </select>
-                    {(rule.type === "min_score" ||
-                      rule.type === "max_degrees") && (
+                    {rule.type === "min_score" && (
                       <Input
                         type="number"
                         min={0}
@@ -2612,9 +2600,7 @@ function Step8Visibility({
                         onChange={(e) =>
                           updateAccessRule(key, "threshold", e.target.value)
                         }
-                        placeholder={
-                          rule.type === "min_score" ? "Score" : "Degrees"
-                        }
+                        placeholder="Score"
                       />
                     )}
                     {rule.type === "specific_people" && (
@@ -2626,6 +2612,31 @@ function Step8Visibility({
                 </div>
               );
             })}
+          </div>
+
+          {/* Allow intro requests toggle */}
+          <div className="mt-5 flex items-start justify-between gap-4 rounded-lg border border-border bg-white p-4">
+            <div>
+              <div className="text-sm font-medium text-foreground">
+                Allow introduction requests
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Anyone who sees the preview can request an intro —
+                through a mutual connection, or anonymously into your
+                inbox (identity hidden until you reply).
+              </div>
+            </div>
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input
+                type="checkbox"
+                checked={state.allowIntroRequests}
+                onChange={(e) =>
+                  update("allowIntroRequests", e.target.checked)
+                }
+                className="peer sr-only"
+              />
+              <div className="h-6 w-11 rounded-full bg-muted after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-brand peer-checked:after:translate-x-5" />
+            </label>
           </div>
         </div>
 

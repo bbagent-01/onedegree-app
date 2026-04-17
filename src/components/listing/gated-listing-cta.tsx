@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MessageCircle, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,19 +13,24 @@ interface Props {
   listingTitle: string;
   hostName: string;
   isSignedIn: boolean;
+  /** Whether the viewer can message the host directly. */
   canMessage: boolean;
+  /** Host's allow_intro_requests toggle. */
   canRequestIntro: boolean;
   mutualConnections: TrustPathUser[];
 }
 
 /**
- * Primary CTA block on the gated listing preview. Decides between:
- *   - Request introduction  (when request_intro is allowed + has mutuals)
- *   - Message host          (when message is allowed)
- *   - Grow your network     (else)
- *   - Sign in               (anonymous viewers)
+ * Primary CTA block on the gated listing preview. A preview is never
+ * a dead end — the viewer always has at least one action:
  *
- * Guarantees a preview is never a dead end: there's always a next step.
+ *   - Full contact unlocked  → "Message host"
+ *   - Intro requests allowed → "Request intro via [Connector]" OR
+ *                              "Send intro message" (anonymous)
+ *   - Intro requests disabled (host opted out)
+ *                            → "Private listing" state, no CTA
+ *
+ * There is no "Grow your network" fallback — it was unactionable.
  */
 export function GatedListingCTA({
   listingId,
@@ -40,9 +44,12 @@ export function GatedListingCTA({
   const router = useRouter();
   const [introOpen, setIntroOpen] = useState(false);
   const [messaging, setMessaging] = useState(false);
-
   const hostFirst = hostName.split(" ")[0];
-  const canShowIntro = canRequestIntro && mutualConnections.length > 0;
+  const firstMutual = mutualConnections[0];
+
+  if (!isSignedIn) {
+    return null;
+  }
 
   const messageHost = async () => {
     if (messaging) return;
@@ -69,72 +76,11 @@ export function GatedListingCTA({
     }
   };
 
-  if (!isSignedIn) {
-    return (
-      <>
-        <p className="mt-2 text-sm text-foreground">
-          Sign in to see your connection to this host. If you share friends,
-          the listing unlocks automatically.
-        </p>
-        <Link
-          href="/sign-in"
-          className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background hover:bg-foreground/90"
-        >
-          Sign in
-        </Link>
-      </>
-    );
-  }
-
-  if (canShowIntro) {
-    return (
-      <>
-        <p className="mt-2 text-sm text-foreground">
-          Ask a mutual connection to introduce you to {hostFirst}. One warm
-          intro usually unlocks access.
-        </p>
-        <Button
-          type="button"
-          onClick={() => setIntroOpen(true)}
-          className="mt-4 flex h-10 w-full gap-2 rounded-lg bg-brand font-semibold hover:bg-brand-600"
-        >
-          <UserPlus className="h-4 w-4" />
-          Request introduction
-        </Button>
-        {canMessage && (
-          <button
-            type="button"
-            onClick={messageHost}
-            disabled={messaging}
-            className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-white text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60"
-          >
-            <MessageCircle className="h-4 w-4" />
-            {messaging ? "Opening…" : `Message ${hostFirst} directly`}
-          </button>
-        )}
-        <p className="mt-2 text-center text-xs text-muted-foreground">
-          {mutualConnections.length} mutual connection
-          {mutualConnections.length === 1 ? "" : "s"} available
-        </p>
-
-        <RequestIntroDialog
-          open={introOpen}
-          onOpenChange={setIntroOpen}
-          listingId={listingId}
-          listingTitle={listingTitle}
-          hostName={hostName}
-          mutualConnections={mutualConnections}
-        />
-      </>
-    );
-  }
-
   if (canMessage) {
     return (
       <>
         <p className="mt-2 text-sm text-foreground">
-          Message {hostFirst} directly about this listing. They may have room
-          to share more once they know who&apos;s asking.
+          Message {hostFirst} directly about this listing.
         </p>
         <Button
           type="button"
@@ -149,19 +95,52 @@ export function GatedListingCTA({
     );
   }
 
+  if (canRequestIntro) {
+    const buttonLabel = firstMutual
+      ? `Request intro via ${firstMutual.name.split(" ")[0]}${
+          mutualConnections.length > 1
+            ? ` +${mutualConnections.length - 1}`
+            : ""
+        }`
+      : "Send intro message";
+
+    return (
+      <>
+        <p className="mt-2 text-sm text-foreground">
+          {firstMutual
+            ? `Ask a mutual connection to introduce you to ${hostFirst}.`
+            : `No mutual connections yet — send an anonymous intro. ${hostFirst} sees your name only once they reply.`}
+        </p>
+        <Button
+          type="button"
+          onClick={() => setIntroOpen(true)}
+          className="mt-4 flex h-10 w-full gap-2 rounded-lg bg-brand font-semibold hover:bg-brand-600"
+        >
+          <UserPlus className="h-4 w-4" />
+          {buttonLabel}
+        </Button>
+        {mutualConnections.length > 0 && (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            {mutualConnections.length} mutual connection
+            {mutualConnections.length === 1 ? "" : "s"} available
+          </p>
+        )}
+
+        <RequestIntroDialog
+          open={introOpen}
+          onOpenChange={setIntroOpen}
+          listingId={listingId}
+          listingTitle={listingTitle}
+          hostName={hostName}
+          mutualConnections={mutualConnections}
+        />
+      </>
+    );
+  }
+
   return (
-    <>
-      <p className="mt-2 text-sm text-foreground">
-        You don&apos;t share any connections with this host yet. Grow your
-        network — once someone you know vouches for someone in this host&apos;s
-        circle, the listing unlocks automatically.
-      </p>
-      <Link
-        href="/invite"
-        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background hover:bg-foreground/90"
-      >
-        Grow your network
-      </Link>
-    </>
+    <p className="mt-2 text-sm text-muted-foreground">
+      This host isn&apos;t accepting introduction requests right now.
+    </p>
   );
 }

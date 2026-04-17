@@ -1,13 +1,25 @@
 /**
- * Listing access control.
+ * Listing access control (simplified model).
  * Server-side only.
  *
- * Evaluates access_settings JSON from a listing against a viewer's
- * 1° vouch score and degree count.
+ * The new model collapses the 6-action gates into:
+ *
+ *   1. see_preview              — outer ring
+ *   2. full_listing_contact     — inner ring (full listing + message
+ *                                 + request-to-book together)
+ *   3. allow_intro_requests     — toggle for viewers who see the
+ *                                 preview but not the full listing
+ *
+ * Enforcement rule: full_listing_contact is *at most* as permissive
+ * as see_preview. If the stored settings violate this (e.g. legacy
+ * rows), full_listing_contact is clamped at read time.
+ *
+ * Anonymous viewers are no longer supported. A null viewerId short-
+ * circuits to "no access" — callers must sign the user in first.
  */
 
 import type { AccessRule, AccessSettings, ListingAccessResult } from "./types";
-import { DEFAULT_ACCESS_SETTINGS } from "./types";
+import { DEFAULT_ACCESS_SETTINGS, normalizeAccessSettings } from "./types";
 
 interface ListingForAccess {
   host_id: string;
@@ -15,144 +27,89 @@ interface ListingForAccess {
   access_settings?: AccessSettings | null;
 }
 
-/**
- * Check what actions a viewer can perform on a listing.
- *
- * @param viewerId - The viewer's user ID (null = anonymous)
- * @param listing - The listing with host_id, visibility_mode, access_settings
- * @param score - The viewer's 1° score to the listing host
- * @param degrees - Number of degrees between viewer and host (stub for CC-C1b)
- */
 export function checkListingAccess(
   viewerId: string | null,
   listing: ListingForAccess,
   score: number,
-  degrees?: number
+  _unusedDegree?: number
 ): ListingAccessResult {
-  const FULL_ACCESS: ListingAccessResult = {
-    can_see_preview: true,
-    can_see_full: true,
-    can_request_book: true,
-    can_message: true,
-    can_request_intro: true,
-    can_view_host_profile: true,
-  };
-
   const NO_ACCESS: ListingAccessResult = {
     can_see_preview: false,
     can_see_full: false,
+    can_request_intro: false,
     can_request_book: false,
     can_message: false,
-    can_request_intro: false,
     can_view_host_profile: false,
   };
 
-  // Host always has full access to their own listing
-  if (viewerId && viewerId === listing.host_id) {
-    return FULL_ACCESS;
-  }
+  const FULL_ACCESS: ListingAccessResult = {
+    can_see_preview: true,
+    can_see_full: true,
+    can_request_intro: true,
+    can_request_book: true,
+    can_message: true,
+    can_view_host_profile: true,
+  };
 
-  // Hidden listings: no access unless you're the host (on browse; direct-link handled separately)
-  if (listing.visibility_mode === "hidden") {
-    return NO_ACCESS;
-  }
+  // Hosts always see their own listings fully.
+  if (viewerId && viewerId === listing.host_id) return FULL_ACCESS;
 
-  // Public listings: everyone gets full access
-  if (listing.visibility_mode === "public") {
-    return FULL_ACCESS;
-  }
+  // Auth wall — no anonymous access under the new model.
+  if (!viewerId) return NO_ACCESS;
 
-  // null/undefined visibility_mode treated as preview_gated (default)
+  if (listing.visibility_mode === "hidden") return NO_ACCESS;
+  if (listing.visibility_mode === "public") return FULL_ACCESS;
 
-  // Anonymous viewers: only get through rules set to "anyone_anywhere".
-  // Any other type (anyone, min_score, max_degrees, specific_people)
-  // implicitly requires a signed-in viewer.
-  if (!viewerId) {
-    const settings = listing.access_settings ?? DEFAULT_ACCESS_SETTINGS;
-    return {
-      can_see_preview: evaluateRule(settings.see_preview, null, score, degrees),
-      can_see_full: evaluateRule(settings.see_full, null, score, degrees),
-      can_request_book: false,
-      can_message: false,
-      can_request_intro: false,
-      can_view_host_profile: evaluateRule(
-        settings.view_host_profile,
-        null,
-        score,
-        degrees
-      ),
-    };
-  }
+  // preview_gated (default)
+  const settings = normalizeAccessSettings(
+    listing.access_settings ?? DEFAULT_ACCESS_SETTINGS
+  );
 
-  // preview_gated (default): evaluate each action against access_settings
-  const settings = listing.access_settings ?? DEFAULT_ACCESS_SETTINGS;
+  const canSeePreview = evaluateRule(settings.see_preview, viewerId, score);
+
+  // Clamp: full_listing_contact can never be more permissive than
+  // see_preview, regardless of what's in the DB.
+  const canSeeFull =
+    canSeePreview &&
+    evaluateRule(settings.full_listing_contact, viewerId, score);
+
+  // Intro requests are available to anyone who can see the preview
+  // but not the full listing, provided the host left the toggle on.
+  const canRequestIntro =
+    canSeePreview && !canSeeFull && settings.allow_intro_requests !== false;
 
   return {
-    can_see_preview: evaluateRule(
-      settings.see_preview,
-      viewerId,
-      score,
-      degrees
-    ),
-    can_see_full: evaluateRule(settings.see_full, viewerId, score, degrees),
-    can_request_book: evaluateRule(
-      settings.request_book,
-      viewerId,
-      score,
-      degrees
-    ),
-    can_message: evaluateRule(settings.message, viewerId, score, degrees),
-    can_request_intro: evaluateRule(
-      settings.request_intro,
-      viewerId,
-      score,
-      degrees
-    ),
-    can_view_host_profile: evaluateRule(
-      settings.view_host_profile,
-      viewerId,
-      score,
-      degrees
-    ),
+    can_see_preview: canSeePreview,
+    can_see_full: canSeeFull,
+    can_request_intro: canRequestIntro,
+    // Collapsed actions mirror can_see_full.
+    can_request_book: canSeeFull,
+    can_message: canSeeFull,
+    can_view_host_profile: canSeeFull,
   };
 }
 
 /**
- * Evaluate a single access rule against the viewer's context.
+ * Evaluate a single rule. Anonymous viewers are always denied — the
+ * caller should have bounced them to sign-in before calling this.
  */
 function evaluateRule(
   rule: AccessRule | undefined,
   viewerId: string | null,
-  score: number,
-  degrees?: number
+  score: number
 ): boolean {
-  if (!rule) return false;
+  if (!rule || !viewerId) return false;
 
   switch (rule.type) {
-    case "anyone_anywhere":
-      // Public web — signed-in not required.
-      return true;
-
     case "anyone":
-      // Any signed-in user on the platform.
-      return viewerId != null;
-
+      return true;
     case "min_score":
-      // Signed-in + trust score threshold met.
-      return viewerId != null && score >= (rule.threshold ?? 0);
-
+      return score >= (rule.threshold ?? 0);
     case "specific_people":
-      return viewerId != null && (rule.user_ids ?? []).includes(viewerId);
-
-    case "max_degrees":
-      return (
-        viewerId != null &&
-        degrees !== undefined &&
-        degrees !== null &&
-        degrees <= (rule.threshold ?? 0)
-      );
-
+      return (rule.user_ids ?? []).includes(viewerId);
     default:
+      // Unknown legacy types get denied. normalizeAccessSettings
+      // should have converted them before we reach this point.
       return false;
   }
 }

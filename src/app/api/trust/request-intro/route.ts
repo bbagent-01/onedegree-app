@@ -6,13 +6,19 @@ import { emailNewMessage } from "@/lib/email";
 
 /**
  * POST /api/trust/request-intro
- * Body: { listingId, connectorId, hostName, listingTitle }
+ * Body: { listingId, connectorId?, hostName?, listingTitle?, message? }
  *
- * Opens an "introduction request" conversation between the viewer and
- * one of their mutual connections. The connector is not the listing's
- * actual host, but the thread is pinned to the listing so both parties
- * have clear context. Pre-fills a polite intro request as the first
- * message. Returns the thread id.
+ * Two modes based on whether connectorId is provided:
+ *
+ *   Connector route  — opens a thread between viewer and the mutual
+ *   connector, pinned to the listing. The connector decides to
+ *   forward or decline. sender_anonymous = false (connector already
+ *   knows the viewer — they vouched for them).
+ *
+ *   Anonymous route  — no mutual exists. Opens a thread directly to
+ *   the host with sender_anonymous = true and is_intro_request = true.
+ *   The host sees an anonymized sender label; viewer's identity is
+ *   revealed once the host replies (thread then promotes to Messages).
  */
 export async function POST(req: Request) {
   const { userId } = await auth();
@@ -23,13 +29,11 @@ export async function POST(req: Request) {
     connectorId?: string;
     hostName?: string;
     listingTitle?: string;
+    message?: string;
   } | null;
 
-  if (!body?.listingId || !body?.connectorId) {
-    return Response.json(
-      { error: "listingId and connectorId required" },
-      { status: 400 }
-    );
+  if (!body?.listingId) {
+    return Response.json({ error: "listingId required" }, { status: 400 });
   }
 
   const supabase = getSupabaseAdmin();
@@ -42,9 +46,6 @@ export async function POST(req: Request) {
   if (!viewer) {
     return Response.json({ error: "User not found" }, { status: 404 });
   }
-  if (viewer.id === body.connectorId) {
-    return Response.json({ error: "Can't intro yourself" }, { status: 400 });
-  }
 
   const { data: listing } = await supabase
     .from("listings")
@@ -54,16 +55,28 @@ export async function POST(req: Request) {
   if (!listing) {
     return Response.json({ error: "Listing not found" }, { status: 404 });
   }
+  if (viewer.id === listing.host_id) {
+    return Response.json({ error: "Can't intro yourself" }, { status: 400 });
+  }
 
-  // Reuse existing thread between viewer and connector pinned to this
-  // listing, otherwise create one. host_id holds the connector here —
-  // the thread is the conversation surface, not a hosting claim.
+  // Decide which side of the thread is guest vs. host slot.
+  //
+  // Connector route: thread is viewer ↔ connector (connector sits in
+  //   the host_id slot by convention — it's the conversation surface).
+  // Anonymous route: thread is viewer ↔ actual host. is_intro_request
+  //   hides the sender identity until the host replies.
+  const isAnonymous = !body.connectorId;
+  const otherPartyId = body.connectorId ?? listing.host_id;
+  if (viewer.id === otherPartyId) {
+    return Response.json({ error: "Can't intro yourself" }, { status: 400 });
+  }
+
   const { data: existing } = await supabase
     .from("message_threads")
-    .select("id")
+    .select("id, is_intro_request, intro_promoted_at")
     .eq("listing_id", body.listingId)
     .eq("guest_id", viewer.id)
-    .eq("host_id", body.connectorId)
+    .eq("host_id", otherPartyId)
     .maybeSingle();
 
   let threadId: string;
@@ -75,7 +88,10 @@ export async function POST(req: Request) {
       .insert({
         listing_id: body.listingId,
         guest_id: viewer.id,
-        host_id: body.connectorId,
+        host_id: otherPartyId,
+        is_intro_request: true,
+        sender_anonymous: isAnonymous,
+        intro_connector_id: body.connectorId ?? null,
       })
       .select("id")
       .single();
@@ -89,9 +105,13 @@ export async function POST(req: Request) {
     threadId = created.id;
   }
 
-  const host = body.hostName || "the host";
+  const hostName = body.hostName || "the host";
   const title = body.listingTitle || listing.title;
-  const content = `Hi! I'm interested in "${title}" on 1° B&B, hosted by ${host}. Since you know them, could you introduce us?`;
+  const content =
+    body.message?.trim() ||
+    (isAnonymous
+      ? `Hi! I saw your listing "${title}" on 1° B&B and would love to connect. This is an introduction request — my identity stays private until you reply.`
+      : `Hi! I'd like to be introduced to ${hostName} about their listing "${title}" on 1° B&B. Since you know them, could you pass this along?`);
 
   const { error: msgErr } = await supabase.from("messages").insert({
     thread_id: threadId,
@@ -104,7 +124,6 @@ export async function POST(req: Request) {
     return Response.json({ error: "Couldn't send message" }, { status: 500 });
   }
 
-  // Bump the host_unread_count so the connector sees the request.
   await supabase
     .from("message_threads")
     .update({
@@ -114,10 +133,9 @@ export async function POST(req: Request) {
     })
     .eq("id", threadId);
 
-  // Best-effort email notification.
   await emailNewMessage({
-    recipientId: body.connectorId,
-    senderName: viewer.name || "Someone",
+    recipientId: otherPartyId,
+    senderName: isAnonymous ? "Someone on 1° B&B" : viewer.name || "Someone",
     threadId,
     preview: content.slice(0, 240),
     listingTitle: `Introduction request · ${title}`,
