@@ -104,8 +104,10 @@ export function TrustTag({
           className
         )}
       >
-        <ShieldIcon muted size="h-3.5 w-3.5" />
-        <span className="font-semibold text-zinc-600">{degree}°</span>
+        <span className="inline-flex items-center gap-0.5 font-semibold text-zinc-600">
+          <ShieldIcon muted size="h-3.5 w-3.5" />
+          <span>{degree}°</span>
+        </span>
         {ratingNode}
       </span>
     );
@@ -120,14 +122,16 @@ export function TrustTag({
           className
         )}
       >
-        <ShieldIcon muted size="h-3.5 w-3.5" />
-        <span className="font-semibold text-zinc-500">—</span>
+        <span className="inline-flex items-center gap-0.5 font-semibold text-zinc-500">
+          <ShieldIcon muted size="h-3.5 w-3.5" />
+          <span>—</span>
+        </span>
         {ratingNode}
       </span>
     );
   }
 
-  // 1° — shield, score, connector dots/avatars.
+  // 1° — shield + score sit tight together, then connector dots/avatars.
   return (
     <span
       className={cn(
@@ -135,8 +139,10 @@ export function TrustTag({
         className
       )}
     >
-      <ShieldIcon score={score} size="h-3.5 w-3.5" />
-      <span className={cn("font-semibold", tier.textClass)}>{score}</span>
+      <span className={cn("inline-flex items-center gap-0.5 font-semibold", tier.textClass)}>
+        <ShieldIcon score={score} size="h-3.5 w-3.5" />
+        <span>{score}</span>
+      </span>
       {connectorPaths.length > 0 &&
         (isMedium ? (
           <ConnectorAvatars
@@ -146,7 +152,7 @@ export function TrustTag({
         ) : (
           <ConnectorDots
             strengths={connectorPaths.map((p) => p.strength)}
-            size="h-2 w-2"
+            size="h-3 w-3"
           />
         ))}
       {ratingNode}

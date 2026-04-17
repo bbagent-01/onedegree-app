@@ -21,7 +21,7 @@ const MAX_DOTS = 4;
  */
 export function ConnectorDots({
   strengths,
-  size = "h-2.5 w-2.5",
+  size = "h-3 w-3",
   className,
 }: Props) {
   if (!strengths.length) return null;

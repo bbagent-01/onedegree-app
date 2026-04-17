@@ -553,16 +553,17 @@ async function computeIndirectFallback(
 
 /**
  * Tier configuration used by TrustBadge, TrustGate, and filter UI.
- * Low scores are neutral gray (not alarming) and warmer colors
- * signal progressively stronger trust. Red is reserved for errors
- * and is intentionally absent from the trust scale.
+ * Monotonic emerald ramp — lighter green = less trust, deeper green
+ * = more trust. "Not connected" (score 0) stays neutral zinc to keep
+ * a clear visual distinction between "no connection" and "very weak
+ * connection."
  *
- *   0        Not connected          zinc
- *   1–14     Weak                   zinc (same gray family, subtle)
- *   15–29    Modest                 orange
- *   30–49    Strong                 lime (yellow-green)
- *   50–74    Very strong            emerald
- *   75+      Extremely strong       blue
+ *   0        Not connected          zinc-300 / -500
+ *   1–14     Weak                   emerald-200
+ *   15–29    Modest                 emerald-400
+ *   30–49    Strong                 emerald-500
+ *   50–74    Very strong            emerald-600
+ *   75+      Extremely strong       emerald-800
  */
 export type TrustTierKey =
   | "none"
@@ -592,19 +593,19 @@ export function trustTier(score: number): TrustTier {
     return {
       key: "extremely_strong",
       label: "Extremely strong",
-      dotClass: "bg-blue-500",
-      ringClass: "ring-blue-500/40",
-      textClass: "text-blue-700",
-      tintClass: "bg-blue-50 text-blue-800 ring-blue-200",
-      solidClass: "bg-blue-600 text-white",
+      dotClass: "bg-emerald-800",
+      ringClass: "ring-emerald-800/40",
+      textClass: "text-emerald-800",
+      tintClass: "bg-emerald-100 text-emerald-900 ring-emerald-300",
+      solidClass: "bg-emerald-800 text-white",
     };
   }
   if (score >= 50) {
     return {
       key: "very_strong",
       label: "Very strong",
-      dotClass: "bg-emerald-500",
-      ringClass: "ring-emerald-500/40",
+      dotClass: "bg-emerald-600",
+      ringClass: "ring-emerald-600/40",
       textClass: "text-emerald-700",
       tintClass: "bg-emerald-50 text-emerald-800 ring-emerald-200",
       solidClass: "bg-emerald-600 text-white",
@@ -614,33 +615,33 @@ export function trustTier(score: number): TrustTier {
     return {
       key: "strong",
       label: "Strong",
-      dotClass: "bg-lime-500",
-      ringClass: "ring-lime-500/40",
-      textClass: "text-lime-700",
-      tintClass: "bg-lime-50 text-lime-800 ring-lime-200",
-      solidClass: "bg-lime-600 text-white",
+      dotClass: "bg-emerald-500",
+      ringClass: "ring-emerald-500/40",
+      textClass: "text-emerald-600",
+      tintClass: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+      solidClass: "bg-emerald-500 text-white",
     };
   }
   if (score >= 15) {
     return {
       key: "modest",
       label: "Modest",
-      dotClass: "bg-orange-500",
-      ringClass: "ring-orange-500/40",
-      textClass: "text-orange-700",
-      tintClass: "bg-orange-50 text-orange-800 ring-orange-200",
-      solidClass: "bg-orange-500 text-white",
+      dotClass: "bg-emerald-400",
+      ringClass: "ring-emerald-400/40",
+      textClass: "text-emerald-500",
+      tintClass: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+      solidClass: "bg-emerald-400 text-white",
     };
   }
   if (score >= 1) {
     return {
       key: "weak",
       label: "Weak",
-      dotClass: "bg-zinc-400",
-      ringClass: "ring-zinc-400/40",
-      textClass: "text-zinc-600",
-      tintClass: "bg-zinc-50 text-zinc-700 ring-zinc-200",
-      solidClass: "bg-zinc-500 text-white",
+      dotClass: "bg-emerald-200",
+      ringClass: "ring-emerald-200",
+      textClass: "text-emerald-500",
+      tintClass: "bg-emerald-50 text-emerald-600 ring-emerald-100",
+      solidClass: "bg-emerald-200 text-emerald-900",
     };
   }
   return {

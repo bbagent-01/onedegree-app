@@ -194,21 +194,34 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
         )}
         <ShowMathToggle on={showMath} onToggle={() => setShowMath((v) => !v)} />
         {showMath && (
-          <div className="mt-2 rounded-lg bg-muted/30 p-2 text-[11px] text-muted-foreground font-mono">
-            <div>
-              Vouch score:{" "}
+          <div className="mt-2 rounded-lg bg-muted/30 p-2.5 text-[11px] font-mono">
+            <div className="text-foreground/70">
+              {data.type === "direct_forward"
+                ? `You → ${data.targetName}`
+                : `${data.targetName} → You`}
+            </div>
+            <div className="mt-1 pl-3">
+              Vouch score ={" "}
               <span className="font-semibold text-foreground">
-                {vouch.vouch_score}
+                {vouch.vouch_score} pts
               </span>
             </div>
             {data.type === "direct_forward" && data.reverseVouch && (
-              <div className="mt-1">
-                Reverse vouch score:{" "}
-                <span className="font-semibold text-foreground">
-                  {data.reverseVouch.vouch_score}
-                </span>
-              </div>
+              <>
+                <div className="mt-2 text-foreground/70">
+                  {data.targetName} → You
+                </div>
+                <div className="mt-1 pl-3">
+                  Vouch score ={" "}
+                  <span className="font-semibold text-foreground">
+                    {data.reverseVouch.vouch_score} pts
+                  </span>
+                </div>
+              </>
             )}
+            <div className="mt-2 text-muted-foreground/70 text-[10px]">
+              Numeric-only view. Vouch type and years-known stay hidden.
+            </div>
           </div>
         )}
       </div>
@@ -241,29 +254,73 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
 
       <ShowMathToggle on={showMath} onToggle={() => setShowMath((v) => !v)} />
       {showMath && (
-        <div className="mt-2 rounded-lg bg-muted/30 p-2 text-[11px] text-muted-foreground font-mono">
-          {sortedPaths.map((p) => (
-            <div key={p.connector.id} className="mt-1 first:mt-0">
-              Path {p.rank}: avg({p.link_a}, {p.link_b.toFixed(1)}) ={" "}
-              <span className="font-semibold text-foreground">
-                {p.path_strength}
-              </span>
-              {p.rank > 1 && (
-                <>
-                  {" "}
-                  × {p.weight.toFixed(3)} ={" "}
-                  <span className="font-semibold text-foreground">
-                    {p.weighted_score}
+        <div className="mt-2 space-y-3 rounded-lg bg-muted/30 p-2.5 text-[11px] font-mono">
+          {sortedPaths.map((p) => {
+            const firstName = p.connector.name.split(" ")[0];
+            return (
+              <div key={p.connector.id}>
+                <div className="font-semibold text-foreground">
+                  Path {p.rank} · via {firstName}
+                </div>
+                <div className="mt-1 pl-3 text-foreground/70">
+                  You → {firstName}
+                  <div className="pl-3 text-foreground">
+                    vouch score ={" "}
+                    <span className="font-semibold">
+                      {p.link_a.toFixed(1)} pts
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-1 pl-3 text-foreground/70">
+                  {firstName} → {data.targetName.split(" ")[0]}
+                  <div className="pl-3 text-foreground">
+                    vouch score ={" "}
+                    <span className="font-semibold">
+                      {p.connector_vouch_score.toFixed(1)} pts
+                    </span>
+                  </div>
+                  <div className="pl-3 text-foreground">
+                    × {firstName}&apos;s vouch power ={" "}
+                    <span className="font-semibold">
+                      {p.connector_vouch_power.toFixed(2)}×
+                    </span>
+                  </div>
+                  <div className="pl-3 text-foreground">
+                    = <span className="font-semibold">{p.link_b.toFixed(1)} pts</span>
+                  </div>
+                </div>
+                <div className="mt-1 pl-3 text-foreground">
+                  Path strength = avg({p.link_a.toFixed(1)},{" "}
+                  {p.link_b.toFixed(1)}) ={" "}
+                  <span className="font-semibold">
+                    {p.path_strength.toFixed(1)} pts
                   </span>
-                </>
-              )}
-            </div>
-          ))}
-          <div className="mt-2 border-t border-border pt-1">
-            Total:{" "}
-            <span className="font-semibold text-foreground">
+                </div>
+                <div className="mt-0.5 pl-3 text-foreground">
+                  × harmonic weight (1 / rank {p.rank}) ={" "}
+                  <span className="font-semibold">
+                    {p.weight.toFixed(3)}
+                  </span>
+                </div>
+                <div className="mt-0.5 pl-3 font-semibold text-emerald-700">
+                  Weighted = {p.weighted_score.toFixed(2)} pts
+                </div>
+              </div>
+            );
+          })}
+          <div className="border-t border-border pt-2 text-foreground">
+            Total ={" "}
+            {sortedPaths
+              .map((p) => p.weighted_score.toFixed(2))
+              .join(" + ")}{" "}
+            ={" "}
+            <span className="font-semibold text-emerald-700">
               {data.score} pts
             </span>
+          </div>
+          <div className="text-[10px] text-muted-foreground/70">
+            Numeric-only view. Vouch type and years-known stay hidden
+            to protect each voucher&apos;s privacy.
           </div>
         </div>
       )}
