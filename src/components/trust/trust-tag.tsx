@@ -13,10 +13,11 @@ interface Props {
   /** Trust score from viewer → target user. Ignored when direct=true. */
   score?: number;
   /**
-   * Degrees of separation. 1 = direct/single-connector (score shown),
-   * 2+ = multi-hop (shown as "2°", no score). `null` = not connected.
+   * Degrees of separation. 1 = direct vouch, 2 = via one connector,
+   * 3 = via two connectors. `null` = not connected. 2° and 3° render
+   * as bare ordinals ("2nd°" / "3rd°") — no shield, no score.
    */
-  degree?: 1 | 2 | null;
+  degree?: 1 | 2 | 3 | null;
   /** When true, viewer directly vouched for target — renders a green
    *  checkmark + "Vouched" label in place of the score + dots. */
   direct?: boolean;
@@ -95,12 +96,14 @@ export function TrustTag({
     );
   }
 
-  // Via-connector (degree=2) — the whole point of 1° B&B is the
-  // difference between "I know this person" (direct) and "I know
-  // someone who knows them" (via). The bare ordinal is the fastest
-  // way to read that. Shield+score lives in the popover / detail
-  // view for anyone who wants to understand the math.
+  // Via-connector (degree=2) or 3-hop (degree=3). Both render as
+  // bare ordinals — no shield, no score. The whole point of 1° B&B
+  // is the difference between "I know this person" (direct) and
+  // "I know someone who knows them" (via). The ordinal is the
+  // fastest read; shield+score lives in the popover / detail view.
   if (degree && degree >= 2 && !direct) {
+    const ordinal = degree === 3 ? "3rd" : "2nd";
+    const tone = degree === 3 ? "text-zinc-500" : "text-zinc-600";
     return (
       <span
         className={cn(
@@ -108,7 +111,7 @@ export function TrustTag({
           className
         )}
       >
-        <span className="font-semibold text-zinc-600">2nd&deg;</span>
+        <span className={cn("font-semibold", tone)}>{ordinal}&deg;</span>
         {ratingNode}
       </span>
     );

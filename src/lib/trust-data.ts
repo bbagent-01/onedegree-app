@@ -27,7 +27,7 @@
 
 import { getSupabaseAdmin } from "./supabase";
 
-export type TrustDegree = 1 | 2 | null;
+export type TrustDegree = 1 | 2 | 3 | null;
 
 export interface TrustPathUser {
   id: string;
@@ -459,6 +459,32 @@ export async function computeTrustPaths(
   for (const id of targetIds) {
     if (!out[id]) out[id] = EMPTY;
   }
+
+  // 3° upgrade pass: targets still at degree=null that the viewer
+  // reaches via a 3-hop chain viewer→X→Y→target. No score.
+  const unresolved = targetIds.filter(
+    (id) => id !== viewerId && out[id]?.degree == null
+  );
+  if (unresolved.length > 0) {
+    const reach3 = await find3DegreeReach(
+      supabase,
+      viewerId,
+      unresolved,
+      "outgoing"
+    );
+    for (const id of reach3) {
+      out[id] = {
+        score: 0,
+        degree: 3,
+        hasDirectVouch: false,
+        path: [],
+        mutualConnections: [],
+        connectionCount: 0,
+        connectorPaths: [],
+      };
+    }
+  }
+
   return out;
 }
 
@@ -757,7 +783,99 @@ export async function computeIncomingTrustPaths(
   for (const id of sourceIds) {
     if (!out[id]) out[id] = EMPTY;
   }
+
+  // 3° upgrade pass: any source still at degree=null gets checked
+  // for a 3-hop chain source→X→Y→viewer. Score stays 0; degree=3
+  // exists purely to render "3rd°" on the tile.
+  const unresolved = unique.filter((id) => out[id]?.degree == null);
+  if (unresolved.length > 0) {
+    const reach3 = await find3DegreeReach(
+      supabase,
+      viewerId,
+      unresolved,
+      "incoming"
+    );
+    for (const id of reach3) {
+      out[id] = {
+        score: 0,
+        degree: 3,
+        hasDirectVouch: false,
+        path: [],
+        mutualConnections: [],
+        connectionCount: 0,
+        connectorPaths: [],
+      };
+    }
+  }
+
   return out;
+}
+
+/**
+ * Identify which candidate users reach `anchorId` in exactly 3 edges
+ * — `candidate → X → Y → anchor`. Used as a post-processing pass
+ * over the 1°/2° engine to upgrade `degree: null` results into
+ * `degree: 3` when a 3-hop chain exists. No score is computed; the
+ * spec calls for a bare ordinal label beyond 2°.
+ *
+ * `direction = "incoming"` walks backward (who-reaches-anchor via
+ * chains ending in vouches-for-anchor); `direction = "outgoing"`
+ * walks forward (who-does-anchor-reach via chains starting with
+ * anchor-vouched-for-X).
+ *
+ * The alpha graph is tiny (<500 edges), so this is an in-memory BFS
+ * over one extra vouches scan rather than a recursive RPC.
+ */
+async function find3DegreeReach(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  anchorId: string,
+  candidateIds: string[],
+  direction: "incoming" | "outgoing"
+): Promise<Set<string>> {
+  const reach = new Set<string>();
+  if (candidateIds.length === 0) return reach;
+
+  // Level 1: direct predecessors (incoming) or successors (outgoing) of the anchor.
+  const l1Col = direction === "incoming" ? "voucher_id" : "vouchee_id";
+  const l1MatchCol = direction === "incoming" ? "vouchee_id" : "voucher_id";
+  const { data: l1Rows } = await supabase
+    .from("vouches")
+    .select(`${l1Col}`)
+    .eq(l1MatchCol, anchorId);
+  const l1 = new Set<string>(
+    (l1Rows ?? []).map((r) => (r as Record<string, string>)[l1Col])
+  );
+  if (l1.size === 0) return reach;
+
+  // Level 2: one hop further along the same direction.
+  const { data: l2Rows } = await supabase
+    .from("vouches")
+    .select(`${l1Col}, ${l1MatchCol}`)
+    .in(l1MatchCol, [...l1]);
+  const l2 = new Set<string>();
+  for (const r of l2Rows ?? []) {
+    const row = r as Record<string, string>;
+    const next = row[l1Col];
+    // Skip the anchor itself — a direct 1° link isn't a 3° upgrade.
+    if (next && next !== anchorId) l2.add(next);
+  }
+  if (l2.size === 0) return reach;
+
+  // Level 3: candidates that connect into L2. If candidate ∈ L3
+  // AND candidate ∉ L1 ∪ L2, it's reachable only via 3 hops.
+  const { data: l3Rows } = await supabase
+    .from("vouches")
+    .select(`${l1Col}, ${l1MatchCol}`)
+    .in(l1MatchCol, [...l2])
+    .in(l1Col, candidateIds);
+  for (const r of l3Rows ?? []) {
+    const row = r as Record<string, string>;
+    const candidate = row[l1Col];
+    if (!candidate || candidate === anchorId) continue;
+    if (l1.has(candidate) || l2.has(candidate)) continue;
+    reach.add(candidate);
+  }
+  return reach;
 }
 
 /** Single-source convenience wrapper for the reverse direction. */

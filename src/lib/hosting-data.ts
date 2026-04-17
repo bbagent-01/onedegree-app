@@ -39,7 +39,7 @@ export interface HostingReservation {
   /** Host has personally vouched for this guest. */
   trust_is_direct: boolean;
   /** Degree of separation. */
-  trust_degree: 1 | 2 | null;
+  trust_degree: 1 | 2 | 3 | null;
   /** Connector bridges sorted strongest → weakest. */
   trust_connector_paths: ConnectorPathSummary[];
   /** stay_confirmations row id for this booking, if any. Needed to

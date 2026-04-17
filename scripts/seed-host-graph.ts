@@ -166,18 +166,24 @@ const VOUCHES: VouchDef[] = [
   { from: "loren", to: "sophie", type: "standard", years: "3to5" },
   { from: "loren", to: "diego", type: "standard", years: "1to3" },
 
-  // Every host reaches Loren through at least one connector so
-  // /browse never renders a zinc "—" tile. bjorn + mei previously
-  // had no path; now they do.
-  { from: "bjorn", to: "theo", type: "standard", years: "1to3" },
-  { from: "bjorn", to: "ivy", type: "standard", years: "lt1" },
-  { from: "mei", to: "yuki", type: "standard", years: "1to3" },
+  // 3°-only hosts: bjorn reaches Loren via Amira (Elena's friend);
+  // mei via Luka (Marco's friend). Chain is host→peripheral→
+  // connector→loren = 3 edges, so the engine's 3° post-pass picks
+  // them up and tiles render "3rd°". Deliberately NO direct edge
+  // to any Loren-connector so neither host resolves as 2°.
+  { from: "bjorn", to: "amira", type: "standard", years: "1to3" },
+  { from: "mei", to: "luka", type: "standard", years: "1to3" },
 
-  // ── Peripheral users (reachable through connectors, but connectors
-  // have vouched for Loren — so these are really 2-hop connectors too) ──
+  // ── Peripherals and their reciprocal vouches. These complete
+  // 3-hop chains like bjorn→amira→elena→loren: Amira vouches for
+  // Elena, Elena already vouches for Loren, so anyone whose only
+  // path runs through Amira lands at 3°.
   { from: "elena", to: "amira", type: "standard", years: "3to5" },
+  { from: "amira", to: "elena", type: "standard", years: "3to5" },
   { from: "marco", to: "luka", type: "inner_circle", years: "5to10" },
+  { from: "luka", to: "marco", type: "standard", years: "5to10" },
   { from: "nadia", to: "jules", type: "standard", years: "1to3" },
+  { from: "jules", to: "nadia", type: "standard", years: "1to3" },
 
   // ── Connector cross-links (for richness, no direct effect on Loren path) ──
   { from: "elena", to: "marco", type: "standard", years: "5to10" },
@@ -412,6 +418,25 @@ async function main() {
       .eq("id", upserted.id);
 
     console.log(`  ✓ ${u.name}`);
+  }
+
+  // Clean stale edges the seed used to write but no longer does.
+  // Without this, older runs' bjorn→theo / bjorn→ivy / mei→yuki
+  // remain and keep those hosts at 2° instead of 3°.
+  const staleEdges: Array<[string, string]> = [
+    ["bjorn", "theo"],
+    ["bjorn", "ivy"],
+    ["mei", "yuki"],
+  ];
+  for (const [from, to] of staleEdges) {
+    const fromId = userIdByKey.get(from);
+    const toId = userIdByKey.get(to);
+    if (!fromId || !toId) continue;
+    await supabase
+      .from("vouches")
+      .delete()
+      .eq("voucher_id", fromId)
+      .eq("vouchee_id", toId);
   }
 
   // Vouches.
