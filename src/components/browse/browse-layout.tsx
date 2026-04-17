@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 export interface BrowseListingTrust {
   score: number;
   degree: 1 | 2 | null;
+  connectionCount: number;
   canSeePreview: boolean;
   canSeeFull: boolean;
   canRequestBook: boolean;

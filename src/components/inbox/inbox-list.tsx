@@ -158,7 +158,11 @@ export function InboxList({ threads, selectedId }: Props) {
                             {t.other_user.name}
                           </span>
                           {t.trust_score > 0 && (
-                            <TrustBadge score={t.trust_score} size="sm" />
+                            <TrustBadge
+                              score={t.trust_score}
+                              connectionCount={t.trust_connection_count}
+                              size="sm"
+                            />
                           )}
                         </div>
                         <span className="shrink-0 text-[11px] text-muted-foreground">

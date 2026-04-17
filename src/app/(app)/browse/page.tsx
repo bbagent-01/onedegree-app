@@ -183,6 +183,7 @@ async function BrowseResults({
       trustByListing[l.id] = {
         score,
         degree,
+        connectionCount: r?.connectionCount ?? 0,
         canSeePreview: access.can_see_preview,
         canSeeFull: access.can_see_full,
         canRequestBook: access.can_request_book,
@@ -206,6 +207,7 @@ async function BrowseResults({
       trustByListing[l.id] = {
         score: 0,
         degree: null,
+        connectionCount: 0,
         canSeePreview: access.can_see_preview,
         canSeeFull: access.can_see_full,
         canRequestBook: false,

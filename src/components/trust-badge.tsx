@@ -29,6 +29,7 @@ export function TrustBadge({
   const tier = trustTier(score);
 
   if (size === "sm") {
+    const hasCount = typeof connectionCount === "number" && connectionCount > 0;
     return (
       <div
         className={cn(
@@ -36,10 +37,18 @@ export function TrustBadge({
           tier.solidClass,
           className
         )}
-        title={`1° vouch score: ${score} (${tier.label})`}
+        title={
+          hasCount
+            ? `1° vouch score: ${score} across ${connectionCount} connection${connectionCount === 1 ? "" : "s"} (${tier.label})`
+            : `1° vouch score: ${score} (${tier.label})`
+        }
       >
         <span>{score}</span>
-        <span className="text-[11px] font-semibold opacity-85">1°</span>
+        {hasCount && (
+          <span className="text-[11px] font-semibold opacity-85">
+            ({connectionCount})
+          </span>
+        )}
       </div>
     );
   }

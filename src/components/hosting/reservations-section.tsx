@@ -86,7 +86,11 @@ function ReservationCard({
                   {reservation.guest_name}
                 </Link>
                 {reservation.trust_score > 0 && (
-                  <TrustBadge score={reservation.trust_score} size="sm" />
+                  <TrustBadge
+                    score={reservation.trust_score}
+                    connectionCount={reservation.trust_connection_count}
+                    size="sm"
+                  />
                 )}
               </div>
               <p className="truncate text-sm text-muted-foreground">

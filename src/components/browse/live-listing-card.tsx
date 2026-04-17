@@ -373,7 +373,13 @@ export function LiveListingCard({
           {listing.host && (
             <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <span>Hosted by {listing.host.name}</span>
-              {trust && <TrustBadge score={trust.score} size="sm" />}
+              {trust && (
+                <TrustBadge
+                  score={trust.score}
+                  connectionCount={trust.connectionCount}
+                  size="sm"
+                />
+              )}
             </p>
           )}
           <p className="mt-1">

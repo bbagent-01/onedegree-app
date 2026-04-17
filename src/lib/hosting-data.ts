@@ -34,6 +34,8 @@ export interface HostingReservation {
   responded_at: string | null;
   /** Host's 1° vouch score to this guest. 0 if none. */
   trust_score: number;
+  /** Distinct connectors feeding the score. 0 if none. */
+  trust_connection_count: number;
 }
 
 export type ReservationBucket = "upcoming" | "completed" | "cancelled";
@@ -158,6 +160,7 @@ export async function getHostDashboardData(): Promise<HostDashboardData | null> 
       created_at: r.created_at,
       responded_at: r.responded_at,
       trust_score: trustByGuest[r.guest_id]?.score ?? 0,
+      trust_connection_count: trustByGuest[r.guest_id]?.connectionCount ?? 0,
     };
 
     if (r.status === "cancelled" || r.status === "declined") {

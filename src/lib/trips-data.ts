@@ -28,6 +28,8 @@ export interface TripCard {
   guest_left_review: boolean;
   /** Guest's 1° vouch score to this host. 0 if none. */
   trust_score: number;
+  /** Distinct connectors feeding the score. 0 if none. */
+  trust_connection_count: number;
 }
 
 const todayISO = () => new Date().toISOString().split("T")[0];
@@ -153,6 +155,7 @@ export async function getTripsForGuest(guestId: string): Promise<TripCard[]> {
       stay_confirmation_id: stay?.id || null,
       guest_left_review: !!stay?.hostRated,
       trust_score: trustByHost[r.host_id]?.score ?? 0,
+      trust_connection_count: trustByHost[r.host_id]?.connectionCount ?? 0,
     } satisfies TripCard;
   });
 }
@@ -255,6 +258,7 @@ export async function getTripDetail(
     stay_confirmation_id: stay?.id || null,
     guest_left_review: stay?.host_rating !== null && stay?.host_rating !== undefined,
     trust_score: trust?.score ?? 0,
+    trust_connection_count: trust?.connectionCount ?? 0,
     message: request.message || null,
     host_response_message: request.host_response_message || null,
     responded_at: request.responded_at || null,
