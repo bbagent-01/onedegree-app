@@ -95,15 +95,12 @@ export function TrustTag({
     );
   }
 
-  // 2°+ — no shield, just the ordinal degree number. This is the
-  // teaching case: shield = 1° direct trust; bare number = multi-hop.
-  // Loren's call — the shield disambiguates "trust exists" from
-  // "distance exists," so keep it out of the multi-hop state.
-  if (degree && degree >= 2 && !direct && !connectorPaths.length) {
-    // Type today is 1 | 2 | null; the guard above rules out 1 and
-    // null, so degree is always 2 here. Kept as a string so the
-    // multi-hop engine (deferred) can broaden this later.
-    const ordinal = "2nd";
+  // Via-connector (degree=2) — the whole point of 1° B&B is the
+  // difference between "I know this person" (direct) and "I know
+  // someone who knows them" (via). The bare ordinal is the fastest
+  // way to read that. Shield+score lives in the popover / detail
+  // view for anyone who wants to understand the math.
+  if (degree && degree >= 2 && !direct) {
     return (
       <span
         className={cn(
@@ -111,7 +108,7 @@ export function TrustTag({
           className
         )}
       >
-        <span className="font-semibold text-zinc-600">{ordinal}&deg;</span>
+        <span className="font-semibold text-zinc-600">2nd&deg;</span>
         {ratingNode}
       </span>
     );

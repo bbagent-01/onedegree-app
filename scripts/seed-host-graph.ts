@@ -157,13 +157,21 @@ const VOUCHES: VouchDef[] = [
   { from: "zara", to: "loren", type: "inner_circle", years: "10plus" },
 
   // ── Loren's DIRECT vouches for hosts (hasDirectVouch=true) ──
-  // These render as the green "Vouched" pill on tiles — the strongest
-  // signal in the system. Two hosts Loren has personally stayed with.
+  // These render as the green "Vouched" pill on tiles — roughly half
+  // of hosts are direct so the preview grid reads as a balanced mix
+  // of "Vouched" vs. "2nd°" vs. everything in between.
   { from: "loren", to: "kai", type: "inner_circle", years: "5to10" },
   { from: "loren", to: "zara", type: "inner_circle", years: "10plus" },
+  { from: "loren", to: "rosa", type: "inner_circle", years: "5to10" },
+  { from: "loren", to: "sophie", type: "standard", years: "3to5" },
+  { from: "loren", to: "diego", type: "standard", years: "1to3" },
 
-  // cold hosts: no vouches toward Loren or her connectors
-  // (bjorn, mei stay isolated to demonstrate "Not connected")
+  // Every host reaches Loren through at least one connector so
+  // /browse never renders a zinc "—" tile. bjorn + mei previously
+  // had no path; now they do.
+  { from: "bjorn", to: "theo", type: "standard", years: "1to3" },
+  { from: "bjorn", to: "ivy", type: "standard", years: "lt1" },
+  { from: "mei", to: "yuki", type: "standard", years: "1to3" },
 
   // ── Peripheral users (reachable through connectors, but connectors
   // have vouched for Loren — so these are really 2-hop connectors too) ──
