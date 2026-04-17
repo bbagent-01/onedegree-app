@@ -118,6 +118,7 @@ export default async function ListingPage({
         pricePerNight={price}
         avgRating={listing.avg_rating}
         reviewCount={listing.review_count}
+        canBook={isHost || access.can_request_book}
       />
       {/* Title (mobile: below photos, desktop: above) */}
       <div className="mt-4 hidden md:block">
@@ -219,8 +220,15 @@ export default async function ListingPage({
                   </div>
                 </ConnectionPopover>
                 <div>
-                  <div className="text-lg font-semibold">
-                    Hosted by {listing.host.name}
+                  <div className="flex items-center gap-2 text-lg font-semibold">
+                    <span>Hosted by {listing.host.name}</span>
+                    {trust && (
+                      <TrustBadge
+                        score={trust.score}
+                        connectionCount={trust.connectionCount}
+                        size="sm"
+                      />
+                    )}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {yearsHosting > 0
@@ -252,63 +260,74 @@ export default async function ListingPage({
 
           <Separator className="my-8" />
 
-          {/* Availability Calendar — desktop only. Mobile uses the
-              single-month paginated picker inside BookingSidebar's
-              #mobile-dates block. */}
-          <section className="hidden md:block">
-            <h2 className="mb-2 text-xl font-semibold">
-              Select check-in date
-            </h2>
-            <p className="mb-6 text-sm text-muted-foreground">
-              Add your travel dates for exact pricing
-            </p>
-            <AvailabilityCalendarWrapper
-              blockedRanges={listing.blockedRanges}
-            />
-          </section>
+          {/* Availability Calendar — desktop only, and only when the
+              viewer can actually request to book. Hiding the calendar
+              for gated viewers keeps the "booking isn't available yet"
+              message from feeling contradicted by a clickable picker. */}
+          {(isHost || access.can_request_book) && (
+            <section className="hidden md:block">
+              <h2 className="mb-2 text-xl font-semibold">
+                Select check-in date
+              </h2>
+              <p className="mb-6 text-sm text-muted-foreground">
+                Add your travel dates for exact pricing
+              </p>
+              <AvailabilityCalendarWrapper
+                blockedRanges={listing.blockedRanges}
+              />
+            </section>
+          )}
         </div>
 
-        {/* Right column: booking sidebar */}
+        {/* Right column: booking sidebar OR trust status when booking
+            is gated. We replace the date picker entirely when the viewer
+            hasn't met the request_book threshold so they can't try to
+            book something they can't request. */}
         <div className="md:col-span-1">
-          <BookingSidebar
-            listingId={listing.id}
-            pricePerNight={price}
-            minNights={listing.min_nights}
-            maxNights={listing.max_nights}
-            avgRating={listing.avg_rating}
-            reviewCount={listing.review_count}
-            blockedRanges={listing.blockedRanges}
-          />
-          {!isHost && trust && listing.host && (
-            <div className="mt-4 hidden md:block">
-              <ListingTrustStatus
-                listingId={listing.id}
-                listingTitle={listing.title}
-                hostName={listing.host.name}
-                score={trust.score}
-                requiredScore={listing.min_trust_gate ?? 0}
-                canRequestBook={access.can_request_book}
-                canMessage={access.can_message}
-                canRequestIntro={access.can_request_intro}
-                mutualConnections={trust.mutualConnections}
-              />
-              {trust.path.length >= 2 && (
-                <div className="mt-3 rounded-2xl border border-border bg-white p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Your connection
+          {isHost || access.can_request_book ? (
+            <BookingSidebar
+              listingId={listing.id}
+              pricePerNight={price}
+              minNights={listing.min_nights}
+              maxNights={listing.max_nights}
+              avgRating={listing.avg_rating}
+              reviewCount={listing.review_count}
+              blockedRanges={listing.blockedRanges}
+            />
+          ) : (
+            trust &&
+            listing.host && (
+              <div className="hidden md:block">
+                <ListingTrustStatus
+                  listingId={listing.id}
+                  listingTitle={listing.title}
+                  hostName={listing.host.name}
+                  score={trust.score}
+                  requiredScore={listing.min_trust_gate ?? 0}
+                  canRequestBook={access.can_request_book}
+                  canMessage={access.can_message}
+                  canRequestIntro={access.can_request_intro}
+                  mutualConnections={trust.mutualConnections}
+                  pricePerNight={price}
+                />
+                {trust.path.length >= 2 && (
+                  <div className="mt-3 rounded-2xl border border-border bg-white p-4">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Your connection
+                    </div>
+                    <div className="mt-3 overflow-x-auto">
+                      <ConnectionPath path={trust.path} compact />
+                    </div>
                   </div>
-                  <div className="mt-3 overflow-x-auto">
-                    <ConnectionPath path={trust.path} compact />
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )
           )}
         </div>
       </div>
 
-      {/* Mobile: trust status below the grid */}
-      {!isHost && trust && listing.host && (
+      {/* Mobile: trust status replaces the booking bar when gated. */}
+      {!isHost && !access.can_request_book && trust && listing.host && (
         <div className="mt-6 md:hidden">
           <ListingTrustStatus
             listingId={listing.id}
@@ -320,6 +339,7 @@ export default async function ListingPage({
             canMessage={access.can_message}
             canRequestIntro={access.can_request_intro}
             mutualConnections={trust.mutualConnections}
+            pricePerNight={price}
           />
         </div>
       )}
@@ -427,8 +447,15 @@ export default async function ListingPage({
                       )}
                     </div>
                   </ConnectionPopover>
-                  <div className="mt-3 text-xl font-semibold">
-                    {listing.host.name}
+                  <div className="mt-3 flex items-center gap-2 text-xl font-semibold">
+                    <span>{listing.host.name}</span>
+                    {trust && (
+                      <TrustBadge
+                        score={trust.score}
+                        connectionCount={trust.connectionCount}
+                        size="sm"
+                      />
+                    )}
                   </div>
                   {isSuperhost && (
                     <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-muted-foreground">

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Lock, MessageCircle, UserPlus } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Lock, MessageCircle, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { RequestIntroDialog } from "@/components/trust/request-intro-dialog";
 import { trustTier, type TrustPathUser } from "@/lib/trust-data";
-import { cn } from "@/lib/utils";
-import Link from "next/link";
 
 interface Props {
   listingId: string;
@@ -20,103 +21,142 @@ interface Props {
   canMessage: boolean;
   canRequestIntro: boolean;
   mutualConnections: TrustPathUser[];
+  /** Shown in the header — matches BookingSidebar layout. */
+  pricePerNight: number;
 }
 
 /**
- * Compact trust status shown under the booking sidebar on the full
- * listing detail page. Mirrors the TrustGate states (trusted / limited
- * / blocked) with inline CTAs so the viewer always has a clear next
- * step — even if they can see the listing but can't yet book.
+ * Replaces the BookingSidebar when the viewer can't yet request to
+ * book. Takes the same visual slot (sticky card with price header) so
+ * the gating feels native rather than tacked on — the date picker is
+ * hidden entirely, and the only actions are the ones the viewer
+ * actually can take (Request intro / Message host / Grow network).
  */
 export function ListingTrustStatus({
   listingId,
   listingTitle,
   hostName,
   score,
-  canRequestBook,
+  requiredScore,
   canMessage,
   canRequestIntro,
   mutualConnections,
+  pricePerNight,
 }: Props) {
+  const router = useRouter();
   const [introOpen, setIntroOpen] = useState(false);
+  const [messaging, setMessaging] = useState(false);
   const tier = trustTier(score);
   const hostFirst = hostName.split(" ")[0];
+  const hasIntro = canRequestIntro && mutualConnections.length > 0;
 
-  if (canRequestBook) {
-    return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+  const messageHost = async () => {
+    if (messaging) return;
+    setMessaging(true);
+    try {
+      const res = await fetch("/api/message-threads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        threadId?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.threadId) {
+        toast.error(data.error || "Couldn't open conversation");
+        return;
+      }
+      router.push(`/inbox/${data.threadId}`);
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setMessaging(false);
+    }
+  };
+
+  return (
+    <div className="sticky top-24 rounded-xl border border-border/60 bg-white p-6 shadow-xl">
+      <div className="flex items-baseline justify-between">
+        <div>
+          <span className="text-2xl font-semibold">${pricePerNight}</span>
+          <span className="text-base text-muted-foreground"> night</span>
+        </div>
+        <span
+          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums shadow-sm"
+          style={{}}
+        >
+          <span className={`rounded-full px-2 py-0.5 ${tier.solidClass}`}>
+            {score} 1°
+          </span>
+        </span>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
         <div className="flex items-start gap-3">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
           <div className="text-sm">
-            <div className="font-semibold text-emerald-900">
-              You&apos;re trusted
+            <div className="font-semibold text-amber-900">
+              {canMessage
+                ? "Booking needs a stronger connection"
+                : "Private listing"}
             </div>
-            <p className="mt-0.5 text-emerald-800/80">
+            <p className="mt-0.5 text-amber-800/80">
               Your 1° vouch score with {hostFirst} is{" "}
-              <span className="font-semibold">{score}</span> ({tier.label}). You
-              can message them and request to book.
+              <span className="font-semibold">{score}</span>
+              {requiredScore > 0 && (
+                <>
+                  {" "}
+                  — this listing requires{" "}
+                  <span className="font-semibold">{requiredScore}</span> to
+                  request a booking
+                </>
+              )}
+              . {canMessage
+                ? "You can still message them, and a conversation often closes the gap."
+                : "Grow your trust with this host's network to unlock more actions."}
             </p>
           </div>
         </div>
       </div>
-    );
-  }
 
-  const hasIntro = canRequestIntro && mutualConnections.length > 0;
-
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border p-4",
-        hasIntro || canMessage
-          ? "border-amber-200 bg-amber-50"
-          : "border-border bg-muted/40"
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-        <div className="text-sm">
-          <div className="font-semibold text-amber-900">
-            {canMessage ? "Booking needs a stronger connection" : "Private listing"}
-          </div>
-          <p className="mt-0.5 text-amber-800/80">
-            Your current score with {hostFirst} is{" "}
-            <span className="font-semibold">{score}</span>.{" "}
-            {canMessage
-              ? "You can still message them — a conversation often gets you the rest of the way."
-              : "Grow your trust with this host's network to unlock more actions."}
-          </p>
-        </div>
-      </div>
-      <div className="mt-3 flex flex-col gap-2">
+      <div className="mt-4 flex flex-col gap-2">
         {hasIntro && (
           <Button
             type="button"
             onClick={() => setIntroOpen(true)}
-            className="flex h-10 w-full gap-2 rounded-lg bg-brand font-semibold hover:bg-brand-600"
+            className="flex h-11 w-full gap-2 rounded-lg bg-brand text-sm font-semibold hover:bg-brand-600"
           >
             <UserPlus className="h-4 w-4" />
             Request introduction
           </Button>
         )}
         {canMessage && (
-          <Link
-            href={`/listings/${listingId}`}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-white text-sm font-semibold text-foreground hover:bg-muted"
+          <button
+            type="button"
+            onClick={messageHost}
+            disabled={messaging}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-border bg-white text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60"
           >
             <MessageCircle className="h-4 w-4" />
-            Message {hostFirst}
-          </Link>
+            {messaging ? "Opening…" : `Message ${hostFirst}`}
+          </button>
         )}
         {!hasIntro && !canMessage && (
           <Link
             href="/invite"
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 text-sm font-semibold text-background hover:bg-foreground/90"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 text-sm font-semibold text-background hover:bg-foreground/90"
           >
             Grow your network
           </Link>
         )}
       </div>
+
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        Dates open up once your score with {hostFirst} reaches{" "}
+        {requiredScore > 0 ? requiredScore : "the host's threshold"} (
+        {tier.label.toLowerCase()} now).
+      </p>
 
       {hasIntro && (
         <RequestIntroDialog

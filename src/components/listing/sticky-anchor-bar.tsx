@@ -9,6 +9,9 @@ interface Props {
   pricePerNight: number;
   avgRating: number | null;
   reviewCount: number;
+  /** When false, the price + Reserve cluster is suppressed because the
+   *  viewer is gated out of requesting to book. */
+  canBook?: boolean;
 }
 
 /**
@@ -21,7 +24,12 @@ interface Props {
  * the logo/user controls. The Reserve button delegates a click to the
  * actual booking sidebar button so all state stays in one place.
  */
-export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props) {
+export function StickyAnchorBar({
+  pricePerNight,
+  avgRating,
+  reviewCount,
+  canBook = true,
+}: Props) {
   const [mounted, setMounted] = useState(false);
   // Two-stage visibility: anchors appear once scrolled past the photo
   // gallery, then price+Reserve gets added once scrolled past the booking
@@ -119,7 +127,7 @@ export function StickyAnchorBar({ pricePerNight, avgRating, reviewCount }: Props
         <button onClick={() => scrollTo("reviews")} className="py-2 hover:text-foreground/70">Reviews</button>
         <button onClick={() => scrollTo("location")} className="py-2 hover:text-foreground/70">Location</button>
       </nav>
-      {showReserve && (
+      {showReserve && canBook && (
         <div className="flex items-center gap-4">
           <div className="text-right">
             <div className="text-[15px] font-semibold">${pricePerNight} <span className="font-normal text-muted-foreground">night</span></div>
