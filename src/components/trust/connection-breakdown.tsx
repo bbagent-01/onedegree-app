@@ -7,7 +7,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, User as UserIcon, Users, UserX } from "lucide-react";
+import { CheckCircle2, Loader2, User as UserIcon, Users, UserX } from "lucide-react";
 import { trustTier } from "@/lib/trust-data";
 import { cn } from "@/lib/utils";
 
@@ -192,7 +192,6 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
   //   incoming: forward = target → viewer (host's trust of me)
   if (data.type === "direct_forward" || data.type === "direct_reverse") {
     const vouch = data.vouch;
-    const tier = trustTier(vouch.vouch_score);
     const isIncoming = data.direction === "incoming";
     const heading =
       data.type === "direct_forward"
@@ -206,7 +205,7 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
       <div className="p-3">
         <div className="text-sm font-semibold">{heading}</div>
         <div className="mt-3 flex items-center gap-2">
-          <StrengthChip tier={tier} />
+          <DirectChip />
         </div>
         {data.type === "direct_forward" && data.reverseVouch && (
           <>
@@ -216,9 +215,7 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
                 : `${data.targetName} also vouched for you`}
             </div>
             <div className="mt-3 flex items-center gap-2">
-              <StrengthChip
-                tier={trustTier(data.reverseVouch.vouch_score)}
-              />
+              <DirectChip />
             </div>
           </>
         )}
@@ -468,6 +465,18 @@ function StrengthChip({
       )}
     >
       {tier.label}
+    </span>
+  );
+}
+
+/** Direct-vouch chip — used on the direct_forward / direct_reverse
+ *  branches instead of a numeric-tier StrengthChip, because a direct
+ *  vouch supersedes the score buckets entirely. */
+function DirectChip() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+      <CheckCircle2 className="h-3 w-3" />
+      Direct
     </span>
   );
 }

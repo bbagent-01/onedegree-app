@@ -424,8 +424,27 @@ async function main() {
       min_trust_gate: l.min_trust_gate,
       access_settings: {
         see_preview: { type: "anyone" },
-        full_listing_contact: { type: "min_score", threshold: l.min_trust_gate },
+        full_listing_contact: {
+          type: "min_score",
+          threshold: l.min_trust_gate,
+        },
         allow_intro_requests: true,
+        // Standard preset: all preview toggles ON. Matches the default
+        // a host sees in the visibility wizard so seeded listings read
+        // like freshly created ones instead of fully-hidden previews.
+        preview_content: {
+          show_title: true,
+          show_price_range: true,
+          show_description: true,
+          show_host_first_name: true,
+          show_neighborhood: true,
+          show_map_area: true,
+          show_rating: true,
+          show_amenities: true,
+          show_bed_counts: true,
+          show_house_rules: true,
+          use_preview_specific_description: false,
+        },
       },
     };
     const row = existing
