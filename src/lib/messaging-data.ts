@@ -29,6 +29,8 @@ export interface InboxThread {
   trust_score: number;
   /** Distinct connectors feeding the score. 0 if none. */
   trust_connection_count: number;
+  /** Viewer has personally vouched for the other participant. */
+  trust_is_direct: boolean;
 }
 
 export interface ThreadMessage {
@@ -148,6 +150,7 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
         : null,
       trust_score: trustByTarget[otherId]?.score ?? 0,
       trust_connection_count: trustByTarget[otherId]?.connectionCount ?? 0,
+      trust_is_direct: trustByTarget[otherId]?.hasDirectVouch ?? false,
     } satisfies InboxThread;
   });
 }
@@ -251,6 +254,7 @@ export async function getThreadDetail(
       : null,
     trust_score: trust?.score ?? 0,
     trust_connection_count: trust?.connectionCount ?? 0,
+    trust_is_direct: trust?.hasDirectVouch ?? false,
     messages: (messages || []) as ThreadMessage[],
     booking: booking
       ? {

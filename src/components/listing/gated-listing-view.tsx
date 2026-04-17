@@ -178,11 +178,12 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
                   </div>
                 )}
               </div>
-              {score > 0 && (
+              {(score > 0 || trust?.hasDirectVouch) && (
                 <TrustBadge
                   score={score}
                   size="md"
                   connectionCount={trust?.connectionCount}
+                  direct={trust?.hasDirectVouch ?? false}
                 />
               )}
             </div>

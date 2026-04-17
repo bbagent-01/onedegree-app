@@ -377,6 +377,7 @@ export function LiveListingCard({
                 <TrustBadge
                   score={trust.score}
                   connectionCount={trust.connectionCount}
+                  direct={trust.hasDirectVouch}
                   size="sm"
                 />
               )}

@@ -178,10 +178,11 @@ export function TripsList({ trips }: Props) {
                       >
                         Hosted by {t.host.name}
                       </Link>
-                      {t.trust_score > 0 && (
+                      {(t.trust_score > 0 || t.trust_is_direct) && (
                         <TrustBadge
                           score={t.trust_score}
                           connectionCount={t.trust_connection_count}
+                          direct={t.trust_is_direct}
                           size="sm"
                         />
                       )}

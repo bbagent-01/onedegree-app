@@ -328,6 +328,7 @@ function OtherTrustSection({
           score={trust.score}
           size="lg"
           connectionCount={trust.connectionCount}
+          direct={trust.hasDirectVouch}
         />
         <div className="rounded-2xl border border-border bg-white p-5">
           {trust.path.length >= 2 ? (

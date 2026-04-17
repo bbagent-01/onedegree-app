@@ -47,6 +47,12 @@ export interface TrustResult {
   score: number;
   /** 1 = direct vouch, 2 = through an intermediary, null = no path */
   degree: TrustDegree;
+  /**
+   * Whether the viewer has personally vouched for the target. Overrides
+   * the numeric score everywhere in the UI — a direct vouch is the
+   * strongest possible trust signal regardless of any computed score.
+   */
+  hasDirectVouch: boolean;
   /** Best path from viewer → target. Empty if no path. */
   path: TrustPathUser[];
   /** Every 1st-degree user who could introduce the viewer to the target. */
@@ -86,6 +92,7 @@ function edgeStrength(
 const EMPTY: TrustResult = {
   score: 0,
   degree: null,
+  hasDirectVouch: false,
   path: [],
   mutualConnections: [],
   connectionCount: 0,
@@ -256,12 +263,16 @@ export async function computeTrustPaths(
     const indirectScore = indirect?.score ?? 0;
 
     const score = Math.floor(Math.max(directScore, indirectScore));
-    const degree: TrustDegree =
-      directScore > 0 && directScore >= indirectScore
-        ? 1
-        : indirectScore > 0
-          ? 2
-          : null;
+    const hasDirectVouch = directScore > 0;
+    // A direct vouch always wins. The composite score still reflects
+    // the stronger of direct/indirect, but the badge/UI treats the
+    // connection as direct whenever the viewer has personally vouched
+    // for the target.
+    const degree: TrustDegree = hasDirectVouch
+      ? 1
+      : indirectScore > 0
+        ? 2
+        : null;
 
     const viewerProfile = profileById.get(viewerId);
     const targetProfile = profileById.get(targetId);
@@ -368,6 +379,7 @@ export async function computeTrustPaths(
     out[targetId] = {
       score,
       degree,
+      hasDirectVouch,
       path,
       mutualConnections,
       connectionCount: indirect?.connectionCount ?? mutualConnections.length,

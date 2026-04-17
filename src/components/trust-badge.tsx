@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { CheckCircle2 } from "lucide-react";
 import { trustTier } from "@/lib/trust-data";
 
 interface TrustBadgeProps {
@@ -6,6 +7,12 @@ interface TrustBadgeProps {
   size?: "sm" | "md" | "lg";
   /** Number of distinct connectors feeding the score — shown on md/lg. */
   connectionCount?: number;
+  /**
+   * When true, the viewer has personally vouched for this user.
+   * Supersedes the numeric score — renders a green checkmark badge
+   * instead. Direct vouches are the strongest signal we have.
+   */
+  direct?: boolean;
   className?: string;
 }
 
@@ -24,11 +31,26 @@ export function TrustBadge({
   score,
   size = "sm",
   connectionCount,
+  direct = false,
   className,
 }: TrustBadgeProps) {
   const tier = trustTier(score);
 
   if (size === "sm") {
+    if (direct) {
+      return (
+        <div
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white shadow-sm",
+            className
+          )}
+          title="Direct vouch — you vouched for this person"
+        >
+          <CheckCircle2 className="h-3 w-3" />
+          <span>Direct</span>
+        </div>
+      );
+    }
     const hasCount = typeof connectionCount === "number" && connectionCount > 0;
     return (
       <div
@@ -54,6 +76,26 @@ export function TrustBadge({
   }
 
   if (size === "md") {
+    if (direct) {
+      return (
+        <div
+          className={cn(
+            "inline-flex items-center gap-2 rounded-xl bg-white px-3.5 py-2 text-sm shadow-sm ring-2 ring-emerald-500/40",
+            className
+          )}
+        >
+          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-emerald-800">
+              Direct vouch
+            </span>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              You vouched for them
+            </span>
+          </div>
+        </div>
+      );
+    }
     return (
       <div
         className={cn(
@@ -89,6 +131,28 @@ export function TrustBadge({
   }
 
   // lg
+  if (direct) {
+    return (
+      <div
+        className={cn(
+          "rounded-2xl bg-white p-5 shadow-sm ring-2 ring-emerald-500/40",
+          className
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+          <div>
+            <div className="text-base font-semibold text-emerald-800">
+              Direct vouch
+            </div>
+            <div className="text-xs font-medium text-muted-foreground">
+              You&apos;ve personally vouched for them
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       className={cn(

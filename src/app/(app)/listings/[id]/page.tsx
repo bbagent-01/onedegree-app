@@ -126,11 +126,12 @@ export default async function ListingPage({
           <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
             {listing.title}
           </h1>
-          {trust && trust.score > 0 && (
+          {trust && (trust.score > 0 || trust.hasDirectVouch) && (
             <TrustBadge
               score={trust.score}
               size="md"
               connectionCount={trust.connectionCount}
+              direct={trust.hasDirectVouch}
             />
           )}
         </div>
@@ -226,6 +227,7 @@ export default async function ListingPage({
                       <TrustBadge
                         score={trust.score}
                         connectionCount={trust.connectionCount}
+                        direct={trust.hasDirectVouch}
                         size="sm"
                       />
                     )}
@@ -453,6 +455,7 @@ export default async function ListingPage({
                       <TrustBadge
                         score={trust.score}
                         connectionCount={trust.connectionCount}
+                        direct={trust.hasDirectVouch}
                         size="sm"
                       />
                     )}

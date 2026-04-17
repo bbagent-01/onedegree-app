@@ -85,10 +85,12 @@ function ReservationCard({
                 >
                   {reservation.guest_name}
                 </Link>
-                {reservation.trust_score > 0 && (
+                {(reservation.trust_score > 0 ||
+                  reservation.trust_is_direct) && (
                   <TrustBadge
                     score={reservation.trust_score}
                     connectionCount={reservation.trust_connection_count}
+                    direct={reservation.trust_is_direct}
                     size="sm"
                   />
                 )}

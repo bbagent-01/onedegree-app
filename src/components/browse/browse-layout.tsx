@@ -21,6 +21,8 @@ export interface BrowseListingTrust {
   score: number;
   degree: 1 | 2 | null;
   connectionCount: number;
+  /** True when the viewer has directly vouched for the host. */
+  hasDirectVouch: boolean;
   canSeePreview: boolean;
   canSeeFull: boolean;
   canRequestBook: boolean;
