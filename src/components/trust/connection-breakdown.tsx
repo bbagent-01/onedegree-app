@@ -129,7 +129,7 @@ export function ConnectionPopover({
       <PopoverContent
         side="bottom"
         align="start"
-        className="w-[28rem] max-w-[calc(100vw-1.5rem)] max-h-[80vh] overflow-y-auto p-0"
+        className="w-[34rem] max-w-[calc(100vw-1.5rem)] max-h-[80vh] overflow-y-auto p-0"
       >
         {loading && (
           <div className="flex items-center justify-center py-8">
@@ -254,56 +254,54 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
 
       <ShowMathToggle on={showMath} onToggle={() => setShowMath((v) => !v)} />
       {showMath && (
-        <div className="mt-2 space-y-3 rounded-lg bg-muted/30 p-2.5 text-[11px] font-mono">
+        <div className="mt-2 space-y-4 rounded-lg bg-muted/30 p-3 text-[11px] font-mono">
           {sortedPaths.map((p) => {
-            const firstName = p.connector.name.split(" ")[0];
+            const first = p.connector.name.split(" ")[0];
+            const targetFirst = data.targetName.split(" ")[0];
             return (
-              <div key={p.connector.id}>
-                <div className="font-semibold text-foreground">
-                  Path {p.rank} · via {firstName}
-                </div>
-                <div className="mt-1 pl-3 text-foreground/70">
-                  You → {firstName}
-                  <div className="pl-3 text-foreground">
-                    vouch score ={" "}
-                    <span className="font-semibold">
-                      {p.link_a.toFixed(1)} pts
-                    </span>
+              <div key={p.connector.id} className="space-y-1.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="font-semibold text-foreground">
+                    Path {p.rank} · via {first}
+                  </div>
+                  <div className="text-muted-foreground">
+                    rank {p.rank} · weight {p.weight.toFixed(3)}
                   </div>
                 </div>
-                <div className="mt-1 pl-3 text-foreground/70">
-                  {firstName} → {data.targetName.split(" ")[0]}
-                  <div className="pl-3 text-foreground">
-                    vouch score ={" "}
-                    <span className="font-semibold">
-                      {p.connector_vouch_score.toFixed(1)} pts
-                    </span>
-                  </div>
-                  <div className="pl-3 text-foreground">
-                    × {firstName}&apos;s vouch power ={" "}
-                    <span className="font-semibold">
-                      {p.connector_vouch_power.toFixed(2)}×
-                    </span>
-                  </div>
-                  <div className="pl-3 text-foreground">
-                    = <span className="font-semibold">{p.link_b.toFixed(1)} pts</span>
-                  </div>
+                <div className="rounded-md bg-white/70 px-2.5 py-1.5 text-foreground">
+                  You vouched for {first} &rarr;{" "}
+                  <span className="font-semibold">
+                    vouch score = {p.link_a.toFixed(1)} pts
+                  </span>
                 </div>
-                <div className="mt-1 pl-3 text-foreground">
+                <div className="rounded-md bg-white/70 px-2.5 py-1.5 text-foreground">
+                  {first} vouched for {targetFirst} &rarr;{" "}
+                  <span className="font-semibold">
+                    {p.connector_vouch_score.toFixed(1)} pts
+                  </span>{" "}
+                  ×{" "}
+                  <span className="font-semibold">
+                    {p.connector_vouch_power.toFixed(2)}×
+                  </span>{" "}
+                  vouch power ={" "}
+                  <span className="font-semibold">
+                    {p.link_b.toFixed(1)} pts
+                  </span>
+                </div>
+                <div className="px-1 text-foreground">
                   Path strength = avg({p.link_a.toFixed(1)},{" "}
                   {p.link_b.toFixed(1)}) ={" "}
                   <span className="font-semibold">
                     {p.path_strength.toFixed(1)} pts
                   </span>
-                </div>
-                <div className="mt-0.5 pl-3 text-foreground">
-                  × harmonic weight (1 / rank {p.rank}) ={" "}
+                  {"   "}×{" "}
                   <span className="font-semibold">
                     {p.weight.toFixed(3)}
+                  </span>{" "}
+                  ={" "}
+                  <span className="font-semibold text-emerald-700">
+                    {p.weighted_score.toFixed(2)} pts
                   </span>
-                </div>
-                <div className="mt-0.5 pl-3 font-semibold text-emerald-700">
-                  Weighted = {p.weighted_score.toFixed(2)} pts
                 </div>
               </div>
             );
@@ -336,11 +334,10 @@ function ColorKey() {
     range: string;
     className: string;
   }> = [
-    { label: "Weak", range: "1–14", className: "bg-emerald-200" },
-    { label: "Modest", range: "15–29", className: "bg-emerald-400" },
+    { label: "Weak", range: "1–14", className: "bg-emerald-100" },
+    { label: "Modest", range: "15–29", className: "bg-emerald-300" },
     { label: "Strong", range: "30–49", className: "bg-emerald-500" },
-    { label: "Very strong", range: "50–74", className: "bg-emerald-600" },
-    { label: "Extremely", range: "75+", className: "bg-emerald-800" },
+    { label: "Very strong", range: "50+", className: "bg-emerald-700" },
   ];
   return (
     <div className="rounded-md bg-white/60 p-2 text-[10px] text-muted-foreground">
@@ -349,7 +346,10 @@ function ColorKey() {
         {buckets.map((b) => (
           <div key={b.label} className="flex items-center gap-1.5">
             <span
-              className={cn("inline-block h-2.5 w-2.5 rounded-full", b.className)}
+              className={cn(
+                "inline-block h-2.5 w-2.5 rounded-full ring-1 ring-black/5",
+                b.className
+              )}
             />
             <span className="font-medium text-foreground">{b.range}</span>
             <span>{b.label}</span>
