@@ -1,4 +1,4 @@
-import { CheckCircle2, Star } from "lucide-react";
+import { Check, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { trustTier } from "@/lib/trust-data";
 import { ShieldIcon } from "./shield-icon";
@@ -14,12 +14,13 @@ interface Props {
   score?: number;
   /**
    * Degrees of separation.
-   *   1 = direct vouch (green "Vouched" pill)
+   *   1 = direct vouch (purple "Vouched" pill)
    *   2 = friend of a friend — shield + score + connector dots/avatars
-   *   3 = two hops out — bare "3rd°" ordinal, no shield or score
+   *   3 = two hops out — bare "3rd°" ordinal
+   *   4 = three hops out — bare "4th°" ordinal
    *   null = not connected
    */
-  degree?: 1 | 2 | 3 | null;
+  degree?: 1 | 2 | 3 | 4 | null;
   /** When true, viewer directly vouched for target — renders a green
    *  checkmark + "Vouched" label in place of the score + dots. */
   direct?: boolean;
@@ -77,7 +78,10 @@ export function TrustTag({
     <span className="text-muted-foreground">· New host</span>
   );
 
-  // Direct vouch — supersedes everything. Green check, "Vouched" label.
+  // Direct vouch — supersedes everything. Filled purple circle with
+  // a white check, "Vouched" label in the same purple. Purple is the
+  // 1DB brand color; using it for direct vouches signals "this is
+  // the platform-native, strongest signal."
   if (direct) {
     return (
       <span
@@ -87,10 +91,12 @@ export function TrustTag({
         )}
       >
         <span
-          className="inline-flex items-center gap-0.5 font-semibold text-emerald-700"
+          className="inline-flex items-center gap-1 font-semibold text-brand"
           title="Direct vouch — you vouched for this host"
         >
-          <CheckCircle2 className="h-3.5 w-3.5" />
+          <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand text-white">
+            <Check className="h-2.5 w-2.5" strokeWidth={3} />
+          </span>
           <span>Vouched</span>
         </span>
         {ratingNode}
@@ -98,10 +104,12 @@ export function TrustTag({
     );
   }
 
-  // 3° — two hops out. Score is always 0 for 3° (engine sets it
-  // that way per spec), so this branch has to run BEFORE the
-  // score-based em-dash check or it'd collapse into "not connected".
-  if (degree === 3 && !direct) {
+  // 3° / 4° — multi-hop. Score is always 0 (engine sets it that
+  // way per spec), so these branches run BEFORE the score-based
+  // em-dash check or they'd collapse into "not connected".
+  if ((degree === 3 || degree === 4) && !direct) {
+    const ordinal = degree === 4 ? "4th" : "3rd";
+    const tone = degree === 4 ? "text-zinc-400" : "text-zinc-500";
     return (
       <span
         className={cn(
@@ -109,7 +117,7 @@ export function TrustTag({
           className
         )}
       >
-        <span className="font-semibold text-zinc-500">3rd&deg;</span>
+        <span className={cn("font-semibold", tone)}>{ordinal}&deg;</span>
         {ratingNode}
       </span>
     );

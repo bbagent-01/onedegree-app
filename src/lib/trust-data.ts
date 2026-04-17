@@ -27,7 +27,7 @@
 
 import { getSupabaseAdmin } from "./supabase";
 
-export type TrustDegree = 1 | 2 | 3 | null;
+export type TrustDegree = 1 | 2 | 3 | 4 | null;
 
 export interface TrustPathUser {
   id: string;
@@ -460,28 +460,34 @@ export async function computeTrustPaths(
     if (!out[id]) out[id] = EMPTY;
   }
 
-  // 3° upgrade pass: targets still at degree=null that the viewer
-  // reaches via a 3-hop chain viewer→X→Y→target. No score.
-  const unresolved = targetIds.filter(
+  // Multi-hop upgrade pass: targets still at degree=null that the
+  // viewer reaches via 3 or 4 edges. No score.
+  let unresolved = targetIds.filter(
     (id) => id !== viewerId && out[id]?.degree == null
   );
   if (unresolved.length > 0) {
-    const reach3 = await find3DegreeReach(
+    const reach3 = await findNDegreeReach(
       supabase,
       viewerId,
       unresolved,
-      "outgoing"
+      "outgoing",
+      3
     );
     for (const id of reach3) {
-      out[id] = {
-        score: 0,
-        degree: 3,
-        hasDirectVouch: false,
-        path: [],
-        mutualConnections: [],
-        connectionCount: 0,
-        connectorPaths: [],
-      };
+      out[id] = { ...EMPTY, degree: 3 };
+    }
+    unresolved = unresolved.filter((id) => !reach3.has(id));
+  }
+  if (unresolved.length > 0) {
+    const reach4 = await findNDegreeReach(
+      supabase,
+      viewerId,
+      unresolved,
+      "outgoing",
+      4
+    );
+    for (const id of reach4) {
+      out[id] = { ...EMPTY, degree: 4 };
     }
   }
 
@@ -784,27 +790,33 @@ export async function computeIncomingTrustPaths(
     if (!out[id]) out[id] = EMPTY;
   }
 
-  // 3° upgrade pass: any source still at degree=null gets checked
-  // for a 3-hop chain source→X→Y→viewer. Score stays 0; degree=3
-  // exists purely to render "3rd°" on the tile.
-  const unresolved = unique.filter((id) => out[id]?.degree == null);
+  // Multi-hop upgrade pass: any source still at degree=null gets
+  // checked for a 3-hop or 4-hop chain to the viewer. Score stays 0;
+  // the degree exists purely to render "3rd°"/"4th°" on the tile.
+  let unresolved = unique.filter((id) => out[id]?.degree == null);
   if (unresolved.length > 0) {
-    const reach3 = await find3DegreeReach(
+    const reach3 = await findNDegreeReach(
       supabase,
       viewerId,
       unresolved,
-      "incoming"
+      "incoming",
+      3
     );
     for (const id of reach3) {
-      out[id] = {
-        score: 0,
-        degree: 3,
-        hasDirectVouch: false,
-        path: [],
-        mutualConnections: [],
-        connectionCount: 0,
-        connectorPaths: [],
-      };
+      out[id] = { ...EMPTY, degree: 3 };
+    }
+    unresolved = unresolved.filter((id) => !reach3.has(id));
+  }
+  if (unresolved.length > 0) {
+    const reach4 = await findNDegreeReach(
+      supabase,
+      viewerId,
+      unresolved,
+      "incoming",
+      4
+    );
+    for (const id of reach4) {
+      out[id] = { ...EMPTY, degree: 4 };
     }
   }
 
@@ -812,11 +824,12 @@ export async function computeIncomingTrustPaths(
 }
 
 /**
- * Identify which candidate users reach `anchorId` in exactly 3 edges
- * — `candidate → X → Y → anchor`. Used as a post-processing pass
- * over the 1°/2° engine to upgrade `degree: null` results into
- * `degree: 3` when a 3-hop chain exists. No score is computed; the
- * spec calls for a bare ordinal label beyond 2°.
+ * Identify which candidate users reach `anchorId` in exactly N
+ * edges (3 or 4) — `candidate → ... → anchor`. Used as a
+ * post-processing pass over the 1°/2° engine to upgrade
+ * `degree: null` results into `degree: N` when a multi-hop chain
+ * exists. No score is computed; the spec calls for a bare ordinal
+ * label beyond 2°.
  *
  * `direction = "incoming"` walks backward (who-reaches-anchor via
  * chains ending in vouches-for-anchor); `direction = "outgoing"`
@@ -824,55 +837,62 @@ export async function computeIncomingTrustPaths(
  * anchor-vouched-for-X).
  *
  * The alpha graph is tiny (<500 edges), so this is an in-memory BFS
- * over one extra vouches scan rather than a recursive RPC.
+ * over a small number of vouches queries rather than a recursive RPC.
+ *
+ * Returns the set of candidate ids reachable in *exactly* `depth`
+ * edges (never in fewer) — the caller layers these on top of the
+ * existing 1°/2° results.
  */
-async function find3DegreeReach(
+async function findNDegreeReach(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   anchorId: string,
   candidateIds: string[],
-  direction: "incoming" | "outgoing"
+  direction: "incoming" | "outgoing",
+  depth: 3 | 4
 ): Promise<Set<string>> {
   const reach = new Set<string>();
   if (candidateIds.length === 0) return reach;
 
-  // Level 1: direct predecessors (incoming) or successors (outgoing) of the anchor.
   const l1Col = direction === "incoming" ? "voucher_id" : "vouchee_id";
   const l1MatchCol = direction === "incoming" ? "vouchee_id" : "voucher_id";
-  const { data: l1Rows } = await supabase
-    .from("vouches")
-    .select(`${l1Col}`)
-    .eq(l1MatchCol, anchorId);
-  const l1 = new Set<string>(
-    (l1Rows ?? []).map((r) => (r as Record<string, string>)[l1Col])
-  );
-  if (l1.size === 0) return reach;
 
-  // Level 2: one hop further along the same direction.
-  const { data: l2Rows } = await supabase
-    .from("vouches")
-    .select(`${l1Col}, ${l1MatchCol}`)
-    .in(l1MatchCol, [...l1]);
-  const l2 = new Set<string>();
-  for (const r of l2Rows ?? []) {
-    const row = r as Record<string, string>;
-    const next = row[l1Col];
-    // Skip the anchor itself — a direct 1° link isn't a 3° upgrade.
-    if (next && next !== anchorId) l2.add(next);
+  // Seed the frontier at the anchor, then expand outward one hop at
+  // a time. `levels[i]` = set of users reachable in exactly i edges.
+  // We only need level 1 .. (depth-1) plus the final candidate pass.
+  const levels: Set<string>[] = [new Set([anchorId])];
+  const visited = new Set<string>([anchorId]);
+
+  for (let i = 1; i < depth; i++) {
+    const prev = levels[i - 1];
+    if (prev.size === 0) return reach;
+    const { data: rows } = await supabase
+      .from("vouches")
+      .select(`${l1Col}, ${l1MatchCol}`)
+      .in(l1MatchCol, [...prev]);
+    const next = new Set<string>();
+    for (const r of rows ?? []) {
+      const n = (r as Record<string, string>)[l1Col];
+      if (!n || visited.has(n)) continue;
+      visited.add(n);
+      next.add(n);
+    }
+    levels.push(next);
   }
-  if (l2.size === 0) return reach;
 
-  // Level 3: candidates that connect into L2. If candidate ∈ L3
-  // AND candidate ∉ L1 ∪ L2, it's reachable only via 3 hops.
-  const { data: l3Rows } = await supabase
+  const frontier = levels[depth - 1];
+  if (frontier.size === 0) return reach;
+
+  // Final hop: candidates that vouch into (incoming) / are vouched
+  // by (outgoing) someone on the frontier. Candidate must not
+  // already be reachable at a shorter depth.
+  const { data: finalRows } = await supabase
     .from("vouches")
     .select(`${l1Col}, ${l1MatchCol}`)
-    .in(l1MatchCol, [...l2])
+    .in(l1MatchCol, [...frontier])
     .in(l1Col, candidateIds);
-  for (const r of l3Rows ?? []) {
-    const row = r as Record<string, string>;
-    const candidate = row[l1Col];
-    if (!candidate || candidate === anchorId) continue;
-    if (l1.has(candidate) || l2.has(candidate)) continue;
+  for (const r of finalRows ?? []) {
+    const candidate = (r as Record<string, string>)[l1Col];
+    if (!candidate || visited.has(candidate)) continue;
     reach.add(candidate);
   }
   return reach;

@@ -36,7 +36,7 @@ export interface TripCard {
   /** Guest has personally vouched for this host. */
   trust_is_direct: boolean;
   /** Degree of separation. */
-  trust_degree: 1 | 2 | 3 | null;
+  trust_degree: 1 | 2 | 3 | 4 | null;
   /** Connector bridges sorted strongest → weakest. */
   trust_connector_paths: ConnectorPathSummary[];
 }

@@ -36,7 +36,7 @@ export interface InboxThread {
   /** Viewer has personally vouched for the other participant. */
   trust_is_direct: boolean;
   /** Degree of separation (1 = direct/single-connector, 2+ = multi-hop). */
-  trust_degree: 1 | 2 | 3 | null;
+  trust_degree: 1 | 2 | 3 | 4 | null;
   /** Connector bridges sorted strongest → weakest. */
   trust_connector_paths: ConnectorPathSummary[];
   /** True for pending intro requests. Hidden from Messages tab. */

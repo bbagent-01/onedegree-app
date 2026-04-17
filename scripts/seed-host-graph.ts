@@ -42,6 +42,16 @@ function pravatar(id: string): string {
   return `https://i.pravatar.cc/300?u=${encodeURIComponent(id)}`;
 }
 
+/** Stable per-key phone suffix so adding new users to USERS doesn't
+ *  shift array indices and collide with the phone unique constraint. */
+function phoneSuffix(key: string): string {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return String(hash % 1000).padStart(3, "0");
+}
+
 // ── New user cohort ───────────────────────────────────────────────
 // Roles in the graph (all for the host→guest direction):
 //   - connector: vouched by a host AND has vouched for Loren
@@ -72,10 +82,15 @@ const USERS: UserDef[] = [
   { key: "felix", name: "Felix Brandt", role: "connector", guest_rating: 3.2, bio: "Freelance videographer. Newer to the network." },
   { key: "ivy", name: "Ivy Okonkwo", role: "connector", guest_rating: 3.6, bio: "Researcher. Knows a few hosts via conferences." },
   { key: "cassidy", name: "Cassidy Miles", role: "connector", guest_rating: 3.0, bio: "Music producer." },
-  // ── Peripheral (2-hop only — prep for multi-hop) ──
+  // ── Peripheral (reachable via a connector) ──
   { key: "amira", name: "Amira Nasser", role: "peripheral", guest_rating: 4.4, bio: "Illustrator, known by Elena." },
   { key: "luka", name: "Luka Ivanov", role: "peripheral", guest_rating: 4.1, bio: "Composer, friend of Marco's." },
   { key: "jules", name: "Jules Fontaine", role: "peripheral", guest_rating: 3.8, bio: "Stylist, in Nadia's circle." },
+  // ── Peripheral-of-peripheral (reachable only via another peripheral).
+  // These carry 4°-only host chains so the browse grid has a couple
+  // tiles rendering "4th°". No direct edges to any 1°/2° connector.
+  { key: "pavel", name: "Pavel Novák", role: "peripheral", guest_rating: 4.0, bio: "Ceramicist, friend of Amira's." },
+  { key: "ines", name: "Ines Duarte", role: "peripheral", guest_rating: 3.9, bio: "Botanical stylist, friend of Luka's." },
 
   // ── Hosts (with listings) reachable via the connectors ──
   { key: "rosa", name: "Rosa Delgado", role: "host", host_rating: 4.9, bio: "Lifelong host in Mexico City.", location: "Mexico City" },
@@ -160,53 +175,50 @@ const ONE_WAY_VOUCHES: Array<VouchDef & { tweak?: "same" | "type" | "years" }> =
   { from: "ivy", to: "loren", type: "standard", years: "lt1" },
   { from: "cassidy", to: "loren", type: "standard", years: "lt1" },
 
-  // ── Loren ↔ direct-vouched hosts (green "Vouched" on tiles) ──
+  // ── 1° (direct vouches from Loren) — 2 hosts ──
   { from: "loren", to: "kai", type: "inner_circle", years: "5to10" },
   { from: "loren", to: "zara", type: "inner_circle", years: "10plus" },
-  { from: "loren", to: "rosa", type: "inner_circle", years: "5to10", tweak: "years" },
-  { from: "loren", to: "sophie", type: "standard", years: "3to5" },
-  { from: "loren", to: "diego", type: "standard", years: "1to3", tweak: "type" },
 
-  // ── Hosts ↔ connectors (the path half on the host side) ──
-  // rosa — very strong network
+  // ── 2° hosts — 2 hosts. Each vouches for at least one of
+  // Loren's direct connectors, so the chain is host→connector→loren.
+  // rosa — very strong network (multiple connectors)
   { from: "rosa", to: "elena", type: "inner_circle", years: "10plus" },
   { from: "rosa", to: "marco", type: "inner_circle", years: "5to10" },
   { from: "rosa", to: "nadia", type: "standard", years: "5to10" },
   { from: "rosa", to: "yuki", type: "standard", years: "3to5" },
+  // hana — single weak connector
+  { from: "hana", to: "cassidy", type: "standard", years: "lt1" },
 
-  // kai — strong, fewer connectors
+  // kai (1°) also carries a thick 2° network — direct supersedes but
+  // these feed the connector-dots display on the medium tag.
   { from: "kai", to: "marco", type: "standard", years: "5to10" },
   { from: "kai", to: "theo", type: "standard", years: "3to5" },
   { from: "kai", to: "nadia", type: "standard", years: "1to3", tweak: "years" },
 
-  // priya_h — modest reach
-  { from: "priya_h", to: "theo", type: "standard", years: "3to5" },
-  { from: "priya_h", to: "yuki", type: "standard", years: "1to3" },
-  { from: "priya_h", to: "felix", type: "standard", years: "1to3" },
+  // ── 3° hosts — 4 hosts. Each vouches only for a peripheral
+  // (amira / jules / luka), whose connector link carries the chain
+  // the last two hops to Loren.
+  { from: "sophie", to: "amira", type: "standard", years: "1to3" },
+  { from: "diego", to: "jules", type: "standard", years: "3to5", tweak: "type" },
+  { from: "priya_h", to: "amira", type: "standard", years: "1to3" },
+  { from: "omar_h", to: "luka", type: "inner_circle", years: "3to5" },
 
-  // omar_h — single strong connector
-  { from: "omar_h", to: "elena", type: "inner_circle", years: "5to10" },
-
-  // sophie — two weak connectors
-  { from: "sophie", to: "felix", type: "standard", years: "1to3" },
-  { from: "sophie", to: "cassidy", type: "standard", years: "lt1" },
-
-  // hana — one weak connector
-  { from: "hana", to: "cassidy", type: "standard", years: "lt1" },
-
-  // diego — one medium connector
-  { from: "diego", to: "nadia", type: "standard", years: "5to10", tweak: "type" },
-
-  // ── 3°-only hosts via peripherals ──
-  // bjorn ↔ amira, amira ↔ elena closes bjorn→amira→elena→loren.
-  // mei ↔ luka, luka ↔ marco closes mei→luka→marco→loren.
-  { from: "bjorn", to: "amira", type: "standard", years: "1to3" },
-  { from: "mei", to: "luka", type: "standard", years: "1to3" },
+  // Peripheral ↔ connector edges — the second half of every 3° /
+  // 4° chain. amira→elena, luka→marco, jules→nadia.
   { from: "amira", to: "elena", type: "standard", years: "3to5" },
   { from: "luka", to: "marco", type: "inner_circle", years: "5to10" },
   { from: "jules", to: "nadia", type: "standard", years: "1to3" },
 
-  // ── Connector cross-links ──
+  // ── 4° hosts — 2 hosts. Each vouches only for a
+  // peripheral-of-peripheral (pavel / ines), which in turn vouches
+  // for a regular peripheral. Chain: host→pop→peripheral→connector
+  // →loren = 4 edges.
+  { from: "bjorn", to: "pavel", type: "standard", years: "1to3" },
+  { from: "mei", to: "ines", type: "standard", years: "1to3" },
+  { from: "pavel", to: "amira", type: "standard", years: "1to3" },
+  { from: "ines", to: "luka", type: "standard", years: "1to3" },
+
+  // ── Connector cross-links (enrichment, not on any host path) ──
   { from: "elena", to: "marco", type: "standard", years: "5to10", tweak: "years" },
   { from: "marco", to: "yuki", type: "standard", years: "3to5" },
   { from: "theo", to: "elena", type: "standard", years: "1to3" },
@@ -472,7 +484,7 @@ async function main() {
           clerk_id: `seed_hostgraph_${u.key}`,
           email,
           name: u.name,
-          phone_number: `${PHONE_PREFIX}${String(USERS.indexOf(u)).padStart(3, "0")}`,
+          phone_number: `${PHONE_PREFIX}${phoneSuffix(u.key)}`,
           bio: u.bio ?? null,
           location: u.location ?? null,
           guest_rating: u.guest_rating ?? null,
@@ -498,14 +510,36 @@ async function main() {
   }
 
   // Clean stale edges the seed used to write but no longer does.
-  // Without this, older runs' bjorn→theo / bjorn→ivy / mei→yuki
-  // remain and keep those hosts at 2° instead of 3°.
+  // Each entry is expanded into both directions so we pick up
+  // reciprocals from older mutual runs too.
   const staleEdges: Array<[string, string]> = [
+    // Earlier single-direction seeds for bjorn / mei (pre-3°).
     ["bjorn", "theo"],
     ["bjorn", "ivy"],
     ["mei", "yuki"],
+    // 3°-era bjorn↔amira and mei↔luka (now replaced by the 4°
+    // peripheral-of-peripheral layer via pavel / ines).
+    ["bjorn", "amira"],
+    ["mei", "luka"],
+    // Hosts that used to be 1° direct but are now 2°/3°.
+    ["loren", "rosa"],
+    ["loren", "sophie"],
+    ["loren", "diego"],
+    // Hosts that used to be 2° via a direct connector edge but
+    // are now 3° via a peripheral.
+    ["sophie", "felix"],
+    ["sophie", "cassidy"],
+    ["diego", "nadia"],
+    ["priya_h", "theo"],
+    ["priya_h", "yuki"],
+    ["priya_h", "felix"],
+    ["omar_h", "elena"],
   ];
-  for (const [from, to] of staleEdges) {
+  const staleBothDirections: Array<[string, string]> = [];
+  for (const [a, b] of staleEdges) {
+    staleBothDirections.push([a, b], [b, a]);
+  }
+  for (const [from, to] of staleBothDirections) {
     const fromId = userIdByKey.get(from);
     const toId = userIdByKey.get(to);
     if (!fromId || !toId) continue;

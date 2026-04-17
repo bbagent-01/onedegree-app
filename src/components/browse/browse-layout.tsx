@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 export interface BrowseListingTrust {
   /** Composite trust score (renamed from the legacy "1° vouch score"). */
   trust_score: number;
-  degree: 1 | 2 | 3 | null;
+  degree: 1 | 2 | 3 | 4 | null;
   connectionCount: number;
   /** True when the viewer has directly vouched for the host. */
   hasDirectVouch: boolean;

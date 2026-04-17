@@ -401,7 +401,7 @@ function TrustDistanceRow({
 function getAccessMessage(
   listing: ListingDetail,
   userScore: number,
-  _degree?: 1 | 2 | 3 | null
+  _degree?: 1 | 2 | 3 | 4 | null
 ): { title: string; body: string } | null {
   const settings = listing.access_settings;
   const rule = settings?.full_listing_contact;

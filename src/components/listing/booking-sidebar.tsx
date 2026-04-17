@@ -29,7 +29,7 @@ interface Props {
    *  medium TrustTag beneath the Contact Host button. */
   trust?: {
     score: number;
-    degree: 1 | 2 | 3 | null;
+    degree: 1 | 2 | 3 | 4 | null;
     hasDirectVouch: boolean;
     connectorPaths: ConnectorPathSummary[];
   } | null;
