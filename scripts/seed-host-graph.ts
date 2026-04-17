@@ -99,44 +99,85 @@ type VouchDef = {
   years: "lt1" | "1to3" | "3to5" | "5to10" | "10plus";
 };
 
+const YEARS_ORDER: VouchDef["years"][] = [
+  "lt1",
+  "1to3",
+  "3to5",
+  "5to10",
+  "10plus",
+];
+
+/**
+ * Produce the reciprocal of a vouch with optional one-level variance
+ * on type or years-known. The real world isn't symmetric at the
+ * point-estimate level (people disagree about how long they've known
+ * each other and how close they feel), so we jitter a few pairs to
+ * stop every back-edge from reading as a carbon copy.
+ */
+function reciprocal(v: VouchDef, tweak: "same" | "type" | "years" = "same"): VouchDef {
+  if (tweak === "type") {
+    return {
+      from: v.to,
+      to: v.from,
+      type: v.type === "inner_circle" ? "standard" : "inner_circle",
+      years: v.years,
+    };
+  }
+  if (tweak === "years") {
+    const i = YEARS_ORDER.indexOf(v.years);
+    const shift = i === 0 ? 1 : i === YEARS_ORDER.length - 1 ? -1 : 1;
+    return { from: v.to, to: v.from, type: v.type, years: YEARS_ORDER[i + shift] };
+  }
+  return { from: v.to, to: v.from, type: v.type, years: v.years };
+}
+
 // ── Vouch graph (reverse-direction oriented) ─────────────────────
 // To produce host→connector→loren paths we need:
 //   1. connector → loren (connector has vouched for Loren)
 //   2. host → connector (host has vouched for the connector)
 //
 // We also seed some connector↔connector links for richness.
-const VOUCHES: VouchDef[] = [
-  // ── Connectors → Loren (these make paths TO Loren) ──
+/**
+ * Canonical one-direction edges. Each row is expanded into a mutual
+ * pair at runtime via `expandMutual`. A small minority get a
+ * one-level tweak on their reciprocal so the graph doesn't feel
+ * uncannily symmetric — real relationships disagree slightly about
+ * closeness / tenure.
+ *
+ * `tweak` values:
+ *   "same"  — reciprocal is identical (default)
+ *   "type"  — reciprocal flips standard↔inner_circle
+ *   "years" — reciprocal shifts years-known by one bucket
+ */
+const ONE_WAY_VOUCHES: Array<VouchDef & { tweak?: "same" | "type" | "years" }> = [
+  // ── Connectors ↔ Loren (Loren's close network) ──
   { from: "elena", to: "loren", type: "inner_circle", years: "10plus" },
-  { from: "marco", to: "loren", type: "inner_circle", years: "5to10" },
+  { from: "marco", to: "loren", type: "inner_circle", years: "5to10", tweak: "years" },
   { from: "nadia", to: "loren", type: "standard", years: "5to10" },
-  { from: "theo", to: "loren", type: "standard", years: "3to5" },
+  { from: "theo", to: "loren", type: "standard", years: "3to5", tweak: "type" },
   { from: "yuki", to: "loren", type: "standard", years: "3to5" },
   { from: "felix", to: "loren", type: "standard", years: "1to3" },
   { from: "ivy", to: "loren", type: "standard", years: "lt1" },
   { from: "cassidy", to: "loren", type: "standard", years: "lt1" },
 
-  // ── Loren → connectors (reciprocal so popovers show both) ──
-  { from: "loren", to: "elena", type: "inner_circle", years: "10plus" },
-  { from: "loren", to: "marco", type: "inner_circle", years: "5to10" },
-  { from: "loren", to: "nadia", type: "standard", years: "5to10" },
-  { from: "loren", to: "theo", type: "standard", years: "3to5" },
-  { from: "loren", to: "yuki", type: "standard", years: "3to5" },
-  { from: "loren", to: "felix", type: "standard", years: "1to3" },
-  { from: "loren", to: "ivy", type: "standard", years: "lt1" },
-  { from: "loren", to: "cassidy", type: "standard", years: "lt1" },
+  // ── Loren ↔ direct-vouched hosts (green "Vouched" on tiles) ──
+  { from: "loren", to: "kai", type: "inner_circle", years: "5to10" },
+  { from: "loren", to: "zara", type: "inner_circle", years: "10plus" },
+  { from: "loren", to: "rosa", type: "inner_circle", years: "5to10", tweak: "years" },
+  { from: "loren", to: "sophie", type: "standard", years: "3to5" },
+  { from: "loren", to: "diego", type: "standard", years: "1to3", tweak: "type" },
 
-  // ── Hosts → connectors (this is the other half of the path) ──
-  // rosa — very strong network (4 strong connectors → Very strong 50+ score)
+  // ── Hosts ↔ connectors (the path half on the host side) ──
+  // rosa — very strong network
   { from: "rosa", to: "elena", type: "inner_circle", years: "10plus" },
   { from: "rosa", to: "marco", type: "inner_circle", years: "5to10" },
   { from: "rosa", to: "nadia", type: "standard", years: "5to10" },
   { from: "rosa", to: "yuki", type: "standard", years: "3to5" },
 
-  // kai — strong but fewer connectors
+  // kai — strong, fewer connectors
   { from: "kai", to: "marco", type: "standard", years: "5to10" },
   { from: "kai", to: "theo", type: "standard", years: "3to5" },
-  { from: "kai", to: "nadia", type: "standard", years: "1to3" },
+  { from: "kai", to: "nadia", type: "standard", years: "1to3", tweak: "years" },
 
   // priya_h — modest reach
   { from: "priya_h", to: "theo", type: "standard", years: "3to5" },
@@ -146,53 +187,49 @@ const VOUCHES: VouchDef[] = [
   // omar_h — single strong connector
   { from: "omar_h", to: "elena", type: "inner_circle", years: "5to10" },
 
-  // sophie — two weak connectors → Modest
+  // sophie — two weak connectors
   { from: "sophie", to: "felix", type: "standard", years: "1to3" },
   { from: "sophie", to: "cassidy", type: "standard", years: "lt1" },
 
-  // hana — one weak connector → Weak
+  // hana — one weak connector
   { from: "hana", to: "cassidy", type: "standard", years: "lt1" },
 
-  // diego — one medium connector → Strong
-  { from: "diego", to: "nadia", type: "standard", years: "5to10" },
+  // diego — one medium connector
+  { from: "diego", to: "nadia", type: "standard", years: "5to10", tweak: "type" },
 
-  // zara — direct vouch of Loren (top-tier)
-  { from: "zara", to: "loren", type: "inner_circle", years: "10plus" },
-
-  // ── Loren's DIRECT vouches for hosts (hasDirectVouch=true) ──
-  // These render as the green "Vouched" pill on tiles — roughly half
-  // of hosts are direct so the preview grid reads as a balanced mix
-  // of "Vouched" vs. "2nd°" vs. everything in between.
-  { from: "loren", to: "kai", type: "inner_circle", years: "5to10" },
-  { from: "loren", to: "zara", type: "inner_circle", years: "10plus" },
-  { from: "loren", to: "rosa", type: "inner_circle", years: "5to10" },
-  { from: "loren", to: "sophie", type: "standard", years: "3to5" },
-  { from: "loren", to: "diego", type: "standard", years: "1to3" },
-
-  // 3°-only hosts: bjorn reaches Loren via Amira (Elena's friend);
-  // mei via Luka (Marco's friend). Chain is host→peripheral→
-  // connector→loren = 3 edges, so the engine's 3° post-pass picks
-  // them up and tiles render "3rd°". Deliberately NO direct edge
-  // to any Loren-connector so neither host resolves as 2°.
+  // ── 3°-only hosts via peripherals ──
+  // bjorn ↔ amira, amira ↔ elena closes bjorn→amira→elena→loren.
+  // mei ↔ luka, luka ↔ marco closes mei→luka→marco→loren.
   { from: "bjorn", to: "amira", type: "standard", years: "1to3" },
   { from: "mei", to: "luka", type: "standard", years: "1to3" },
-
-  // ── Peripherals and their reciprocal vouches. These complete
-  // 3-hop chains like bjorn→amira→elena→loren: Amira vouches for
-  // Elena, Elena already vouches for Loren, so anyone whose only
-  // path runs through Amira lands at 3°.
-  { from: "elena", to: "amira", type: "standard", years: "3to5" },
   { from: "amira", to: "elena", type: "standard", years: "3to5" },
-  { from: "marco", to: "luka", type: "inner_circle", years: "5to10" },
-  { from: "luka", to: "marco", type: "standard", years: "5to10" },
-  { from: "nadia", to: "jules", type: "standard", years: "1to3" },
+  { from: "luka", to: "marco", type: "inner_circle", years: "5to10" },
   { from: "jules", to: "nadia", type: "standard", years: "1to3" },
 
-  // ── Connector cross-links (for richness, no direct effect on Loren path) ──
-  { from: "elena", to: "marco", type: "standard", years: "5to10" },
+  // ── Connector cross-links ──
+  { from: "elena", to: "marco", type: "standard", years: "5to10", tweak: "years" },
   { from: "marco", to: "yuki", type: "standard", years: "3to5" },
   { from: "theo", to: "elena", type: "standard", years: "1to3" },
 ];
+
+// Expand canonical edges into mutual pairs. De-dup on key so an
+// explicitly-specified reciprocal (not currently present, but
+// allowed) doesn't clobber the generated one.
+const VOUCHES: VouchDef[] = (() => {
+  const seen = new Set<string>();
+  const out: VouchDef[] = [];
+  const push = (v: VouchDef) => {
+    const key = `${v.from}→${v.to}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(v);
+  };
+  for (const edge of ONE_WAY_VOUCHES) {
+    push(edge);
+    push(reciprocal(edge, edge.tweak ?? "same"));
+  }
+  return out;
+})();
 
 // ── Curated Unsplash photo pools per property type ───────────────
 // Each URL is a stable Unsplash CDN link. We insert 4 per listing
