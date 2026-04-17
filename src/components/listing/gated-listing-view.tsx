@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Lock, Star, Info, MapPin, Shield } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { TrustBadge } from "@/components/trust-badge";
+import { TrustTag } from "@/components/trust/trust-tag";
 import { TrustGate } from "@/components/trust/trust-gate";
 import { ConnectionPath } from "@/components/trust/connection-path";
 import { GatedListingCTA } from "./gated-listing-cta";
@@ -179,11 +179,12 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
                 )}
               </div>
               {(score > 0 || trust?.hasDirectVouch) && (
-                <TrustBadge
+                <TrustTag
+                  size="medium"
                   score={score}
-                  size="md"
-                  connectionCount={trust?.connectionCount}
+                  degree={trust?.degree ?? null}
                   direct={trust?.hasDirectVouch ?? false}
+                  connectorPaths={trust?.connectorPaths ?? []}
                 />
               )}
             </div>

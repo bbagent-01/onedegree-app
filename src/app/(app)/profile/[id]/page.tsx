@@ -12,7 +12,7 @@ import { ProfileReviews } from "@/components/profile/profile-reviews";
 import { VouchButton } from "@/components/trust/vouch-button";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { ConnectionPath } from "@/components/trust/connection-path";
-import { TrustBadge } from "@/components/trust-badge";
+import { TrustTag } from "@/components/trust/trust-tag";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -244,7 +244,7 @@ function OwnTrustSection({
   const given = user.vouch_count_given ?? 0;
   const received = user.vouch_count_received ?? 0;
   return (
-    <Section title="Your 1° Vouch Score">
+    <Section title="Your Trust Score">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           primary={`${power.toFixed(2)}×`}
@@ -321,15 +321,42 @@ function OtherTrustSection({
   trust: NonNullable<Awaited<ReturnType<typeof computeTrustPath>>>;
 }) {
   const first = user.name.split(" ")[0];
+  const tierLabel = (() => {
+    if (trust.hasDirectVouch) return "Direct vouch";
+    const s = trust.score;
+    if (s >= 75) return "Extremely strong";
+    if (s >= 50) return "Very strong";
+    if (s >= 30) return "Strong";
+    if (s >= 15) return "Modest";
+    if (s >= 1) return "Weak";
+    return "Not connected";
+  })();
   return (
     <Section title={`Your connection to ${first}`}>
       <div className="grid gap-4 md:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">
-        <TrustBadge
-          score={trust.score}
-          size="lg"
-          connectionCount={trust.connectionCount}
-          direct={trust.hasDirectVouch}
-        />
+        <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Trust Score
+          </div>
+          <div className="mt-1">
+            <TrustTag
+              size="medium"
+              score={trust.score}
+              degree={trust.degree}
+              direct={trust.hasDirectVouch}
+              connectorPaths={trust.connectorPaths}
+            />
+          </div>
+          <div className="mt-3 text-sm font-medium text-foreground">
+            {tierLabel}
+          </div>
+          {trust.connectionCount > 0 && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              Based on {trust.connectionCount} connection
+              {trust.connectionCount !== 1 ? "s" : ""}
+            </div>
+          )}
+        </div>
         <div className="rounded-2xl border border-border bg-white p-5">
           {trust.path.length >= 2 ? (
             <>

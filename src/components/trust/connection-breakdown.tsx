@@ -7,11 +7,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Shield, Star, UserX, Users, Loader2 } from "lucide-react";
-import { YEARS_KNOWN_BUCKETS } from "@/lib/vouch-constants";
+import { Loader2, User as UserIcon, Users, UserX } from "lucide-react";
+import { trustTier } from "@/lib/trust-data";
+import { cn } from "@/lib/utils";
 
-// ── Types for the API response ──
+// ── API response types ──
 
 interface VouchInfo {
   vouch_type: string;
@@ -52,10 +52,6 @@ type ConnectionData =
 
 // ── Helpers ──
 
-function yearsLabel(bucket: string): string {
-  return YEARS_KNOWN_BUCKETS.find((b) => b.value === bucket)?.label ?? bucket;
-}
-
 function initials(name: string) {
   return name
     .split(" ")
@@ -65,26 +61,28 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-function vouchTypeLabel(t: string) {
-  return t === "inner_circle" ? "Inner Circle" : "Standard";
+/**
+ * Mark whether the viewer has a direct relationship with this
+ * connector. In the current single-hop model every connector is
+ * first-hop, so always true. Placeholder for the multi-hop future.
+ */
+function viewerKnows(_connectorId: string): boolean {
+  return true;
 }
 
-// ── Main Wrapper Component ──
+// ── Main wrapper ──
 
 interface ConnectionPopoverProps {
-  /** The target user's internal ID. */
   targetUserId: string;
-  /** If true, skip popover entirely (e.g. viewer's own avatar). */
   isSelf?: boolean;
-  /** The wrapped avatar or element to trigger the popover. */
   children: ReactNode;
 }
 
 /**
- * Wraps any avatar/element with a popover showing the full connection
- * breakdown between the viewer and the target user. Fetches data on
- * first open via /api/trust/connection (auth handled server-side).
- * Set isSelf=true to skip popover on the viewer's own avatar.
+ * Wraps an avatar with a popover showing the trust breakdown. Data
+ * fetched on first open. Anonymity rules are strict — vouch_type and
+ * years_known are never shown in the default Summary mode; Show math
+ * reveals numeric scores only, never the semantic labels.
  */
 export function ConnectionPopover({
   targetUserId,
@@ -96,26 +94,21 @@ export function ConnectionPopover({
   const [open, setOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
-    if (data) return; // Already fetched
+    if (data) return;
     setLoading(true);
     try {
       const res = await fetch(
         `/api/trust/connection?targetId=${encodeURIComponent(targetUserId)}`
       );
-      if (res.ok) {
-        setData(await res.json());
-      }
+      if (res.ok) setData(await res.json());
     } catch {
-      // Silently fail — popover just won't show data
+      // Fail silently — the popover just won't show data.
     } finally {
       setLoading(false);
     }
   }, [targetUserId, data]);
 
-  // Don't show popover on self — must be after all hooks
-  if (isSelf) {
-    return <>{children}</>;
-  }
+  if (isSelf) return <>{children}</>;
 
   return (
     <Popover
@@ -136,206 +129,239 @@ export function ConnectionPopover({
       <PopoverContent
         side="bottom"
         align="start"
-        className="w-80 max-h-[400px] overflow-y-auto p-0"
+        className="w-80 max-h-[420px] overflow-y-auto p-0"
       >
         {loading && (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         )}
-        {data && !loading && <ConnectionBreakdown data={data} />}
+        {data && !loading && <TrustDetailView data={data} />}
       </PopoverContent>
     </Popover>
   );
 }
 
-// ── Breakdown Content ──
+// ── Detail view (Summary + Show math toggle) ──
 
-function ConnectionBreakdown({ data }: { data: ConnectionData }) {
+function TrustDetailView({ data }: { data: ConnectionData }) {
+  const [showMath, setShowMath] = useState(false);
+
   if (data.type === "self") return null;
 
-  if (data.type === "direct_forward") {
+  if (data.type === "not_connected") {
     return (
       <div className="p-3">
-        <div className="text-sm font-semibold">
-          You vouched for {data.targetName}
+        <div className="flex items-center gap-2">
+          <UserX className="h-4 w-4 text-muted-foreground" />
+          <div className="text-sm font-semibold">
+            Not connected to {data.targetName}
+          </div>
         </div>
-        <VouchDetail vouch={data.vouch} className="mt-2" />
-        {data.reverseVouch && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Invite mutual friends or ask for an introduction.
+        </p>
+      </div>
+    );
+  }
+
+  // Direct vouches (forward / reverse). No vouch type or years-known
+  // revealed — just the strength bucket via color chip.
+  if (data.type === "direct_forward" || data.type === "direct_reverse") {
+    const vouch = data.vouch;
+    const tier = trustTier(vouch.vouch_score);
+    const heading =
+      data.type === "direct_forward"
+        ? `You vouched for ${data.targetName}`
+        : `${data.targetName} vouched for you`;
+    return (
+      <div className="p-3">
+        <div className="text-sm font-semibold">{heading}</div>
+        <div className="mt-3 flex items-center gap-2">
+          <StrengthChip tier={tier} />
+        </div>
+        {data.type === "direct_forward" && data.reverseVouch && (
           <>
             <div className="mt-3 border-t border-border pt-3 text-sm font-semibold">
               {data.targetName} also vouched for you
             </div>
-            <VouchDetail vouch={data.reverseVouch} className="mt-2" />
+            <div className="mt-3 flex items-center gap-2">
+              <StrengthChip
+                tier={trustTier(data.reverseVouch.vouch_score)}
+              />
+            </div>
           </>
         )}
-      </div>
-    );
-  }
-
-  if (data.type === "direct_reverse") {
-    return (
-      <div className="p-3">
-        <div className="text-sm font-semibold">
-          {data.targetName} vouched for you
-        </div>
-        <VouchDetail vouch={data.vouch} className="mt-2" />
-      </div>
-    );
-  }
-
-  if (data.type === "connected") {
-    return (
-      <div className="p-3">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <div className="text-sm font-semibold">
-            Connected to {data.targetName} via{" "}
-            {data.connection_count} connection
-            {data.connection_count > 1 ? "s" : ""}
-          </div>
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          1° Vouch Score:{" "}
-          <span className="font-semibold text-foreground">
-            {data.score} pts
-          </span>
-        </div>
-
-        <div className="mt-3 space-y-3">
-          {data.paths.map((path, i) => (
-            <PathDetail key={path.connector.id} path={path} index={i} targetName={data.targetName} />
-          ))}
-        </div>
-
-        {data.paths.length > 1 && (
-          <div className="mt-3 border-t border-border pt-2 text-xs">
-            <span className="text-muted-foreground">Total: </span>
-            <span className="font-mono tabular-nums font-semibold">
-              {data.paths
-                .map((p) => `${p.weighted_score}`)
-                .join(" + ")}{" "}
-              = {data.score} pts
-            </span>
+        <ShowMathToggle on={showMath} onToggle={() => setShowMath((v) => !v)} />
+        {showMath && (
+          <div className="mt-2 rounded-lg bg-muted/30 p-2 text-[11px] text-muted-foreground font-mono">
+            <div>
+              Vouch score:{" "}
+              <span className="font-semibold text-foreground">
+                {vouch.vouch_score}
+              </span>
+            </div>
+            {data.type === "direct_forward" && data.reverseVouch && (
+              <div className="mt-1">
+                Reverse vouch score:{" "}
+                <span className="font-semibold text-foreground">
+                  {data.reverseVouch.vouch_score}
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
     );
   }
 
-  // not_connected
+  // Connected through mutual connectors.
+  const sortedPaths = [...data.paths].sort((a, b) => a.rank - b.rank);
   return (
     <div className="p-3">
       <div className="flex items-center gap-2">
-        <UserX className="h-4 w-4 text-muted-foreground" />
+        <Users className="h-4 w-4 text-muted-foreground" />
         <div className="text-sm font-semibold">
-          Not connected to {data.targetName}
+          Connected to {data.targetName} via {data.connection_count} connection
+          {data.connection_count > 1 ? "s" : ""}
         </div>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Invite mutual friends or ask for an introduction.
-      </p>
+      <div className="mt-1 text-xs text-muted-foreground">
+        Trust Score:{" "}
+        <span className="font-semibold text-foreground">
+          {data.score} pts ({trustTier(data.score).label})
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {sortedPaths.map((path) => (
+          <PathRow key={path.connector.id} path={path} />
+        ))}
+      </div>
+
+      <ShowMathToggle on={showMath} onToggle={() => setShowMath((v) => !v)} />
+      {showMath && (
+        <div className="mt-2 rounded-lg bg-muted/30 p-2 text-[11px] text-muted-foreground font-mono">
+          {sortedPaths.map((p) => (
+            <div key={p.connector.id} className="mt-1 first:mt-0">
+              Path {p.rank}: avg({p.link_a}, {p.link_b.toFixed(1)}) ={" "}
+              <span className="font-semibold text-foreground">
+                {p.path_strength}
+              </span>
+              {p.rank > 1 && (
+                <>
+                  {" "}
+                  × {p.weight.toFixed(3)} ={" "}
+                  <span className="font-semibold text-foreground">
+                    {p.weighted_score}
+                  </span>
+                </>
+              )}
+            </div>
+          ))}
+          <div className="mt-2 border-t border-border pt-1">
+            Total:{" "}
+            <span className="font-semibold text-foreground">
+              {data.score} pts
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Sub-components ──
 
-function VouchDetail({
-  vouch,
-  className,
-}: {
-  vouch: VouchInfo;
-  className?: string;
-}) {
-  const isInner = vouch.vouch_type === "inner_circle";
+/** Path row — anonymized intermediaries get a silhouette. */
+function PathRow({ path }: { path: PathInfo }) {
+  const knows = viewerKnows(path.connector.id);
+  const tier = trustTier(path.path_strength);
   return (
-    <div className={className}>
-      <div className="flex items-center gap-2 text-xs">
-        <Badge
-          className={
-            isInner
-              ? "bg-amber-100 text-amber-800 hover:bg-amber-100"
-              : "bg-blue-100 text-blue-800 hover:bg-blue-100"
-          }
-        >
-          {isInner ? (
-            <Star className="mr-1 h-3 w-3" />
-          ) : (
-            <Shield className="mr-1 h-3 w-3" />
-          )}
-          {vouchTypeLabel(vouch.vouch_type)}
-        </Badge>
-        <span className="text-muted-foreground">
-          {yearsLabel(vouch.years_known_bucket)}
-        </span>
-        <span className="ml-auto font-semibold font-mono tabular-nums">
-          {vouch.vouch_score} pts
-        </span>
+    <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/20 p-2.5">
+      {knows && path.connector.avatar_url ? (
+        <Avatar className="h-7 w-7" size="sm">
+          <AvatarImage
+            src={path.connector.avatar_url}
+            alt={path.connector.name}
+          />
+          <AvatarFallback className="text-[9px]">
+            {initials(path.connector.name)}
+          </AvatarFallback>
+        </Avatar>
+      ) : knows ? (
+        <Avatar className="h-7 w-7" size="sm">
+          <AvatarFallback className="text-[9px]">
+            {initials(path.connector.name)}
+          </AvatarFallback>
+        </Avatar>
+      ) : (
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <UserIcon className="h-3.5 w-3.5" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-medium">
+          {knows ? path.connector.name : "Mutual connection"}
+        </div>
+        <div className="mt-0.5 flex items-center gap-1">
+          <StrengthChip tier={tier} compact />
+          <span className="flex items-center gap-0.5">
+            <span
+              className={cn(
+                "inline-block h-1.5 w-1.5 rounded-full",
+                trustTier(path.link_a).dotClass
+              )}
+              title="You → connector link"
+            />
+            <span
+              className={cn(
+                "inline-block h-1.5 w-1.5 rounded-full",
+                trustTier(path.link_b).dotClass
+              )}
+              title="Connector → host link"
+            />
+          </span>
+        </div>
       </div>
     </div>
   );
 }
 
-function PathDetail({ path, index, targetName }: { path: PathInfo; index: number; targetName: string }) {
-  const isFirst = index === 0;
-  const connectorFirst = path.connector.name.split(" ")[0];
-  const targetFirst = targetName.split(" ")[0];
+function StrengthChip({
+  tier,
+  compact = false,
+}: {
+  tier: ReturnType<typeof trustTier>;
+  compact?: boolean;
+}) {
   return (
-    <div className="rounded-lg border border-border bg-muted/20 p-2.5">
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-1.5">
-          <Avatar className="h-5 w-5" size="sm">
-            {path.connector.avatar_url && (
-              <AvatarImage
-                src={path.connector.avatar_url}
-                alt={path.connector.name}
-              />
-            )}
-            <AvatarFallback className="text-[8px]">
-              {initials(path.connector.name)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="font-medium">
-            {isFirst ? "Strongest" : `Path ${path.rank}`} — via{" "}
-            {connectorFirst}
-          </span>
-        </div>
-        {path.rank > 1 && (
-          <span className="text-muted-foreground">
-            weight: {path.weight.toFixed(2)}
-          </span>
-        )}
-      </div>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full font-semibold",
+        compact ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-0.5 text-[10px]",
+        tier.solidClass
+      )}
+    >
+      {tier.label}
+    </span>
+  );
+}
 
-      <div className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground font-mono">
-        <div>
-          You → {connectorFirst}:{" "}
-          <span className="text-foreground">{path.link_a} pts</span>
-        </div>
-        <div>
-          {connectorFirst} → {targetFirst}:{" "}
-          <span className="text-foreground">
-            {path.connector_vouch_score} × {path.connector_vouch_power} VP ={" "}
-            {path.link_b.toFixed(1)} pts
-          </span>
-        </div>
-        <div>
-          Path: avg({path.link_a}, {path.link_b.toFixed(1)}) ={" "}
-          <span className="text-foreground font-semibold">
-            {path.path_strength} pts
-          </span>
-          {path.rank > 1 && (
-            <span>
-              {" "}
-              × {path.weight.toFixed(3)} ={" "}
-              <span className="text-foreground font-semibold">
-                {path.weighted_score} pts
-              </span>
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
+function ShowMathToggle({
+  on,
+  onToggle,
+}: {
+  on: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="mt-3 w-full rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground hover:bg-muted"
+    >
+      {on ? "Hide math" : "Show math"}
+    </button>
   );
 }

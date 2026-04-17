@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "./supabase";
-import { computeTrustPaths } from "./trust-data";
+import { computeTrustPaths, type ConnectorPathSummary } from "./trust-data";
 
 export type ThreadRole = "guest" | "host";
 
@@ -25,12 +25,16 @@ export interface InboxThread {
     area_name: string;
     thumbnail_url: string | null;
   } | null;
-  /** Viewer's 1° vouch score with the other participant. 0 if none. */
+  /** Viewer's trust score with the other participant. 0 if none. */
   trust_score: number;
   /** Distinct connectors feeding the score. 0 if none. */
   trust_connection_count: number;
   /** Viewer has personally vouched for the other participant. */
   trust_is_direct: boolean;
+  /** Degree of separation (1 = direct/single-connector, 2+ = multi-hop). */
+  trust_degree: 1 | 2 | null;
+  /** Connector bridges sorted strongest → weakest. */
+  trust_connector_paths: ConnectorPathSummary[];
   /** True for pending intro requests. Hidden from Messages tab. */
   is_intro_request: boolean;
   /** When populated, the intro was promoted to a normal conversation. */
@@ -166,6 +170,10 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
       trust_is_direct: hideIdentity
         ? false
         : trustByTarget[otherId]?.hasDirectVouch ?? false,
+      trust_degree: hideIdentity ? null : trustByTarget[otherId]?.degree ?? null,
+      trust_connector_paths: hideIdentity
+        ? []
+        : trustByTarget[otherId]?.connectorPaths ?? [],
       is_intro_request: isIntro,
       intro_promoted_at: t.intro_promoted_at ?? null,
       sender_anonymous: Boolean(t.sender_anonymous),
@@ -279,6 +287,8 @@ export async function getThreadDetail(
     trust_score: trust?.score ?? 0,
     trust_connection_count: trust?.connectionCount ?? 0,
     trust_is_direct: trust?.hasDirectVouch ?? false,
+    trust_degree: trust?.degree ?? null,
+    trust_connector_paths: trust?.connectorPaths ?? [],
     is_intro_request: isIntro,
     intro_promoted_at: thread.intro_promoted_at ?? null,
     sender_anonymous: Boolean(thread.sender_anonymous),

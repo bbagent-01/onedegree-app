@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Heart, ChevronLeft, ChevronRight } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import { cn } from "@/lib/utils";
-import { TrustBadge } from "@/components/trust-badge";
+import { TrustTag } from "@/components/trust/trust-tag";
 
 export interface ListingCardProps {
   id: string;
@@ -111,10 +111,10 @@ export function ListingCard({
           />
         </button>
 
-        {/* Trust badge */}
+        {/* Trust tag */}
         {trustScore !== null && (
-          <div className="absolute bottom-3 right-3 z-10">
-            <TrustBadge score={trustScore} size="sm" />
+          <div className="absolute bottom-3 right-3 z-10 rounded-full bg-white/95 px-2 py-0.5 shadow-sm">
+            <TrustTag size="micro" score={trustScore} degree={1} />
           </div>
         )}
 

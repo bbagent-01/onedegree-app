@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
-import { TrustBadge } from "@/components/trust-badge";
+import { TrustTag } from "@/components/trust/trust-tag";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { InboxThread } from "@/lib/messaging-data";
@@ -185,11 +185,12 @@ export function InboxList({ threads, selectedId }: Props) {
                             {t.other_user.name}
                           </span>
                           {(t.trust_score > 0 || t.trust_is_direct) && (
-                            <TrustBadge
+                            <TrustTag
+                              size="micro"
                               score={t.trust_score}
-                              connectionCount={t.trust_connection_count}
+                              degree={t.trust_degree}
                               direct={t.trust_is_direct}
-                              size="sm"
+                              connectorPaths={t.trust_connector_paths}
                             />
                           )}
                         </div>

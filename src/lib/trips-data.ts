@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "./supabase";
-import { computeTrustPaths } from "./trust-data";
+import { computeTrustPaths, type ConnectorPathSummary } from "./trust-data";
 
 export type TripTab = "upcoming" | "completed" | "cancelled";
 
@@ -26,12 +26,16 @@ export interface TripCard {
   thread_id: string | null;
   stay_confirmation_id: string | null;
   guest_left_review: boolean;
-  /** Guest's 1° vouch score to this host. 0 if none. */
+  /** Guest's trust score to this host. 0 if none. */
   trust_score: number;
   /** Distinct connectors feeding the score. 0 if none. */
   trust_connection_count: number;
   /** Guest has personally vouched for this host. */
   trust_is_direct: boolean;
+  /** Degree of separation. */
+  trust_degree: 1 | 2 | null;
+  /** Connector bridges sorted strongest → weakest. */
+  trust_connector_paths: ConnectorPathSummary[];
 }
 
 const todayISO = () => new Date().toISOString().split("T")[0];
@@ -159,6 +163,9 @@ export async function getTripsForGuest(guestId: string): Promise<TripCard[]> {
       trust_score: trustByHost[r.host_id]?.score ?? 0,
       trust_connection_count: trustByHost[r.host_id]?.connectionCount ?? 0,
       trust_is_direct: trustByHost[r.host_id]?.hasDirectVouch ?? false,
+      trust_degree: trustByHost[r.host_id]?.degree ?? null,
+      trust_connector_paths:
+        trustByHost[r.host_id]?.connectorPaths ?? [],
     } satisfies TripCard;
   });
 }
@@ -263,6 +270,8 @@ export async function getTripDetail(
     trust_score: trust?.score ?? 0,
     trust_connection_count: trust?.connectionCount ?? 0,
     trust_is_direct: trust?.hasDirectVouch ?? false,
+    trust_degree: trust?.degree ?? null,
+    trust_connector_paths: trust?.connectorPaths ?? [],
     message: request.message || null,
     host_response_message: request.host_response_message || null,
     responded_at: request.responded_at || null,

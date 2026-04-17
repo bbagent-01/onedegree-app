@@ -42,6 +42,18 @@ export interface TrustPathUser {
   vouch_type?: "standard" | "inner_circle";
 }
 
+export interface ConnectorPathSummary {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  /** Individual path strength (viewer→connector→target average). */
+  strength: number;
+  /** True iff the viewer has a direct vouch for this connector. In the
+   *  current single-hop model every connector is directly known by the
+   *  viewer; this flag exists for the multi-hop future. */
+  viewer_knows: boolean;
+}
+
 export interface TrustResult {
   /** Composite trust score (integer, floor). 0 means no path. */
   score: number;
@@ -59,6 +71,13 @@ export interface TrustResult {
   mutualConnections: TrustPathUser[];
   /** Raw connector count from RPC (distinct intermediaries). */
   connectionCount: number;
+  /**
+   * All connector paths sorted strongest → weakest. Feeds the
+   * ConnectorDots / ConnectorAvatars sub-components. Each entry is one
+   * viewer→connector→target bridge; a connector who appears in
+   * multiple paths is de-duplicated to their strongest.
+   */
+  connectorPaths: ConnectorPathSummary[];
 }
 
 export interface TrustResultsByTarget {
@@ -96,6 +115,7 @@ const EMPTY: TrustResult = {
   path: [],
   mutualConnections: [],
   connectionCount: 0,
+  connectorPaths: [],
 };
 
 /**
@@ -361,20 +381,58 @@ export async function computeTrustPaths(
     }
 
     // Mutual connections — every connector who vouched for this target.
+    // Also build the full connectorPaths list sorted by individual
+    // path strength so the UI can render per-connector dots / avatars
+    // with each one colored by its own bucket.
     const mutualConnections: TrustPathUser[] = [];
     const seen = new Set<string>();
+    const pathsByConnector = new Map<string, ConnectorPathSummary>();
+
     for (const r of connectorsByTarget.get(targetId) || []) {
-      if (seen.has(r.voucher_id)) continue;
-      seen.add(r.voucher_id);
       const prof = profileById.get(r.voucher_id);
       if (!prof) continue;
-      mutualConnections.push({
-        id: prof.id,
-        name: prof.name,
-        avatar_url: prof.avatar_url,
-        edge: null,
-      });
+
+      if (!seen.has(r.voucher_id)) {
+        seen.add(r.voucher_id);
+        mutualConnections.push({
+          id: prof.id,
+          name: prof.name,
+          avatar_url: prof.avatar_url,
+          edge: null,
+        });
+      }
+
+      const viewerEdge = viewerEdgeMap.get(r.voucher_id);
+      if (!viewerEdge) continue;
+      const viewerStrength = edgeStrength(
+        viewerEdge.vouch_type,
+        viewerEdge.years_known_bucket,
+        viewerVouchPower
+      );
+      const connectorStrength = edgeStrength(
+        r.vouch_type,
+        r.years_known_bucket,
+        prof.vouch_power ?? 4
+      );
+      const pathAvg = (viewerStrength + connectorStrength) / 2;
+
+      const existing = pathsByConnector.get(r.voucher_id);
+      if (!existing || pathAvg > existing.strength) {
+        pathsByConnector.set(r.voucher_id, {
+          id: prof.id,
+          name: prof.name,
+          avatar_url: prof.avatar_url,
+          strength: pathAvg,
+          // Every connector is a 1st-hop vouchee of the viewer in the
+          // current single-hop model.
+          viewer_knows: true,
+        });
+      }
     }
+
+    const connectorPaths = [...pathsByConnector.values()].sort(
+      (a, b) => b.strength - a.strength
+    );
 
     out[targetId] = {
       score,
@@ -383,6 +441,7 @@ export async function computeTrustPaths(
       path,
       mutualConnections,
       connectionCount: indirect?.connectionCount ?? mutualConnections.length,
+      connectorPaths,
     };
   }
 

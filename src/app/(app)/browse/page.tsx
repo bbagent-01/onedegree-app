@@ -185,10 +185,11 @@ async function BrowseResults({
       );
 
       trustByListing[l.id] = {
-        score,
+        trust_score: score,
         degree,
         connectionCount: r?.connectionCount ?? 0,
         hasDirectVouch: r?.hasDirectVouch ?? false,
+        connectorPaths: r?.connectorPaths ?? [],
         canSeePreview: access.can_see_preview,
         canSeeFull: access.can_see_full,
         canRequestBook: access.can_request_book,
@@ -210,10 +211,11 @@ async function BrowseResults({
         0
       );
       trustByListing[l.id] = {
-        score: 0,
+        trust_score: 0,
         degree: null,
         connectionCount: 0,
         hasDirectVouch: false,
+        connectorPaths: [],
         canSeePreview: access.can_see_preview,
         canSeeFull: access.can_see_full,
         canRequestBook: false,
@@ -248,15 +250,15 @@ async function BrowseResults({
   if (typeof filters.minTrust === "number" && filters.minTrust > 0) {
     const minTrust = filters.minTrust;
     listings = listings.filter(
-      (l) => (trustByListing[l.id]?.score ?? 0) >= minTrust
+      (l) => (trustByListing[l.id]?.trust_score ?? 0) >= minTrust
     );
   }
 
   // Trust sort — stable, applied after scoring.
   if (filters.sort === "trust_desc") {
     listings = [...listings].sort((a, b) => {
-      const sa = trustByListing[a.id]?.score ?? 0;
-      const sb = trustByListing[b.id]?.score ?? 0;
+      const sa = trustByListing[a.id]?.trust_score ?? 0;
+      const sb = trustByListing[b.id]?.trust_score ?? 0;
       return sb - sa;
     });
   }

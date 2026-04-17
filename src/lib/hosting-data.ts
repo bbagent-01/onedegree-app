@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "./supabase";
-import { computeTrustPaths } from "./trust-data";
+import { computeTrustPaths, type ConnectorPathSummary } from "./trust-data";
 
 export interface HostingListing {
   id: string;
@@ -32,12 +32,16 @@ export interface HostingReservation {
   status: "pending" | "accepted" | "declined" | "cancelled";
   created_at: string;
   responded_at: string | null;
-  /** Host's 1° vouch score to this guest. 0 if none. */
+  /** Host's trust score to this guest. 0 if none. */
   trust_score: number;
   /** Distinct connectors feeding the score. 0 if none. */
   trust_connection_count: number;
   /** Host has personally vouched for this guest. */
   trust_is_direct: boolean;
+  /** Degree of separation. */
+  trust_degree: 1 | 2 | null;
+  /** Connector bridges sorted strongest → weakest. */
+  trust_connector_paths: ConnectorPathSummary[];
 }
 
 export type ReservationBucket = "upcoming" | "completed" | "cancelled";
@@ -164,6 +168,9 @@ export async function getHostDashboardData(): Promise<HostDashboardData | null> 
       trust_score: trustByGuest[r.guest_id]?.score ?? 0,
       trust_connection_count: trustByGuest[r.guest_id]?.connectionCount ?? 0,
       trust_is_direct: trustByGuest[r.guest_id]?.hasDirectVouch ?? false,
+      trust_degree: trustByGuest[r.guest_id]?.degree ?? null,
+      trust_connector_paths:
+        trustByGuest[r.guest_id]?.connectorPaths ?? [],
     };
 
     if (r.status === "cancelled" || r.status === "declined") {

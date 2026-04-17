@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { LiveListingCard } from "./live-listing-card";
 import { SortDropdown } from "./sort-dropdown";
 import type { BrowseListing } from "@/lib/browse-data";
-import type { TrustPathUser } from "@/lib/trust-data";
+import type { ConnectorPathSummary, TrustPathUser } from "@/lib/trust-data";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,11 +18,14 @@ import { cn } from "@/lib/utils";
  * on the host's access_settings evaluated via checkListingAccess.
  */
 export interface BrowseListingTrust {
-  score: number;
+  /** Composite trust score (renamed from the legacy "1° vouch score"). */
+  trust_score: number;
   degree: 1 | 2 | null;
   connectionCount: number;
   /** True when the viewer has directly vouched for the host. */
   hasDirectVouch: boolean;
+  /** Sorted strongest → weakest by individual path strength. */
+  connectorPaths: ConnectorPathSummary[];
   canSeePreview: boolean;
   canSeeFull: boolean;
   canRequestBook: boolean;

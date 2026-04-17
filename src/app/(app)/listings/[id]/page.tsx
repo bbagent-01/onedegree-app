@@ -20,7 +20,7 @@ import { ConnectionPath } from "@/components/trust/connection-path";
 import { LocationMapClient } from "@/components/listing/location-map-client";
 import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
 import { GatedListingView } from "@/components/listing/gated-listing-view";
-import { HostInlineMeta } from "@/components/trust/host-inline-meta";
+import { TrustTag } from "@/components/trust/trust-tag";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -228,10 +228,12 @@ export default async function ListingPage({
                     Hosted by {listing.host.name}
                   </div>
                   {trust && (
-                    <HostInlineMeta
+                    <TrustTag
+                      size="micro"
                       score={trust.score}
-                      connectionCount={trust.connectionCount}
+                      degree={trust.degree}
                       direct={trust.hasDirectVouch}
+                      connectorPaths={trust.connectorPaths}
                       hostRating={listing.host.host_rating}
                       hostReviewCount={listing.host.host_review_count}
                       className="mt-0.5"
@@ -417,10 +419,12 @@ export default async function ListingPage({
                     {listing.host.name}
                   </div>
                   {trust && (
-                    <HostInlineMeta
+                    <TrustTag
+                      size="medium"
                       score={trust.score}
-                      connectionCount={trust.connectionCount}
+                      degree={trust.degree}
                       direct={trust.hasDirectVouch}
+                      connectorPaths={trust.connectorPaths}
                       hostRating={listing.host.host_rating}
                       hostReviewCount={listing.host.host_review_count}
                       className="mt-1"

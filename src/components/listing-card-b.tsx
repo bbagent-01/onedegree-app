@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { MockListing } from "@/lib/mock-listings";
-import { TrustBadge } from "./trust-badge";
+import { TrustTag } from "./trust/trust-tag";
 import { Heart, ChevronLeft, ChevronRight, Star } from "lucide-react";
 
 interface ListingCardBProps {
@@ -53,7 +53,7 @@ export function ListingCardB({ listing, className }: ListingCardBProps) {
 
         {/* Trust badge */}
         <div className="absolute left-3 top-3 z-10">
-          <TrustBadge score={listing.trustScore} size="sm" />
+          <TrustTag size="micro" score={listing.trustScore} degree={1} />
         </div>
 
         {/* Carousel arrows (show on hover) */}

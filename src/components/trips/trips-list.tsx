@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ReviewModal } from "./review-modal";
 import { categorizeTrip, type TripCard, type TripTab } from "@/lib/trips-data";
-import { TrustBadge } from "@/components/trust-badge";
+import { TrustTag } from "@/components/trust/trust-tag";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 
 interface Props {
@@ -179,11 +179,12 @@ export function TripsList({ trips }: Props) {
                         Hosted by {t.host.name}
                       </Link>
                       {(t.trust_score > 0 || t.trust_is_direct) && (
-                        <TrustBadge
+                        <TrustTag
+                          size="micro"
                           score={t.trust_score}
-                          connectionCount={t.trust_connection_count}
+                          degree={t.trust_degree}
                           direct={t.trust_is_direct}
-                          size="sm"
+                          connectorPaths={t.trust_connector_paths}
                         />
                       )}
                     </div>

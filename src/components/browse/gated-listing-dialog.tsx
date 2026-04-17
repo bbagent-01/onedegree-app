@@ -33,7 +33,7 @@ export function GatedListingDialog({
   trust,
   isSignedIn = false,
 }: Props) {
-  const score = trust?.score ?? 0;
+  const score = trust?.trust_score ?? 0;
   const required = listing.min_trust_gate;
   const mutuals = trust?.mutualConnections ?? [];
 

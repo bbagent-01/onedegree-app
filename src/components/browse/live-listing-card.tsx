@@ -7,7 +7,7 @@ import { Heart, ChevronLeft, ChevronRight, Lock, Star, Info } from "lucide-react
 import { toast } from "sonner";
 import type { BrowseListing } from "@/lib/browse-data";
 import { SaveToWishlistDialog } from "@/components/wishlist/save-to-wishlist-dialog";
-import { HostInlineMeta } from "@/components/trust/host-inline-meta";
+import { TrustTag } from "@/components/trust/trust-tag";
 import { GatedListingDialog } from "./gated-listing-dialog";
 import type { BrowseListingTrust } from "./browse-layout";
 
@@ -376,10 +376,12 @@ export function LiveListingCard({
                 Hosted by {listing.host.name}
               </p>
               {trust && (
-                <HostInlineMeta
-                  score={trust.score}
-                  connectionCount={trust.connectionCount}
+                <TrustTag
+                  size="micro"
+                  score={trust.trust_score}
+                  degree={trust.degree}
                   direct={trust.hasDirectVouch}
+                  connectorPaths={trust.connectorPaths}
                   hostRating={listing.host.host_rating}
                   hostReviewCount={listing.host.host_review_count}
                   className="mt-0.5"
