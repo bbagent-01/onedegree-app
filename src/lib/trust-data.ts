@@ -494,13 +494,17 @@ async function computeIndirectFallback(
 
 /**
  * Tier configuration used by TrustBadge, TrustGate, and filter UI.
- * The 1° vouch score scale (updated for harmonic dampening formula):
+ * The 1° vouch score scale is a monotonic ramp from gray (no
+ * connection) to deep violet (strongest). Red is intentionally absent
+ * — "weak" is not a warning, just less-connected, and red should be
+ * reserved for actual problems.
+ *
  *   0        Not connected          zinc
- *   1–14     Weak                   red
- *   15–29    Modest                 orange
- *   30–49    Strong                 lime
- *   50–74    Very strong            emerald
- *   75+      Extremely strong       blue
+ *   1–14     Weak                   violet-400
+ *   15–29    Modest                 violet-500
+ *   30–49    Strong                 violet-600
+ *   50–74    Very strong            violet-700
+ *   75+      Extremely strong       violet-900
  */
 export type TrustTierKey =
   | "none"
@@ -530,55 +534,55 @@ export function trustTier(score: number): TrustTier {
     return {
       key: "extremely_strong",
       label: "Extremely strong",
-      dotClass: "bg-blue-500",
-      ringClass: "ring-blue-500/40",
-      textClass: "text-blue-700",
-      tintClass: "bg-blue-50 text-blue-800 ring-blue-200",
-      solidClass: "bg-blue-600 text-white",
+      dotClass: "bg-violet-900",
+      ringClass: "ring-violet-900/40",
+      textClass: "text-violet-900",
+      tintClass: "bg-violet-100 text-violet-900 ring-violet-300",
+      solidClass: "bg-violet-900 text-white",
     };
   }
   if (score >= 50) {
     return {
       key: "very_strong",
       label: "Very strong",
-      dotClass: "bg-emerald-500",
-      ringClass: "ring-emerald-500/40",
-      textClass: "text-emerald-700",
-      tintClass: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-      solidClass: "bg-emerald-600 text-white",
+      dotClass: "bg-violet-700",
+      ringClass: "ring-violet-700/40",
+      textClass: "text-violet-800",
+      tintClass: "bg-violet-100 text-violet-900 ring-violet-300",
+      solidClass: "bg-violet-700 text-white",
     };
   }
   if (score >= 30) {
     return {
       key: "strong",
       label: "Strong",
-      dotClass: "bg-lime-500",
-      ringClass: "ring-lime-500/40",
-      textClass: "text-lime-700",
-      tintClass: "bg-lime-50 text-lime-800 ring-lime-200",
-      solidClass: "bg-lime-600 text-white",
+      dotClass: "bg-violet-600",
+      ringClass: "ring-violet-600/40",
+      textClass: "text-violet-700",
+      tintClass: "bg-violet-50 text-violet-800 ring-violet-200",
+      solidClass: "bg-violet-600 text-white",
     };
   }
   if (score >= 15) {
     return {
       key: "modest",
       label: "Modest",
-      dotClass: "bg-orange-500",
-      ringClass: "ring-orange-500/40",
-      textClass: "text-orange-700",
-      tintClass: "bg-orange-50 text-orange-800 ring-orange-200",
-      solidClass: "bg-orange-500 text-white",
+      dotClass: "bg-violet-500",
+      ringClass: "ring-violet-500/40",
+      textClass: "text-violet-600",
+      tintClass: "bg-violet-50 text-violet-700 ring-violet-200",
+      solidClass: "bg-violet-500 text-white",
     };
   }
   if (score >= 1) {
     return {
       key: "weak",
       label: "Weak",
-      dotClass: "bg-red-500",
-      ringClass: "ring-red-500/40",
-      textClass: "text-red-700",
-      tintClass: "bg-red-50 text-red-800 ring-red-200",
-      solidClass: "bg-red-500 text-white",
+      dotClass: "bg-violet-400",
+      ringClass: "ring-violet-400/40",
+      textClass: "text-violet-500",
+      tintClass: "bg-violet-50 text-violet-700 ring-violet-200",
+      solidClass: "bg-violet-400 text-white",
     };
   }
   return {
@@ -588,7 +592,7 @@ export function trustTier(score: number): TrustTier {
     ringClass: "ring-zinc-300",
     textClass: "text-zinc-600",
     tintClass: "bg-zinc-50 text-zinc-700 ring-zinc-200",
-    solidClass: "bg-zinc-500 text-white",
+    solidClass: "bg-zinc-400 text-white",
   };
 }
 
