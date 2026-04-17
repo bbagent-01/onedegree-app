@@ -228,7 +228,7 @@ export default async function ListingPage({
                   </div>
                   {trust && (
                     <TrustTag
-                      size="micro"
+                      size="medium"
                       score={trust.score}
                       degree={trust.degree}
                       direct={trust.hasDirectVouch}
