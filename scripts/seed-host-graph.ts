@@ -254,7 +254,24 @@ interface ListingDef {
   description: string;
   visibility_mode: "public" | "preview_gated";
   min_trust_gate: number;
+  /** Approximate city coordinates; used for the preview map circle. */
+  lat: number;
+  lng: number;
+  amenities?: string[];
 }
+
+/** Default amenity set — richer than Wifi+Kitchen so the icon grid
+ *  on both full and gated views reads as a real listing. */
+const DEFAULT_AMENITIES = [
+  "Wifi",
+  "Kitchen",
+  "Heating",
+  "Workspace",
+  "Washer",
+  "Dryer",
+  "Free parking",
+  "TV",
+];
 
 const LISTINGS: ListingDef[] = [
   // ── Public (no gate) — Loren sees full listing ──
@@ -267,6 +284,8 @@ const LISTINGS: ListingDef[] = [
     description: "Traditional hanok in Bukchon.",
     visibility_mode: "public",
     min_trust_gate: 0,
+    lat: 37.5826,
+    lng: 126.9834,
   },
   {
     host: "sophie",
@@ -277,6 +296,8 @@ const LISTINGS: ListingDef[] = [
     description: "Charming studio in the Marais.",
     visibility_mode: "public",
     min_trust_gate: 0,
+    lat: 48.8566,
+    lng: 2.3522,
   },
   // ── Low gate — accessible with any connection ──
   {
@@ -288,6 +309,8 @@ const LISTINGS: ListingDef[] = [
     description: "Renovated flat with balcony.",
     visibility_mode: "preview_gated",
     min_trust_gate: 10,
+    lat: 41.3851,
+    lng: 2.1734,
   },
   {
     host: "priya_h",
@@ -298,6 +321,8 @@ const LISTINGS: ListingDef[] = [
     description: "Rustic cabin, forest views, wood stove.",
     visibility_mode: "preview_gated",
     min_trust_gate: 15,
+    lat: 35.5951,
+    lng: -82.5515,
   },
   // ── Mid gate — requires a solid path ──
   {
@@ -309,6 +334,8 @@ const LISTINGS: ListingDef[] = [
     description: "Industrial loft with skyline views.",
     visibility_mode: "preview_gated",
     min_trust_gate: 30,
+    lat: 41.8781,
+    lng: -87.6298,
   },
   {
     host: "rosa",
@@ -319,6 +346,8 @@ const LISTINGS: ListingDef[] = [
     description: "Artist loft in a quiet colonial street.",
     visibility_mode: "preview_gated",
     min_trust_gate: 30,
+    lat: 19.3467,
+    lng: -99.1617,
   },
   // ── Loren's direct-vouch hosts — always full access ──
   {
@@ -330,6 +359,8 @@ const LISTINGS: ListingDef[] = [
     description: "Two-bedroom cottage steps from the Pacific.",
     visibility_mode: "preview_gated",
     min_trust_gate: 20,
+    lat: 36.9741,
+    lng: -122.0308,
   },
   {
     host: "zara",
@@ -340,6 +371,8 @@ const LISTINGS: ListingDef[] = [
     description: "Traditional riad with rooftop terrace.",
     visibility_mode: "preview_gated",
     min_trust_gate: 10,
+    lat: 31.6295,
+    lng: -7.9811,
   },
   // ── High gate (50) — only the strongest paths qualify ──
   {
@@ -351,6 +384,8 @@ const LISTINGS: ListingDef[] = [
     description: "Scandinavian design, canal views.",
     visibility_mode: "preview_gated",
     min_trust_gate: 50,
+    lat: 59.3293,
+    lng: 18.0686,
   },
   // ── Inner-circle-only (75) — requires direct vouch or very strong path ──
   {
@@ -362,6 +397,8 @@ const LISTINGS: ListingDef[] = [
     description: "Top-floor apartment with 101 view.",
     visibility_mode: "preview_gated",
     min_trust_gate: 75,
+    lat: 25.0330,
+    lng: 121.5654,
   },
 ];
 
@@ -517,7 +554,7 @@ async function main() {
       price_min: l.price,
       price_max: l.price,
       is_active: true,
-      amenities: ["Wifi", "Kitchen"],
+      amenities: l.amenities ?? DEFAULT_AMENITIES,
       visibility_mode: l.visibility_mode,
       min_trust_gate: l.min_trust_gate,
       access_settings: {

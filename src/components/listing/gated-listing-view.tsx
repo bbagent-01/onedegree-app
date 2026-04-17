@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Lock, Star, Info, MapPin, Shield } from "lucide-react";
+import { Lock, Info, MapPin, Shield, Star } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { TrustGate } from "@/components/trust/trust-gate";
@@ -8,6 +8,9 @@ import {
   ConnectorAvatars,
   type AvatarConnector,
 } from "@/components/trust/connector-avatars";
+import { AmenitiesSection } from "./amenities-section";
+import { LocationMapClient } from "./location-map-client";
+import { PhotoGallery } from "./photo-gallery";
 import { GatedListingCTA } from "./gated-listing-cta";
 import type { ListingDetail } from "@/lib/listing-detail-data";
 import type { TrustResult } from "@/lib/trust-data";
@@ -26,20 +29,6 @@ interface Props {
  * experience — not a loading state or broken page.
  */
 export function GatedListingView({ listing, trust, access, isSignedIn }: Props) {
-  // Preview photo set — cover always included, blurred if not also
-  // marked is_preview. Other is_preview photos shown unblurred.
-  const coverPhoto = listing.photos.find((p) => p.is_cover) || listing.photos[0];
-  const displayPhotos: { photo: typeof listing.photos[number]; blur: boolean }[] = [];
-  if (coverPhoto) {
-    displayPhotos.push({ photo: coverPhoto, blur: !coverPhoto.is_preview });
-  }
-  for (const p of listing.photos) {
-    if (p === coverPhoto) continue;
-    if (p.is_preview) displayPhotos.push({ photo: p, blur: false });
-  }
-  const limitedDisplay = displayPhotos.slice(0, 3);
-  const hasPreviewPhotos = limitedDisplay.some((p) => !p.blur);
-
   const propertyLabel =
     listing.property_type === "room"
       ? "Private room"
@@ -52,6 +41,16 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
   const score = trust?.score ?? 0;
   const mutuals = trust?.mutualConnections ?? [];
   const path = trust?.path ?? [];
+
+  // Preview photo set — cover + any additional `is_preview` photos.
+  // When all four seed photos are flagged `is_preview` (the default
+  // since migration 018), this is just the listing's photo stream
+  // clipped to the first four. PhotoGallery handles the responsive
+  // grid; we feed it the preview subset so exact-address detail
+  // doesn't leak through the full gallery.
+  const previewPhotos = listing.photos
+    .filter((p) => p.is_cover || p.is_preview)
+    .slice(0, 5);
 
   // Preview description: host-written, or truncated from full description
   const previewDesc =
@@ -102,54 +101,11 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
         </div>
       </div>
 
-      {/* Preview photos — constrained gallery, per-photo blur */}
-      <div className="relative overflow-hidden rounded-2xl">
-        {limitedDisplay.length === 1 ? (
-          <div className="relative aspect-[16/10] w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={limitedDisplay[0].photo.public_url}
-              alt={`Preview of listing in ${listing.area_name}`}
-              className={
-                limitedDisplay[0].blur
-                  ? "h-full w-full scale-110 object-cover blur-2xl"
-                  : "h-full w-full object-cover saturate-[0.92]"
-              }
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-1">
-            {limitedDisplay.map(({ photo, blur }, i) => (
-              <div
-                key={photo.id}
-                className={
-                  i === 0 && limitedDisplay.length > 1
-                    ? "col-span-2 aspect-[2/1]"
-                    : "aspect-square"
-                }
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.public_url}
-                  alt={`Preview photo ${i + 1}`}
-                  className={
-                    blur
-                      ? "h-full w-full scale-110 object-cover blur-2xl"
-                      : "h-full w-full object-cover saturate-[0.92]"
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        )}
-        {!hasPreviewPhotos && limitedDisplay.length > 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-black/40 via-black/10 to-transparent">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-foreground shadow-sm backdrop-blur">
-              <Lock className="h-3.5 w-3.5" /> Photos unlocked with access
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Preview photos — reuses PhotoGallery so the 1/2/3/4+ grid
+          and the lightbox match the full listing experience. */}
+      {previewPhotos.length > 0 && (
+        <PhotoGallery photos={previewPhotos} title={listing.title} />
+      )}
 
       {/* Two-column layout */}
       <div className="mt-8 grid grid-cols-1 gap-10 md:grid-cols-3">
@@ -230,19 +186,15 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
             </>
           )}
 
-          {/* Amenities */}
+          {/* Amenities — reuses the full listing's icon component so
+              the gated view and full view read as the same product. */}
           {showAmenities && listing.amenities && listing.amenities.length > 0 && (
             <>
               <section>
-                <h2 className="mb-4 text-xl font-semibold">What this place offers</h2>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  {listing.amenities.slice(0, 10).map((a) => (
-                    <div key={a} className="flex items-center gap-2 text-muted-foreground">
-                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-                      {a}
-                    </div>
-                  ))}
-                </div>
+                <h2 className="mb-4 text-xl font-semibold">
+                  What this place offers
+                </h2>
+                <AmenitiesSection amenities={listing.amenities} />
               </section>
               <Separator className="my-8" />
             </>
@@ -261,8 +213,11 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
             </>
           )}
 
-          {/* Location — approximate area */}
-          {showMapArea && (
+          {/* Location — real map with an approximate-area circle
+              around the host's coordinates. LocationMapClient is the
+              same component the full listing uses. */}
+          {showMapArea && typeof listing.latitude === "number" &&
+            typeof listing.longitude === "number" && (
             <>
               <section>
                 <h2 className="mb-2 text-xl font-semibold">Location</h2>
@@ -275,8 +230,12 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
                 <p className="mt-2 text-sm text-muted-foreground">
                   Exact address shared after you unlock the full listing.
                 </p>
-                <div className="mt-4 flex h-48 items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
-                  Approximate area{showNeighborhood ? ` · ${listing.area_name}` : ""}
+                <div className="mt-4">
+                  <LocationMapClient
+                    lat={listing.latitude}
+                    lng={listing.longitude}
+                    areaName={listing.area_name}
+                  />
                 </div>
               </section>
               <Separator className="my-8" />

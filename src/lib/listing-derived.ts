@@ -87,6 +87,25 @@ const AREA_ANCHORS: Record<string, [number, number]> = {
   "denver": [39.7392, -104.9903],
   "boston": [42.3601, -71.0589],
   "washington": [38.9072, -77.0369],
+  // International seeded cities — used by seed-host-graph.ts so the
+  // preview map on every gated listing resolves to the right region.
+  "seoul": [37.5826, 126.9834],
+  "south korea": [37.5826, 126.9834],
+  "paris": [48.8566, 2.3522],
+  "france": [48.8566, 2.3522],
+  "barcelona": [41.3851, 2.1734],
+  "spain": [41.3851, 2.1734],
+  "asheville": [35.5951, -82.5515],
+  "coyoacán": [19.3467, -99.1617],
+  "mexico city": [19.4326, -99.1332],
+  "mexico": [19.4326, -99.1332],
+  "santa cruz": [36.9741, -122.0308],
+  "marrakech": [31.6295, -7.9811],
+  "morocco": [31.6295, -7.9811],
+  "stockholm": [59.3293, 18.0686],
+  "sweden": [59.3293, 18.0686],
+  "taipei": [25.033, 121.5654],
+  "taiwan": [25.033, 121.5654],
 };
 
 const DEFAULT_ANCHOR: [number, number] = [40.7128, -74.006]; // NYC
