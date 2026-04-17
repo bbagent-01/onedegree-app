@@ -97,6 +97,17 @@ const VOUCH_POINTS: Record<string, number> = {
   inner_circle: 25,
 };
 
+/**
+ * Clamp a stored vouch_power into a [0.5, 1.5] multiplier. Post-
+ * migration-014b values live there already; legacy rows carrying the
+ * raw 1–5 guest_rating get divided by 4 first.
+ */
+function clampVp(raw: number | null | undefined): number {
+  const v = typeof raw === "number" && isFinite(raw) ? raw : 1.0;
+  const multiplier = v >= 2 ? v / 4 : v;
+  return Math.max(0.5, Math.min(1.5, multiplier));
+}
+
 function edgeStrength(
   vouchType: string,
   yearsKnownBucket: string,
@@ -104,8 +115,7 @@ function edgeStrength(
 ): number {
   const pts = VOUCH_POINTS[vouchType] ?? 15;
   const mult = YEARS_MULTIPLIER[yearsKnownBucket] ?? 1;
-  const vpScale = (voucherVouchPower ?? 4) / 4;
-  return pts * mult * vpScale;
+  return pts * mult * clampVp(voucherVouchPower);
 }
 
 const EMPTY: TrustResult = {

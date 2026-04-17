@@ -34,6 +34,21 @@ const EMPTY_RESULT: OneDegreeResult = {
 };
 
 /**
+ * Clamp a stored vouch_power value into a sane [0.5, 1.5] multiplier.
+ * Post-migration-014b all rows should be in this range already, but
+ * legacy rows may still carry the raw 1–5 rating; treating 4.0 as a
+ * 4× multiplier inflates every path that goes through that user.
+ */
+function clampVp(raw: number | null | undefined): number {
+  const v = typeof raw === "number" && isFinite(raw) ? raw : 1.0;
+  // If someone has a value that reads like the old 1–5 scale
+  // (anything >= 2), interpret it as the legacy raw rating and
+  // convert to a multiplier via ÷4, then clamp.
+  const multiplier = v >= 2 ? v / 4 : v;
+  return Math.max(0.5, Math.min(1.5, multiplier));
+}
+
+/**
  * Compute the 1° vouch score from viewer to a single target.
  * Uses the get_trust_data_for_viewer RPC for a single DB round-trip,
  * with a JS fallback if the RPC isn't deployed yet.
@@ -92,16 +107,22 @@ function assembleResult(rows: Array<{
 }>): OneDegreeResult {
   if (rows.length === 0) return EMPTY_RESULT;
 
-  // Compute path strengths
+  // Compute path strengths. vouch_power is stored as a multiplier in
+  // [0.5, 1.5] (migration 014b). Legacy rows may still hold the raw
+  // 1–5 guest_rating; clamp to keep one bad row from multiplying a
+  // path's strength by 4× or more.
   const rawPaths = rows.map((r) => {
     const link_a = r.viewer_vouch_score;
-    const link_b = r.connector_vouch_score * r.connector_vouch_power;
+    const vpMultiplier = clampVp(r.connector_vouch_power);
+    const link_b = r.connector_vouch_score * vpMultiplier;
     const path_strength = (link_a + link_b) / 2;
     return {
       connector_id: r.connector_id,
       viewer_vouch_score: r.viewer_vouch_score,
       connector_vouch_score: r.connector_vouch_score,
-      connector_vouch_power: r.connector_vouch_power,
+      // Surface the normalized multiplier so the UI shows 1.00× rather
+      // than the raw 4.0 the DB might still have.
+      connector_vouch_power: vpMultiplier,
       link_a,
       link_b,
       path_strength,

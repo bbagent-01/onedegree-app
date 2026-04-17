@@ -129,7 +129,7 @@ export function ConnectionPopover({
       <PopoverContent
         side="bottom"
         align="start"
-        className="w-80 max-h-[420px] overflow-y-auto p-0"
+        className="w-[28rem] max-w-[calc(100vw-1.5rem)] max-h-[80vh] overflow-y-auto p-0"
       >
         {loading && (
           <div className="flex items-center justify-center py-8">
@@ -318,12 +318,44 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
               {data.score} pts
             </span>
           </div>
+          <ColorKey />
           <div className="text-[10px] text-muted-foreground/70">
             Numeric-only view. Vouch type and years-known stay hidden
             to protect each voucher&apos;s privacy.
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Bucket → color → score-range legend used inside Show math. */
+function ColorKey() {
+  const buckets: Array<{
+    label: string;
+    range: string;
+    className: string;
+  }> = [
+    { label: "Weak", range: "1–14", className: "bg-emerald-200" },
+    { label: "Modest", range: "15–29", className: "bg-emerald-400" },
+    { label: "Strong", range: "30–49", className: "bg-emerald-500" },
+    { label: "Very strong", range: "50–74", className: "bg-emerald-600" },
+    { label: "Extremely", range: "75+", className: "bg-emerald-800" },
+  ];
+  return (
+    <div className="rounded-md bg-white/60 p-2 text-[10px] text-muted-foreground">
+      <div className="mb-1 font-semibold text-foreground">Color key</div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {buckets.map((b) => (
+          <div key={b.label} className="flex items-center gap-1.5">
+            <span
+              className={cn("inline-block h-2.5 w-2.5 rounded-full", b.className)}
+            />
+            <span className="font-medium text-foreground">{b.range}</span>
+            <span>{b.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
