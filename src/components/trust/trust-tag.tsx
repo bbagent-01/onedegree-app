@@ -13,9 +13,11 @@ interface Props {
   /** Trust score from viewer → target user. Ignored when direct=true. */
   score?: number;
   /**
-   * Degrees of separation. 1 = direct vouch, 2 = via one connector,
-   * 3 = via two connectors. `null` = not connected. 2° and 3° render
-   * as bare ordinals ("2nd°" / "3rd°") — no shield, no score.
+   * Degrees of separation.
+   *   1 = direct vouch (green "Vouched" pill)
+   *   2 = friend of a friend — shield + score + connector dots/avatars
+   *   3 = two hops out — bare "3rd°" ordinal, no shield or score
+   *   null = not connected
    */
   degree?: 1 | 2 | 3 | null;
   /** When true, viewer directly vouched for target — renders a green
@@ -96,14 +98,10 @@ export function TrustTag({
     );
   }
 
-  // Via-connector (degree=2) or 3-hop (degree=3). Both render as
-  // bare ordinals — no shield, no score. The whole point of 1° B&B
-  // is the difference between "I know this person" (direct) and
-  // "I know someone who knows them" (via). The ordinal is the
-  // fastest read; shield+score lives in the popover / detail view.
-  if (degree && degree >= 2 && !direct) {
-    const ordinal = degree === 3 ? "3rd" : "2nd";
-    const tone = degree === 3 ? "text-zinc-500" : "text-zinc-600";
+  // 3° — two hops out. Score is always 0 for 3° (engine sets it
+  // that way per spec), so this branch has to run BEFORE the
+  // score-based em-dash check or it'd collapse into "not connected".
+  if (degree === 3 && !direct) {
     return (
       <span
         className={cn(
@@ -111,7 +109,7 @@ export function TrustTag({
           className
         )}
       >
-        <span className={cn("font-semibold", tone)}>{ordinal}&deg;</span>
+        <span className="font-semibold text-zinc-500">3rd&deg;</span>
         {ratingNode}
       </span>
     );
@@ -135,7 +133,9 @@ export function TrustTag({
     );
   }
 
-  // 1° — shield + score sit tight together, then connector dots/avatars.
+  // 2° (friend of a friend) — shield + score + connector dots/
+  // avatars. This is the core friends-of-friends case, the whole
+  // point of the product, so it gets the richest rendering.
   return (
     <span
       className={cn(
