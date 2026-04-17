@@ -32,7 +32,10 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 const DOMAIN = "@hostgraph-seed.1db";
-const LOREN_EMAIL = "loren@onedegreebnb.com";
+// Loren's real signed-in account (Clerk-authenticated prod user).
+// The earlier `loren@onedegreebnb.com` mapped to a separate seed-only
+// test account, which left the live browse view with no trust data.
+const LOREN_EMAIL = "lorenpolster@gmail.com";
 const PHONE_PREFIX = "+15551110";
 
 function pravatar(id: string): string {
