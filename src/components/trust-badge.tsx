@@ -32,14 +32,14 @@ export function TrustBadge({
     return (
       <div
         className={cn(
-          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums shadow-sm ring-1",
-          tier.tintClass,
+          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums shadow-sm",
+          tier.solidClass,
           className
         )}
         title={`1° vouch score: ${score} (${tier.label})`}
       >
         <span>{score}</span>
-        <span className="text-[11px] font-semibold opacity-70">1°</span>
+        <span className="text-[11px] font-semibold opacity-85">1°</span>
       </div>
     );
   }

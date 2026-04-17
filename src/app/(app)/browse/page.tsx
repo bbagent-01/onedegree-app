@@ -125,6 +125,10 @@ async function BrowseResults({
 
   // Resolve the signed-in viewer's internal user id once.
   const { userId: clerkId } = await auth();
+
+  // Hide the viewer's own listings — the explore feed is for discovering
+  // other hosts, not browsing your own inventory. Host manages those
+  // from the dashboard.
   let viewerId: string | null = null;
   let savedIds: string[] = [];
   let viewerVouchCountReceived = 0;
@@ -144,6 +148,10 @@ async function BrowseResults({
         (vouchCountRow as { vouch_count_received: number | null } | null)
           ?.vouch_count_received ?? 0;
     }
+  }
+
+  if (viewerId) {
+    listings = listings.filter((l) => l.host_id !== viewerId);
   }
 
   // Compute trust paths from the viewer to every host in the result

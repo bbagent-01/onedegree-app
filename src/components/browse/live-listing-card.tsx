@@ -139,13 +139,6 @@ export function LiveListingCard({
               Private listing
             </div>
 
-            {/* Trust badge — top-left below lock if score > 0 */}
-            {trust && trust.score > 0 && (
-              <div className="absolute left-3 top-11">
-                <TrustBadge score={trust.score} size="sm" />
-              </div>
-            )}
-
             {/* Preview tooltip — top-right */}
             {/* Info tooltip — top-right */}
             <div
@@ -274,11 +267,6 @@ export function LiveListingCard({
                 Requires trust connection
               </div>
             </div>
-            {trust && trust.score > 0 && (
-              <div className="absolute left-3 top-3">
-                <TrustBadge score={trust.score} size="sm" />
-              </div>
-            )}
           </div>
 
           <div className="mt-3">
@@ -319,12 +307,6 @@ export function LiveListingCard({
             alt={listing.title}
             className="h-full w-full object-cover"
           />
-
-          {trust && trust.score > 0 && (
-            <div className="absolute left-3 top-3">
-              <TrustBadge score={trust.score} size="sm" />
-            </div>
-          )}
 
           <button
             onClick={openPicker}
@@ -389,8 +371,9 @@ export function LiveListingCard({
             {listing.title}
           </p>
           {listing.host && (
-            <p className="text-sm text-muted-foreground">
-              Hosted by {listing.host.name}
+            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <span>Hosted by {listing.host.name}</span>
+              {trust && <TrustBadge score={trust.score} size="sm" />}
             </p>
           )}
           <p className="mt-1">
