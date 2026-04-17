@@ -12,18 +12,21 @@ export type VisibilityMode = "public" | "preview_gated" | "hidden";
 /**
  * Simplified access model (mid-session refactor):
  *
+ * - "anyone_anywhere": logged-out viewers included. Only valid on the
+ *                      outer `see_preview` gate — the inner
+ *                      full_listing_contact gate always requires auth
+ *                      (messaging and booking both need an identity).
  * - "anyone":          any signed-in user on the platform
  * - "min_score":       signed-in users whose 1° score ≥ threshold
  * - "specific_people": only the listed user IDs
  *
- * Anonymous / logged-out viewers are no longer supported — every
- * listing requires auth. "Anyone" means any signed-in user.
- *
- * Legacy values ("anyone_anywhere", "max_degrees") are normalized on
- * read in check-access: anyone_anywhere → anyone, max_degrees →
- * min_score with a derived threshold.
+ * Legacy "max_degrees" values are normalized to min_score on read.
  */
-export type AccessType = "anyone" | "min_score" | "specific_people";
+export type AccessType =
+  | "anyone_anywhere"
+  | "anyone"
+  | "min_score"
+  | "specific_people";
 
 export interface AccessRule {
   type: AccessType;
@@ -167,10 +170,9 @@ export function normalizeAccessSettings(
 
 function normalizeRule(rule: AccessRule | undefined): AccessRule | undefined {
   if (!rule) return undefined;
-  // Legacy values that no longer exist in the new model.
-  if ((rule.type as string) === "anyone_anywhere") return { type: "anyone" };
+  // Legacy max_degrees no longer exists — roughly: 1 degree ≈
+  // min_score 30, 2 degrees ≈ min_score 10.
   if ((rule.type as string) === "max_degrees") {
-    // Roughly: 1 degree ≈ min_score 30, 2 degrees ≈ min_score 10.
     const threshold = (rule.threshold ?? 2) <= 1 ? 30 : 10;
     return { type: "min_score", threshold };
   }

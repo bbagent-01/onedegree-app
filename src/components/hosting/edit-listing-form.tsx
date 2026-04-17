@@ -49,6 +49,7 @@ type AccessActionKey = "see_preview" | "full_listing_contact";
 /** Order rules from most-permissive (low) to most-restrictive (high).
  *  Used to clamp the inner gate against the outer. */
 function rank(rule: AccessRule): number {
+  if (rule.type === "anyone_anywhere") return -1;
   if (rule.type === "anyone") return 0;
   if (rule.type === "min_score") return 1 + (rule.threshold ?? 0);
   if (rule.type === "specific_people") return 9999;
@@ -1284,6 +1285,15 @@ export function EditListingForm({
                           }
                           className="h-10 rounded-lg border border-border bg-white px-3 text-sm focus-visible:border-brand focus-visible:outline-none"
                         >
+                          {/* Only the outer See Preview gate may be
+                              made public. Full Listing + Contact
+                              always requires auth — you can't DM or
+                              book without an identity. */}
+                          {key === "see_preview" && (
+                            <option value="anyone_anywhere">
+                              Anyone (incl. not signed in)
+                            </option>
+                          )}
                           <option value="anyone">Anyone signed in</option>
                           <option value="min_score">Min 1° score</option>
                           <option value="specific_people">

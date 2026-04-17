@@ -60,19 +60,14 @@ export default async function ListingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-
-  // Auth wall — 1° B&B is a private network. No anonymous listing
-  // access, full or preview. Bounce to sign-in with a return URL.
-  const { userId: clerkId } = await auth();
-  if (!clerkId) {
-    redirect(`/sign-in?redirect_url=${encodeURIComponent(`/listings/${id}`)}`);
-  }
-
   const listing = await getListingDetail(id);
   if (!listing) notFound();
 
   // Trust gating — compute viewer → host path, decide whether to show
   // the full listing or a gated preview. Host always sees their own.
+  // Anonymous viewers are allowed in as far as the preview gate lets
+  // them; if even that denies them, we bounce to sign-in.
+  const { userId: clerkId } = await auth();
   const viewerId = await getInternalUserIdFromClerk(clerkId);
   const isHost = viewerId && viewerId === listing.host_id;
   const trust =
@@ -98,6 +93,18 @@ export default async function ListingPage({
     trust?.score ?? 0,
     trust?.degree === 1 ? 1 : trust?.degree === 2 ? 2 : undefined
   );
+
+  // If even the preview is denied — and the viewer isn't signed in —
+  // bounce to sign-in so they can authenticate and retry. Signed-in
+  // viewers who are still denied get the gated 404-ish experience.
+  if (!isHost && !access.can_see_preview) {
+    if (!clerkId) {
+      redirect(
+        `/sign-in?redirect_url=${encodeURIComponent(`/listings/${id}`)}`
+      );
+    }
+    notFound();
+  }
 
   const canSeeFull = isHost || access.can_see_full;
 

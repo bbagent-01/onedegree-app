@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import {
   getBrowseListings,
@@ -32,10 +31,10 @@ export default async function BrowsePage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  // Auth wall — private-network model means no anonymous browsing.
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in?redirect_url=/browse");
-
+  // Anonymous viewers are allowed here — `checkListingAccess` hides
+  // every listing whose see_preview gate isn't "anyone_anywhere", so
+  // logged-out users see only the hosts who opted into a public
+  // preview.
   const params = await searchParams;
   const filters = parseBrowseParams(params);
   const filterCount = activeFilterCount(filters);

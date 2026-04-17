@@ -50,7 +50,11 @@ type PropertyLabel =
   | "Other";
 
 type VisibilityMode = "public" | "preview_gated" | "hidden";
-type AccessType = "anyone" | "min_score" | "specific_people";
+type AccessType =
+  | "anyone_anywhere"
+  | "anyone"
+  | "min_score"
+  | "specific_people";
 
 interface AccessRuleState {
   type: AccessType;
@@ -194,6 +198,7 @@ function buildAccessRule(rule: AccessRuleState): {
   threshold?: number;
   user_ids?: string[];
 } {
+  if (rule.type === "anyone_anywhere") return { type: "anyone_anywhere" };
   if (rule.type === "anyone") return { type: "anyone" };
   if (rule.type === "min_score")
     return { type: "min_score", threshold: Number(rule.threshold) || 0 };
@@ -205,6 +210,7 @@ function buildAccessRule(rule: AccessRuleState): {
 /** Mirror of the rank function in edit-listing-form — used to clamp
  *  the inner gate so it never ends up more permissive than preview. */
 function accessRuleRank(rule: AccessRuleState): number {
+  if (rule.type === "anyone_anywhere") return -1;
   if (rule.type === "anyone") return 0;
   if (rule.type === "min_score") return 1 + (Number(rule.threshold) || 0);
   if (rule.type === "specific_people") return 9999;
@@ -2455,11 +2461,21 @@ function Step8Visibility({
     },
   ];
 
-  const ACCESS_TYPES: { key: AccessType; label: string }[] = [
+  // "anyone_anywhere" is only offered on the outer See Preview gate
+  // — messaging / booking always require auth.
+  const PREVIEW_ACCESS_TYPES: { key: AccessType; label: string }[] = [
+    { key: "anyone_anywhere", label: "Anyone (incl. not signed in)" },
     { key: "anyone", label: "Anyone signed in" },
     { key: "min_score", label: "Min 1\u00B0 score" },
     { key: "specific_people", label: "Specific people" },
   ];
+  const FULL_ACCESS_TYPES: { key: AccessType; label: string }[] = [
+    { key: "anyone", label: "Anyone signed in" },
+    { key: "min_score", label: "Min 1\u00B0 score" },
+    { key: "specific_people", label: "Specific people" },
+  ];
+  const accessTypesFor = (key: AccessKey) =>
+    key === "accessSeePreview" ? PREVIEW_ACCESS_TYPES : FULL_ACCESS_TYPES;
 
   const updateAccessRule = (
     key: AccessKey,
@@ -2585,7 +2601,7 @@ function Step8Visibility({
                         "focus-visible:border-brand focus-visible:outline-none"
                       )}
                     >
-                      {ACCESS_TYPES.map(({ key: ak, label: al }) => (
+                      {accessTypesFor(key).map(({ key: ak, label: al }) => (
                         <option key={ak} value={ak}>
                           {al}
                         </option>

@@ -14,8 +14,10 @@
  * as see_preview. If the stored settings violate this (e.g. legacy
  * rows), full_listing_contact is clamped at read time.
  *
- * Anonymous viewers are no longer supported. A null viewerId short-
- * circuits to "no access" — callers must sign the user in first.
+ * Anonymous viewers (null viewerId) are allowed through the outer
+ * gate only when the host has opted into `anyone_anywhere`. Any
+ * inner-gate action always requires auth, so logged-out viewers
+ * never reach full_listing_contact.
  */
 
 import type { AccessRule, AccessSettings, ListingAccessResult } from "./types";
@@ -54,9 +56,6 @@ export function checkListingAccess(
   // Hosts always see their own listings fully.
   if (viewerId && viewerId === listing.host_id) return FULL_ACCESS;
 
-  // Auth wall — no anonymous access under the new model.
-  if (!viewerId) return NO_ACCESS;
-
   if (listing.visibility_mode === "hidden") return NO_ACCESS;
   if (listing.visibility_mode === "public") return FULL_ACCESS;
 
@@ -68,15 +67,23 @@ export function checkListingAccess(
   const canSeePreview = evaluateRule(settings.see_preview, viewerId, score);
 
   // Clamp: full_listing_contact can never be more permissive than
-  // see_preview, regardless of what's in the DB.
+  // see_preview, regardless of what's in the DB. Also: any inner-
+  // gate action requires a signed-in viewer — messaging and booking
+  // both need an identity.
   const canSeeFull =
     canSeePreview &&
+    !!viewerId &&
     evaluateRule(settings.full_listing_contact, viewerId, score);
 
   // Intro requests are available to anyone who can see the preview
-  // but not the full listing, provided the host left the toggle on.
+  // but not the full listing, provided the host left the toggle on
+  // AND the viewer is signed in (sending a message needs an identity,
+  // even if it's anonymized to the host).
   const canRequestIntro =
-    canSeePreview && !canSeeFull && settings.allow_intro_requests !== false;
+    canSeePreview &&
+    !canSeeFull &&
+    !!viewerId &&
+    settings.allow_intro_requests !== false;
 
   return {
     can_see_preview: canSeePreview,
@@ -90,23 +97,25 @@ export function checkListingAccess(
 }
 
 /**
- * Evaluate a single rule. Anonymous viewers are always denied — the
- * caller should have bounced them to sign-in before calling this.
+ * Evaluate a single rule. `anyone_anywhere` lets a null viewerId
+ * through; every other rule requires a signed-in user.
  */
 function evaluateRule(
   rule: AccessRule | undefined,
   viewerId: string | null,
   score: number
 ): boolean {
-  if (!rule || !viewerId) return false;
+  if (!rule) return false;
 
   switch (rule.type) {
-    case "anyone":
+    case "anyone_anywhere":
       return true;
+    case "anyone":
+      return viewerId != null;
     case "min_score":
-      return score >= (rule.threshold ?? 0);
+      return viewerId != null && score >= (rule.threshold ?? 0);
     case "specific_people":
-      return (rule.user_ids ?? []).includes(viewerId);
+      return viewerId != null && (rule.user_ids ?? []).includes(viewerId);
     default:
       // Unknown legacy types get denied. normalizeAccessSettings
       // should have converted them before we reach this point.
