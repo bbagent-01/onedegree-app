@@ -72,15 +72,35 @@ export async function PATCH(
 
   if (thread) {
     const verb = status === "accepted" ? "accepted" : "declined";
+    const { data: hostRow } = await supabase
+      .from("users")
+      .select("name")
+      .eq("id", request.host_id)
+      .maybeSingle();
+    const hostFirst = (hostRow?.name ?? "Host").split(" ")[0];
+
     await supabase.from("messages").insert({
       thread_id: thread.id,
       sender_id: null,
       content:
         status === "accepted"
-          ? `Host ${verb} the reservation request${request.check_in && request.check_out ? ` for ${request.check_in} to ${request.check_out}` : ""}.`
-          : `Host ${verb} the reservation request.`,
+          ? `Great news! ${hostFirst} accepted your request${request.check_in && request.check_out ? ` for ${request.check_in} to ${request.check_out}` : ""}.`
+          : `${hostFirst} declined the reservation request.`,
       is_system: true,
     });
+
+    if (status === "accepted") {
+      // Off-platform payment follow-up. Purely informational — 1DB
+      // never handles money, so the reminder lives in the thread
+      // where the two parties are already coordinating.
+      await supabase.from("messages").insert({
+        thread_id: thread.id,
+        sender_id: null,
+        content:
+          "💳 Arrange payment directly with your host. Most members use Venmo or Zelle. 1° B&B doesn't process payments.",
+        is_system: true,
+      });
+    }
 
     if (hostResponseMessage && hostResponseMessage.trim()) {
       await supabase.from("messages").insert({

@@ -258,20 +258,16 @@ export function EditListingForm({
     show_house_rules: pc0?.show_house_rules ?? true,
   });
 
-  // Access rules — collapsed 2-gate model. Legacy rows are normalized
-  // into full_listing_contact at read time by normalizeAccessSettings.
+  // Access rules — collapsed 2-gate model. All rows carry
+  // full_listing_contact post-migration 020.
   const as0 = initial.access_settings;
-  const legacyFullContact =
-    as0?.full_listing_contact ??
-    as0?.see_full ??
-    as0?.message ??
-    as0?.request_book ??
-    ({ type: "min_score", threshold: 15 } as AccessRule);
   const [accessRules, setAccessRules] = useState<
     Record<AccessActionKey, AccessRule>
   >({
     see_preview: as0?.see_preview ?? { type: "anyone" },
-    full_listing_contact: legacyFullContact,
+    full_listing_contact:
+      as0?.full_listing_contact ??
+      ({ type: "min_score", threshold: 15 } as AccessRule),
   });
   const [allowIntroRequests, setAllowIntroRequests] = useState<boolean>(
     as0?.allow_intro_requests ?? true

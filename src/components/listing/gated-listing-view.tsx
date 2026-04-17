@@ -4,6 +4,10 @@ import { Separator } from "@/components/ui/separator";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { TrustGate } from "@/components/trust/trust-gate";
 import { ConnectionPath } from "@/components/trust/connection-path";
+import {
+  ConnectorAvatars,
+  type AvatarConnector,
+} from "@/components/trust/connector-avatars";
 import { GatedListingCTA } from "./gated-listing-cta";
 import type { ListingDetail } from "@/lib/listing-detail-data";
 import type { TrustResult } from "@/lib/trust-data";
@@ -178,15 +182,13 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
                   </div>
                 )}
               </div>
-              {(score > 0 || trust?.hasDirectVouch) && (
-                <TrustTag
-                  size="medium"
-                  score={score}
-                  degree={trust?.degree ?? null}
-                  direct={trust?.hasDirectVouch ?? false}
-                  connectorPaths={trust?.connectorPaths ?? []}
-                />
-              )}
+              <TrustTag
+                size="medium"
+                score={score}
+                degree={trust?.degree ?? null}
+                direct={trust?.hasDirectVouch ?? false}
+                connectorPaths={trust?.connectorPaths ?? []}
+              />
             </div>
           </div>
 
@@ -365,6 +367,13 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Unlock this listing
             </div>
+
+            {/* Trust distance row — always rendered, even when not
+                connected. Sits directly above the CTA so the viewer
+                sees exactly how close they are and who bridges the
+                gap. */}
+            <TrustDistanceRow trust={trust} hostFirstName={listing.host?.name?.split(" ")[0] ?? "the host"} />
+
             <GatedListingCTA
               listingId={listing.id}
               listingTitle={listing.title}
@@ -382,6 +391,48 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
 }
 
 /**
+ * Always-on row that spells out the viewer's trust distance to the
+ * host, plus the connector avatars who could bridge it. Rendered even
+ * when score is 0 — being gated is the single most teachable moment
+ * to explain what 1DB's network gating actually means.
+ */
+function TrustDistanceRow({
+  trust,
+  hostFirstName,
+}: {
+  trust: TrustResult | null;
+  hostFirstName: string;
+}) {
+  const connectors = trust?.connectorPaths ?? [];
+  const connectionCount = trust?.connectionCount ?? connectors.length;
+  const direct = trust?.hasDirectVouch ?? false;
+  const score = trust?.score ?? 0;
+
+  let line: string;
+  if (direct) {
+    line = `You vouched for ${hostFirstName} directly.`;
+  } else if (score > 0 && connectionCount > 0) {
+    line = `${connectionCount} mutual connection${connectionCount === 1 ? "" : "s"} · request an intro`;
+  } else if (connectionCount > 0) {
+    line = `${connectionCount} mutual connection${connectionCount === 1 ? "" : "s"} · request an intro`;
+  } else {
+    line = `0 connections · ask someone you know to vouch for ${hostFirstName}`;
+  }
+
+  return (
+    <div className="mt-3 space-y-2">
+      {connectors.length > 0 && (
+        <ConnectorAvatars
+          connectors={connectors as AvatarConnector[]}
+          size="h-7 w-7"
+        />
+      )}
+      <p className="text-xs leading-relaxed text-muted-foreground">{line}</p>
+    </div>
+  );
+}
+
+/**
  * Generate access requirement messaging based on the listing's
  * full_listing_contact gate (new collapsed model). Falls back to the
  * legacy see_full rule for rows written under the older schema.
@@ -392,7 +443,7 @@ function getAccessMessage(
   _degree?: 1 | 2 | null
 ): { title: string; body: string } | null {
   const settings = listing.access_settings;
-  const rule = settings?.full_listing_contact ?? settings?.see_full;
+  const rule = settings?.full_listing_contact;
   if (!rule) return null;
 
   switch (rule.type) {

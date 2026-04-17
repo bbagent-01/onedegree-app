@@ -8,6 +8,10 @@ import { toast } from "sonner";
 import type { BrowseListing } from "@/lib/browse-data";
 import { SaveToWishlistDialog } from "@/components/wishlist/save-to-wishlist-dialog";
 import { TrustTag } from "@/components/trust/trust-tag";
+import {
+  ConnectorAvatars,
+  type AvatarConnector,
+} from "@/components/trust/connector-avatars";
 import { GatedListingDialog } from "./gated-listing-dialog";
 import type { BrowseListingTrust } from "./browse-layout";
 
@@ -220,8 +224,25 @@ export function LiveListingCard({
           </div>
         </Link>
 
-        {/* Trust indicator placeholder (wired in CC-C4) */}
-        <div data-trust-indicator className="hidden" />
+        {/* Trust distance row — always visible on gated tiles so the
+            viewer can see how far they are and who could bridge it. */}
+        {trust && (
+          <div className="mt-1.5 flex items-center gap-2">
+            <TrustTag
+              size="micro"
+              score={trust.trust_score}
+              degree={trust.degree}
+              direct={trust.hasDirectVouch}
+              connectorPaths={trust.connectorPaths}
+            />
+            {trust.connectorPaths.length > 0 && (
+              <ConnectorAvatars
+                connectors={trust.connectorPaths as AvatarConnector[]}
+                size="h-5 w-5"
+              />
+            )}
+          </div>
+        )}
       </>
     );
   }
@@ -280,6 +301,23 @@ export function LiveListingCard({
                   ? "Not connected yet"
                   : "Sign in to see your connection"}
             </p>
+            {trust && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <TrustTag
+                  size="micro"
+                  score={trust.trust_score}
+                  degree={trust.degree}
+                  direct={trust.hasDirectVouch}
+                  connectorPaths={trust.connectorPaths}
+                />
+                {trust.connectorPaths.length > 0 && (
+                  <ConnectorAvatars
+                    connectors={trust.connectorPaths as AvatarConnector[]}
+                    size="h-5 w-5"
+                  />
+                )}
+              </div>
+            )}
           </div>
         </button>
 

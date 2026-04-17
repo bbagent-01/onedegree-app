@@ -14,6 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Minus, Plus, Star } from "lucide-react";
 import { AvailabilityCalendar } from "./availability-calendar";
+import { TrustTag } from "@/components/trust/trust-tag";
+import type { ConnectorPathSummary } from "@/lib/trust-data";
 
 interface Props {
   listingId: string;
@@ -23,6 +25,14 @@ interface Props {
   avgRating: number | null;
   reviewCount: number;
   blockedRanges: { start: string; end: string }[];
+  /** Optional trust info for the host→viewer direction — renders a
+   *  medium TrustTag beneath the Contact Host button. */
+  trust?: {
+    score: number;
+    degree: 1 | 2 | null;
+    hasDirectVouch: boolean;
+    connectorPaths: ConnectorPathSummary[];
+  } | null;
 }
 
 function calcFees(pricePerNight: number, nights: number) {
@@ -41,6 +51,7 @@ export function BookingSidebar({
   avgRating,
   reviewCount,
   blockedRanges,
+  trust,
 }: Props) {
   const router = useRouter();
   const [range, setRange] = useState<DateRange | undefined>();
@@ -204,10 +215,22 @@ export function BookingSidebar({
             onClick={reserve}
             disabled={!range?.from || !range?.to}
           >
-            Request to Book
+            Contact Host
           </Button>
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            Payment arranged directly with your host off-platform
+          {trust && (
+            <div className="mt-3 flex justify-center">
+              <TrustTag
+                size="medium"
+                score={trust.score}
+                degree={trust.degree}
+                direct={trust.hasDirectVouch}
+                connectorPaths={trust.connectorPaths}
+              />
+            </div>
+          )}
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            Payment arranged directly with your host — 1° B&amp;B doesn&apos;t
+            process payments.
           </p>
 
           {nights > 0 && (
@@ -274,7 +297,7 @@ export function BookingSidebar({
             onClick={reserve}
             disabled={!range?.from || !range?.to}
           >
-            Request to Book
+            Contact Host
           </Button>
         </div>
       </div>

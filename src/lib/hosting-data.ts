@@ -42,6 +42,11 @@ export interface HostingReservation {
   trust_degree: 1 | 2 | null;
   /** Connector bridges sorted strongest → weakest. */
   trust_connector_paths: ConnectorPathSummary[];
+  /** stay_confirmations row id for this booking, if any. Needed to
+   *  submit the host's post-stay review of the guest. */
+  stay_confirmation_id: string | null;
+  /** True once the host has already left a guest review for this stay. */
+  host_has_reviewed: boolean;
 }
 
 export type ReservationBucket = "upcoming" | "completed" | "cancelled";
@@ -133,6 +138,19 @@ export async function getHostDashboardData(): Promise<HostDashboardData | null> 
   const trustByGuest = guestIds.length
     ? await computeTrustPaths(hostId, guestIds)
     : {};
+
+  // Stay confirmations keyed by contact_request_id so we can surface
+  // the review-guest button in the host's completed-stays tab.
+  const requestIds = (requests || []).map((r) => r.id);
+  const { data: stayByRequest } = requestIds.length
+    ? await supabase
+        .from("stay_confirmations")
+        .select("id, contact_request_id, guest_rating")
+        .in("contact_request_id", requestIds)
+    : { data: [] as Array<{ id: string; contact_request_id: string; guest_rating: number | null }> };
+  const stayByRequestId = new Map(
+    (stayByRequest || []).map((s) => [s.contact_request_id, s])
+  );
   const listingTitleById = new Map(
     (listingsData || []).map((l) => [l.id, l.title as string])
   );
@@ -171,6 +189,8 @@ export async function getHostDashboardData(): Promise<HostDashboardData | null> 
       trust_degree: trustByGuest[r.guest_id]?.degree ?? null,
       trust_connector_paths:
         trustByGuest[r.guest_id]?.connectorPaths ?? [],
+      stay_confirmation_id: stayByRequestId.get(r.id)?.id ?? null,
+      host_has_reviewed: (stayByRequestId.get(r.id)?.guest_rating ?? null) !== null,
     };
 
     if (r.status === "cancelled" || r.status === "declined") {

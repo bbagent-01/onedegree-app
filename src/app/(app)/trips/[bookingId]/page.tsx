@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { TripDetailActions } from "@/components/trips/trip-detail-actions";
 import { PostStayVouchBanner } from "@/components/trust/post-stay-vouch-banner";
+import { PaymentArrangementCard } from "@/components/trips/payment-arrangement-card";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -154,6 +155,14 @@ export default async function TripDetailPage({ params }: PageProps) {
           <TripDetailActions trip={trip} canReview={!!isPostCheckout} />
         </div>
       </div>
+
+      {/* Payment arrangement — only after host accepts */}
+      {isConfirmed && trip.host && (
+        <PaymentArrangementCard
+          bookingId={bookingId}
+          hostFirstName={trip.host.name?.split(" ")[0] ?? "your host"}
+        />
+      )}
 
       {/* Host section */}
       {trip.host && (

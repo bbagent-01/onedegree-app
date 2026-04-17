@@ -297,6 +297,16 @@ export default async function ListingPage({
             avgRating={listing.avg_rating}
             reviewCount={listing.review_count}
             blockedRanges={listing.blockedRanges}
+            trust={
+              trust
+                ? {
+                    score: trust.score,
+                    degree: trust.degree,
+                    hasDirectVouch: trust.hasDirectVouch,
+                    connectorPaths: trust.connectorPaths,
+                  }
+                : null
+            }
           />
         </div>
       </div>

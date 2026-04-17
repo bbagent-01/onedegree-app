@@ -9,6 +9,9 @@ export interface NetworkPerson {
   vouch_score: number | null;
   years_known_bucket: string;
   created_at: string;
+  /** Vouchee's guest_rating average if they've received any reviews. */
+  guest_rating: number | null;
+  guest_review_count: number;
 }
 
 export interface PendingInvite {
@@ -55,8 +58,32 @@ export async function getNetworkData(): Promise<NetworkData | null> {
   const vouchedFor: NetworkPerson[] = [];
   const vouchedBy: NetworkPerson[] = [];
 
+  // Look up guest_rating + review count for everyone in the network
+  // so vouchees' scores can be displayed alongside the vouch itself.
+  const networkIds = new Set<string>();
+  if (network) {
+    for (const row of network) networkIds.add(row.user_id as string);
+  }
+  const ratingsByUser = new Map<
+    string,
+    { guest_rating: number | null; guest_review_count: number }
+  >();
+  if (networkIds.size > 0) {
+    const { data: ratedUsers } = await supabase
+      .from("users")
+      .select("id, guest_rating, guest_review_count")
+      .in("id", Array.from(networkIds));
+    for (const u of ratedUsers ?? []) {
+      ratingsByUser.set(u.id as string, {
+        guest_rating: (u.guest_rating as number | null) ?? null,
+        guest_review_count: (u.guest_review_count as number | null) ?? 0,
+      });
+    }
+  }
+
   if (network) {
     for (const row of network) {
+      const ratings = ratingsByUser.get(row.user_id as string);
       const person: NetworkPerson = {
         user_id: row.user_id,
         user_name: row.user_name,
@@ -65,6 +92,8 @@ export async function getNetworkData(): Promise<NetworkData | null> {
         vouch_score: row.vouch_score,
         years_known_bucket: row.years_known_bucket,
         created_at: row.created_at,
+        guest_rating: ratings?.guest_rating ?? null,
+        guest_review_count: ratings?.guest_review_count ?? 0,
       };
       if (row.relationship === "vouched_for") {
         vouchedFor.push(person);
@@ -75,23 +104,17 @@ export async function getNetworkData(): Promise<NetworkData | null> {
   }
 
   // Compute the actual avg guest rating of vouchees for the math display
-  // This is the input to the vouch power formula: avg_rating / 4.0, clamped [0.5, 1.5]
+  // (input to vouch_power formula: avg_rating / 4.0, clamped [0.5, 1.5]).
+  // Reuses the already-fetched ratings rather than a second query.
   let avgGuestRatingOfVouchees: number | null = null;
   if (vouchedFor.length > 0) {
-    const voucheeIds = vouchedFor.map((p) => p.user_id);
-    const { data: voucheeUsers } = await supabase
-      .from("users")
-      .select("guest_rating")
-      .in("id", voucheeIds)
-      .not("guest_rating", "is", null);
-
-    if (voucheeUsers && voucheeUsers.length > 0) {
-      const sum = voucheeUsers.reduce(
-        (acc, u) => acc + (u.guest_rating ?? 0),
-        0
-      );
+    const ratedVouchees = vouchedFor
+      .map((p) => p.guest_rating)
+      .filter((r): r is number => typeof r === "number" && r > 0);
+    if (ratedVouchees.length > 0) {
+      const sum = ratedVouchees.reduce((acc, r) => acc + r, 0);
       avgGuestRatingOfVouchees =
-        Math.round((sum / voucheeUsers.length) * 100) / 100;
+        Math.round((sum / ratedVouchees.length) * 100) / 100;
     }
   }
 

@@ -4,6 +4,8 @@ import { auth } from "@clerk/nextjs/server";
 import { ChevronLeft, Star } from "lucide-react";
 import { getListingDetail } from "@/lib/listing-detail-data";
 import { ReserveForm } from "@/components/booking/reserve-form";
+import { computeIncomingTrustPath } from "@/lib/trust-data";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -43,6 +45,24 @@ export default async function ReservePage({ params, searchParams }: PageProps) {
   const listing = await getListingDetail(id);
   if (!listing) notFound();
 
+  // Map the Clerk userId to the internal users row so we can compute
+  // trust. If the row isn't there yet the pre-fill just omits the
+  // trust sentence — the form still works.
+  const supabase = getSupabaseAdmin();
+  const { data: viewerRow } = await supabase
+    .from("users")
+    .select("id")
+    .eq("clerk_id", userId)
+    .maybeSingle();
+  const viewerInternalId = (viewerRow?.id as string | undefined) ?? null;
+
+  const trust =
+    viewerInternalId && listing.host?.id
+      ? await computeIncomingTrustPath(listing.host.id, viewerInternalId)
+      : null;
+  const strongestConnector = trust?.connectorPaths?.[0]?.name ?? null;
+  const hostFirstName = listing.host?.name?.split(" ")[0] ?? "there";
+
   const checkIn = sp.from || "";
   const checkOut = sp.to || "";
   const guests = Math.max(1, parseInt(sp.guests || "1", 10) || 1);
@@ -71,7 +91,7 @@ export default async function ReservePage({ params, searchParams }: PageProps) {
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <h1 className="text-2xl font-semibold md:text-3xl">
-          Request to book
+          Contact host
         </h1>
       </div>
 
@@ -118,6 +138,9 @@ export default async function ReservePage({ params, searchParams }: PageProps) {
               checkOut={checkOut}
               guests={guests}
               total={total}
+              hostFirstName={hostFirstName}
+              listingTitle={listing.title}
+              strongestConnector={strongestConnector}
             />
           </section>
 

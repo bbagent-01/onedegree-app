@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageCircle, Check, X } from "lucide-react";
+import { MessageCircle, Check, X, Star } from "lucide-react";
 import type { HostingReservation } from "@/lib/hosting-data";
 import { toast } from "sonner";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
+import { HostReviewModal } from "./host-review-modal";
 import Link from "next/link";
 
 function formatDateRange(checkIn: string | null, checkOut: string | null) {
@@ -63,6 +64,16 @@ function ReservationCard({
   onMessage: (reservation: HostingReservation) => void;
   isPending: boolean;
 }) {
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const today = new Date().toISOString().split("T")[0];
+  const isPastCheckout =
+    !!reservation.check_out && reservation.check_out < today;
+  const canHostReview =
+    reservation.status === "accepted" &&
+    isPastCheckout &&
+    !!reservation.stay_confirmation_id &&
+    !reservation.host_has_reviewed;
+
   return (
     <div className="rounded-xl border border-border bg-white p-5 transition-shadow hover:shadow-sm">
       <div className="flex items-start gap-4">
@@ -129,6 +140,19 @@ function ReservationCard({
             </p>
           )}
 
+          {reservation.status === "accepted" && (
+            <div className="mt-3 rounded-lg bg-muted/40 px-3 py-2 text-xs">
+              <div className="font-semibold text-foreground">
+                Payment: Arrange directly with{" "}
+                {reservation.guest_name.split(" ")[0]}
+              </div>
+              <div className="mt-0.5 text-muted-foreground">
+                1° B&amp;B doesn&rsquo;t process payments. Collect via your
+                preferred method.
+              </div>
+            </div>
+          )}
+
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
@@ -160,9 +184,27 @@ function ReservationCard({
                 </button>
               </>
             )}
+            {canHostReview && (
+              <button
+                type="button"
+                onClick={() => setReviewOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                <Star className="h-3.5 w-3.5" />
+                Review guest
+              </button>
+            )}
           </div>
         </div>
       </div>
+      {canHostReview && reservation.stay_confirmation_id && (
+        <HostReviewModal
+          open={reviewOpen}
+          onOpenChange={setReviewOpen}
+          stayConfirmationId={reservation.stay_confirmation_id}
+          guestName={reservation.guest_name}
+        />
+      )}
     </div>
   );
 }

@@ -87,6 +87,7 @@ export function VouchModal({
   const [removing, setRemoving] = useState(false);
   const [removeReason, setRemoveReason] = useState("");
   const [savedScore, setSavedScore] = useState<number | null>(null);
+  const [savedVouchPower, setSavedVouchPower] = useState<number | null>(null);
 
   useEffect(() => {
     if (open && !prevOpenRef.current) {
@@ -131,6 +132,9 @@ export function VouchModal({
       const data = await res.json();
       const score = data.vouchScore ?? computedScore ?? 0;
       setSavedScore(score);
+      setSavedVouchPower(
+        typeof data.vouchPower === "number" ? data.vouchPower : null
+      );
       setStep("confirm");
       onVouchSaved?.(score);
     } catch (e) {
@@ -458,6 +462,32 @@ export function VouchModal({
             <span className="text-muted-foreground">&middot;</span>
             <span className="font-semibold">{savedScore ?? computedScore} pts</span>
           </div>
+
+          {savedVouchPower !== null && (
+            <div className="mt-4 max-w-sm text-sm text-muted-foreground">
+              <p>
+                Your vouch power (
+                <span className="font-semibold text-foreground">
+                  {savedVouchPower.toFixed(2)}&times;
+                </span>
+                ) multiplies this vouch&rsquo;s impact on {firstName}&rsquo;s
+                trust connections.
+              </p>
+              {savedVouchPower < 1 && (
+                <p className="mt-2 text-amber-700">
+                  Your recent vouchees&rsquo; guest ratings have reduced your
+                  vouch power. Ratings 4.0+ bring it back up.
+                </p>
+              )}
+              {savedVouchPower > 1 && (
+                <p className="mt-2 text-emerald-700">
+                  Your vouchees consistently earn high guest ratings &mdash;
+                  your endorsements carry more weight.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="mt-6">
             <Button
               size="lg"

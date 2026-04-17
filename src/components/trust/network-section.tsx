@@ -50,7 +50,10 @@ export function NetworkSection({ data }: { data: NetworkData }) {
       {/* Stats */}
       <div className="mt-4 grid grid-cols-3 gap-3">
         <div className="rounded-xl border border-border bg-white p-4">
-          <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+          <div
+            className="flex cursor-help items-center gap-1 text-xs font-medium text-muted-foreground"
+            title="Based on the average guest rating of people you've vouched for. Scale: 0.5× to 1.5×. Baseline (4.0 rating) = 1.0×."
+          >
             <Zap className="h-3 w-3" />
             Vouch Power
           </div>
@@ -116,7 +119,7 @@ export function NetworkSection({ data }: { data: NetworkData }) {
           </h3>
           <div className="mt-2 divide-y divide-border rounded-xl border border-border bg-white">
             {data.vouchedFor.map((p) => (
-              <PersonRow key={p.user_id} person={p} />
+              <PersonRow key={p.user_id} person={p} showGuestRating />
             ))}
           </div>
         </div>
@@ -168,8 +171,27 @@ export function NetworkSection({ data }: { data: NetworkData }) {
   );
 }
 
-function PersonRow({ person }: { person: NetworkPerson }) {
+function PersonRow({
+  person,
+  showGuestRating = false,
+}: {
+  person: NetworkPerson;
+  /** True for the vouched-for list — surfaces the vouchee's guest
+   *  rating + a colored dot so the voucher can see which of their
+   *  endorsements are helping vs. hurting their vouch_power. */
+  showGuestRating?: boolean;
+}) {
   const isInnerCircle = person.vouch_type === "inner_circle";
+  const gr = person.guest_rating;
+  // 4.0 is neutral; below pulls vouch_power down, above lifts it up.
+  const ratingDot =
+    typeof gr === "number" && person.guest_review_count > 0
+      ? gr < 4
+        ? { color: "bg-amber-500", title: "Below 4.0 average — pulling your vouch power down." }
+        : gr > 4
+          ? { color: "bg-emerald-500", title: "Above 4.0 average — boosting your vouch power." }
+          : { color: "bg-zinc-300", title: "At the 4.0 baseline." }
+      : null;
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
@@ -193,6 +215,18 @@ function PersonRow({ person }: { person: NetworkPerson }) {
         </div>
       </Link>
       <div className="flex shrink-0 items-center gap-2">
+        {showGuestRating && typeof gr === "number" && person.guest_review_count > 0 && (
+          <span
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+            title={ratingDot?.title}
+          >
+            {ratingDot && (
+              <span className={`h-1.5 w-1.5 rounded-full ${ratingDot.color}`} />
+            )}
+            <Star className="h-3 w-3 fill-foreground text-foreground" />
+            <span className="font-medium text-foreground">{gr.toFixed(1)}</span>
+          </span>
+        )}
         <Badge
           className={
             isInnerCircle

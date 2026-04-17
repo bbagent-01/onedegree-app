@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Star } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Star, Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,15 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  bookingId: string;
-  stayConfirmationId: string | null;
-  listingTitle: string;
-  hostName: string;
+  stayConfirmationId: string;
+  guestName: string;
 }
 
 function StarPicker({
@@ -55,9 +53,7 @@ function StarPicker({
               <Star
                 className={cn(
                   "h-7 w-7",
-                  filled
-                    ? "fill-amber-400 text-amber-400"
-                    : "text-zinc-300"
+                  filled ? "fill-amber-400 text-amber-400" : "text-zinc-300"
                 )}
               />
             </button>
@@ -68,63 +64,49 @@ function StarPicker({
   );
 }
 
-export function ReviewModal({
+/**
+ * Post-stay review for the HOST rating the GUEST. One rating type —
+ * the guest_rating that feeds vouch_power for everyone who vouched for
+ * this guest. The accountability note near the submit button is
+ * non-negotiable copy: it surfaces the cascade to the person making
+ * the call, not buried in a FAQ.
+ */
+export function HostReviewModal({
   open,
   onOpenChange,
-  bookingId,
   stayConfirmationId,
-  listingTitle,
-  hostName,
+  guestName,
 }: Props) {
   const router = useRouter();
-  const [hostRating, setHostRating] = useState(0);
-  const [listingRating, setListingRating] = useState(0);
+  const [guestRating, setGuestRating] = useState(0);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const guestFirst = guestName.split(" ")[0] || "this guest";
 
   const submit = async () => {
-    if (!hostRating || !listingRating) {
-      toast.error("Please rate both your host and the place");
+    if (!guestRating) {
+      toast.error("Please rate your guest");
       return;
     }
     setSubmitting(true);
     try {
-      // Ensure a stay_confirmation row exists (auto-created on accept,
-      // but old accepted bookings predate that logic).
-      let stayId = stayConfirmationId;
-      if (!stayId) {
-        const createRes = await fetch(`/api/stay-confirmations`, {
+      const res = await fetch(
+        `/api/stay-confirmations/${stayConfirmationId}/host-review`,
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contactRequestId: bookingId }),
-        });
-        const createData = (await createRes.json().catch(() => ({}))) as {
-          id?: string;
-          error?: string;
-        };
-        if (!createRes.ok || !createData.id) {
-          toast.error(createData.error || "Couldn't create review");
-          return;
+          body: JSON.stringify({
+            guestRating,
+            guestReviewText: text || null,
+          }),
         }
-        stayId = createData.id;
-      }
-
-      const res = await fetch(`/api/stay-confirmations/${stayId}/guest-review`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          hostRating,
-          listingRating,
-          hostReviewText: text || null,
-          listingReviewText: text || null,
-        }),
-      });
+      );
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         toast.error(data.error || "Couldn't save review");
         return;
       }
-      toast.success("Thanks for the review!");
+      toast.success("Review saved");
       onOpenChange(false);
       router.refresh();
     } catch {
@@ -138,41 +120,46 @@ export function ReviewModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Leave a review</DialogTitle>
+          <DialogTitle>Review your guest</DialogTitle>
           <DialogDescription>
-            How was your stay at {listingTitle}? Your review helps other guests.
+            Your rating helps the network stay high-trust.
           </DialogDescription>
         </DialogHeader>
         <div className="mt-2 space-y-5">
           <StarPicker
-            label={`How was ${hostName} as a host?`}
-            hint="Communication, check-in, helpfulness."
-            value={hostRating}
-            onChange={setHostRating}
-          />
-          <StarPicker
-            label="How was the place?"
-            hint="Accuracy, cleanliness, location, amenities."
-            value={listingRating}
-            onChange={setListingRating}
+            label={`How was ${guestFirst} as a guest?`}
+            hint="Cleanliness, communication, respect for house rules."
+            value={guestRating}
+            onChange={setGuestRating}
           />
           <div>
-            <div className="text-sm font-medium">Anything to share? (optional)</div>
+            <div className="text-sm font-medium">
+              Anything to share? (optional)
+            </div>
             <textarea
               rows={4}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Tell future guests what made this stay great…"
+              placeholder={`Tell future hosts what ${guestFirst} was like…`}
               className="mt-1.5 w-full resize-none rounded-lg border border-border bg-white p-3 text-sm focus:border-foreground focus:outline-none"
               maxLength={1000}
             />
           </div>
+
+          <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              Your rating affects vouch power. It factors into the trust
+              scores of anyone who vouched for {guestFirst}.
+            </span>
+          </div>
+
           <Button
             onClick={submit}
             disabled={submitting}
             className="h-11 w-full rounded-lg bg-brand text-base font-semibold text-white hover:bg-brand-600"
           >
-            {submitting ? "Submitting…" : "Submit review"}
+            {submitting ? "Submitting\u2026" : "Submit review"}
           </Button>
         </div>
       </DialogContent>

@@ -151,7 +151,7 @@ export function StickyAnchorBar({
               onClick={reserve}
               className="h-10 rounded-lg bg-brand px-6 font-semibold text-white hover:bg-brand-600"
             >
-              Request to Book
+              Contact Host
             </Button>
           ) : (
             <button

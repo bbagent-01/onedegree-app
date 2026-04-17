@@ -250,11 +250,11 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
           {/* Minimum connection strength */}
           <section>
             <h3 className="text-base font-semibold">
-              Minimum connection strength
+              Host&rsquo;s trust to you
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Only show stays where your 1° Score to the host is at least
-              this value. 0 means anyone in your network.
+              Show listings where the host&rsquo;s 1&deg; trust to you is at
+              least this value. 0 means anyone in your network.
             </p>
             <div className="mt-4">
               <input
@@ -265,7 +265,7 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
                 value={minTrust}
                 onChange={(e) => setMinTrust(parseInt(e.target.value, 10))}
                 className="w-full accent-foreground"
-                aria-label="Minimum connection strength"
+                aria-label="Minimum host trust to you"
               />
               <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                 <span>Any</span>

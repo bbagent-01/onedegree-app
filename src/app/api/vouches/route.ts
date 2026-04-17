@@ -107,7 +107,21 @@ export async function POST(req: Request) {
     return new Response("Failed to save vouch", { status: 500 });
   }
 
-  return Response.json({ ok: true, vouchScore: vouch?.vouch_score ?? null });
+  // Read voucher's current vouch_power so the confirmation screen can
+  // explain how much this vouch is boosted/reduced. Non-fatal if the
+  // column is missing — default to 1.0 (neutral).
+  const { data: voucher } = await supabase
+    .from("users")
+    .select("vouch_power")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+  const vouchPower = Number(voucher?.vouch_power ?? 1) || 1;
+
+  return Response.json({
+    ok: true,
+    vouchScore: vouch?.vouch_score ?? null,
+    vouchPower,
+  });
 }
 
 // DELETE: remove a vouch

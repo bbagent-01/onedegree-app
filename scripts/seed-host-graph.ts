@@ -171,6 +171,59 @@ const VOUCHES: VouchDef[] = [
   { from: "theo", to: "elena", type: "standard", years: "1to3" },
 ];
 
+// ── Curated Unsplash photo pools per property type ───────────────
+// Each URL is a stable Unsplash CDN link. We insert 4 per listing
+// so both the preview 2×2 grid and the full detail gallery fill out.
+const PHOTO_POOLS: Record<"apartment" | "house" | "room", string[]> = {
+  apartment: [
+    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1501183638710-841dd1904471?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&h=800&fit=crop",
+  ],
+  house: [
+    "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1449844908441-8829872d2607?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&h=800&fit=crop",
+  ],
+  room: [
+    "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200&h=800&fit=crop",
+  ],
+};
+
+/** Deterministic photo selection per listing — same seed input
+ *  produces the same 4 photos across re-runs. */
+function pickPhotos(
+  propertyType: "apartment" | "house" | "room",
+  seedKey: string,
+  count = 4
+): string[] {
+  const pool = PHOTO_POOLS[propertyType];
+  let hash = 0;
+  for (let i = 0; i < seedKey.length; i++) {
+    hash = (hash * 31 + seedKey.charCodeAt(i)) >>> 0;
+  }
+  const picks: string[] = [];
+  for (let i = 0; i < count; i++) {
+    picks.push(pool[(hash + i * 7) % pool.length]);
+  }
+  return picks;
+}
+
 // ── Listings for each host ───────────────────────────────────────
 interface ListingDef {
   host: string; // user key
@@ -458,18 +511,28 @@ async function main() {
       console.warn(`  ✗ ${l.title}: ${row.error?.message}`);
       continue;
     }
-    // One placeholder photo so tiles aren't empty.
-    await supabase.from("listing_photos").upsert(
-      {
-        listing_id: row.data.id,
-        public_url: `https://picsum.photos/seed/${slug}/800/600`,
-        storage_path: `seed/${slug}.jpg`,
-        is_cover: true,
-        is_preview: true,
-        sort_order: 0,
-      },
-      { onConflict: "listing_id,storage_path" }
-    );
+    // Photos — delete any prior seed photos for this listing, then
+    // insert a fresh 4-photo set. Idempotent across re-runs and
+    // sidesteps the missing (listing_id,storage_path) unique index.
+    await supabase
+      .from("listing_photos")
+      .delete()
+      .eq("listing_id", row.data.id)
+      .like("storage_path", "seed/%");
+
+    const photoUrls = pickPhotos(l.property_type, slug, 4);
+    const photoRows = photoUrls.map((url, i) => ({
+      listing_id: row.data.id,
+      public_url: url,
+      storage_path: `seed/${slug}-${i}.jpg`,
+      is_cover: i === 0,
+      is_preview: true,
+      sort_order: i,
+    }));
+    const photoInsert = await supabase.from("listing_photos").insert(photoRows);
+    if (photoInsert.error) {
+      console.warn(`  ✗ ${l.title} photos: ${photoInsert.error.message}`);
+    }
     listingOk++;
     console.log(`  ✓ ${l.title}`);
   }
