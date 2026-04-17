@@ -61,17 +61,19 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
         (listing.description.length > 100 ? "..." : "")
       : null);
 
-  // Preview content toggles (default true for most, false for host name)
+  // Preview content toggles — default ALL to true, hosts opt things
+  // out rather than opting them in. Previews should lean generous so
+  // guests have enough context to want to unlock the listing.
   const pc = listing.access_settings?.preview_content;
   const showPriceRange = pc?.show_price_range ?? true;
   const showDescription = pc?.show_description ?? true;
-  const showHostFirstName = pc?.show_host_first_name ?? false;
+  const showHostFirstName = pc?.show_host_first_name ?? true;
   const showNeighborhood = pc?.show_neighborhood ?? true;
   const showMapArea = pc?.show_map_area ?? true;
   const showRating = pc?.show_rating ?? true;
-  const showAmenities = pc?.show_amenities ?? false;
+  const showAmenities = pc?.show_amenities ?? true;
   const showBedCounts = pc?.show_bed_counts ?? true;
-  const showHouseRules = pc?.show_house_rules ?? false;
+  const showHouseRules = pc?.show_house_rules ?? true;
 
   // Price range display
   const hasPriceRange =

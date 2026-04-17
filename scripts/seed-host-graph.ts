@@ -156,6 +156,12 @@ const VOUCHES: VouchDef[] = [
   // zara — direct vouch of Loren (top-tier)
   { from: "zara", to: "loren", type: "inner_circle", years: "10plus" },
 
+  // ── Loren's DIRECT vouches for hosts (hasDirectVouch=true) ──
+  // These render as the green "Vouched" pill on tiles — the strongest
+  // signal in the system. Two hosts Loren has personally stayed with.
+  { from: "loren", to: "kai", type: "inner_circle", years: "5to10" },
+  { from: "loren", to: "zara", type: "inner_circle", years: "10plus" },
+
   // cold hosts: no vouches toward Loren or her connectors
   // (bjorn, mei stay isolated to demonstrate "Not connected")
 
@@ -237,25 +243,37 @@ interface ListingDef {
 }
 
 const LISTINGS: ListingDef[] = [
+  // ── Public (no gate) — Loren sees full listing ──
   {
-    host: "rosa",
-    title: "Bright Coyoacán Loft",
-    area_name: "Coyoacán, Mexico City",
-    property_type: "apartment",
-    price: 110,
-    description: "Artist loft in a quiet colonial street.",
-    visibility_mode: "preview_gated",
-    min_trust_gate: 30,
+    host: "hana",
+    title: "Seoul Hanok Guesthouse",
+    area_name: "Seoul, South Korea",
+    property_type: "house",
+    price: 130,
+    description: "Traditional hanok in Bukchon.",
+    visibility_mode: "public",
+    min_trust_gate: 0,
   },
   {
-    host: "kai",
-    title: "Cliffside Beach Cottage",
-    area_name: "Santa Cruz, CA",
-    property_type: "house",
-    price: 240,
-    description: "Two-bedroom cottage steps from the Pacific.",
+    host: "sophie",
+    title: "Parisian Pied-à-Terre",
+    area_name: "Paris, France",
+    property_type: "apartment",
+    price: 200,
+    description: "Charming studio in the Marais.",
+    visibility_mode: "public",
+    min_trust_gate: 0,
+  },
+  // ── Low gate — accessible with any connection ──
+  {
+    host: "diego",
+    title: "Gothic Quarter Flat",
+    area_name: "Barcelona, Spain",
+    property_type: "apartment",
+    price: 150,
+    description: "Renovated flat with balcony.",
     visibility_mode: "preview_gated",
-    min_trust_gate: 20,
+    min_trust_gate: 10,
   },
   {
     host: "priya_h",
@@ -267,6 +285,7 @@ const LISTINGS: ListingDef[] = [
     visibility_mode: "preview_gated",
     min_trust_gate: 15,
   },
+  // ── Mid gate — requires a solid path ──
   {
     host: "omar_h",
     title: "Downtown Loft on the Loop",
@@ -275,37 +294,28 @@ const LISTINGS: ListingDef[] = [
     price: 165,
     description: "Industrial loft with skyline views.",
     visibility_mode: "preview_gated",
-    min_trust_gate: 15,
+    min_trust_gate: 30,
   },
   {
-    host: "sophie",
-    title: "Parisian Pied-à-Terre",
-    area_name: "Paris, France",
+    host: "rosa",
+    title: "Bright Coyoacán Loft",
+    area_name: "Coyoacán, Mexico City",
     property_type: "apartment",
-    price: 200,
-    description: "Charming studio in the Marais.",
+    price: 110,
+    description: "Artist loft in a quiet colonial street.",
     visibility_mode: "preview_gated",
-    min_trust_gate: 10,
+    min_trust_gate: 30,
   },
+  // ── Loren's direct-vouch hosts — always full access ──
   {
-    host: "hana",
-    title: "Seoul Hanok Guesthouse",
-    area_name: "Seoul, South Korea",
+    host: "kai",
+    title: "Cliffside Beach Cottage",
+    area_name: "Santa Cruz, CA",
     property_type: "house",
-    price: 130,
-    description: "Traditional hanok in Bukchon.",
+    price: 240,
+    description: "Two-bedroom cottage steps from the Pacific.",
     visibility_mode: "preview_gated",
-    min_trust_gate: 5,
-  },
-  {
-    host: "diego",
-    title: "Gothic Quarter Flat",
-    area_name: "Barcelona, Spain",
-    property_type: "apartment",
-    price: 150,
-    description: "Renovated flat with balcony.",
-    visibility_mode: "preview_gated",
-    min_trust_gate: 15,
+    min_trust_gate: 20,
   },
   {
     host: "zara",
@@ -317,6 +327,7 @@ const LISTINGS: ListingDef[] = [
     visibility_mode: "preview_gated",
     min_trust_gate: 10,
   },
+  // ── High gate (50) — only the strongest paths qualify ──
   {
     host: "bjorn",
     title: "Minimalist Stockholm Studio",
@@ -325,8 +336,9 @@ const LISTINGS: ListingDef[] = [
     price: 175,
     description: "Scandinavian design, canal views.",
     visibility_mode: "preview_gated",
-    min_trust_gate: 25,
+    min_trust_gate: 50,
   },
+  // ── Inner-circle-only (75) — requires direct vouch or very strong path ──
   {
     host: "mei",
     title: "Taipei Skyline Apartment",
@@ -335,7 +347,7 @@ const LISTINGS: ListingDef[] = [
     price: 135,
     description: "Top-floor apartment with 101 view.",
     visibility_mode: "preview_gated",
-    min_trust_gate: 20,
+    min_trust_gate: 75,
   },
 ];
 

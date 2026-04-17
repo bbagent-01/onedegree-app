@@ -95,8 +95,15 @@ export function TrustTag({
     );
   }
 
-  // 2°+ — no score, just the degree label and a muted shield.
+  // 2°+ — no shield, just the ordinal degree number. This is the
+  // teaching case: shield = 1° direct trust; bare number = multi-hop.
+  // Loren's call — the shield disambiguates "trust exists" from
+  // "distance exists," so keep it out of the multi-hop state.
   if (degree && degree >= 2 && !direct && !connectorPaths.length) {
+    // Type today is 1 | 2 | null; the guard above rules out 1 and
+    // null, so degree is always 2 here. Kept as a string so the
+    // multi-hop engine (deferred) can broaden this later.
+    const ordinal = "2nd";
     return (
       <span
         className={cn(
@@ -104,10 +111,7 @@ export function TrustTag({
           className
         )}
       >
-        <span className="inline-flex items-center gap-0.5 font-semibold text-zinc-600">
-          <ShieldIcon muted size="h-3.5 w-3.5" />
-          <span>{degree}°</span>
-        </span>
+        <span className="font-semibold text-zinc-600">{ordinal}&deg;</span>
         {ratingNode}
       </span>
     );
