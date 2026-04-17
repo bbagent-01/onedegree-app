@@ -7,7 +7,7 @@ import {
 } from "@/lib/browse-data";
 import { getSavedListingIds } from "@/lib/wishlist-data";
 import {
-  computeTrustPaths,
+  computeIncomingTrustPaths,
   getInternalUserIdFromClerk,
 } from "@/lib/trust-data";
 import { checkListingAccess } from "@/lib/trust/check-access";
@@ -158,14 +158,15 @@ async function BrowseResults({
     listings = listings.filter((l) => l.host_id !== viewerId);
   }
 
-  // Compute trust paths from the viewer to every host in the result
-  // set. One batched DB roundtrip — no N+1.
+  // Trust direction is host→viewer (how much each host trusts the
+  // viewer), matching the platform's host-vets-guest model. Reverse-
+  // batched so we still do one DB roundtrip for N hosts.
   const trustByListing: Record<string, BrowseListingTrust> = {};
   if (viewerId && listings.length > 0) {
     const hostIds = [
       ...new Set(listings.map((l) => l.host_id).filter(Boolean)),
     ];
-    const trustResults = await computeTrustPaths(viewerId, hostIds);
+    const trustResults = await computeIncomingTrustPaths(hostIds, viewerId);
     for (const l of listings) {
       const r = trustResults[l.host_id];
       const score = r?.score ?? 0;

@@ -2,13 +2,24 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { compute1DegreeScore } from "@/lib/trust/compute-score";
+import {
+  compute1DegreeScore,
+  compute1DegreeScoreIncoming,
+} from "@/lib/trust/compute-score";
 
 /**
- * GET /api/trust/connection?targetId=...
+ * GET /api/trust/connection?targetId=...&direction=outgoing|incoming
  *
- * Returns the full connection breakdown between the current user and a target.
- * Used by the ConnectionPopover to show how two users are connected.
+ * Returns the connection breakdown between the current user and a
+ * target. `direction=outgoing` (default) is the current user's trust
+ * of the target (my vouch graph reaching them). `direction=incoming`
+ * is the target's trust of the current user (their vouch graph
+ * reaching me) — used on host/listing surfaces where the displayed
+ * score represents the host's vetting of the guest.
+ *
+ * Identities are labeled correctly for each direction so the popover
+ * can render "You vouched for Maya" vs. "Sam vouched for Maya"
+ * without additional context from the client.
  */
 export async function GET(req: Request) {
   const { userId } = await auth();
@@ -18,16 +29,20 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const targetId = url.searchParams.get("targetId");
+  const direction =
+    url.searchParams.get("direction") === "incoming"
+      ? "incoming"
+      : "outgoing";
   if (!targetId) {
     return Response.json({ error: "targetId required" }, { status: 400 });
   }
 
   const supabase = getSupabaseAdmin();
 
-  // Get current user's internal ID
+  // Get current user's internal ID.
   const { data: currentUser } = await supabase
     .from("users")
-    .select("id")
+    .select("id, name")
     .eq("clerk_id", userId)
     .single();
 
@@ -35,27 +50,28 @@ export async function GET(req: Request) {
     return Response.json({ error: "User not found" }, { status: 404 });
   }
 
-  // Self — no popover needed
   if (currentUser.id === targetId) {
     return Response.json({ type: "self" });
   }
 
-  // Check for direct vouches (both directions)
+  // Direct vouches in either direction — same query regardless of
+  // which way we're showing, we just interpret the result differently.
   const { data: directVouch } = await supabase
     .from("vouches")
-    .select("voucher_id, vouchee_id, vouch_type, years_known_bucket, vouch_score")
+    .select(
+      "voucher_id, vouchee_id, vouch_type, years_known_bucket, vouch_score"
+    )
     .or(
       `and(voucher_id.eq.${currentUser.id},vouchee_id.eq.${targetId}),and(voucher_id.eq.${targetId},vouchee_id.eq.${currentUser.id})`
     );
 
-  const forwardVouch = directVouch?.find(
+  const viewerToTarget = directVouch?.find(
     (v) => v.voucher_id === currentUser.id && v.vouchee_id === targetId
   );
-  const reverseVouch = directVouch?.find(
+  const targetToViewer = directVouch?.find(
     (v) => v.voucher_id === targetId && v.vouchee_id === currentUser.id
   );
 
-  // Get target user info
   const { data: targetUser } = await supabase
     .from("users")
     .select("id, name, avatar_url")
@@ -64,50 +80,63 @@ export async function GET(req: Request) {
 
   const targetName = targetUser?.name ?? "this user";
 
-  // Case A: You vouched for them (direct forward)
-  if (forwardVouch) {
+  // In outgoing mode, "forward" = viewer→target; in incoming mode,
+  // "forward" = target→viewer. This keeps the popover's direct-vouch
+  // branches correct regardless of direction.
+  const forward = direction === "incoming" ? targetToViewer : viewerToTarget;
+  const reverse = direction === "incoming" ? viewerToTarget : targetToViewer;
+
+  if (forward) {
     return Response.json({
       type: "direct_forward",
+      direction,
       targetName,
       vouch: {
-        vouch_type: forwardVouch.vouch_type,
-        years_known_bucket: forwardVouch.years_known_bucket,
-        vouch_score: forwardVouch.vouch_score,
+        vouch_type: forward.vouch_type,
+        years_known_bucket: forward.years_known_bucket,
+        vouch_score: forward.vouch_score,
       },
-      // Also include reverse if mutual
-      reverseVouch: reverseVouch
+      reverseVouch: reverse
         ? {
-            vouch_type: reverseVouch.vouch_type,
-            years_known_bucket: reverseVouch.years_known_bucket,
-            vouch_score: reverseVouch.vouch_score,
+            vouch_type: reverse.vouch_type,
+            years_known_bucket: reverse.years_known_bucket,
+            vouch_score: reverse.vouch_score,
           }
         : null,
     });
   }
 
-  // Case B: They vouched for you (reverse only)
-  if (reverseVouch) {
+  if (reverse) {
     return Response.json({
       type: "direct_reverse",
+      direction,
       targetName,
       vouch: {
-        vouch_type: reverseVouch.vouch_type,
-        years_known_bucket: reverseVouch.years_known_bucket,
-        vouch_score: reverseVouch.vouch_score,
+        vouch_type: reverse.vouch_type,
+        years_known_bucket: reverse.years_known_bucket,
+        vouch_score: reverse.vouch_score,
       },
     });
   }
 
-  // Case C: Connected via paths — use the full 1° score computation
-  const result = await compute1DegreeScore(currentUser.id, targetId);
+  // Connected via paths.
+  const result =
+    direction === "incoming"
+      ? await compute1DegreeScoreIncoming(targetId, currentUser.id)
+      : await compute1DegreeScore(currentUser.id, targetId);
 
   if (result.paths.length > 0) {
     return Response.json({
       type: "connected",
+      direction,
       targetName,
       score: result.score,
       paths: result.paths.map((p) => ({
-        connector: p.connector ?? { id: p.connector_id, name: "Connection", avatar_url: null },
+        connector: p.connector ?? {
+          id: p.connector_id,
+          name: "Connection",
+          avatar_url: null,
+        },
         link_a: Math.round(p.link_a * 100) / 100,
         link_b: Math.round(p.link_b * 100) / 100,
         path_strength: Math.round(p.path_strength * 100) / 100,
@@ -122,9 +151,9 @@ export async function GET(req: Request) {
     });
   }
 
-  // Case D: Not connected
   return Response.json({
     type: "not_connected",
+    direction,
     targetName,
   });
 }

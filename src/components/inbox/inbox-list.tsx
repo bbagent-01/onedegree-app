@@ -159,7 +159,10 @@ export function InboxList({ threads, selectedId }: Props) {
                         </AvatarFallback>
                       </Avatar>
                     ) : (
-                      <ConnectionPopover targetUserId={t.other_user.id}>
+                      <ConnectionPopover
+                        targetUserId={t.other_user.id}
+                        direction={t.role === "guest" ? "incoming" : "outgoing"}
+                      >
                         <Avatar className="h-12 w-12 shrink-0 cursor-pointer">
                           {t.other_user.avatar_url && (
                             <AvatarImage

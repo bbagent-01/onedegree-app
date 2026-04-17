@@ -474,6 +474,302 @@ export async function computeTrustPath(
 }
 
 /**
+ * Reverse-batched trust paths: for each potential voucher in
+ * `sourceIds`, compute how much they trust `viewerId` (i.e. paths
+ * `source → connector → viewer`). Mirrors `computeTrustPaths` but
+ * with voucher_id / vouchee_id roles flipped, so one viewer can be
+ * compared against many potential hosts in a single round-trip.
+ *
+ * Used on the guest side everywhere a listing/host/trip is shown:
+ * the displayed "Trust Score" is the host's trust of the viewer,
+ * matching the host→guest vetting direction of the platform.
+ */
+export async function computeIncomingTrustPaths(
+  sourceIds: string[],
+  viewerId: string
+): Promise<TrustResultsByTarget> {
+  const out: TrustResultsByTarget = {};
+  if (!viewerId || sourceIds.length === 0) return out;
+
+  const unique = [...new Set(sourceIds)].filter(
+    (id) => id && id !== viewerId
+  );
+  if (unique.length === 0) {
+    for (const id of sourceIds) out[id] = EMPTY;
+    return out;
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  // 1. Direct vouches from each source to the viewer.
+  const { data: directRows } = await supabase
+    .from("vouches")
+    .select("voucher_id, vouchee_id, vouch_type, years_known_bucket")
+    .in("voucher_id", unique)
+    .eq("vouchee_id", viewerId);
+
+  type DirectRow = {
+    voucher_id: string;
+    vouchee_id: string;
+    vouch_type: "standard" | "inner_circle";
+    years_known_bucket: string;
+  };
+
+  // Need each source's vouch_power to compute their direct edge.
+  const { data: sourceRows } = await supabase
+    .from("users")
+    .select("id, name, avatar_url, vouch_power")
+    .in("id", unique);
+  type SourceRow = {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    vouch_power: number | null;
+  };
+  const sourceById = new Map<string, SourceRow>(
+    ((sourceRows || []) as SourceRow[]).map((s) => [s.id, s])
+  );
+
+  const directBySource = new Map<
+    string,
+    { score: number; vouch_type: "standard" | "inner_circle" }
+  >();
+  for (const r of (directRows || []) as DirectRow[]) {
+    const vp = sourceById.get(r.voucher_id)?.vouch_power ?? 4;
+    const s = edgeStrength(r.vouch_type, r.years_known_bucket, vp);
+    directBySource.set(r.voucher_id, { score: s, vouch_type: r.vouch_type });
+  }
+
+  // 2. For each source, fetch their outgoing vouches (connector
+  //    candidates — these are the people each source vouched for).
+  const { data: sourceEdges } = await supabase
+    .from("vouches")
+    .select("voucher_id, vouchee_id, vouch_type, years_known_bucket")
+    .in("voucher_id", unique);
+
+  type EdgeRow = {
+    voucher_id: string;
+    vouchee_id: string;
+    vouch_type: "standard" | "inner_circle";
+    years_known_bucket: string;
+  };
+  // source → [connector edges]
+  const sourceEdgesMap = new Map<string, EdgeRow[]>();
+  for (const e of (sourceEdges || []) as EdgeRow[]) {
+    const arr = sourceEdgesMap.get(e.voucher_id) || [];
+    arr.push(e);
+    sourceEdgesMap.set(e.voucher_id, arr);
+  }
+
+  // 3. Any vouch into the viewer — these tell us which connectors
+  //    vouched for the viewer.
+  const allConnectorIds = [
+    ...new Set(
+      ((sourceEdges || []) as EdgeRow[]).map((e) => e.vouchee_id)
+    ),
+  ];
+  const { data: connectorIntoViewer } =
+    allConnectorIds.length > 0
+      ? await supabase
+          .from("vouches")
+          .select("voucher_id, vouch_type, years_known_bucket")
+          .in("voucher_id", allConnectorIds)
+          .eq("vouchee_id", viewerId)
+      : { data: [] };
+
+  type ConnIntoViewer = {
+    voucher_id: string;
+    vouch_type: "standard" | "inner_circle";
+    years_known_bucket: string;
+  };
+  const connectorIntoViewerMap = new Map<string, ConnIntoViewer>();
+  for (const r of (connectorIntoViewer || []) as ConnIntoViewer[]) {
+    // Keep one edge per connector. If they have multiple vouches of
+    // the viewer the schema wouldn't let that happen (unique pair),
+    // but just in case.
+    connectorIntoViewerMap.set(r.voucher_id, r);
+  }
+
+  // 4. Hydrate every profile involved (sources + connectors + viewer).
+  const profileIds = new Set<string>([viewerId]);
+  for (const id of unique) profileIds.add(id);
+  for (const cid of connectorIntoViewerMap.keys()) profileIds.add(cid);
+
+  type ProfileRow = {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    vouch_power: number | null;
+  };
+  const { data: profiles } = await supabase
+    .from("users")
+    .select("id, name, avatar_url, vouch_power")
+    .in("id", [...profileIds]);
+  const profileById = new Map<string, ProfileRow>(
+    ((profiles || []) as ProfileRow[]).map((p) => [p.id, p])
+  );
+
+  // 5. Assemble results per source.
+  const viewerProfile = profileById.get(viewerId);
+  for (const sourceId of unique) {
+    const sourceProfile = profileById.get(sourceId);
+    const direct = directBySource.get(sourceId);
+    const directScore = direct?.score ?? 0;
+
+    // Indirect: for each source→connector edge, if that connector
+    // also vouched for the viewer, build a path. Sum uses harmonic
+    // dampening — same formula as the outgoing direction.
+    const rawPaths: Array<{
+      connector_id: string;
+      link_a: number;
+      link_b: number;
+      path_strength: number;
+    }> = [];
+    const sourceOutgoingEdges = sourceEdgesMap.get(sourceId) || [];
+    const sourceVp = sourceProfile?.vouch_power ?? 4;
+
+    for (const e of sourceOutgoingEdges) {
+      const connIntoViewer = connectorIntoViewerMap.get(e.vouchee_id);
+      if (!connIntoViewer) continue;
+      const connectorProfile = profileById.get(e.vouchee_id);
+      const connectorVp = connectorProfile?.vouch_power ?? 4;
+
+      // link_a: source → connector, using source's vouch power
+      const linkA = edgeStrength(
+        e.vouch_type,
+        e.years_known_bucket,
+        sourceVp
+      );
+      // link_b: connector → viewer, using connector's vouch power
+      const linkB = edgeStrength(
+        connIntoViewer.vouch_type,
+        connIntoViewer.years_known_bucket,
+        connectorVp
+      );
+      const pathStrength = (linkA + linkB) / 2;
+      rawPaths.push({
+        connector_id: e.vouchee_id,
+        link_a: linkA,
+        link_b: linkB,
+        path_strength: pathStrength,
+      });
+    }
+
+    rawPaths.sort((a, b) => b.path_strength - a.path_strength);
+    const indirectScoreRaw = rawPaths.reduce(
+      (sum, p, i) => sum + p.path_strength / (i + 1),
+      0
+    );
+
+    const score = Math.floor(Math.max(directScore, indirectScoreRaw));
+    const hasDirectVouch = directScore > 0;
+    const degree: TrustDegree = hasDirectVouch
+      ? 1
+      : indirectScoreRaw > 0
+        ? 2
+        : null;
+
+    // Build the best path (source → [connector] → viewer).
+    let path: TrustPathUser[] = [];
+    if (degree === 1 && sourceProfile && viewerProfile) {
+      path = [
+        {
+          id: sourceProfile.id,
+          name: sourceProfile.name,
+          avatar_url: sourceProfile.avatar_url,
+          edge: null,
+        },
+        {
+          id: viewerProfile.id,
+          name: viewerProfile.name,
+          avatar_url: viewerProfile.avatar_url,
+          edge: Math.round(directScore),
+          vouch_type: direct!.vouch_type,
+        },
+      ];
+    } else if (degree === 2 && sourceProfile && viewerProfile && rawPaths[0]) {
+      const best = rawPaths[0];
+      const connectorProfile = profileById.get(best.connector_id);
+      path = [
+        {
+          id: sourceProfile.id,
+          name: sourceProfile.name,
+          avatar_url: sourceProfile.avatar_url,
+          edge: null,
+        },
+        {
+          id: connectorProfile?.id ?? best.connector_id,
+          name: connectorProfile?.name ?? "Connection",
+          avatar_url: connectorProfile?.avatar_url ?? null,
+          edge: Math.round(best.link_a),
+        },
+        {
+          id: viewerProfile.id,
+          name: viewerProfile.name,
+          avatar_url: viewerProfile.avatar_url,
+          edge: Math.round(best.link_b),
+        },
+      ];
+    }
+
+    // Deduplicate connectors for mutualConnections + connectorPaths.
+    const seen = new Set<string>();
+    const mutualConnections: TrustPathUser[] = [];
+    const pathsByConnector = new Map<string, ConnectorPathSummary>();
+    for (const p of rawPaths) {
+      const prof = profileById.get(p.connector_id);
+      if (!prof) continue;
+      if (!seen.has(p.connector_id)) {
+        seen.add(p.connector_id);
+        mutualConnections.push({
+          id: prof.id,
+          name: prof.name,
+          avatar_url: prof.avatar_url,
+          edge: null,
+        });
+      }
+      const existing = pathsByConnector.get(p.connector_id);
+      if (!existing || p.path_strength > existing.strength) {
+        pathsByConnector.set(p.connector_id, {
+          id: prof.id,
+          name: prof.name,
+          avatar_url: prof.avatar_url,
+          strength: p.path_strength,
+          viewer_knows: true,
+        });
+      }
+    }
+    const connectorPaths = [...pathsByConnector.values()].sort(
+      (a, b) => b.strength - a.strength
+    );
+
+    out[sourceId] = {
+      score,
+      degree,
+      hasDirectVouch,
+      path,
+      mutualConnections,
+      connectionCount: mutualConnections.length,
+      connectorPaths,
+    };
+  }
+
+  for (const id of sourceIds) {
+    if (!out[id]) out[id] = EMPTY;
+  }
+  return out;
+}
+
+/** Single-source convenience wrapper for the reverse direction. */
+export async function computeIncomingTrustPath(
+  sourceId: string,
+  viewerId: string
+): Promise<TrustResult> {
+  const res = await computeIncomingTrustPaths([sourceId], viewerId);
+  return res[sourceId] || EMPTY;
+}
+
+/**
  * JS fallback if the `calculate_one_degree_scores` RPC isn't deployed.
  * Mirrors the RPC's formula path-by-path. Only used on RPC failure.
  */

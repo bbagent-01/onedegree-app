@@ -96,6 +96,107 @@ export async function compute1DegreeScore(
 }
 
 /**
+ * Compute the 1° trust score in the *incoming* direction — i.e. how
+ * much `sourceId` trusts `viewerId` via their own vouches. Used on
+ * host-facing surfaces where the displayed score represents the
+ * host's vetting of the guest.
+ */
+export async function compute1DegreeScoreIncoming(
+  sourceId: string,
+  viewerId: string
+): Promise<OneDegreeResult> {
+  if (!sourceId || !viewerId || sourceId === viewerId) return EMPTY_RESULT;
+
+  const supabase = getSupabaseAdmin();
+  const rows = await incomingFallbackQuery(supabase, sourceId, viewerId);
+  const result = assembleResult(rows);
+  if (result.paths.length > 0) {
+    await hydrateConnectors(supabase, result.paths);
+  }
+  return result;
+}
+
+/**
+ * JS implementation of the incoming-direction per-path query. Mirrors
+ * `fallbackQuery` but starts from `sourceId` and walks toward
+ * `viewerId`. No RPC variant yet — this is the fallback for both the
+ * live path and the RPC-missing case.
+ */
+async function incomingFallbackQuery(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  sourceId: string,
+  viewerId: string
+): Promise<
+  Array<{
+    target_id: string;
+    connector_id: string;
+    viewer_vouch_score: number;
+    connector_vouch_score: number;
+    connector_vouch_power: number;
+  }>
+> {
+  // Source's outgoing vouches (potential connectors).
+  const { data: sourceVouches } = await supabase
+    .from("vouches")
+    .select("vouchee_id, vouch_score")
+    .eq("voucher_id", sourceId);
+
+  if (!sourceVouches || sourceVouches.length === 0) return [];
+
+  const connectorIds = sourceVouches.map(
+    (v: { vouchee_id: string }) => v.vouchee_id
+  );
+  // For the reverse direction, `viewer_vouch_score` in the assembled
+  // result is re-purposed as "source's vouch score for the connector"
+  // — the first link on the chain from source to viewer.
+  const sourceScoreByConnector = new Map(
+    sourceVouches.map((v: { vouchee_id: string; vouch_score: number }) => [
+      v.vouchee_id,
+      v.vouch_score ?? 0,
+    ])
+  );
+
+  // Connectors who also vouched for the viewer.
+  const { data: connIntoViewer } = await supabase
+    .from("vouches")
+    .select("voucher_id, vouchee_id, vouch_score")
+    .in("voucher_id", connectorIds)
+    .eq("vouchee_id", viewerId);
+
+  if (!connIntoViewer || connIntoViewer.length === 0) return [];
+
+  const usedConnectorIds = [
+    ...new Set(
+      connIntoViewer.map((v: { voucher_id: string }) => v.voucher_id)
+    ),
+  ];
+  const { data: connectorUsers } = await supabase
+    .from("users")
+    .select("id, vouch_power")
+    .in("id", usedConnectorIds);
+
+  const vpByConnector = new Map(
+    (connectorUsers || []).map(
+      (u: { id: string; vouch_power: number | null }) => [
+        u.id,
+        u.vouch_power ?? 1.0,
+      ]
+    )
+  );
+
+  return connIntoViewer.map(
+    (cv: { voucher_id: string; vouchee_id: string; vouch_score: number }) => ({
+      target_id: viewerId,
+      connector_id: cv.voucher_id,
+      viewer_vouch_score:
+        sourceScoreByConnector.get(cv.voucher_id) ?? 0,
+      connector_vouch_score: cv.vouch_score ?? 0,
+      connector_vouch_power: vpByConnector.get(cv.voucher_id) ?? 1.0,
+    })
+  );
+}
+
+/**
  * Assemble a OneDegreeResult from raw path rows for a single target.
  * Applies harmonic dampening: sort paths descending, weight = 1/rank.
  */

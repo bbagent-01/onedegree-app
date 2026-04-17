@@ -1,5 +1,8 @@
 import { getSupabaseAdmin } from "./supabase";
-import { computeTrustPaths, type ConnectorPathSummary } from "./trust-data";
+import {
+  computeIncomingTrustPaths,
+  type ConnectorPathSummary,
+} from "./trust-data";
 
 export type TripTab = "upcoming" | "completed" | "cancelled";
 
@@ -104,7 +107,7 @@ export async function getTripsForGuest(guestId: string): Promise<TripCard[]> {
   const listingMap = new Map((listings || []).map((l) => [l.id, l]));
   const hostMap = new Map((hosts || []).map((u) => [u.id, u]));
   const trustByHost = hostIds.length
-    ? await computeTrustPaths(guestId, hostIds)
+    ? await computeIncomingTrustPaths(hostIds, guestId)
     : {};
   const thumbMap = new Map<string, string>();
   for (const p of photos || []) {
@@ -241,7 +244,7 @@ export async function getTripDetail(
     null;
 
   const trust = host?.id
-    ? (await computeTrustPaths(guestId, [host.id]))[host.id]
+    ? (await computeIncomingTrustPaths([host.id], guestId))[host.id]
     : null;
 
   return {

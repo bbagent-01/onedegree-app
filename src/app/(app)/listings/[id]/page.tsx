@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { Star, Medal } from "lucide-react";
 import { getListingDetail } from "@/lib/listing-detail-data";
 import {
-  computeTrustPath,
+  computeIncomingTrustPath,
   getInternalUserIdFromClerk,
 } from "@/lib/trust-data";
 import { checkListingAccess } from "@/lib/trust/check-access";
@@ -71,7 +71,7 @@ export default async function ListingPage({
   const isHost = viewerId && viewerId === listing.host_id;
   const trust =
     viewerId && !isHost
-      ? await computeTrustPath(viewerId, listing.host_id)
+      ? await computeIncomingTrustPath(listing.host_id, viewerId)
       : null;
 
   // For direct-link access to hidden listings, we evaluate access but
@@ -201,7 +201,7 @@ export default async function ListingPage({
           {listing.host && (
             <>
               <div className="flex items-center gap-4">
-                <ConnectionPopover targetUserId={listing.host.id}>
+                <ConnectionPopover targetUserId={listing.host.id} direction="incoming">
                   <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted cursor-pointer">
                     {listing.host.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -388,7 +388,7 @@ export default async function ListingPage({
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               <div className="rounded-xl border border-border/60 p-6 md:col-span-1">
                 <div className="flex flex-col items-center text-center">
-                  <ConnectionPopover targetUserId={listing.host.id}>
+                  <ConnectionPopover targetUserId={listing.host.id} direction="incoming">
                     <div className="relative h-24 w-24 overflow-hidden rounded-full bg-muted cursor-pointer">
                       {listing.host.avatar_url ? (
                         // eslint-disable-next-line @next/next/no-img-element

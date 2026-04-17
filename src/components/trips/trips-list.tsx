@@ -162,7 +162,10 @@ export function TripsList({ trips }: Props) {
                   </div>
                   {t.host && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      <ConnectionPopover targetUserId={t.host.id}>
+                      <ConnectionPopover
+                        targetUserId={t.host.id}
+                        direction="incoming"
+                      >
                         <Avatar className="h-5 w-5 cursor-pointer">
                           {t.host.avatar_url && (
                             <AvatarImage src={t.host.avatar_url} alt={t.host.name} />

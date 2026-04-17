@@ -36,19 +36,30 @@ type ConnectionData =
   | { type: "self" }
   | {
       type: "direct_forward";
+      direction?: "outgoing" | "incoming";
       targetName: string;
       vouch: VouchInfo;
       reverseVouch: VouchInfo | null;
     }
-  | { type: "direct_reverse"; targetName: string; vouch: VouchInfo }
+  | {
+      type: "direct_reverse";
+      direction?: "outgoing" | "incoming";
+      targetName: string;
+      vouch: VouchInfo;
+    }
   | {
       type: "connected";
+      direction?: "outgoing" | "incoming";
       targetName: string;
       score: number;
       paths: PathInfo[];
       connection_count: number;
     }
-  | { type: "not_connected"; targetName: string };
+  | {
+      type: "not_connected";
+      direction?: "outgoing" | "incoming";
+      targetName: string;
+    };
 
 // ── Helpers ──
 
@@ -72,9 +83,18 @@ function viewerKnows(_connectorId: string): boolean {
 
 // ── Main wrapper ──
 
+export type ConnectionDirection = "outgoing" | "incoming";
+
 interface ConnectionPopoverProps {
   targetUserId: string;
   isSelf?: boolean;
+  /**
+   * Direction of trust to display. Outgoing = viewer's trust of the
+   * target (default). Incoming = target's trust of the viewer — used
+   * on host/listing surfaces where the displayed score represents
+   * the host's vetting of the guest.
+   */
+  direction?: ConnectionDirection;
   children: ReactNode;
 }
 
@@ -87,6 +107,7 @@ interface ConnectionPopoverProps {
 export function ConnectionPopover({
   targetUserId,
   isSelf = false,
+  direction = "outgoing",
   children,
 }: ConnectionPopoverProps) {
   const [data, setData] = useState<ConnectionData | null>(null);
@@ -98,7 +119,7 @@ export function ConnectionPopover({
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/trust/connection?targetId=${encodeURIComponent(targetUserId)}`
+        `/api/trust/connection?targetId=${encodeURIComponent(targetUserId)}&direction=${direction}`
       );
       if (res.ok) setData(await res.json());
     } catch {
@@ -106,7 +127,7 @@ export function ConnectionPopover({
     } finally {
       setLoading(false);
     }
-  }, [targetUserId, data]);
+  }, [targetUserId, direction, data]);
 
   if (isSelf) return <>{children}</>;
 
@@ -165,15 +186,22 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
     );
   }
 
-  // Direct vouches (forward / reverse). No vouch type or years-known
-  // revealed — just the strength bucket via color chip.
+  // Direct vouches (forward / reverse). The semantics of
+  // "forward" depend on the direction flag on the data:
+  //   outgoing: forward = viewer → target
+  //   incoming: forward = target → viewer (host's trust of me)
   if (data.type === "direct_forward" || data.type === "direct_reverse") {
     const vouch = data.vouch;
     const tier = trustTier(vouch.vouch_score);
+    const isIncoming = data.direction === "incoming";
     const heading =
       data.type === "direct_forward"
-        ? `You vouched for ${data.targetName}`
-        : `${data.targetName} vouched for you`;
+        ? isIncoming
+          ? `${data.targetName} vouched for you`
+          : `You vouched for ${data.targetName}`
+        : isIncoming
+          ? `You vouched for ${data.targetName}`
+          : `${data.targetName} vouched for you`;
     return (
       <div className="p-3">
         <div className="text-sm font-semibold">{heading}</div>
@@ -183,7 +211,9 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
         {data.type === "direct_forward" && data.reverseVouch && (
           <>
             <div className="mt-3 border-t border-border pt-3 text-sm font-semibold">
-              {data.targetName} also vouched for you
+              {isIncoming
+                ? `You also vouched for ${data.targetName}`
+                : `${data.targetName} also vouched for you`}
             </div>
             <div className="mt-3 flex items-center gap-2">
               <StrengthChip
@@ -195,29 +225,22 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
         <ShowMathToggle on={showMath} onToggle={() => setShowMath((v) => !v)} />
         {showMath && (
           <div className="mt-2 rounded-lg bg-muted/30 p-2.5 text-[11px] font-mono">
-            <div className="text-foreground/70">
-              {data.type === "direct_forward"
-                ? `You → ${data.targetName}`
-                : `${data.targetName} → You`}
-            </div>
-            <div className="mt-1 pl-3">
-              Vouch score ={" "}
-              <span className="font-semibold text-foreground">
-                {vouch.vouch_score} pts
+            <div className="text-foreground">
+              {heading} &rarr;{" "}
+              <span className="font-semibold">
+                vouch score = {vouch.vouch_score} pts
               </span>
             </div>
             {data.type === "direct_forward" && data.reverseVouch && (
-              <>
-                <div className="mt-2 text-foreground/70">
-                  {data.targetName} → You
-                </div>
-                <div className="mt-1 pl-3">
-                  Vouch score ={" "}
-                  <span className="font-semibold text-foreground">
-                    {data.reverseVouch.vouch_score} pts
-                  </span>
-                </div>
-              </>
+              <div className="mt-2 text-foreground">
+                {isIncoming
+                  ? `You also vouched for ${data.targetName}`
+                  : `${data.targetName} also vouched for you`}{" "}
+                &rarr;{" "}
+                <span className="font-semibold">
+                  vouch score = {data.reverseVouch.vouch_score} pts
+                </span>
+              </div>
             )}
             <div className="mt-2 text-muted-foreground/70 text-[10px]">
               Numeric-only view. Vouch type and years-known stay hidden.
@@ -230,14 +253,15 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
 
   // Connected through mutual connectors.
   const sortedPaths = [...data.paths].sort((a, b) => a.rank - b.rank);
+  const isIncoming = data.direction === "incoming";
+  const headerText = isIncoming
+    ? `${data.targetName} is connected to you via ${data.connection_count} connection${data.connection_count > 1 ? "s" : ""}`
+    : `Connected to ${data.targetName} via ${data.connection_count} connection${data.connection_count > 1 ? "s" : ""}`;
   return (
     <div className="p-3">
       <div className="flex items-center gap-2">
         <Users className="h-4 w-4 text-muted-foreground" />
-        <div className="text-sm font-semibold">
-          Connected to {data.targetName} via {data.connection_count} connection
-          {data.connection_count > 1 ? "s" : ""}
-        </div>
+        <div className="text-sm font-semibold">{headerText}</div>
       </div>
       <div className="mt-1 text-xs text-muted-foreground">
         Trust Score:{" "}
@@ -258,6 +282,17 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
           {sortedPaths.map((p) => {
             const first = p.connector.name.split(" ")[0];
             const targetFirst = data.targetName.split(" ")[0];
+            // In incoming mode the chain is source (target) → connector → viewer,
+            // so link_a is "target vouched for connector" and link_b is
+            // "connector vouched for you." Outgoing keeps the original
+            // You → connector → target chain.
+            const linkALabel = isIncoming
+              ? `${targetFirst} vouched for ${first}`
+              : `You vouched for ${first}`;
+            const linkBLabel = isIncoming
+              ? `${first} vouched for you`
+              : `${first} vouched for ${targetFirst}`;
+            const vpOwnerFirst = first;
             return (
               <div key={p.connector.id} className="space-y-1.5">
                 <div className="flex items-baseline justify-between gap-3">
@@ -269,13 +304,13 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
                   </div>
                 </div>
                 <div className="rounded-md bg-white/70 px-2.5 py-1.5 text-foreground">
-                  You vouched for {first} &rarr;{" "}
+                  {linkALabel} &rarr;{" "}
                   <span className="font-semibold">
                     vouch score = {p.link_a.toFixed(1)} pts
                   </span>
                 </div>
                 <div className="rounded-md bg-white/70 px-2.5 py-1.5 text-foreground">
-                  {first} vouched for {targetFirst} &rarr;{" "}
+                  {linkBLabel} &rarr;{" "}
                   <span className="font-semibold">
                     {p.connector_vouch_score.toFixed(1)} pts
                   </span>{" "}
@@ -283,7 +318,7 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
                   <span className="font-semibold">
                     {p.connector_vouch_power.toFixed(2)}×
                   </span>{" "}
-                  vouch power ={" "}
+                  {vpOwnerFirst}&apos;s vouch power ={" "}
                   <span className="font-semibold">
                     {p.link_b.toFixed(1)} pts
                   </span>

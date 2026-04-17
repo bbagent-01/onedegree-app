@@ -1,6 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "./supabase";
-import { computeTrustPaths, type ConnectorPathSummary } from "./trust-data";
+import {
+  computeTrustPaths,
+  computeIncomingTrustPaths,
+  type ConnectorPathSummary,
+} from "./trust-data";
 
 export type ThreadRole = "guest" | "host";
 
@@ -126,8 +130,32 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
     if (!thumbMap.has(p.listing_id)) thumbMap.set(p.listing_id, p.public_url);
   }
 
-  // Batch trust scores for every other-participant in one call.
-  const trustByTarget = await computeTrustPaths(currentUserId, otherUserIds);
+  // Trust direction in the inbox follows the host→guest rule: when
+  // the viewer is the guest, show the host's trust of them (incoming
+  // from the other participant). When the viewer is the host, show
+  // their own trust of the guest (outgoing, current direction). Split
+  // the other participants into two buckets and batch each.
+  const guestOtherIds: string[] = []; // others the viewer is a guest of
+  const hostOtherIds: string[] = []; // others the viewer is hosting
+  for (const t of threads) {
+    const isGuest = t.guest_id === currentUserId;
+    const otherId = isGuest ? t.host_id : t.guest_id;
+    if (isGuest) guestOtherIds.push(otherId);
+    else hostOtherIds.push(otherId);
+  }
+  const [incomingTrust, outgoingTrust] = await Promise.all<
+    Awaited<ReturnType<typeof computeTrustPaths>>
+  >([
+    guestOtherIds.length
+      ? computeIncomingTrustPaths(
+          [...new Set(guestOtherIds)],
+          currentUserId
+        )
+      : Promise.resolve({}),
+    hostOtherIds.length
+      ? computeTrustPaths(currentUserId, [...new Set(hostOtherIds)])
+      : Promise.resolve({}),
+  ]);
 
   return threads.map((t) => {
     const isGuest = t.guest_id === currentUserId;
@@ -163,17 +191,24 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
             thumbnail_url: thumbMap.get(listing.id) || null,
           }
         : null,
-      trust_score: hideIdentity ? 0 : trustByTarget[otherId]?.score ?? 0,
+      trust_score: hideIdentity
+        ? 0
+        : (isGuest ? incomingTrust : outgoingTrust)[otherId]?.score ?? 0,
       trust_connection_count: hideIdentity
         ? 0
-        : trustByTarget[otherId]?.connectionCount ?? 0,
+        : (isGuest ? incomingTrust : outgoingTrust)[otherId]
+            ?.connectionCount ?? 0,
       trust_is_direct: hideIdentity
         ? false
-        : trustByTarget[otherId]?.hasDirectVouch ?? false,
-      trust_degree: hideIdentity ? null : trustByTarget[otherId]?.degree ?? null,
+        : (isGuest ? incomingTrust : outgoingTrust)[otherId]
+            ?.hasDirectVouch ?? false,
+      trust_degree: hideIdentity
+        ? null
+        : (isGuest ? incomingTrust : outgoingTrust)[otherId]?.degree ?? null,
       trust_connector_paths: hideIdentity
         ? []
-        : trustByTarget[otherId]?.connectorPaths ?? [],
+        : (isGuest ? incomingTrust : outgoingTrust)[otherId]
+            ?.connectorPaths ?? [],
       is_intro_request: isIntro,
       intro_promoted_at: t.intro_promoted_at ?? null,
       sender_anonymous: Boolean(t.sender_anonymous),
@@ -257,9 +292,14 @@ export async function getThreadDetail(
     )
     .eq("id", threadId);
 
+  // Thread detail follows the same direction rule as the inbox list:
+  // guest side sees host→me (incoming), host side sees me→guest
+  // (outgoing / current direction).
   const trust = hideIdentity
     ? undefined
-    : (await computeTrustPaths(currentUserId, [otherId]))[otherId];
+    : isGuest
+      ? (await computeIncomingTrustPaths([otherId], currentUserId))[otherId]
+      : (await computeTrustPaths(currentUserId, [otherId]))[otherId];
 
   return {
     id: thread.id,

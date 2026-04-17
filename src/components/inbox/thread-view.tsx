@@ -233,7 +233,10 @@ export function ThreadView({
     <div className="flex h-full min-h-0 flex-col">
       {/* Thread header */}
       <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-        <ConnectionPopover targetUserId={thread.other_user.id}>
+        <ConnectionPopover
+          targetUserId={thread.other_user.id}
+          direction={thread.role === "guest" ? "incoming" : "outgoing"}
+        >
           <Avatar className="h-10 w-10 cursor-pointer">
             {thread.other_user.avatar_url && (
               <AvatarImage
