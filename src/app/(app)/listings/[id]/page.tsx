@@ -16,7 +16,6 @@ import { ReviewsSection } from "@/components/listing/reviews-section";
 import { BookingSidebar } from "@/components/listing/booking-sidebar";
 import { AvailabilityCalendarWrapper } from "@/components/listing/availability-calendar-wrapper";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
-import { ConnectionPath } from "@/components/trust/connection-path";
 import { LocationMapClient } from "@/components/listing/location-map-client";
 import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
 import { GatedListingView } from "@/components/listing/gated-listing-view";
@@ -299,16 +298,6 @@ export default async function ListingPage({
             reviewCount={listing.review_count}
             blockedRanges={listing.blockedRanges}
           />
-          {!isHost && trust && trust.path.length >= 2 && (
-            <div className="mt-3 hidden rounded-2xl border border-border bg-white p-4 md:block">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Your connection
-              </div>
-              <div className="mt-3 overflow-x-auto">
-                <ConnectionPath path={trust.path} compact />
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
