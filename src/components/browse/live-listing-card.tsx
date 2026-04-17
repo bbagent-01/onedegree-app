@@ -7,7 +7,7 @@ import { Heart, ChevronLeft, ChevronRight, Lock, Star, Info } from "lucide-react
 import { toast } from "sonner";
 import type { BrowseListing } from "@/lib/browse-data";
 import { SaveToWishlistDialog } from "@/components/wishlist/save-to-wishlist-dialog";
-import { TrustBadge } from "@/components/trust-badge";
+import { HostInlineMeta } from "@/components/trust/host-inline-meta";
 import { GatedListingDialog } from "./gated-listing-dialog";
 import type { BrowseListingTrust } from "./browse-layout";
 
@@ -371,17 +371,21 @@ export function LiveListingCard({
             {listing.title}
           </p>
           {listing.host && (
-            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <span>Hosted by {listing.host.name}</span>
+            <>
+              <p className="text-sm text-muted-foreground">
+                Hosted by {listing.host.name}
+              </p>
               {trust && (
-                <TrustBadge
+                <HostInlineMeta
                   score={trust.score}
                   connectionCount={trust.connectionCount}
                   direct={trust.hasDirectVouch}
-                  size="sm"
+                  hostRating={listing.host.host_rating}
+                  hostReviewCount={listing.host.host_review_count}
+                  className="mt-0.5"
                 />
               )}
-            </p>
+            </>
           )}
           <p className="mt-1">
             <span className="font-semibold">${price}</span>

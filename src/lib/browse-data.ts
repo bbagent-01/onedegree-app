@@ -7,6 +7,10 @@ export interface BrowseHost {
   id: string;
   name: string;
   avatar_url: string | null;
+  /** Host's average rating from past stays. null if no reviews yet. */
+  host_rating: number | null;
+  /** Number of reviews the host has received. */
+  host_review_count: number;
 }
 
 export interface BrowseListing {
@@ -168,12 +172,25 @@ export async function getBrowseListings(
   const hostIds = [...new Set(filtered.map((l) => l.host_id))];
   const { data: hosts } = await supabase
     .from("users")
-    .select("id, name, avatar_url")
+    .select("id, name, avatar_url, host_rating, host_review_count")
     .in("id", hostIds);
 
   const hostById = new Map<string, BrowseHost>();
   for (const h of hosts || []) {
-    hostById.set(h.id, h as BrowseHost);
+    const row = h as {
+      id: string;
+      name: string;
+      avatar_url: string | null;
+      host_rating: number | null;
+      host_review_count: number | null;
+    };
+    hostById.set(row.id, {
+      id: row.id,
+      name: row.name,
+      avatar_url: row.avatar_url,
+      host_rating: row.host_rating ?? null,
+      host_review_count: row.host_review_count ?? 0,
+    });
   }
 
   let results: BrowseListing[] = filtered.map((l) => {

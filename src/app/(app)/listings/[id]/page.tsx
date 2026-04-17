@@ -21,7 +21,7 @@ import { LocationMapClient } from "@/components/listing/location-map-client";
 import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
 import { GatedListingView } from "@/components/listing/gated-listing-view";
 import { ListingTrustStatus } from "@/components/listing/listing-trust-status";
-import { TrustBadge } from "@/components/trust-badge";
+import { HostInlineMeta } from "@/components/trust/host-inline-meta";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -120,21 +120,12 @@ export default async function ListingPage({
         reviewCount={listing.review_count}
         canBook={isHost || access.can_request_book}
       />
-      {/* Title (mobile: below photos, desktop: above) */}
+      {/* Title (mobile: below photos, desktop: above). Trust info
+          lives with the host, not the listing — see host card below. */}
       <div className="mt-4 hidden md:block">
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
-            {listing.title}
-          </h1>
-          {trust && (trust.score > 0 || trust.hasDirectVouch) && (
-            <TrustBadge
-              score={trust.score}
-              size="md"
-              connectionCount={trust.connectionCount}
-              direct={trust.hasDirectVouch}
-            />
-          )}
-        </div>
+        <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
+          {listing.title}
+        </h1>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           {listing.avg_rating && listing.review_count > 0 && (
             <>
@@ -221,17 +212,19 @@ export default async function ListingPage({
                   </div>
                 </ConnectionPopover>
                 <div>
-                  <div className="flex items-center gap-2 text-lg font-semibold">
-                    <span>Hosted by {listing.host.name}</span>
-                    {trust && (
-                      <TrustBadge
-                        score={trust.score}
-                        connectionCount={trust.connectionCount}
-                        direct={trust.hasDirectVouch}
-                        size="sm"
-                      />
-                    )}
+                  <div className="text-lg font-semibold">
+                    Hosted by {listing.host.name}
                   </div>
+                  {trust && (
+                    <HostInlineMeta
+                      score={trust.score}
+                      connectionCount={trust.connectionCount}
+                      direct={trust.hasDirectVouch}
+                      hostRating={listing.host.host_rating}
+                      hostReviewCount={listing.host.host_review_count}
+                      className="mt-0.5"
+                    />
+                  )}
                   <div className="text-sm text-muted-foreground">
                     {yearsHosting > 0
                       ? `${yearsHosting} year${yearsHosting !== 1 ? "s" : ""} hosting`
@@ -449,17 +442,19 @@ export default async function ListingPage({
                       )}
                     </div>
                   </ConnectionPopover>
-                  <div className="mt-3 flex items-center gap-2 text-xl font-semibold">
-                    <span>{listing.host.name}</span>
-                    {trust && (
-                      <TrustBadge
-                        score={trust.score}
-                        connectionCount={trust.connectionCount}
-                        direct={trust.hasDirectVouch}
-                        size="sm"
-                      />
-                    )}
+                  <div className="mt-3 text-xl font-semibold">
+                    {listing.host.name}
                   </div>
+                  {trust && (
+                    <HostInlineMeta
+                      score={trust.score}
+                      connectionCount={trust.connectionCount}
+                      direct={trust.hasDirectVouch}
+                      hostRating={listing.host.host_rating}
+                      hostReviewCount={listing.host.host_review_count}
+                      className="mt-1"
+                    />
+                  )}
                   {isSuperhost && (
                     <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-muted-foreground">
                       <Medal className="h-3 w-3" />
