@@ -106,7 +106,9 @@ export function TrustTag({
 
   // 3° / 4° — multi-hop. Score is always 0 (engine sets it that
   // way per spec), so these branches run BEFORE the score-based
-  // em-dash check or they'd collapse into "not connected".
+  // em-dash check or they'd collapse into "not connected". The
+  // medium variant shows the bridge avatar (the intermediary
+  // adjacent to the viewer) so the reader has a face to click on.
   if ((degree === 3 || degree === 4) && !direct) {
     const ordinal = degree === 4 ? "4th" : "3rd";
     const tone = degree === 4 ? "text-zinc-400" : "text-zinc-500";
@@ -118,6 +120,12 @@ export function TrustTag({
         )}
       >
         <span className={cn("font-semibold", tone)}>{ordinal}&deg;</span>
+        {isMedium && connectorPaths.length > 0 && (
+          <ConnectorAvatars
+            connectors={connectorPaths as AvatarConnector[]}
+            size="h-5 w-5"
+          />
+        )}
         {ratingNode}
       </span>
     );

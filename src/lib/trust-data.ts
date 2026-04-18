@@ -461,10 +461,12 @@ export async function computeTrustPaths(
   }
 
   // Multi-hop upgrade pass: targets still at degree=null that the
-  // viewer reaches via 3 or 4 edges. No score.
+  // viewer reaches via 3 or 4 edges. Score stays 0; path is
+  // hydrated so the trust-detail popover can draw the chain.
   let unresolved = targetIds.filter(
     (id) => id !== viewerId && out[id]?.degree == null
   );
+  const multiHopChains = new Map<string, { chain: string[]; degree: 3 | 4 }>();
   if (unresolved.length > 0) {
     const reach3 = await findNDegreeReach(
       supabase,
@@ -473,8 +475,8 @@ export async function computeTrustPaths(
       "outgoing",
       3
     );
-    for (const id of reach3) {
-      out[id] = { ...EMPTY, degree: 3 };
+    for (const [id, chain] of reach3) {
+      multiHopChains.set(id, { chain, degree: 3 });
     }
     unresolved = unresolved.filter((id) => !reach3.has(id));
   }
@@ -486,9 +488,12 @@ export async function computeTrustPaths(
       "outgoing",
       4
     );
-    for (const id of reach4) {
-      out[id] = { ...EMPTY, degree: 4 };
+    for (const [id, chain] of reach4) {
+      multiHopChains.set(id, { chain, degree: 4 });
     }
+  }
+  if (multiHopChains.size > 0) {
+    await applyMultiHopChains(supabase, out, multiHopChains, "outgoing");
   }
 
   return out;
@@ -792,8 +797,10 @@ export async function computeIncomingTrustPaths(
 
   // Multi-hop upgrade pass: any source still at degree=null gets
   // checked for a 3-hop or 4-hop chain to the viewer. Score stays 0;
-  // the degree exists purely to render "3rd°"/"4th°" on the tile.
+  // the degree + hydrated chain feeds the "3rd°"/"4th°" rendering
+  // and the trust-detail popover.
   let unresolved = unique.filter((id) => out[id]?.degree == null);
+  const multiHopChains = new Map<string, { chain: string[]; degree: 3 | 4 }>();
   if (unresolved.length > 0) {
     const reach3 = await findNDegreeReach(
       supabase,
@@ -802,8 +809,8 @@ export async function computeIncomingTrustPaths(
       "incoming",
       3
     );
-    for (const id of reach3) {
-      out[id] = { ...EMPTY, degree: 3 };
+    for (const [id, chain] of reach3) {
+      multiHopChains.set(id, { chain, degree: 3 });
     }
     unresolved = unresolved.filter((id) => !reach3.has(id));
   }
@@ -815,9 +822,12 @@ export async function computeIncomingTrustPaths(
       "incoming",
       4
     );
-    for (const id of reach4) {
-      out[id] = { ...EMPTY, degree: 4 };
+    for (const [id, chain] of reach4) {
+      multiHopChains.set(id, { chain, degree: 4 });
     }
+  }
+  if (multiHopChains.size > 0) {
+    await applyMultiHopChains(supabase, out, multiHopChains, "incoming");
   }
 
   return out;
@@ -849,53 +859,148 @@ async function findNDegreeReach(
   candidateIds: string[],
   direction: "incoming" | "outgoing",
   depth: 3 | 4
-): Promise<Set<string>> {
-  const reach = new Set<string>();
+): Promise<Map<string, string[]>> {
+  // Returns a Map<candidateId, chain>. For "incoming" the chain is
+  // ordered [candidate, ..., anchor]; for "outgoing" it's
+  // [anchor, ..., candidate] — always matching the TrustResult.path
+  // convention (start=acting user, end=other party).
+  const reach = new Map<string, string[]>();
   if (candidateIds.length === 0) return reach;
 
   const l1Col = direction === "incoming" ? "voucher_id" : "vouchee_id";
   const l1MatchCol = direction === "incoming" ? "vouchee_id" : "voucher_id";
 
-  // Seed the frontier at the anchor, then expand outward one hop at
-  // a time. `levels[i]` = set of users reachable in exactly i edges.
-  // We only need level 1 .. (depth-1) plus the final candidate pass.
-  const levels: Set<string>[] = [new Set([anchorId])];
+  // BFS outward from the anchor, recording each node's predecessor
+  // in the direction the walk travels. At the final hop we walk the
+  // parent map backward to reconstruct the chain.
+  const parent = new Map<string, string>();
   const visited = new Set<string>([anchorId]);
+  let frontier = new Set<string>([anchorId]);
 
   for (let i = 1; i < depth; i++) {
-    const prev = levels[i - 1];
-    if (prev.size === 0) return reach;
+    if (frontier.size === 0) return reach;
     const { data: rows } = await supabase
       .from("vouches")
       .select(`${l1Col}, ${l1MatchCol}`)
-      .in(l1MatchCol, [...prev]);
+      .in(l1MatchCol, [...frontier]);
     const next = new Set<string>();
     for (const r of rows ?? []) {
-      const n = (r as Record<string, string>)[l1Col];
+      const row = r as Record<string, string>;
+      const n = row[l1Col];
+      const prev = row[l1MatchCol];
       if (!n || visited.has(n)) continue;
       visited.add(n);
+      parent.set(n, prev);
       next.add(n);
     }
-    levels.push(next);
+    frontier = next;
   }
 
-  const frontier = levels[depth - 1];
   if (frontier.size === 0) return reach;
 
-  // Final hop: candidates that vouch into (incoming) / are vouched
-  // by (outgoing) someone on the frontier. Candidate must not
-  // already be reachable at a shorter depth.
+  // Final hop: candidates adjacent to the frontier. A candidate that
+  // also appears closer than `depth` hops is ignored (it was already
+  // visited).
   const { data: finalRows } = await supabase
     .from("vouches")
     .select(`${l1Col}, ${l1MatchCol}`)
     .in(l1MatchCol, [...frontier])
     .in(l1Col, candidateIds);
   for (const r of finalRows ?? []) {
-    const candidate = (r as Record<string, string>)[l1Col];
+    const row = r as Record<string, string>;
+    const candidate = row[l1Col];
+    const frontierNode = row[l1MatchCol];
     if (!candidate || visited.has(candidate)) continue;
-    reach.add(candidate);
+    if (reach.has(candidate)) continue; // first path wins
+
+    // Walk back: candidate → frontierNode → parent(frontierNode) → ... → anchor.
+    const back: string[] = [candidate];
+    let cur: string | undefined = frontierNode;
+    for (let hop = 0; hop < depth && cur; hop++) {
+      back.push(cur);
+      if (cur === anchorId) break;
+      cur = parent.get(cur);
+    }
+    const chain = direction === "incoming" ? back : [...back].reverse();
+    reach.set(candidate, chain);
   }
   return reach;
+}
+
+/**
+ * Hydrate the chains from findNDegreeReach into full TrustResult
+ * entries: fetch each intermediary's name/avatar, populate `path`
+ * (head=candidate, tail=anchor for incoming; reversed for outgoing
+ * per TrustResult convention), and seed `connectorPaths` with the
+ * intermediary closest to the viewer — that's the "bridge face" we
+ * display on the medium tag and as the entry point of the chain.
+ */
+async function applyMultiHopChains(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  out: TrustResultsByTarget,
+  chains: Map<string, { chain: string[]; degree: 3 | 4 }>,
+  direction: "incoming" | "outgoing"
+): Promise<void> {
+  const userIds = new Set<string>();
+  for (const { chain } of chains.values()) {
+    for (const id of chain) userIds.add(id);
+  }
+  if (userIds.size === 0) return;
+
+  const { data: profiles } = await supabase
+    .from("users")
+    .select("id, name, avatar_url")
+    .in("id", [...userIds]);
+  const byId = new Map<
+    string,
+    { id: string; name: string; avatar_url: string | null }
+  >(
+    ((profiles || []) as Array<{
+      id: string;
+      name: string;
+      avatar_url: string | null;
+    }>).map((u) => [u.id, u])
+  );
+
+  for (const [targetId, { chain, degree }] of chains) {
+    const pathUsers: TrustPathUser[] = chain.map((id) => {
+      const u = byId.get(id);
+      return {
+        id,
+        name: u?.name ?? "Connection",
+        avatar_url: u?.avatar_url ?? null,
+        edge: null,
+      };
+    });
+
+    // The "bridge face" is the intermediary adjacent to the viewer.
+    // Incoming: [candidate, ..., viewer] → bridge = chain[-2].
+    // Outgoing: [viewer, ..., target]   → bridge = chain[1].
+    const chainLen = pathUsers.length;
+    const bridgeNode =
+      chainLen >= 2
+        ? direction === "incoming"
+          ? pathUsers[chainLen - 2]
+          : pathUsers[1]
+        : null;
+
+    out[targetId] = {
+      ...EMPTY,
+      degree,
+      path: pathUsers,
+      connectorPaths: bridgeNode
+        ? [
+            {
+              id: bridgeNode.id,
+              name: bridgeNode.name,
+              avatar_url: bridgeNode.avatar_url,
+              strength: 0,
+              viewer_knows: degree === 3, // 3° bridge is a direct 1° of viewer
+            },
+          ]
+        : [],
+    };
+  }
 }
 
 /** Single-source convenience wrapper for the reverse direction. */

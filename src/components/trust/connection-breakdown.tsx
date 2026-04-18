@@ -59,6 +59,19 @@ type ConnectionData =
       type: "not_connected";
       direction?: "outgoing" | "incoming";
       targetName: string;
+    }
+  | {
+      type: "multi_hop";
+      direction?: "outgoing" | "incoming";
+      targetName: string;
+      degree: 3 | 4;
+      /** Ordered chain of user profiles along the reachable path.
+       *  Incoming: [target, ..., viewer]. Outgoing: [viewer, ..., target]. */
+      path: Array<{
+        id: string;
+        name: string;
+        avatar_url: string | null;
+      }>;
     };
 
 // ── Helpers ──
@@ -184,6 +197,10 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
         </p>
       </div>
     );
+  }
+
+  if (data.type === "multi_hop") {
+    return <MultiHopView data={data} />;
   }
 
   // Direct vouches (forward / reverse). The semantics of
@@ -496,5 +513,127 @@ function ShowMathToggle({
     >
       {on ? "Hide math" : "Show math"}
     </button>
+  );
+}
+
+// ── Multi-hop view (3° / 4°) ──
+
+/**
+ * Renders the chain of intermediaries between the viewer and a 3°
+ * or 4° target. The chain is drawn as a horizontal path of avatars
+ * separated by arrows, with "You" on one end and the target on the
+ * other. The goal is to show exactly who bridges the gap so the
+ * viewer can decide who to ask for an introduction.
+ *
+ * The spec treats degree ≥ 3 as score-less — we lean into that and
+ * let the chain itself carry the meaning rather than invent numbers.
+ */
+function MultiHopView({
+  data,
+}: {
+  data: Extract<ConnectionData, { type: "multi_hop" }>;
+}) {
+  const isIncoming = data.direction === "incoming";
+  // Orient the chain as [you, intermediary..., target] regardless
+  // of the computed direction. Incoming chains come back as
+  // [target, ..., viewer] so we flip them.
+  const chain = isIncoming ? [...data.path].reverse() : data.path;
+  const intermediaries = chain.slice(1, -1);
+  const target = chain[chain.length - 1];
+  const bridge = intermediaries[0]; // 1° connector adjacent to you
+  const ordinal = data.degree === 4 ? "4th" : "3rd";
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center gap-2">
+        <Users className="h-4 w-4 text-muted-foreground" />
+        <div className="text-sm font-semibold">
+          {ordinal}&deg; connection to {target.name}
+        </div>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {bridge
+          ? `Ask ${bridge.name.split(" ")[0]} — they can start the introduction.`
+          : "Grow your network to open this connection."}
+      </p>
+
+      {/* Chain: You → A → B → Target */}
+      <div className="mt-4 flex items-center gap-1 overflow-x-auto pb-1">
+        <ChainNode label="You" />
+        {chain.slice(1).map((node, i) => (
+          <ChainSegment
+            key={`${node.id}-${i}`}
+            name={node.name}
+            avatarUrl={node.avatar_url}
+            isTarget={i === chain.length - 2}
+            // The first hop is always a direct 1° of the viewer; a
+            // later hop might be someone you don't know by name,
+            // so we soften the label but keep the avatar.
+            viewerKnows={i === 0}
+          />
+        ))}
+      </div>
+
+      <p className="mt-4 rounded-lg bg-muted/40 p-2.5 text-xs text-muted-foreground">
+        You&rsquo;re {data.degree - 1}{" "}
+        {data.degree - 1 === 1 ? "person" : "people"} away from{" "}
+        {target.name}. 1&deg; B&amp;B opens access as the chain closes —
+        the closer you get, the more of this listing unlocks.
+      </p>
+    </div>
+  );
+}
+
+function ChainNode({ label }: { label: string }) {
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-xs font-semibold text-white">
+        {label}
+      </div>
+      <div className="text-[10px] font-medium text-muted-foreground">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function ChainSegment({
+  name,
+  avatarUrl,
+  isTarget,
+  viewerKnows: known,
+}: {
+  name: string;
+  avatarUrl: string | null;
+  isTarget: boolean;
+  viewerKnows: boolean;
+}) {
+  const label = known ? name.split(" ")[0] : "Someone you don\u2019t know";
+  const first = name.split(" ")[0];
+  return (
+    <>
+      <div className="shrink-0 text-muted-foreground">&rarr;</div>
+      <div className="flex shrink-0 flex-col items-center gap-1">
+        <Avatar
+          className={cn(
+            "h-10 w-10 border-2",
+            isTarget ? "border-foreground" : "border-border"
+          )}
+        >
+          {known && avatarUrl ? (
+            <AvatarImage src={avatarUrl} alt={name} />
+          ) : known ? (
+            <AvatarFallback>{initials(name)}</AvatarFallback>
+          ) : (
+            <AvatarFallback>
+              <UserIcon className="h-4 w-4 text-muted-foreground" />
+            </AvatarFallback>
+          )}
+        </Avatar>
+        <div className="max-w-[4.5rem] truncate text-[10px] font-medium text-muted-foreground">
+          {isTarget ? first : label}
+        </div>
+      </div>
+    </>
   );
 }

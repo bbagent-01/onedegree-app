@@ -6,6 +6,10 @@ import {
   compute1DegreeScore,
   compute1DegreeScoreIncoming,
 } from "@/lib/trust/compute-score";
+import {
+  computeTrustPath,
+  computeIncomingTrustPath,
+} from "@/lib/trust-data";
 
 /**
  * GET /api/trust/connection?targetId=...&direction=outgoing|incoming
@@ -148,6 +152,36 @@ export async function GET(req: Request) {
         connector_vouch_power: p.connector_vouch_power,
       })),
       connection_count: result.connection_count,
+    });
+  }
+
+  // Multi-hop check (3° / 4°). The 1°/2° engine above returned no
+  // paths, but a longer chain may still exist. computeTrustPath /
+  // computeIncomingTrustPath run the BFS-based upgrade pass and
+  // return a hydrated chain of intermediaries when they find one.
+  const multiHop =
+    direction === "incoming"
+      ? await computeIncomingTrustPath(targetId, currentUser.id)
+      : await computeTrustPath(currentUser.id, targetId);
+
+  if (
+    (multiHop.degree === 3 || multiHop.degree === 4) &&
+    multiHop.path.length >= 2
+  ) {
+    return Response.json({
+      type: "multi_hop",
+      direction,
+      targetName,
+      degree: multiHop.degree,
+      // Path is already oriented per direction: incoming starts at
+      // target and ends at viewer; outgoing starts at viewer and
+      // ends at target. The detail view flips it into a readable
+      // you-first sequence.
+      path: multiHop.path.map((u) => ({
+        id: u.id,
+        name: u.name,
+        avatar_url: u.avatar_url,
+      })),
     });
   }
 
