@@ -119,10 +119,10 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
                     }`}
               </h1>
               <span
-                className="mt-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                className="mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-4 py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground md:text-base"
                 title="Preview — unlock to see the full listing"
               >
-                <EyeOff className="h-3 w-3" /> Preview
+                <EyeOff className="h-4 w-4 md:h-5 md:w-5" /> Preview
               </span>
             </div>
             {showRating && listing.avg_rating !== null && listing.review_count > 0 && (

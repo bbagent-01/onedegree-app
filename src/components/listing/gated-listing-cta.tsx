@@ -109,7 +109,7 @@ export function GatedListingCTA({
         <p className="mt-2 text-sm text-foreground">
           {firstMutual
             ? `Ask a mutual connection to introduce you to ${hostFirst}.`
-            : `No mutual connections yet — send an anonymous intro. ${hostFirst} sees your name only once they reply.`}
+            : `No mutual connections yet — send ${hostFirst} an intro message. They'll see your full profile and decide whether to reply.`}
         </p>
         <Button
           type="button"

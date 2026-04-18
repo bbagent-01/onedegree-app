@@ -41,10 +41,10 @@ function initials(name: string) {
  *   filled forwarding message is sent to them; they decide whether
  *   to forward or decline.
  *
- *   When mutualConnections is empty: viewer sends an anonymous intro
- *   message directly to the host. The host sees "Someone on 1° B&B"
- *   in their Intro Requests inbox until they reply — at which point
- *   identities reveal and the thread promotes to Messages.
+ *   When mutualConnections is empty: viewer sends an intro message
+ *   directly to the host. Intro messages always show the sender's
+ *   full profile to the host — the host decides whether to reply
+ *   from their Intro Requests inbox.
  */
 export function RequestIntroDialog({
   open,
@@ -140,7 +140,7 @@ export function RequestIntroDialog({
           <DialogDescription>
             {hasMutuals
               ? `Pick a mutual connection to pass a message along to ${hostFirst}.`
-              : `No mutual connections yet. Send ${hostFirst} an anonymous intro — your identity stays private until they reply.`}
+              : `No mutual connections yet. Send ${hostFirst} an intro message — they'll see your full profile and decide whether to reply.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -199,8 +199,8 @@ export function RequestIntroDialog({
                 What {hostFirst} will see
               </div>
               <div className="mt-0.5">
-                &ldquo;Someone on 1° B&amp;B&rdquo; + your message. Your name
-                and profile appear only once they reply.
+                Your full profile and message land in {hostFirst}&rsquo;s
+                Intro Requests. They decide whether to reply.
               </div>
             </div>
             <Button

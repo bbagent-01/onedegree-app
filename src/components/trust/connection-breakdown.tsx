@@ -676,9 +676,8 @@ function ChainSegment({
             aria-hidden
           >
             <EyeOff
-              className="h-4 w-4 text-white"
+              className="h-4 w-4 text-zinc-700"
               strokeWidth={2.25}
-              style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.45))" }}
             />
           </span>
         )}

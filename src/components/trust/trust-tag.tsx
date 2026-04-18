@@ -180,14 +180,14 @@ export function TrustTag({
         <span className="inline-flex items-center gap-1">
           {Array.from({ length: anonymousCount }).map((_, i) => (
             <span key={`dot-${i}`} className="inline-flex items-center gap-1">
-              <span className="h-5 w-5 rounded-full border-2 border-white bg-zinc-300 ring-1 ring-zinc-200" />
+              <span className="inline-block h-6 w-6 rounded-full bg-zinc-300" />
               <span className="h-px w-2 bg-zinc-300" aria-hidden />
             </span>
           ))}
           {connectorPaths.length > 0 && (
             <ConnectorAvatars
               connectors={connectorPaths as AvatarConnector[]}
-              size="h-5 w-5"
+              size="h-6 w-6"
             />
           )}
         </span>

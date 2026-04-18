@@ -995,7 +995,11 @@ async function applyMultiHopChains(
               name: bridgeNode.name,
               avatar_url: bridgeNode.avatar_url,
               strength: 0,
-              viewer_knows: degree === 3, // 3° bridge is a direct 1° of viewer
+              // The bridge is always the node adjacent to the
+              // viewer (1° direct to them) regardless of the
+              // chain's length, so they're always a known face
+              // and should render with their actual avatar.
+              viewer_knows: true,
             },
           ]
         : [],
