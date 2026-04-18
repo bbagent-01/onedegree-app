@@ -48,10 +48,9 @@ interface PillStyle {
 const DEGREE_PILLS: Record<1 | 2 | 3 | 4, PillStyle> = {
   1: { label: "1st\u00B0", bg: "bg-brand", fg: "text-white" },
   2: { label: "2nd\u00B0", bg: "bg-emerald-600", fg: "text-white" },
-  // Mustard-leaning yellow. yellow-700 reads closer to the yellow
-  // side of the mustard scale than amber-700 while still landing
-  // ~5.4:1 against white text at AA for small bold text.
-  3: { label: "3rd\u00B0", bg: "bg-yellow-700", fg: "text-white" },
+  // Mustard per Loren's spec: rgb(191 138 13) = #bf8a0d. Arbitrary
+  // Tailwind value since this sits between yellow-600 and yellow-700.
+  3: { label: "3rd\u00B0", bg: "bg-[#bf8a0d]", fg: "text-white" },
   4: { label: "4th\u00B0", bg: "bg-zinc-500", fg: "text-white" },
 };
 
