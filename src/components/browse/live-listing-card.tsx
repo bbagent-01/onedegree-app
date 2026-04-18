@@ -99,11 +99,15 @@ export function LiveListingCard({
   const hasPriceRange =
     listing.price_min && listing.price_max && listing.price_min !== listing.price_max;
 
-  // Preview content toggles — missing fields default to true (except host name).
+  // Preview content toggles — missing fields default to true so
+  // the preview tile shows as much as the host would expect.
   const previewContent = listing.access_settings?.preview_content;
+  const showTitle = previewContent?.show_title ?? true;
   const showPriceRange = previewContent?.show_price_range ?? true;
   const showNeighborhood = previewContent?.show_neighborhood ?? true;
   const showRating = previewContent?.show_rating ?? true;
+  const showHostFirstName = previewContent?.show_host_first_name ?? true;
+  const showProfilePhoto = previewContent?.show_profile_photo ?? true;
 
   // Choose which images set to use based on access level
   const images = canSeeFull ? allImages : previewImages;
@@ -199,7 +203,36 @@ export function LiveListingCard({
                 </div>
               )}
             </div>
-            {/* No host name/photo in preview mode */}
+            {showTitle && (
+              <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
+                {listing.title}
+              </p>
+            )}
+            {listing.host && (showHostFirstName || showProfilePhoto) && (
+              <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                {showProfilePhoto && (
+                  <span className="inline-flex h-5 w-5 overflow-hidden rounded-full bg-muted">
+                    {listing.host.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={listing.host.avatar_url}
+                        alt={
+                          showHostFirstName
+                            ? listing.host.name
+                            : "Host"
+                        }
+                        className="h-full w-full object-cover"
+                      />
+                    ) : null}
+                  </span>
+                )}
+                <span>
+                  {showHostFirstName
+                    ? `Hosted by ${listing.host.name.split(" ")[0]}`
+                    : "Hosted by a verified member"}
+                </span>
+              </div>
+            )}
             {showPriceRange && (
               <p className="mt-1">
                 {hasPriceRange ? (

@@ -649,6 +649,7 @@ async function main() {
           show_price_range: true,
           show_description: true,
           show_host_first_name: true,
+          show_profile_photo: true,
           show_neighborhood: true,
           show_map_area: true,
           show_rating: true,

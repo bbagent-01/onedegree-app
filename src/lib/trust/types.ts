@@ -84,6 +84,8 @@ export interface PreviewContentSettings {
   show_description?: boolean;
   /** Show host first name (otherwise "Hosted by a verified member") */
   show_host_first_name?: boolean;
+  /** Show host profile photo (otherwise a silhouette placeholder) */
+  show_profile_photo?: boolean;
   /** Show neighborhood / city */
   show_neighborhood?: boolean;
   /** Show approximate map area (blurred radius, no pin) */
@@ -97,7 +99,8 @@ export interface PreviewContentSettings {
   /** Show house rules */
   show_house_rules?: boolean;
   /** When true, use the host-written preview_description instead of the
-   *  full listing description in preview mode. */
+   *  full listing description in preview mode. Sub-option of the
+   *  Description toggle in the listing form. */
   use_preview_specific_description?: boolean;
 }
 
@@ -106,6 +109,7 @@ export const DEFAULT_PREVIEW_CONTENT: PreviewContentSettings = {
   show_price_range: true,
   show_description: true,
   show_host_first_name: true,
+  show_profile_photo: true,
   show_neighborhood: true,
   show_map_area: true,
   show_rating: true,

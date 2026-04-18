@@ -64,9 +64,11 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
   // out rather than opting them in. Previews should lean generous so
   // guests have enough context to want to unlock the listing.
   const pc = listing.access_settings?.preview_content;
+  const showTitle = pc?.show_title ?? true;
   const showPriceRange = pc?.show_price_range ?? true;
   const showDescription = pc?.show_description ?? true;
   const showHostFirstName = pc?.show_host_first_name ?? true;
+  const showProfilePhoto = pc?.show_profile_photo ?? true;
   const showNeighborhood = pc?.show_neighborhood ?? true;
   const showMapArea = pc?.show_map_area ?? true;
   const showRating = pc?.show_rating ?? true;
@@ -116,8 +118,11 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
-                  {propertyLabel}
-                  {showNeighborhood ? ` in ${listing.area_name}` : ""}
+                  {showTitle && listing.title
+                    ? listing.title
+                    : `${propertyLabel}${
+                        showNeighborhood ? ` in ${listing.area_name}` : ""
+                      }`}
                 </h1>
                 {showRating && listing.avg_rating !== null && listing.review_count > 0 && (
                   <div className="mt-2 flex items-center gap-2 text-sm">
@@ -154,8 +159,21 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
 
           {/* Host section */}
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-              <Shield className="h-6 w-6 text-muted-foreground" />
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-muted">
+              {showProfilePhoto && listing.host?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={listing.host.avatar_url}
+                  alt={
+                    showHostFirstName && listing.host?.name
+                      ? listing.host.name
+                      : "Host"
+                  }
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <Shield className="h-6 w-6 text-muted-foreground" />
+              )}
             </div>
             <div>
               <div className="text-lg font-semibold">

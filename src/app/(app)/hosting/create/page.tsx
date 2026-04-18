@@ -108,6 +108,7 @@ interface WizardState {
   previewShowPriceRange: boolean;
   previewShowDescription: boolean;
   previewShowHostFirstName: boolean;
+  previewShowProfilePhoto: boolean;
   previewShowNeighborhood: boolean;
   previewShowMapArea: boolean;
   previewShowRating: boolean;
@@ -165,6 +166,7 @@ const initialState: WizardState = {
   previewShowPriceRange: true,
   previewShowDescription: true,
   previewShowHostFirstName: true,
+  previewShowProfilePhoto: true,
   previewShowNeighborhood: true,
   previewShowMapArea: true,
   previewShowRating: true,
@@ -486,6 +488,7 @@ export default function CreateListingPage() {
             show_price_range: state.previewShowPriceRange,
             show_description: state.previewShowDescription,
             show_host_first_name: state.previewShowHostFirstName,
+            show_profile_photo: state.previewShowProfilePhoto,
             show_neighborhood: state.previewShowNeighborhood,
             show_map_area: state.previewShowMapArea,
             show_rating: state.previewShowRating,
@@ -1407,6 +1410,7 @@ type PreviewToggleKey =
   | "previewShowPriceRange"
   | "previewShowDescription"
   | "previewShowHostFirstName"
+  | "previewShowProfilePhoto"
   | "previewShowNeighborhood"
   | "previewShowMapArea"
   | "previewShowRating"
@@ -1443,6 +1447,7 @@ function Step7Preview({
     { key: "previewShowTitle", label: "Listing title", desc: "If off, shows a generic label like \u201CPrivate listing in [area]\u201D" },
     { key: "previewShowPriceRange", label: "Price range", desc: "$min–$max / night" },
     { key: "previewShowHostFirstName", label: "Your first name", desc: "If off, shows \"a verified member\"" },
+    { key: "previewShowProfilePhoto", label: "Profile photo", desc: "Your avatar next to the listing" },
     { key: "previewShowNeighborhood", label: "Neighborhood", desc: "City and area name" },
     { key: "previewShowMapArea", label: "Approximate map area", desc: "Blurred radius, no exact pin" },
     { key: "previewShowRating", label: "Rating & reviews count", desc: "Star rating and how many reviews" },

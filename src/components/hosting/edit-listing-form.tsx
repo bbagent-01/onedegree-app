@@ -33,9 +33,11 @@ import type {
 } from "@/lib/trust/types";
 
 type PreviewToggleKey =
+  | "show_title"
   | "show_price_range"
   | "show_description"
   | "show_host_first_name"
+  | "show_profile_photo"
   | "show_neighborhood"
   | "show_map_area"
   | "show_rating"
@@ -247,9 +249,11 @@ export function EditListingForm({
   // don't have preview_content set yet.
   const pc0 = initial.access_settings?.preview_content;
   const [previewContent, setPreviewContent] = useState({
+    show_title: pc0?.show_title ?? true,
     show_price_range: pc0?.show_price_range ?? true,
     show_description: pc0?.show_description ?? true,
     show_host_first_name: pc0?.show_host_first_name ?? true,
+    show_profile_photo: pc0?.show_profile_photo ?? true,
     show_neighborhood: pc0?.show_neighborhood ?? true,
     show_map_area: pc0?.show_map_area ?? true,
     show_rating: pc0?.show_rating ?? true,
@@ -257,6 +261,9 @@ export function EditListingForm({
     show_bed_counts: pc0?.show_bed_counts ?? true,
     show_house_rules: pc0?.show_house_rules ?? true,
   });
+  const [usePreviewDescription, setUsePreviewDescription] = useState(
+    pc0?.use_preview_specific_description ?? false
+  );
 
   // Access rules — collapsed 2-gate model. All rows carry
   // full_listing_contact post-migration 020.
@@ -446,7 +453,10 @@ export function EditListingForm({
       see_preview: seePreview,
       full_listing_contact: fullGate,
       allow_intro_requests: allowIntroRequests,
-      preview_content: previewContent,
+      preview_content: {
+        ...previewContent,
+        use_preview_specific_description: usePreviewDescription,
+      },
     };
   };
 
@@ -1071,9 +1081,11 @@ export function EditListingForm({
             <div className="text-sm font-semibold text-foreground">Show in preview</div>
             <div className="mt-4 space-y-2">
               {([
+                ["show_title", "Listing title", "Full title of your listing"],
                 ["show_price_range", "Price range", "$min–$max / night"],
                 ["show_description", "Description", "Your preview description (or first 100 chars)"],
                 ["show_host_first_name", "Your first name", "If off, shows \"a verified member\""],
+                ["show_profile_photo", "Profile photo", "Your avatar next to the listing"],
                 ["show_neighborhood", "Neighborhood", "City and area name"],
                 ["show_map_area", "Approximate map area", "Blurred radius, no exact pin"],
                 ["show_rating", "Rating & reviews count", "Star rating and how many reviews"],
@@ -1081,64 +1093,103 @@ export function EditListingForm({
                 ["show_bed_counts", "Bedroom / bed / bath count", "\"2 bedrooms · 2 beds · 1 bath\""],
                 ["show_house_rules", "House rules", "Rules you set for guests"],
               ] as [PreviewToggleKey, string, string][]).map(([key, label, desc]) => (
-                <label
-                  key={key}
-                  className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-white px-4 py-3 hover:border-foreground/30"
-                >
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={previewContent[key]}
-                    onClick={() =>
-                      setPreviewContent((prev) => ({ ...prev, [key]: !prev[key] }))
-                    }
-                    className={cn(
-                      "relative mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
-                      previewContent[key] ? "bg-brand" : "bg-zinc-300"
-                    )}
-                  >
-                    <span
+                <div key={key}>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-white px-4 py-3 hover:border-foreground/30">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={previewContent[key]}
+                      onClick={() =>
+                        setPreviewContent((prev) => ({ ...prev, [key]: !prev[key] }))
+                      }
                       className={cn(
-                        "block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
-                        previewContent[key] ? "translate-x-4" : "translate-x-0.5"
+                        "relative mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                        previewContent[key] ? "bg-brand" : "bg-zinc-300"
                       )}
-                    />
-                  </button>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-foreground">{label}</div>
-                    <div className="text-xs text-muted-foreground">{desc}</div>
-                  </div>
-                </label>
+                    >
+                      <span
+                        className={cn(
+                          "block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                          previewContent[key] ? "translate-x-4" : "translate-x-0.5"
+                        )}
+                      />
+                    </button>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-foreground">{label}</div>
+                      <div className="text-xs text-muted-foreground">{desc}</div>
+                    </div>
+                  </label>
+
+                  {/* Nested "Preview description" sub-option under
+                      the Description toggle. Only visible when the
+                      Description parent is on. */}
+                  {key === "show_description" && previewContent.show_description && (
+                    <div className="ml-10 mt-2 rounded-lg border border-border bg-muted/20 p-4">
+                      <label className="flex cursor-pointer items-start gap-3">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={usePreviewDescription}
+                          onClick={() => setUsePreviewDescription((v) => !v)}
+                          className={cn(
+                            "relative mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                            usePreviewDescription ? "bg-brand" : "bg-zinc-300"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                              usePreviewDescription
+                                ? "translate-x-4"
+                                : "translate-x-0.5"
+                            )}
+                          />
+                        </button>
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-foreground">
+                            Use a preview-specific description
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Write a short blurb for the preview. If off, the
+                            first 100 chars of your main description are used.
+                          </div>
+                        </div>
+                      </label>
+
+                      {usePreviewDescription && (
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs font-semibold text-muted-foreground">
+                              Preview description
+                            </Label>
+                            <span
+                              className={cn(
+                                "text-xs",
+                                previewDescription.length > 200
+                                  ? "text-red-600"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {previewDescription.length}/200
+                            </span>
+                          </div>
+                          <Textarea
+                            className={cn(BIG_TEXTAREA, "mt-2")}
+                            rows={3}
+                            value={previewDescription}
+                            onChange={(e) =>
+                              setPreviewDescription(e.target.value.slice(0, 200))
+                            }
+                            placeholder="A charming space in a great neighborhood..."
+                            maxLength={200}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Preview description</Label>
-              <span
-                className={cn(
-                  "text-xs",
-                  previewDescription.length > 200
-                    ? "text-red-600"
-                    : "text-muted-foreground"
-                )}
-              >
-                {previewDescription.length}/200
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Short description shown in preview. Leave blank to auto-generate
-              from your main description.
-            </p>
-            <Textarea
-              className={cn(BIG_TEXTAREA, "mt-2")}
-              rows={3}
-              value={previewDescription}
-              onChange={(e) => setPreviewDescription(e.target.value.slice(0, 200))}
-              placeholder="A charming space in a great neighborhood..."
-              maxLength={200}
-            />
           </div>
 
           {/* Preview photo selector */}
