@@ -101,13 +101,15 @@ export function LiveListingCard({
 
   // Preview content toggles — missing fields default to true so
   // the preview tile shows as much as the host would expect.
+  // Note: show_profile_photo is honored on the gated / full listing
+  // detail views (host card) but deliberately ignored on the
+  // browse grid tiles — tiles stay text-only for a consistent read.
   const previewContent = listing.access_settings?.preview_content;
   const showTitle = previewContent?.show_title ?? true;
   const showPriceRange = previewContent?.show_price_range ?? true;
   const showNeighborhood = previewContent?.show_neighborhood ?? true;
   const showRating = previewContent?.show_rating ?? true;
   const showHostFirstName = previewContent?.show_host_first_name ?? true;
-  const showProfilePhoto = previewContent?.show_profile_photo ?? true;
 
   // Choose which images set to use based on access level
   const images = canSeeFull ? allImages : previewImages;
@@ -192,45 +194,39 @@ export function LiveListingCard({
           </div>
 
           <div className="mt-3">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
-                {showNeighborhood ? listing.area_name : "Private location"}
-              </h3>
-              {showRating && rating > 0 && (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Star className="h-3.5 w-3.5 fill-muted-foreground text-muted-foreground" />
-                  <span>{rating.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
+            <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
+              {showNeighborhood ? listing.area_name : "Private location"}
+            </h3>
             {showTitle && (
               <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
                 {listing.title}
               </p>
             )}
-            {listing.host && (showHostFirstName || showProfilePhoto) && (
-              <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                {showProfilePhoto && (
-                  <span className="inline-flex h-5 w-5 overflow-hidden rounded-full bg-muted">
-                    {listing.host.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={listing.host.avatar_url}
-                        alt={
-                          showHostFirstName
-                            ? listing.host.name
-                            : "Host"
-                        }
-                        className="h-full w-full object-cover"
-                      />
-                    ) : null}
-                  </span>
-                )}
-                <span>
-                  {showHostFirstName
-                    ? `Hosted by ${listing.host.name.split(" ")[0]}`
-                    : "Hosted by a verified member"}
-                </span>
+            {listing.host && showHostFirstName && (
+              <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
+                Hosted by {listing.host.name.split(" ")[0]}
+              </p>
+            )}
+            {listing.host && !showHostFirstName && (
+              <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
+                Hosted by a verified member
+              </p>
+            )}
+            {trust && (
+              <div className="mt-1">
+                <TrustTag
+                  size="micro"
+                  score={trust.trust_score}
+                  degree={trust.degree}
+                  direct={trust.hasDirectVouch}
+                  connectorPaths={trust.connectorPaths}
+                  hostRating={
+                    showRating ? listing.host?.host_rating ?? null : null
+                  }
+                  hostReviewCount={
+                    showRating ? listing.host?.host_review_count ?? 0 : 0
+                  }
+                />
               </div>
             )}
             {showPriceRange && (
@@ -252,22 +248,6 @@ export function LiveListingCard({
             )}
           </div>
         </Link>
-
-        {/* Trust distance row — always visible on gated tiles so the
-            viewer can see how far they are and who could bridge it.
-            No popover here; clicking the tile should navigate, not
-            open a popover (that lives on the listing detail page). */}
-        {trust && (
-          <div className="mt-1.5 flex items-center gap-2">
-            <TrustTag
-              size="micro"
-              score={trust.trust_score}
-              degree={trust.degree}
-              direct={trust.hasDirectVouch}
-              connectorPaths={trust.connectorPaths}
-            />
-          </div>
-        )}
       </>
     );
   }
@@ -413,38 +393,29 @@ export function LiveListingCard({
         </div>
 
         <div className="mt-3">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
-              {listing.area_name}
-            </h3>
-            {rating > 0 && (
-              <div className="flex items-center gap-1 text-sm">
-                <Star className="h-3.5 w-3.5 fill-foreground text-foreground" />
-                <span>{rating.toFixed(2)}</span>
-              </div>
-            )}
-          </div>
+          <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
+            {listing.area_name}
+          </h3>
           <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
             {listing.title}
           </p>
           {listing.host && (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Hosted by {listing.host.name}
-              </p>
-              {trust && (
-                <TrustTag
-                  size="micro"
-                  score={trust.trust_score}
-                  degree={trust.degree}
-                  direct={trust.hasDirectVouch}
-                  connectorPaths={trust.connectorPaths}
-                  hostRating={listing.host.host_rating}
-                  hostReviewCount={listing.host.host_review_count}
-                  className="mt-0.5"
-                />
-              )}
-            </>
+            <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
+              Hosted by {listing.host.name.split(" ")[0]}
+            </p>
+          )}
+          {trust && (
+            <div className="mt-1">
+              <TrustTag
+                size="micro"
+                score={trust.trust_score}
+                degree={trust.degree}
+                direct={trust.hasDirectVouch}
+                connectorPaths={trust.connectorPaths}
+                hostRating={listing.host?.host_rating ?? null}
+                hostReviewCount={listing.host?.host_review_count ?? 0}
+              />
+            </div>
           )}
           <p className="mt-1">
             <span className="font-semibold">${price}</span>

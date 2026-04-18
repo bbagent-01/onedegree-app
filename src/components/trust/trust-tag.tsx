@@ -120,10 +120,12 @@ export function TrustTag({
         )}
       >
         <span className={cn("font-semibold", tone)}>{ordinal}&deg;</span>
-        {connectorPaths.length > 0 && (
+        {/* Bridge avatar only at medium size (host card / profile).
+            Micro tiles stay textual for a consistent grid read. */}
+        {isMedium && connectorPaths.length > 0 && (
           <ConnectorAvatars
             connectors={connectorPaths as AvatarConnector[]}
-            size={isMedium ? "h-5 w-5" : "h-4 w-4"}
+            size="h-5 w-5"
           />
         )}
         {ratingNode}
