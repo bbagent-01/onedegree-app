@@ -120,10 +120,10 @@ export function TrustTag({
         )}
       >
         <span className={cn("font-semibold", tone)}>{ordinal}&deg;</span>
-        {isMedium && connectorPaths.length > 0 && (
+        {connectorPaths.length > 0 && (
           <ConnectorAvatars
             connectors={connectorPaths as AvatarConnector[]}
-            size="h-5 w-5"
+            size={isMedium ? "h-5 w-5" : "h-4 w-4"}
           />
         )}
         {ratingNode}

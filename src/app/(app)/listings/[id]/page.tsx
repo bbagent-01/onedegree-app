@@ -227,16 +227,21 @@ export default async function ListingPage({
                     Hosted by {listing.host.name}
                   </div>
                   {trust && (
-                    <TrustTag
-                      size="medium"
-                      score={trust.score}
-                      degree={trust.degree}
-                      direct={trust.hasDirectVouch}
-                      connectorPaths={trust.connectorPaths}
-                      hostRating={listing.host.host_rating}
-                      hostReviewCount={listing.host.host_review_count}
-                      className="mt-0.5"
-                    />
+                    <ConnectionPopover
+                      targetUserId={listing.host.id}
+                      direction="incoming"
+                    >
+                      <TrustTag
+                        size="medium"
+                        score={trust.score}
+                        degree={trust.degree}
+                        direct={trust.hasDirectVouch}
+                        connectorPaths={trust.connectorPaths}
+                        hostRating={listing.host.host_rating}
+                        hostReviewCount={listing.host.host_review_count}
+                        className="mt-0.5"
+                      />
+                    </ConnectionPopover>
                   )}
                   <div className="text-sm text-muted-foreground">
                     {yearsHosting > 0
