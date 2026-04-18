@@ -48,8 +48,10 @@ interface PillStyle {
 const DEGREE_PILLS: Record<1 | 2 | 3 | 4, PillStyle> = {
   1: { label: "1st\u00B0", bg: "bg-brand", fg: "text-white" },
   2: { label: "2nd\u00B0", bg: "bg-emerald-600", fg: "text-white" },
-  3: { label: "3rd\u00B0", bg: "bg-amber-400", fg: "text-amber-950" },
-  4: { label: "4th\u00B0", bg: "bg-zinc-300", fg: "text-zinc-700" },
+  // Dark mustard so white text clears AA contrast. amber-700
+  // measures ~4.9:1 against white with the text-sm pill size.
+  3: { label: "3rd\u00B0", bg: "bg-amber-700", fg: "text-white" },
+  4: { label: "4th\u00B0", bg: "bg-zinc-500", fg: "text-white" },
 };
 
 /**
@@ -124,6 +126,12 @@ export function TrustTag({
   // 2° is the only state that spells out the score math. Shield +
   // number + connector dots/avatars ride alongside the pill.
   const is2nd = effectiveDegree === 2;
+  // Multi-hop chain visual: medium 3deg / 4deg render the chain
+  // compactly as (N-2) anonymous dots, a dash, and the bridge
+  // avatars. Micro keeps the pill-only render for grid tiles.
+  const showMultiHopVisual =
+    isMedium && (effectiveDegree === 3 || effectiveDegree === 4);
+  const anonymousCount = effectiveDegree === 4 ? 2 : 1;
 
   return (
     <span
@@ -167,6 +175,22 @@ export function TrustTag({
               />
             ))}
         </>
+      )}
+      {showMultiHopVisual && (
+        <span className="inline-flex items-center gap-1">
+          {Array.from({ length: anonymousCount }).map((_, i) => (
+            <span key={`dot-${i}`} className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
+              <span className="h-px w-2 bg-zinc-300" aria-hidden />
+            </span>
+          ))}
+          {connectorPaths.length > 0 && (
+            <ConnectorAvatars
+              connectors={connectorPaths as AvatarConnector[]}
+              size="h-5 w-5"
+            />
+          )}
+        </span>
       )}
       {ratingNode}
     </span>
