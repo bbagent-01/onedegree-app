@@ -627,10 +627,14 @@ function ChainSegment({
   label?: string;
 }) {
   const first = name.split(" ")[0];
-  // Anonymized nodes show their INITIALS (not the word "Anonymous")
+  // Anonymized nodes show their INITIALS with periods (e.g. "A.N.")
   // so the viewer gets a faint texture of who's in the chain without
   // the identity leakage of a full first name.
-  const resolvedLabel = label ?? (known ? first : initials(name));
+  const periodedInitials = initials(name)
+    .split("")
+    .map((ch) => `${ch}.`)
+    .join("");
+  const resolvedLabel = label ?? (known ? first : periodedInitials);
   const anonymized = !known && !isTarget;
   return (
     <div className="flex shrink-0 flex-col items-center gap-1">

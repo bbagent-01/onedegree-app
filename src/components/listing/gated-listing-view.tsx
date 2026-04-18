@@ -167,7 +167,7 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
                       : "Host"
                   }
                 />
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="text-lg font-semibold">
                     {showHostFirstName && listing.host?.name
                       ? `Hosted by ${listing.host.name.split(" ")[0]}`
@@ -200,7 +200,7 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
                     : "Host"
                 }
               />
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="text-lg font-semibold">
                   {showHostFirstName && listing.host?.name
                     ? `Hosted by ${listing.host.name.split(" ")[0]}`

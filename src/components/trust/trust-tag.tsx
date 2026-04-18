@@ -48,9 +48,10 @@ interface PillStyle {
 const DEGREE_PILLS: Record<1 | 2 | 3 | 4, PillStyle> = {
   1: { label: "1st\u00B0", bg: "bg-brand", fg: "text-white" },
   2: { label: "2nd\u00B0", bg: "bg-emerald-600", fg: "text-white" },
-  // Dark mustard so white text clears AA contrast. amber-700
-  // measures ~4.9:1 against white with the text-sm pill size.
-  3: { label: "3rd\u00B0", bg: "bg-amber-700", fg: "text-white" },
+  // Mustard-leaning yellow. yellow-700 reads closer to the yellow
+  // side of the mustard scale than amber-700 while still landing
+  // ~5.4:1 against white text at AA for small bold text.
+  3: { label: "3rd\u00B0", bg: "bg-yellow-700", fg: "text-white" },
   4: { label: "4th\u00B0", bg: "bg-zinc-500", fg: "text-white" },
 };
 
@@ -180,7 +181,7 @@ export function TrustTag({
         <span className="inline-flex items-center gap-1">
           {Array.from({ length: anonymousCount }).map((_, i) => (
             <span key={`dot-${i}`} className="inline-flex items-center gap-1">
-              <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
+              <span className="h-5 w-5 rounded-full border-2 border-white bg-zinc-300 ring-1 ring-zinc-200" />
               <span className="h-px w-2 bg-zinc-300" aria-hidden />
             </span>
           ))}
