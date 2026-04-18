@@ -7,7 +7,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { CheckCircle2, Loader2, User as UserIcon, Users, UserX } from "lucide-react";
+import {
+  CheckCircle2,
+  EyeOff,
+  Loader2,
+  User as UserIcon,
+  Users,
+  UserX,
+} from "lucide-react";
 import { trustTier } from "@/lib/trust-data";
 import { cn } from "@/lib/utils";
 
@@ -540,13 +547,12 @@ function MultiHopView({
   data: Extract<ConnectionData, { type: "multi_hop" }>;
 }) {
   const isIncoming = data.direction === "incoming";
-  // Normalize to [you, intermediary..., target] internally so the
-  // bridge-detection code is consistent, then render right-to-left
-  // below (target on the left, You on the right — matches how
-  // Loren reads "distance to this host").
+  // Normalize to [you, intermediary..., target] so target is always
+  // at the end regardless of the raw direction that came back from
+  // the API.
   const chainYouFirst = isIncoming ? [...data.path].reverse() : data.path;
   const target = chainYouFirst[chainYouFirst.length - 1];
-  const bridge = chainYouFirst[1]; // 1° adjacent to You
+  const viewer = chainYouFirst[0];
   const ordinal = data.degree === 4 ? "4th" : "3rd";
 
   // Flip for display: target on the left → You on the right.
@@ -558,32 +564,34 @@ function MultiHopView({
       <div className="flex items-center gap-2">
         <Users className="h-4 w-4 text-muted-foreground" />
         <div className="text-sm font-semibold">
-          {ordinal}&deg; connection to {target.name}
+          You&rsquo;re a {ordinal}&deg; connection to {target.name}
         </div>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {bridge
-          ? `Ask ${bridge.name.split(" ")[0]} — they can start the introduction.`
-          : "Grow your network to open this connection."}
-      </p>
 
       {/* Chain: Target → ... → You */}
       <div className="mt-4 flex items-center gap-1 overflow-x-auto pb-1">
         {displayChain.map((node, i) => {
           if (i === youIndex) {
+            // Viewer node — labeled "You", uses the signed-in
+            // user's actual avatar so the chain feels personal.
             return (
               <span key="you" className="contents">
                 {i > 0 && <ChainArrow />}
-                <ChainNode label="You" />
+                <ChainSegment
+                  name="You"
+                  avatarUrl={viewer.avatar_url}
+                  isTarget={false}
+                  viewerKnows
+                  label="You"
+                />
               </span>
             );
           }
           const isTarget = i === 0;
-          // Anonymity: the target is always revealed (their name
-          // heads the popover), the 1° connector adjacent to You is
-          // revealed, any intermediary deeper than that is shown as
-          // a silhouette.
-          const isBridge = i === youIndex - 1;
+          // Anonymity rule: only the target and the viewer show
+          // their real identity. Every person between them is
+          // anonymized with a blurred silhouette + closed-eye icon,
+          // regardless of whether the viewer technically "knows" them.
           return (
             <span key={`${node.id}-${i}`} className="contents">
               {i > 0 && <ChainArrow />}
@@ -591,7 +599,7 @@ function MultiHopView({
                 name={node.name}
                 avatarUrl={node.avatar_url}
                 isTarget={isTarget}
-                viewerKnows={isTarget || isBridge}
+                viewerKnows={isTarget}
               />
             </span>
           );
@@ -612,52 +620,59 @@ function ChainArrow() {
   return <div className="shrink-0 text-muted-foreground">&rarr;</div>;
 }
 
-function ChainNode({ label }: { label: string }) {
-  return (
-    <div className="flex shrink-0 flex-col items-center gap-1">
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-xs font-semibold text-white">
-        {label}
-      </div>
-      <div className="text-[10px] font-medium text-muted-foreground">
-        {label}
-      </div>
-    </div>
-  );
-}
 
 function ChainSegment({
   name,
   avatarUrl,
   isTarget,
   viewerKnows: known,
+  label,
 }: {
   name: string;
   avatarUrl: string | null;
   isTarget: boolean;
   viewerKnows: boolean;
+  /** Override the rendered label. Used for the viewer's "You" node. */
+  label?: string;
 }) {
   const first = name.split(" ")[0];
-  const label = known ? first : "Someone you don\u2019t know";
+  const resolvedLabel = label ?? (known ? first : "Anonymous");
   return (
     <div className="flex shrink-0 flex-col items-center gap-1">
-      <Avatar
-        className={cn(
-          "h-10 w-10 border-2",
-          isTarget ? "border-foreground" : "border-border"
+      <div className="relative">
+        <Avatar
+          className={cn(
+            "h-10 w-10 border-2",
+            isTarget ? "border-foreground" : "border-border"
+          )}
+        >
+          {known && avatarUrl ? (
+            <AvatarImage src={avatarUrl} alt={name} />
+          ) : known ? (
+            <AvatarFallback>{initials(name)}</AvatarFallback>
+          ) : avatarUrl ? (
+            // Anonymized: their actual photo is rendered blurred so
+            // you see a person-shape without identity leakage.
+            <AvatarImage
+              src={avatarUrl}
+              alt="Anonymous"
+              className="blur-md"
+            />
+          ) : (
+            <AvatarFallback>
+              <UserIcon className="h-4 w-4 text-muted-foreground" />
+            </AvatarFallback>
+          )}
+        </Avatar>
+        {!known && !isTarget && (
+          // Closed-eye badge — this person's identity isn't shared.
+          <span className="absolute -bottom-0.5 -right-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-white bg-zinc-600 text-white">
+            <EyeOff className="h-2.5 w-2.5" />
+          </span>
         )}
-      >
-        {known && avatarUrl ? (
-          <AvatarImage src={avatarUrl} alt={name} />
-        ) : known ? (
-          <AvatarFallback>{initials(name)}</AvatarFallback>
-        ) : (
-          <AvatarFallback>
-            <UserIcon className="h-4 w-4 text-muted-foreground" />
-          </AvatarFallback>
-        )}
-      </Avatar>
+      </div>
       <div className="max-w-[4.5rem] truncate text-[10px] font-medium text-muted-foreground">
-        {label}
+        {resolvedLabel}
       </div>
     </div>
   );

@@ -2,8 +2,7 @@ import Link from "next/link";
 import { Lock, Info, MapPin, Shield, Star } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { TrustTag } from "@/components/trust/trust-tag";
-import { TrustGate } from "@/components/trust/trust-gate";
-import { ConnectionPath } from "@/components/trust/connection-path";
+import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import {
   ConnectorAvatars,
   type AvatarConnector,
@@ -40,7 +39,6 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
 
   const score = trust?.score ?? 0;
   const mutuals = trust?.mutualConnections ?? [];
-  const path = trust?.path ?? [];
 
   // Preview photo set — cover + any additional `is_preview` photos.
   // When all four seed photos are flagged `is_preview` (the default
@@ -113,46 +111,37 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
       <div className="mt-8 grid grid-cols-1 gap-10 md:grid-cols-3">
         {/* Left column: preview content */}
         <div className="md:col-span-2">
-          {/* Title area */}
+          {/* Title area — no floating TrustTag here anymore; the
+              trust badge lives below the host name for a consistent
+              read across 1°/2°/3°/4°. */}
           <div>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
-                  {showTitle && listing.title
-                    ? listing.title
-                    : `${propertyLabel}${
-                        showNeighborhood ? ` in ${listing.area_name}` : ""
-                      }`}
-                </h1>
-                {showRating && listing.avg_rating !== null && listing.review_count > 0 && (
-                  <div className="mt-2 flex items-center gap-2 text-sm">
-                    <Star className="h-3.5 w-3.5 fill-foreground text-foreground" />
-                    <span className="font-semibold">
-                      {listing.avg_rating.toFixed(2)}
-                    </span>
-                    <span className="text-muted-foreground">&middot;</span>
-                    <span className="text-muted-foreground">
-                      {listing.review_count}{" "}
-                      {listing.review_count === 1 ? "review" : "reviews"}
-                    </span>
-                  </div>
-                )}
-                {showBedCounts && (
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    {listing.bedrooms} bedroom{listing.bedrooms !== 1 ? "s" : ""}{" "}
-                    &middot; {listing.beds} bed{listing.beds !== 1 ? "s" : ""}{" "}
-                    &middot; {listing.bathrooms} bath{listing.bathrooms !== 1 ? "s" : ""}
-                  </div>
-                )}
+            <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
+              {showTitle && listing.title
+                ? listing.title
+                : `${propertyLabel}${
+                    showNeighborhood ? ` in ${listing.area_name}` : ""
+                  }`}
+            </h1>
+            {showRating && listing.avg_rating !== null && listing.review_count > 0 && (
+              <div className="mt-2 flex items-center gap-2 text-sm">
+                <Star className="h-3.5 w-3.5 fill-foreground text-foreground" />
+                <span className="font-semibold">
+                  {listing.avg_rating.toFixed(2)}
+                </span>
+                <span className="text-muted-foreground">&middot;</span>
+                <span className="text-muted-foreground">
+                  {listing.review_count}{" "}
+                  {listing.review_count === 1 ? "review" : "reviews"}
+                </span>
               </div>
-              <TrustTag
-                size="medium"
-                score={score}
-                degree={trust?.degree ?? null}
-                direct={trust?.hasDirectVouch ?? false}
-                connectorPaths={trust?.connectorPaths ?? []}
-              />
-            </div>
+            )}
+            {showBedCounts && (
+              <div className="mt-2 text-sm text-muted-foreground">
+                {listing.bedrooms} bedroom{listing.bedrooms !== 1 ? "s" : ""}{" "}
+                &middot; {listing.beds} bed{listing.beds !== 1 ? "s" : ""}{" "}
+                &middot; {listing.bathrooms} bath{listing.bathrooms !== 1 ? "s" : ""}
+              </div>
+            )}
           </div>
 
           <Separator className="my-8" />
@@ -181,7 +170,25 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
                   ? `Hosted by ${listing.host.name.split(" ")[0]}`
                   : "Hosted by a verified member"}
               </div>
-              <div className="text-sm text-muted-foreground">
+              {/* Trust badge — clickable; opens the chain popover for
+                  1°/2°/3°/4°. Same component + placement the full
+                  listing detail uses, for a consistent read. */}
+              {trust && listing.host?.id && (
+                <ConnectionPopover
+                  targetUserId={listing.host.id}
+                  direction="incoming"
+                >
+                  <TrustTag
+                    size="medium"
+                    score={score}
+                    degree={trust.degree}
+                    direct={trust.hasDirectVouch}
+                    connectorPaths={trust.connectorPaths}
+                    className="mt-1"
+                  />
+                </ConnectionPopover>
+              )}
+              <div className="mt-1 text-sm text-muted-foreground">
                 {showHostFirstName
                   ? "Full profile revealed once you meet the trust threshold"
                   : "Host identity is revealed once you meet the trust threshold"}
@@ -259,38 +266,6 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
               <Separator className="my-8" />
             </>
           )}
-
-          {/* Trust path */}
-          <section>
-            <h2 className="text-xl font-semibold md:text-2xl">
-              Your connection to this host
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              One Degree B&amp;B listings become visible through personal
-              networks. Grow yours, and more stays open up automatically.
-            </p>
-
-            {path.length >= 2 && (
-              <div className="mt-6 rounded-2xl border border-border bg-white p-5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Your strongest path
-                </div>
-                <div className="mt-3 overflow-x-auto">
-                  <ConnectionPath path={path} />
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6">
-              <TrustGate
-                userScore={score}
-                requiredScore={listing.min_trust_gate}
-                mutualConnections={mutuals}
-              />
-            </div>
-          </section>
-
-          <Separator className="my-8" />
 
           {/* Access requirement message */}
           {accessMessage && (
