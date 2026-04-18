@@ -627,51 +627,55 @@ function ChainSegment({
   label?: string;
 }) {
   const first = name.split(" ")[0];
-  const resolvedLabel = label ?? (known ? first : "Anonymous");
+  // Anonymized nodes show their INITIALS (not the word "Anonymous")
+  // so the viewer gets a faint texture of who's in the chain without
+  // the identity leakage of a full first name.
+  const resolvedLabel = label ?? (known ? first : initials(name));
+  const anonymized = !known && !isTarget;
   return (
     <div className="flex shrink-0 flex-col items-center gap-1">
-      <div className="relative">
-        {/* Outer clip ring: the CSS filter: blur() from an <img>
-            bleeds past the element's box, which produced a halo
-            outside the avatar. A rounded overflow-hidden wrapper
-            (no filter of its own) clips the blur back inside the
-            circle. */}
-        <div
-          className={cn(
-            "relative h-10 w-10 overflow-hidden rounded-full border-2 bg-muted",
-            isTarget ? "border-foreground" : "border-border"
-          )}
-        >
-          {known && avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt={name}
-              className="h-full w-full object-cover"
+      <div
+        className={cn(
+          "relative h-10 w-10 overflow-hidden rounded-full border-2 bg-muted",
+          isTarget ? "border-foreground" : "border-border"
+        )}
+      >
+        {known && avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt={name}
+            className="h-full w-full object-cover"
+          />
+        ) : known ? (
+          <div className="flex h-full w-full items-center justify-center text-xs font-semibold">
+            {initials(name)}
+          </div>
+        ) : avatarUrl ? (
+          // Anonymized: blur the photo, then overlay a centered
+          // outlined eye-off so the "hidden identity" cue sits on
+          // top of the avatar itself instead of a corner badge.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt={resolvedLabel}
+            className="h-full w-full scale-125 object-cover blur-md"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <UserIcon className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
+        {anonymized && (
+          <span
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            aria-hidden
+          >
+            <EyeOff
+              className="h-4 w-4 text-white"
+              strokeWidth={2.25}
+              style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.45))" }}
             />
-          ) : known ? (
-            <div className="flex h-full w-full items-center justify-center text-xs font-semibold">
-              {initials(name)}
-            </div>
-          ) : avatarUrl ? (
-            // Anonymized: blur the real photo and scale it up so the
-            // blur's softened edge lands inside the clip circle, not
-            // against the border.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt="Anonymous"
-              className="h-full w-full scale-125 object-cover blur-md"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <UserIcon className="h-4 w-4 text-muted-foreground" />
-            </div>
-          )}
-        </div>
-        {!known && !isTarget && (
-          <span className="absolute -bottom-0.5 -right-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-white bg-zinc-600 text-white">
-            <EyeOff className="h-2.5 w-2.5" />
           </span>
         )}
       </div>
