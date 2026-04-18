@@ -540,14 +540,18 @@ function MultiHopView({
   data: Extract<ConnectionData, { type: "multi_hop" }>;
 }) {
   const isIncoming = data.direction === "incoming";
-  // Orient the chain as [you, intermediary..., target] regardless
-  // of the computed direction. Incoming chains come back as
-  // [target, ..., viewer] so we flip them.
-  const chain = isIncoming ? [...data.path].reverse() : data.path;
-  const intermediaries = chain.slice(1, -1);
-  const target = chain[chain.length - 1];
-  const bridge = intermediaries[0]; // 1° connector adjacent to you
+  // Normalize to [you, intermediary..., target] internally so the
+  // bridge-detection code is consistent, then render right-to-left
+  // below (target on the left, You on the right — matches how
+  // Loren reads "distance to this host").
+  const chainYouFirst = isIncoming ? [...data.path].reverse() : data.path;
+  const target = chainYouFirst[chainYouFirst.length - 1];
+  const bridge = chainYouFirst[1]; // 1° adjacent to You
   const ordinal = data.degree === 4 ? "4th" : "3rd";
+
+  // Flip for display: target on the left → You on the right.
+  const displayChain = [...chainYouFirst].reverse();
+  const youIndex = displayChain.length - 1;
 
   return (
     <div className="p-4">
@@ -563,21 +567,35 @@ function MultiHopView({
           : "Grow your network to open this connection."}
       </p>
 
-      {/* Chain: You → A → B → Target */}
+      {/* Chain: Target → ... → You */}
       <div className="mt-4 flex items-center gap-1 overflow-x-auto pb-1">
-        <ChainNode label="You" />
-        {chain.slice(1).map((node, i) => (
-          <ChainSegment
-            key={`${node.id}-${i}`}
-            name={node.name}
-            avatarUrl={node.avatar_url}
-            isTarget={i === chain.length - 2}
-            // The first hop is always a direct 1° of the viewer; a
-            // later hop might be someone you don't know by name,
-            // so we soften the label but keep the avatar.
-            viewerKnows={i === 0}
-          />
-        ))}
+        {displayChain.map((node, i) => {
+          if (i === youIndex) {
+            return (
+              <span key="you" className="contents">
+                {i > 0 && <ChainArrow />}
+                <ChainNode label="You" />
+              </span>
+            );
+          }
+          const isTarget = i === 0;
+          // Anonymity: the target is always revealed (their name
+          // heads the popover), the 1° connector adjacent to You is
+          // revealed, any intermediary deeper than that is shown as
+          // a silhouette.
+          const isBridge = i === youIndex - 1;
+          return (
+            <span key={`${node.id}-${i}`} className="contents">
+              {i > 0 && <ChainArrow />}
+              <ChainSegment
+                name={node.name}
+                avatarUrl={node.avatar_url}
+                isTarget={isTarget}
+                viewerKnows={isTarget || isBridge}
+              />
+            </span>
+          );
+        })}
       </div>
 
       <p className="mt-4 rounded-lg bg-muted/40 p-2.5 text-xs text-muted-foreground">
@@ -588,6 +606,10 @@ function MultiHopView({
       </p>
     </div>
   );
+}
+
+function ChainArrow() {
+  return <div className="shrink-0 text-muted-foreground">&rarr;</div>;
 }
 
 function ChainNode({ label }: { label: string }) {
@@ -614,32 +636,29 @@ function ChainSegment({
   isTarget: boolean;
   viewerKnows: boolean;
 }) {
-  const label = known ? name.split(" ")[0] : "Someone you don\u2019t know";
   const first = name.split(" ")[0];
+  const label = known ? first : "Someone you don\u2019t know";
   return (
-    <>
-      <div className="shrink-0 text-muted-foreground">&rarr;</div>
-      <div className="flex shrink-0 flex-col items-center gap-1">
-        <Avatar
-          className={cn(
-            "h-10 w-10 border-2",
-            isTarget ? "border-foreground" : "border-border"
-          )}
-        >
-          {known && avatarUrl ? (
-            <AvatarImage src={avatarUrl} alt={name} />
-          ) : known ? (
-            <AvatarFallback>{initials(name)}</AvatarFallback>
-          ) : (
-            <AvatarFallback>
-              <UserIcon className="h-4 w-4 text-muted-foreground" />
-            </AvatarFallback>
-          )}
-        </Avatar>
-        <div className="max-w-[4.5rem] truncate text-[10px] font-medium text-muted-foreground">
-          {isTarget ? first : label}
-        </div>
+    <div className="flex shrink-0 flex-col items-center gap-1">
+      <Avatar
+        className={cn(
+          "h-10 w-10 border-2",
+          isTarget ? "border-foreground" : "border-border"
+        )}
+      >
+        {known && avatarUrl ? (
+          <AvatarImage src={avatarUrl} alt={name} />
+        ) : known ? (
+          <AvatarFallback>{initials(name)}</AvatarFallback>
+        ) : (
+          <AvatarFallback>
+            <UserIcon className="h-4 w-4 text-muted-foreground" />
+          </AvatarFallback>
+        )}
+      </Avatar>
+      <div className="max-w-[4.5rem] truncate text-[10px] font-medium text-muted-foreground">
+        {label}
       </div>
-    </>
+    </div>
   );
 }

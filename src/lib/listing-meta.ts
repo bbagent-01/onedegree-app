@@ -39,19 +39,31 @@ export interface ListingMeta {
 }
 
 const META_RE = /^<!--meta:(\{.*?\})-->\s*\n?/;
+// Defensive: match a meta comment anywhere in the body, not just at
+// the start. Older seed scripts appended meta to the end of the
+// description rather than prepending, which slipped past the
+// start-anchored META_RE and rendered as raw HTML-comment text.
+const ANY_META_RE = /<!--meta:\{.*?\}-->\s*/g;
 
 export function parseListingMeta(
   description: string | null | undefined
 ): { meta: ListingMeta; body: string } {
   if (!description) return { meta: {}, body: "" };
-  const m = description.match(META_RE);
-  if (!m) return { meta: {}, body: description };
-  try {
-    const meta = JSON.parse(m[1]) as ListingMeta;
-    return { meta, body: description.slice(m[0].length) };
-  } catch {
-    return { meta: {}, body: description };
+  let meta: ListingMeta = {};
+  let body = description;
+  const m = body.match(META_RE);
+  if (m) {
+    try {
+      meta = JSON.parse(m[1]) as ListingMeta;
+      body = body.slice(m[0].length);
+    } catch {
+      // keep going — we'll still strip the malformed comment below.
+    }
   }
+  // Strip any remaining (mis-placed) meta comments so they don't
+  // leak into the rendered description.
+  body = body.replace(ANY_META_RE, "").trim();
+  return { meta, body };
 }
 
 export function encodeListingMeta(meta: ListingMeta, body: string): string {

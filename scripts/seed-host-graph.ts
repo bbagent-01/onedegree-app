@@ -618,7 +618,10 @@ async function main() {
         bathrooms: 1,
       },
     };
-    const encodedDescription = `${l.description}<!--meta:${JSON.stringify(meta)}-->`;
+    // Meta comment goes at the START so parseListingMeta picks it
+    // up. Appending to the end (previous behavior) snuck past the
+    // start-anchored regex and leaked the raw JSON into the UI.
+    const encodedDescription = `<!--meta:${JSON.stringify(meta)}-->\n\n${l.description}`;
     const body = {
       host_id: hostId,
       title: l.title,
