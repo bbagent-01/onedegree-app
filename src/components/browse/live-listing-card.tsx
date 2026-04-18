@@ -12,6 +12,7 @@ import {
   ConnectorAvatars,
   type AvatarConnector,
 } from "@/components/trust/connector-avatars";
+import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { GatedListingDialog } from "./gated-listing-dialog";
 import type { BrowseListingTrust } from "./browse-layout";
 
@@ -228,19 +229,18 @@ export function LiveListingCard({
             viewer can see how far they are and who could bridge it. */}
         {trust && (
           <div className="mt-1.5 flex items-center gap-2">
-            <TrustTag
-              size="micro"
-              score={trust.trust_score}
-              degree={trust.degree}
-              direct={trust.hasDirectVouch}
-              connectorPaths={trust.connectorPaths}
-            />
-            {trust.connectorPaths.length > 0 && (
-              <ConnectorAvatars
-                connectors={trust.connectorPaths as AvatarConnector[]}
-                size="h-5 w-5"
+            <ConnectionPopover
+              targetUserId={listing.host_id}
+              direction="incoming"
+            >
+              <TrustTag
+                size="micro"
+                score={trust.trust_score}
+                degree={trust.degree}
+                direct={trust.hasDirectVouch}
+                connectorPaths={trust.connectorPaths}
               />
-            )}
+            </ConnectionPopover>
           </div>
         )}
       </>
@@ -303,19 +303,18 @@ export function LiveListingCard({
             </p>
             {trust && (
               <div className="mt-1.5 flex items-center gap-2">
-                <TrustTag
-                  size="micro"
-                  score={trust.trust_score}
-                  degree={trust.degree}
-                  direct={trust.hasDirectVouch}
-                  connectorPaths={trust.connectorPaths}
-                />
-                {trust.connectorPaths.length > 0 && (
-                  <ConnectorAvatars
-                    connectors={trust.connectorPaths as AvatarConnector[]}
-                    size="h-5 w-5"
+                <ConnectionPopover
+                  targetUserId={listing.host_id}
+                  direction="incoming"
+                >
+                  <TrustTag
+                    size="micro"
+                    score={trust.trust_score}
+                    degree={trust.degree}
+                    direct={trust.hasDirectVouch}
+                    connectorPaths={trust.connectorPaths}
                   />
-                )}
+                </ConnectionPopover>
               </div>
             )}
           </div>
@@ -414,16 +413,21 @@ export function LiveListingCard({
                 Hosted by {listing.host.name}
               </p>
               {trust && (
-                <TrustTag
-                  size="micro"
-                  score={trust.trust_score}
-                  degree={trust.degree}
-                  direct={trust.hasDirectVouch}
-                  connectorPaths={trust.connectorPaths}
-                  hostRating={listing.host.host_rating}
-                  hostReviewCount={listing.host.host_review_count}
-                  className="mt-0.5"
-                />
+                <ConnectionPopover
+                  targetUserId={listing.host_id}
+                  direction="incoming"
+                >
+                  <TrustTag
+                    size="micro"
+                    score={trust.trust_score}
+                    degree={trust.degree}
+                    direct={trust.hasDirectVouch}
+                    connectorPaths={trust.connectorPaths}
+                    hostRating={listing.host.host_rating}
+                    hostReviewCount={listing.host.host_review_count}
+                    className="mt-0.5"
+                  />
+                </ConnectionPopover>
               )}
             </>
           )}

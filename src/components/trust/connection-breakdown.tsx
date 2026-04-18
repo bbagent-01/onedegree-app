@@ -155,6 +155,12 @@ export function ConnectionPopover({
       <PopoverTrigger
         className="inline-flex cursor-pointer"
         onClick={(e) => {
+          // The trigger often sits inside a Link (browse tiles wrap
+          // everything in an <a>). stopPropagation alone blocks
+          // React-handler bubbling but not the browser's native
+          // anchor navigation — preventDefault handles that so the
+          // popover can open without leaving the page.
+          e.preventDefault();
           e.stopPropagation();
         }}
       >
