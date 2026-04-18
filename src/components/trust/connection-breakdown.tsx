@@ -572,8 +572,6 @@ function MultiHopView({
       <div className="mt-4 flex items-center gap-1 overflow-x-auto pb-1">
         {displayChain.map((node, i) => {
           if (i === youIndex) {
-            // Viewer node — labeled "You", uses the signed-in
-            // user's actual avatar so the chain feels personal.
             return (
               <span key="you" className="contents">
                 {i > 0 && <ChainArrow />}
@@ -588,10 +586,10 @@ function MultiHopView({
             );
           }
           const isTarget = i === 0;
-          // Anonymity rule: only the target and the viewer show
-          // their real identity. Every person between them is
-          // anonymized with a blurred silhouette + closed-eye icon,
-          // regardless of whether the viewer technically "knows" them.
+          // Anonymity rule: target (i===0) and bridge (directly
+          // adjacent to viewer, i===youIndex-1) are KNOWN.
+          // Everyone else in between is anonymized.
+          const isBridge = i === youIndex - 1;
           return (
             <span key={`${node.id}-${i}`} className="contents">
               {i > 0 && <ChainArrow />}
@@ -599,19 +597,12 @@ function MultiHopView({
                 name={node.name}
                 avatarUrl={node.avatar_url}
                 isTarget={isTarget}
-                viewerKnows={isTarget}
+                viewerKnows={isTarget || isBridge}
               />
             </span>
           );
         })}
       </div>
-
-      <p className="mt-4 rounded-lg bg-muted/40 p-2.5 text-xs text-muted-foreground">
-        You&rsquo;re {data.degree - 1}{" "}
-        {data.degree - 1 === 1 ? "person" : "people"} away from{" "}
-        {target.name}. 1&deg; B&amp;B opens access as the chain closes —
-        the closer you get, the more of this listing unlocks.
-      </p>
     </div>
   );
 }
@@ -640,32 +631,45 @@ function ChainSegment({
   return (
     <div className="flex shrink-0 flex-col items-center gap-1">
       <div className="relative">
-        <Avatar
+        {/* Outer clip ring: the CSS filter: blur() from an <img>
+            bleeds past the element's box, which produced a halo
+            outside the avatar. A rounded overflow-hidden wrapper
+            (no filter of its own) clips the blur back inside the
+            circle. */}
+        <div
           className={cn(
-            "h-10 w-10 border-2",
+            "relative h-10 w-10 overflow-hidden rounded-full border-2 bg-muted",
             isTarget ? "border-foreground" : "border-border"
           )}
         >
           {known && avatarUrl ? (
-            <AvatarImage src={avatarUrl} alt={name} />
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt={name}
+              className="h-full w-full object-cover"
+            />
           ) : known ? (
-            <AvatarFallback>{initials(name)}</AvatarFallback>
+            <div className="flex h-full w-full items-center justify-center text-xs font-semibold">
+              {initials(name)}
+            </div>
           ) : avatarUrl ? (
-            // Anonymized: their actual photo is rendered blurred so
-            // you see a person-shape without identity leakage.
-            <AvatarImage
+            // Anonymized: blur the real photo and scale it up so the
+            // blur's softened edge lands inside the clip circle, not
+            // against the border.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
               src={avatarUrl}
               alt="Anonymous"
-              className="blur-md"
+              className="h-full w-full scale-125 object-cover blur-md"
             />
           ) : (
-            <AvatarFallback>
+            <div className="flex h-full w-full items-center justify-center">
               <UserIcon className="h-4 w-4 text-muted-foreground" />
-            </AvatarFallback>
+            </div>
           )}
-        </Avatar>
+        </div>
         {!known && !isTarget && (
-          // Closed-eye badge — this person's identity isn't shared.
           <span className="absolute -bottom-0.5 -right-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-white bg-zinc-600 text-white">
             <EyeOff className="h-2.5 w-2.5" />
           </span>

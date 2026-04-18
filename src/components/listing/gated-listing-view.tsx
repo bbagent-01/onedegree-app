@@ -1,12 +1,8 @@
 import Link from "next/link";
-import { Lock, Info, MapPin, Shield, Star } from "lucide-react";
+import { EyeOff, Info, MapPin, Shield, Star } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
-import {
-  ConnectorAvatars,
-  type AvatarConnector,
-} from "@/components/trust/connector-avatars";
 import { AmenitiesSection } from "./amenities-section";
 import { LocationMapClient } from "./location-map-client";
 import { PhotoGallery } from "./photo-gallery";
@@ -88,7 +84,9 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
 
   return (
     <div className="mx-auto w-full max-w-[1080px] px-4 pb-24 pt-6 md:px-6">
-      {/* Header row — back link + lock pill */}
+      {/* Header row — just the back link now. The preview marker
+          moved next to the title below so the two pieces of
+          information are grouped. */}
       <div className="mb-4 flex items-center justify-between">
         <Link
           href="/browse"
@@ -96,9 +94,6 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
         >
           &larr; Back to stays
         </Link>
-        <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <Lock className="h-3.5 w-3.5" /> Preview
-        </div>
       </div>
 
       {/* Preview photos — reuses PhotoGallery so the 1/2/3/4+ grid
@@ -115,13 +110,21 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
               trust badge lives below the host name for a consistent
               read across 1°/2°/3°/4°. */}
           <div>
-            <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
-              {showTitle && listing.title
-                ? listing.title
-                : `${propertyLabel}${
-                    showNeighborhood ? ` in ${listing.area_name}` : ""
-                  }`}
-            </h1>
+            <div className="flex items-start gap-3">
+              <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
+                {showTitle && listing.title
+                  ? listing.title
+                  : `${propertyLabel}${
+                      showNeighborhood ? ` in ${listing.area_name}` : ""
+                    }`}
+              </h1>
+              <span
+                className="mt-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                title="Preview — unlock to see the full listing"
+              >
+                <EyeOff className="h-3 w-3" /> Preview
+              </span>
+            </div>
             {showRating && listing.avg_rating !== null && listing.review_count > 0 && (
               <div className="mt-2 flex items-center gap-2 text-sm">
                 <Star className="h-3.5 w-3.5 fill-foreground text-foreground" />
@@ -146,38 +149,30 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
 
           <Separator className="my-8" />
 
-          {/* Host section */}
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-muted">
-              {showProfilePhoto && listing.host?.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={listing.host.avatar_url}
-                  alt={
+          {/* Host section — the entire block (avatar + name +
+              trust badge + helper copy) is a single click target
+              for the trust-detail popover. */}
+          {trust && listing.host?.id ? (
+            <ConnectionPopover
+              targetUserId={listing.host.id}
+              direction="incoming"
+            >
+              <div className="flex w-full cursor-pointer items-center gap-4 rounded-xl p-2 -m-2 text-left hover:bg-muted/40">
+                <HostAvatar
+                  showProfilePhoto={showProfilePhoto}
+                  avatarUrl={listing.host?.avatar_url ?? null}
+                  hostName={
                     showHostFirstName && listing.host?.name
                       ? listing.host.name
                       : "Host"
                   }
-                  className="h-full w-full object-cover"
                 />
-              ) : (
-                <Shield className="h-6 w-6 text-muted-foreground" />
-              )}
-            </div>
-            <div>
-              <div className="text-lg font-semibold">
-                {showHostFirstName && listing.host?.name
-                  ? `Hosted by ${listing.host.name.split(" ")[0]}`
-                  : "Hosted by a verified member"}
-              </div>
-              {/* Trust badge — clickable; opens the chain popover for
-                  1°/2°/3°/4°. Same component + placement the full
-                  listing detail uses, for a consistent read. */}
-              {trust && listing.host?.id && (
-                <ConnectionPopover
-                  targetUserId={listing.host.id}
-                  direction="incoming"
-                >
+                <div>
+                  <div className="text-lg font-semibold">
+                    {showHostFirstName && listing.host?.name
+                      ? `Hosted by ${listing.host.name.split(" ")[0]}`
+                      : "Hosted by a verified member"}
+                  </div>
                   <TrustTag
                     size="medium"
                     score={score}
@@ -186,15 +181,39 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
                     connectorPaths={trust.connectorPaths}
                     className="mt-1"
                   />
-                </ConnectionPopover>
-              )}
-              <div className="mt-1 text-sm text-muted-foreground">
-                {showHostFirstName
-                  ? "Full profile revealed once you meet the trust threshold"
-                  : "Host identity is revealed once you meet the trust threshold"}
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {showHostFirstName
+                      ? "Full profile revealed once you meet the trust threshold"
+                      : "Host identity is revealed once you meet the trust threshold"}
+                  </div>
+                </div>
+              </div>
+            </ConnectionPopover>
+          ) : (
+            <div className="flex items-center gap-4">
+              <HostAvatar
+                showProfilePhoto={showProfilePhoto}
+                avatarUrl={listing.host?.avatar_url ?? null}
+                hostName={
+                  showHostFirstName && listing.host?.name
+                    ? listing.host.name
+                    : "Host"
+                }
+              />
+              <div>
+                <div className="text-lg font-semibold">
+                  {showHostFirstName && listing.host?.name
+                    ? `Hosted by ${listing.host.name.split(" ")[0]}`
+                    : "Hosted by a verified member"}
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {showHostFirstName
+                    ? "Full profile revealed once you meet the trust threshold"
+                    : "Host identity is revealed once you meet the trust threshold"}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <Separator className="my-8" />
 
@@ -267,42 +286,6 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
             </>
           )}
 
-          {/* Access requirement message */}
-          {accessMessage && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <div className="flex items-start gap-3">
-                <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-                <div>
-                  <div className="text-sm font-semibold text-foreground">
-                    {accessMessage.title}
-                  </div>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    {accessMessage.body}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* What you can see right now */}
-          <div className="mt-6 text-sm text-muted-foreground">
-            <h3 className="mb-2 text-base font-semibold text-foreground">
-              What you can see right now
-            </h3>
-            <ul className="list-disc space-y-1 pl-5">
-              {showNeighborhood && <li>City: {listing.area_name}</li>}
-              <li>Property type: {propertyLabel}</li>
-              {showPriceRange && priceDisplay && <li>Price range: {priceDisplay}</li>}
-              {showRating && listing.avg_rating !== null && (
-                <li>Rating: {listing.avg_rating.toFixed(2)} ({listing.review_count} reviews)</li>
-              )}
-            </ul>
-            <p className="mt-4">
-              The full listing &mdash; exact address, calendar, and everything
-              the host has hidden &mdash; is unlocked once you meet the trust
-              threshold.
-            </p>
-          </div>
         </div>
 
         {/* Right column — sidebar with CTA */}
@@ -322,11 +305,24 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
               Unlock this listing
             </div>
 
-            {/* Trust distance row — always rendered, even when not
-                connected. Sits directly above the CTA so the viewer
-                sees exactly how close they are and who bridges the
-                gap. */}
-            <TrustDistanceRow trust={trust} hostFirstName={listing.host?.name?.split(" ")[0] ?? "the host"} />
+            {/* Access requirement — the single source of truth for
+                what it takes to unlock. Copy adapts to the gate type
+                (min_score vs specific_people). */}
+            {accessMessage && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-start gap-2">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <div className="text-xs">
+                    <div className="font-semibold text-foreground">
+                      {accessMessage.title}
+                    </div>
+                    <p className="mt-0.5 text-muted-foreground">
+                      {accessMessage.body}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <GatedListingCTA
               listingId={listing.id}
@@ -344,44 +340,28 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
   );
 }
 
-/**
- * Always-on row that spells out the viewer's trust distance to the
- * host, plus the connector avatars who could bridge it. Rendered even
- * when score is 0 — being gated is the single most teachable moment
- * to explain what 1DB's network gating actually means.
- */
-function TrustDistanceRow({
-  trust,
-  hostFirstName,
+
+function HostAvatar({
+  showProfilePhoto,
+  avatarUrl,
+  hostName,
 }: {
-  trust: TrustResult | null;
-  hostFirstName: string;
+  showProfilePhoto: boolean;
+  avatarUrl: string | null;
+  hostName: string;
 }) {
-  const connectors = trust?.connectorPaths ?? [];
-  const connectionCount = trust?.connectionCount ?? connectors.length;
-  const direct = trust?.hasDirectVouch ?? false;
-  const score = trust?.score ?? 0;
-
-  let line: string;
-  if (direct) {
-    line = `You vouched for ${hostFirstName} directly.`;
-  } else if (score > 0 && connectionCount > 0) {
-    line = `${connectionCount} mutual connection${connectionCount === 1 ? "" : "s"} · request an intro`;
-  } else if (connectionCount > 0) {
-    line = `${connectionCount} mutual connection${connectionCount === 1 ? "" : "s"} · request an intro`;
-  } else {
-    line = `0 connections · ask someone you know to vouch for ${hostFirstName}`;
-  }
-
   return (
-    <div className="mt-3 space-y-2">
-      {connectors.length > 0 && (
-        <ConnectorAvatars
-          connectors={connectors as AvatarConnector[]}
-          size="h-7 w-7"
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+      {showProfilePhoto && avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatarUrl}
+          alt={hostName}
+          className="h-full w-full object-cover"
         />
+      ) : (
+        <Shield className="h-6 w-6 text-muted-foreground" />
       )}
-      <p className="text-xs leading-relaxed text-muted-foreground">{line}</p>
     </div>
   );
 }
@@ -401,15 +381,17 @@ function getAccessMessage(
   if (!rule) return null;
 
   switch (rule.type) {
-    case "min_score":
+    case "min_score": {
+      const required = rule.threshold ?? 0;
       return {
-        title: `This listing requires a 1\u00B0 score of ${rule.threshold ?? 0}`,
-        body: `Your current score: ${userScore}. Connect with more people to increase your score.`,
+        title: `Trust score of ${required} required`,
+        body: `You're at ${userScore}. Grow your network — a mutual vouch closes the gap.`,
       };
+    }
     case "specific_people":
       return {
-        title: "This is a private listing",
-        body: "Ask the host for access. They share the listing directly with people they trust.",
+        title: "Private — invite only",
+        body: "The host shares this listing directly with people they trust. Ask them for access.",
       };
     default:
       return null;
