@@ -1,6 +1,5 @@
-import { Check, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { trustTier } from "@/lib/trust-data";
 import { ShieldIcon } from "./shield-icon";
 import { ConnectorDots } from "./connector-dots";
 import {
@@ -10,19 +9,20 @@ import {
 
 interface Props {
   size?: "micro" | "medium";
-  /** Trust score from viewer → target user. Ignored when direct=true. */
+  /** Composite trust score from viewer → target user. Only rendered
+   *  for degree=2; degree=1 / 3 / 4 surface just the degree pill. */
   score?: number;
   /**
    * Degrees of separation.
-   *   1 = direct vouch (purple "Vouched" pill)
-   *   2 = friend of a friend — shield + score + connector dots/avatars
-   *   3 = two hops out — bare "3rd°" ordinal
-   *   4 = three hops out — bare "4th°" ordinal
-   *   null = not connected
+   *   1 = direct vouch        → purple "1st°" pill
+   *   2 = friend of a friend  → green "2nd°" pill + shield + score + dots
+   *   3 = two hops out        → amber "3rd°" pill
+   *   4 = three hops out      → gray "4th°" pill
+   *   null = not connected    → em-dash
    */
   degree?: 1 | 2 | 3 | 4 | null;
-  /** When true, viewer directly vouched for target — renders a green
-   *  checkmark + "Vouched" label in place of the score + dots. */
+  /** Legacy direct-vouch flag. The engine also sets degree=1 when
+   *  direct=true; kept for callers that still pass it explicitly. */
   direct?: boolean;
   /** Sorted strongest → weakest by individual path strength. */
   connectorPaths?: Array<{
@@ -39,15 +39,27 @@ interface Props {
   className?: string;
 }
 
+interface PillStyle {
+  label: string;
+  bg: string;
+  fg: string;
+}
+
+const DEGREE_PILLS: Record<1 | 2 | 3 | 4, PillStyle> = {
+  1: { label: "1st\u00B0", bg: "bg-brand", fg: "text-white" },
+  2: { label: "2nd\u00B0", bg: "bg-emerald-600", fg: "text-white" },
+  3: { label: "3rd\u00B0", bg: "bg-amber-400", fg: "text-amber-950" },
+  4: { label: "4th\u00B0", bg: "bg-zinc-300", fg: "text-zinc-700" },
+};
+
 /**
- * Inline trust tag shown next to a host name everywhere (tiles,
- * listing detail, inbox, trips, reservations, profile). Two sizes:
+ * Inline trust tag. Every connected state renders as a color-coded
+ * degree pill; only the 2° state goes on to show the shield + score
+ * + connector bridges. The two sizes are:
  *
- *   micro   — abstract colored dots for each connector
- *   medium  — overlapping connector avatars instead of dots
- *
- * The degree symbol (°) is reserved for hops only, so the 1° case
- * renders a bare score with no ° decoration.
+ *   micro   — browse tiles, inbox rows, reservation cards
+ *   medium  — host-card on the listing detail, profile header (the
+ *             "medium host badge")
  */
 export function TrustTag({
   size = "micro",
@@ -59,124 +71,103 @@ export function TrustTag({
   hostReviewCount = 0,
   className,
 }: Props) {
-  const tier = trustTier(score);
   const isMedium = size === "medium";
   const hasRating =
     typeof hostRating === "number" && hostRating > 0 && hostReviewCount > 0;
 
-  // Rating is the same in all states — render once and reuse.
+  // Rating is the same across states — render once and reuse.
   const ratingNode = hasRating ? (
     <span className="flex items-center gap-0.5 text-muted-foreground">
-      <span aria-hidden>·</span>
-      <Star className="h-3 w-3 fill-foreground text-foreground" />
+      <span aria-hidden>&middot;</span>
+      <Star
+        className={cn(
+          isMedium ? "h-3.5 w-3.5" : "h-3 w-3",
+          "fill-foreground text-foreground"
+        )}
+      />
       <span className="font-medium text-foreground">
         {hostRating!.toFixed(1)}
       </span>
       <span>({hostReviewCount})</span>
     </span>
   ) : (
-    <span className="text-muted-foreground">· New host</span>
+    <span className="text-muted-foreground">&middot; New host</span>
   );
 
-  // Direct vouch — supersedes everything. Filled purple circle with
-  // a white check, "Vouched" label in the same purple. Purple is the
-  // 1DB brand color; using it for direct vouches signals "this is
-  // the platform-native, strongest signal."
-  if (direct) {
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 text-xs tabular-nums",
-          className
-        )}
-      >
-        <span
-          className="inline-flex items-center gap-1 font-semibold text-brand"
-          title="Direct vouch — you vouched for this host"
-        >
-          <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand text-white">
-            <Check className="h-2.5 w-2.5" strokeWidth={3} />
-          </span>
-          <span>Vouched</span>
-        </span>
-        {ratingNode}
-      </span>
-    );
-  }
+  // Normalize direct → degree=1 so the pill selection is uniform.
+  const effectiveDegree: 1 | 2 | 3 | 4 | null = direct ? 1 : degree;
 
-  // 3° / 4° — multi-hop. Score is always 0 (engine sets it that
-  // way per spec), so these branches run BEFORE the score-based
-  // em-dash check or they'd collapse into "not connected". The
-  // medium variant shows the bridge avatar (the intermediary
-  // adjacent to the viewer) so the reader has a face to click on.
-  if ((degree === 3 || degree === 4) && !direct) {
-    const ordinal = degree === 4 ? "4th" : "3rd";
-    const tone = degree === 4 ? "text-zinc-400" : "text-zinc-500";
+  // Not connected — no pill, just the em-dash indicator.
+  if (!effectiveDegree) {
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 text-xs tabular-nums",
-          className
-        )}
-      >
-        <span className={cn("font-semibold", tone)}>{ordinal}&deg;</span>
-        {/* Bridge avatar only at medium size (host card / profile).
-            Micro tiles stay textual for a consistent grid read. */}
-        {isMedium && connectorPaths.length > 0 && (
-          <ConnectorAvatars
-            connectors={connectorPaths as AvatarConnector[]}
-            size="h-5 w-5"
-          />
-        )}
-        {ratingNode}
-      </span>
-    );
-  }
-
-  // Not connected — em-dash in place of the score.
-  if (!degree || score === 0) {
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 text-xs tabular-nums",
+          "inline-flex items-center gap-1.5 tabular-nums",
+          isMedium ? "text-sm" : "text-xs",
           className
         )}
       >
         <span className="inline-flex items-center gap-0.5 font-semibold text-zinc-500">
-          <ShieldIcon muted size="h-3.5 w-3.5" />
-          <span>—</span>
+          <ShieldIcon
+            muted
+            size={isMedium ? "h-4 w-4" : "h-3.5 w-3.5"}
+          />
+          <span>&mdash;</span>
         </span>
         {ratingNode}
       </span>
     );
   }
 
-  // 2° (friend of a friend) — shield + score + connector dots/
-  // avatars. This is the core friends-of-friends case, the whole
-  // point of the product, so it gets the richest rendering.
+  const pill = DEGREE_PILLS[effectiveDegree];
+
+  // 2° is the only state that spells out the score math. Shield +
+  // number + connector dots/avatars ride alongside the pill.
+  const is2nd = effectiveDegree === 2;
+
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-xs tabular-nums",
+        "inline-flex items-center gap-1.5 tabular-nums",
+        isMedium ? "text-sm" : "text-xs",
         className
       )}
     >
-      <span className={cn("inline-flex items-center gap-0.5 font-semibold", tier.textClass)}>
-        <ShieldIcon score={score} size="h-3.5 w-3.5" />
-        <span>{score}</span>
+      <span
+        className={cn(
+          "inline-flex items-center rounded-full font-semibold",
+          pill.bg,
+          pill.fg,
+          isMedium ? "px-2.5 py-0.5 text-xs" : "px-2 py-[1px] text-[11px]"
+        )}
+      >
+        {pill.label}
       </span>
-      {connectorPaths.length > 0 &&
-        (isMedium ? (
-          <ConnectorAvatars
-            connectors={connectorPaths as AvatarConnector[]}
-            size="h-5 w-5"
-          />
-        ) : (
-          <ConnectorDots
-            strengths={connectorPaths.map((p) => p.strength)}
-            size="h-3 w-3"
-          />
-        ))}
+      {is2nd && (
+        <>
+          <span
+            className={cn("inline-flex items-center gap-0.5 font-semibold", "text-emerald-700")}
+          >
+            <ShieldIcon
+              score={score}
+              size={isMedium ? "h-4 w-4" : "h-3.5 w-3.5"}
+            />
+            <span>{score}</span>
+          </span>
+          {connectorPaths.length > 0 &&
+            (isMedium ? (
+              <ConnectorAvatars
+                connectors={connectorPaths as AvatarConnector[]}
+                size="h-5 w-5"
+              />
+            ) : (
+              <ConnectorDots
+                strengths={connectorPaths.map((p) => p.strength)}
+                size="h-3 w-3"
+              />
+            ))}
+        </>
+      )}
       {ratingNode}
     </span>
   );
