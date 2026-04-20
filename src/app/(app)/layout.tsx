@@ -18,11 +18,20 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   let impersonationMount: React.ReactNode = null;
+  let sandboxMount: React.ReactNode = null;
   if (IMPERSONATION_ENABLED_AT_BUILD) {
     const { ImpersonationMount } = await import(
       "@/components/admin/ImpersonationMount"
     );
     impersonationMount = <ImpersonationMount />;
+    // REMOVE BEFORE BETA (Dev2): re-applies the sandbox theme overrides
+    // on every route and renders the site-wide purple dashed indicator
+    // whenever Loren has the sandbox toggle on. Gated behind the same
+    // build-time env flag so prod bundles strip it out entirely.
+    const SandboxMount = (
+      await import("@/components/dev/SandboxMount")
+    ).default;
+    sandboxMount = <SandboxMount />;
   }
 
   return (
@@ -42,6 +51,7 @@ export default async function AppLayout({
       <Footer />
       <MobileNav />
       {impersonationMount}
+      {sandboxMount}
     </div>
   );
 }
