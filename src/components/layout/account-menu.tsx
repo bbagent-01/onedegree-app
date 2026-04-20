@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useUser, useClerk, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 import {
   Menu,
   CalendarDays,
@@ -87,24 +87,20 @@ export function AccountMenu() {
           sideOffset={8}
           className="w-60 rounded-2xl border border-border bg-white p-2 shadow-lg"
         >
-          <SignUpButton mode="modal">
-            <button
-              type="button"
-              className="w-full rounded-lg bg-foreground px-4 py-2.5 text-sm font-semibold text-background hover:bg-foreground/90"
-              onClick={close}
-            >
-              Sign up
-            </button>
-          </SignUpButton>
-          <SignInButton mode="modal">
-            <button
-              type="button"
-              className="mt-2 w-full rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold hover:bg-muted"
-              onClick={close}
-            >
-              Sign in
-            </button>
-          </SignInButton>
+          <Link
+            href="/sign-up"
+            onClick={close}
+            className="block w-full rounded-lg bg-foreground px-4 py-2.5 text-center text-sm font-semibold text-background hover:bg-foreground/90"
+          >
+            Sign up
+          </Link>
+          <Link
+            href="/sign-in"
+            onClick={close}
+            className="mt-2 block w-full rounded-lg border border-border bg-white px-4 py-2.5 text-center text-sm font-semibold hover:bg-muted"
+          >
+            Sign in
+          </Link>
 
           <div className="my-2 h-px bg-border" role="separator" />
 

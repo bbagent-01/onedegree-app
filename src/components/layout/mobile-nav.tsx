@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser, useClerk, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 import {
   Sheet,
   SheetContent,
@@ -185,24 +185,20 @@ export function MobileNav() {
 
           {!isSignedIn ? (
             <div className="mt-6 space-y-2">
-              <SignUpButton mode="modal">
-                <button
-                  type="button"
-                  className="w-full rounded-lg bg-foreground px-4 py-3 text-sm font-semibold text-background hover:bg-foreground/90"
-                  onClick={closeMenu}
-                >
-                  Sign up
-                </button>
-              </SignUpButton>
-              <SignInButton mode="modal">
-                <button
-                  type="button"
-                  className="w-full rounded-lg border border-border bg-white px-4 py-3 text-sm font-semibold hover:bg-muted"
-                  onClick={closeMenu}
-                >
-                  Sign in
-                </button>
-              </SignInButton>
+              <Link
+                href="/sign-up"
+                onClick={closeMenu}
+                className="block w-full rounded-lg bg-foreground px-4 py-3 text-center text-sm font-semibold text-background hover:bg-foreground/90"
+              >
+                Sign up
+              </Link>
+              <Link
+                href="/sign-in"
+                onClick={closeMenu}
+                className="block w-full rounded-lg border border-border bg-white px-4 py-3 text-center text-sm font-semibold hover:bg-muted"
+              >
+                Sign in
+              </Link>
 
               <Divider />
 
