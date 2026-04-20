@@ -58,7 +58,11 @@ export default async function ProfilePage({
     <div className="mx-auto w-full max-w-[1040px] px-4 py-6 md:px-6 md:py-10">
       {/* Header card */}
       <div className="flex flex-col items-start gap-6 rounded-2xl border border-border bg-white p-6 md:flex-row md:items-center md:p-8">
-        <ConnectionPopover targetUserId={user.id} isSelf={isOwn}>
+        <ConnectionPopover
+          targetUserId={user.id}
+          isSelf={isOwn}
+          disabled={trust?.degree === 1 || trust?.hasDirectVouch}
+        >
           <Avatar className="h-28 w-28 md:h-32 md:w-32 cursor-pointer">
             {user.avatar_url && (
               <AvatarImage src={user.avatar_url} alt={user.name} />

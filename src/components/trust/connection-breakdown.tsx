@@ -122,6 +122,13 @@ interface ConnectionPopoverProps {
   targetUserId: string;
   isSelf?: boolean;
   /**
+   * Skip wrapping children in the popover trigger. Callers pass
+   * this when the trust state doesn't warrant explanation — e.g.
+   * direct vouches (1°) render as a purple pill and there's nothing
+   * to break down, so clicking should do nothing.
+   */
+  disabled?: boolean;
+  /**
    * Direction of trust to display. Outgoing = viewer's trust of the
    * target (default). Incoming = target's trust of the viewer — used
    * on host/listing surfaces where the displayed score represents
@@ -140,6 +147,7 @@ interface ConnectionPopoverProps {
 export function ConnectionPopover({
   targetUserId,
   isSelf = false,
+  disabled = false,
   direction = "outgoing",
   children,
 }: ConnectionPopoverProps) {
@@ -154,7 +162,18 @@ export function ConnectionPopover({
       const res = await fetch(
         `/api/trust/connection?targetId=${encodeURIComponent(targetUserId)}&direction=${direction}`
       );
-      if (res.ok) setData(await res.json());
+      if (res.ok) {
+        const body = (await res.json()) as ConnectionData;
+        // 1° direct vouches don't warrant a detail window — there's
+        // nothing to break down. If the fetch reveals a direct
+        // connection, close the popover immediately and skip the
+        // content render.
+        if (body.type === "direct_forward" || body.type === "direct_reverse") {
+          setOpen(false);
+          return;
+        }
+        setData(body);
+      }
     } catch {
       // Fail silently — the popover just won't show data.
     } finally {
@@ -162,7 +181,7 @@ export function ConnectionPopover({
     }
   }, [targetUserId, direction, data]);
 
-  if (isSelf) return <>{children}</>;
+  if (isSelf || disabled) return <>{children}</>;
 
   return (
     <Popover
@@ -821,20 +840,23 @@ function ChainRow({
  * same trustTier palette as the rest of the app so the color
  * buckets read consistently.
  */
+/**
+ * Pill rendered between two adjacent people in a chain row. This is
+ * always a single-edge vouch score (1° link), so the pill uses the
+ * purple/brand palette that 1° vouches carry everywhere else — not
+ * the emerald trust-tier ramp, which is reserved for composite /
+ * multi-path scores. A low-value pill still reads as a 1° link.
+ */
 function LinkStrengthPill({ strength }: { strength: number }) {
   if (!strength || strength <= 0) {
     return (
       <span className="mx-0.5 h-px w-3 shrink-0 bg-zinc-300" aria-hidden />
     );
   }
-  const tier = trustTier(strength);
   return (
     <span
-      className={cn(
-        "mx-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold",
-        tier.solidClass
-      )}
-      title={`${tier.label} · ${Math.round(strength)} pts`}
+      className="mx-0.5 shrink-0 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-semibold text-white"
+      title={`1° vouch score: ${Math.round(strength)} pts`}
     >
       {Math.round(strength)}
     </span>

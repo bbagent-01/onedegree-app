@@ -201,7 +201,11 @@ export default async function ListingPage({
           {listing.host && (
             <>
               <div className="flex items-center gap-4">
-                <ConnectionPopover targetUserId={listing.host.id} direction="incoming">
+                <ConnectionPopover
+                  targetUserId={listing.host.id}
+                  direction="incoming"
+                  disabled={trust?.degree === 1 || trust?.hasDirectVouch}
+                >
                   <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted cursor-pointer">
                     {listing.host.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -230,6 +234,7 @@ export default async function ListingPage({
                     <ConnectionPopover
                       targetUserId={listing.host.id}
                       direction="incoming"
+                      disabled={trust.degree === 1 || trust.hasDirectVouch}
                     >
                       <TrustTag
                         size="medium"
@@ -403,7 +408,11 @@ export default async function ListingPage({
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               <div className="rounded-xl border border-border/60 p-6 md:col-span-1">
                 <div className="flex flex-col items-center text-center">
-                  <ConnectionPopover targetUserId={listing.host.id} direction="incoming">
+                  <ConnectionPopover
+                  targetUserId={listing.host.id}
+                  direction="incoming"
+                  disabled={trust?.degree === 1 || trust?.hasDirectVouch}
+                >
                     <div className="relative h-24 w-24 overflow-hidden rounded-full bg-muted cursor-pointer">
                       {listing.host.avatar_url ? (
                         // eslint-disable-next-line @next/next/no-img-element

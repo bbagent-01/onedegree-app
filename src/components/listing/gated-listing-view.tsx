@@ -156,6 +156,7 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
             <ConnectionPopover
               targetUserId={listing.host.id}
               direction="incoming"
+              disabled={trust.degree === 1 || trust.hasDirectVouch}
             >
               <div className="flex w-full cursor-pointer items-center gap-4 rounded-xl p-2 -m-2 text-left hover:bg-muted/40">
                 <HostAvatar
