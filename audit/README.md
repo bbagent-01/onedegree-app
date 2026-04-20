@@ -68,7 +68,7 @@ Listing visibility/access is resolved via [src/lib/trust/check-access.ts](../src
 1. **Screenshots not captured.** [capture.mjs](capture.mjs) is ready but requires:
    - `npm install --save-dev @playwright/test` + `npx playwright install chromium`
    - Three Clerk storage-state JSON files at `audit/.auth/0deg.json` / `1deg.json` / `4deg.json`
-   - Real seed-data IDs injected via env vars (`AUDIT_TEST_LISTING_ID`, `AUDIT_TEST_PROFILE_ID`, etc. — see top of capture.ts)
+   - Real seed-data IDs injected via env vars (`AUDIT_TEST_LISTING_ID`, `AUDIT_TEST_PROFILE_ID`, etc. — see top of capture.mjs)
    - A fresh 0deg Clerk test account named `audit-0deg-<timestamp>` (not yet created)
 
    These are operational steps best done by (a) a follow-up CC session with migration + Clerk credentials, or (b) Loren kicking off the script locally. The artifacts in this audit folder are structured to support either path.
@@ -91,7 +91,7 @@ Listing visibility/access is resolved via [src/lib/trust/check-access.ts](../src
 1. Point Claude Design at this repo.
 2. Use the Claude Design web-capture tool on https://alpha-c.onedegreebnb.com for live visuals.
 3. Reference [gate-matrix.json](gate-matrix.json) and the trust model quick-reference above for the five viewer states to prototype.
-4. When capture.ts has been run, the [screenshots/](screenshots/) folder will be the canonical visual reference.
+4. When capture.mjs has been run, the [screenshots/](screenshots/) folder will be the canonical visual reference.
 
 ### Future CC sessions (acting on the backlog)
 - Each item in [flags.md](flags.md) has severity. The five high-severity picks are the first actionable batch.
