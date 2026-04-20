@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -310,11 +310,12 @@ export default function InvitePage() {
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                  <Button asChild size="sm">
-                    <Link href={`/profile/${existing.user.id}`}>
-                      Vouch for {existing.user.name.split(" ")[0]}
-                    </Link>
-                  </Button>
+                  <Link
+                    href={`/profile/${existing.user.id}`}
+                    className={buttonVariants({ size: "sm" })}
+                  >
+                    Vouch for {existing.user.name.split(" ")[0]}
+                  </Link>
                   <Button
                     size="sm"
                     variant="ghost"
