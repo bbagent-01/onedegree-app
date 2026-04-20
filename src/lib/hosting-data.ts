@@ -80,10 +80,19 @@ export interface HostDashboardData {
 /**
  * Fetch everything the host dashboard needs in one pass.
  * Returns null if user is not signed in.
+ *
+ * ALPHA ONLY (CC-Dev1): uses `getEffectiveUserId` so an admin who
+ * is impersonating sees the impersonated user's dashboard instead
+ * of their own. Falls back to the real clerk_id lookup when the
+ * impersonation feature is off.
  */
 export async function getHostDashboardData(): Promise<HostDashboardData | null> {
   const { userId } = await auth();
   if (!userId) return null;
+
+  const { getEffectiveUserId } = await import("./impersonation/session");
+  const effectiveId = await getEffectiveUserId(userId);
+  if (!effectiveId) return null;
 
   const supabase = getSupabaseAdmin();
 
@@ -91,7 +100,7 @@ export async function getHostDashboardData(): Promise<HostDashboardData | null> 
   const { data: currentUser } = await supabase
     .from("users")
     .select("id, name, avatar_url")
-    .eq("clerk_id", userId)
+    .eq("id", effectiveId)
     .single();
   if (!currentUser) return null;
 

@@ -68,15 +68,23 @@ export interface ThreadDetail extends InboxThread {
   } | null;
 }
 
-/** Resolves the current Clerk user to a Track B users row. */
+/** Resolves the current Clerk user to a Track B users row.
+ *
+ * ALPHA ONLY (CC-Dev1): when an admin is impersonating, this
+ * returns the impersonated user's row instead of the real Clerk
+ * user's. `getEffectiveUserId` falls through to the real clerk_id
+ * lookup whenever the impersonation feature is off. */
 export async function getCurrentUser() {
   const { userId } = await auth();
   if (!userId) return null;
+  const { getEffectiveUserId } = await import("./impersonation/session");
+  const effectiveId = await getEffectiveUserId(userId);
+  if (!effectiveId) return null;
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
     .from("users")
     .select("id, name, avatar_url, clerk_id")
-    .eq("clerk_id", userId)
+    .eq("id", effectiveId)
     .single();
   return data;
 }
