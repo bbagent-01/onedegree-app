@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useUser, useReverification } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,45 +21,34 @@ function maskPhone(e164: string | null): string {
   return `••• ••• ${digits.slice(-4)}`;
 }
 
-type PendingPhone = {
-  phoneNumberId: string;
-  prepareVerification: () => Promise<unknown>;
-  attemptVerification: (opts: { code: string }) => Promise<{
-    verification: { status: string };
-  }>;
-  destroy?: () => Promise<void>;
-};
-
+/**
+ * Phone-change flow uses server-side Clerk Backend API calls so we
+ * skip Clerk's "sensitive action" reverification prompt — not every
+ * account has a usable second factor to reverify against (e.g. a
+ * user whose only factor IS the phone they're replacing). The
+ * server uses CLERK_SECRET_KEY and can make the change unconditionally.
+ */
 export default function PhoneSettingsPage() {
-  const { user, isLoaded } = useUser();
-  // Clerk treats phone-number changes as a "sensitive action" and
-  // will throw `needs_reverification` unless the session was recently
-  // re-authenticated. useReverification wraps the call and pops
-  // Clerk's reverification modal (password / 2FA / email code) when
-  // needed, retrying the original call once the user clears it.
-  const createPhoneWithReverification = useReverification(
-    (phoneNumber: string) => {
-      if (!user) throw new Error("No user");
-      return user.createPhoneNumber({ phoneNumber });
-    }
-  );
   const [step, setStep] = useState<Step>("view");
   const [newPhone, setNewPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [pending, setPending] = useState<PendingPhone | null>(null);
+  const [phoneId, setPhoneId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [currentPhone, setCurrentPhone] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
-  // Hydrate current phone from our DB (not Clerk) so the displayed
-  // value matches what the rest of the app sees.
   useEffect(() => {
     let cancelled = false;
     fetch("/api/users/me")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!cancelled && d?.phone_number) setCurrentPhone(d.phone_number);
+        if (cancelled) return;
+        if (d?.phone_number) setCurrentPhone(d.phone_number);
+        setLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -73,30 +61,22 @@ export default function PhoneSettingsPage() {
   const e164 = parsed?.format("E.164") ?? "";
 
   const sendCode = async () => {
-    if (!user || !phoneValid) return;
+    if (!phoneValid) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/users/phone/check", {
+      const res = await fetch("/api/users/phone/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: e164 }),
       });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Phone unavailable");
+        throw new Error(body.message || "Couldn't send code");
       }
-
-      const phoneNumber = await createPhoneWithReverification(e164);
-      await phoneNumber.prepareVerification();
-      setPending(phoneNumber as unknown as PendingPhone);
+      setPhoneId(body.phoneId);
       setStep("verify");
       toast.success("Code sent to " + parsed!.formatNational());
     } catch (e) {
-      // Clerk's reverification cancelled flow throws a specific
-      // error; swallow it without a noisy red toast since the user
-      // just closed the modal.
-      const msg = e instanceof Error ? e.message : "";
-      if (/cancelled|canceled/i.test(msg)) return;
       toast.error(e instanceof Error ? e.message : "Couldn't send code");
     } finally {
       setSaving(false);
@@ -104,46 +84,22 @@ export default function PhoneSettingsPage() {
   };
 
   const verifyCode = async () => {
-    if (!user || !pending || otp.length < 4) return;
+    if (!phoneId || otp.length < 6) return;
     setSaving(true);
     try {
-      const res = await pending.attemptVerification({ code: otp });
-      if (res.verification.status !== "verified") {
-        throw new Error("Verification failed. Check the code and try again.");
-      }
-
-      // Set the verified phone as the primary phone on the Clerk user.
-      await user.update({ primaryPhoneNumberId: pending.phoneNumberId });
-
-      // Remove any other phone numbers from Clerk so the webhook writes
-      // the new primary unambiguously on the next refresh.
-      const stale = user.phoneNumbers.filter(
-        (p) => p.id !== pending.phoneNumberId
-      );
-      for (const p of stale) {
-        try {
-          await p.destroy();
-        } catch {
-          /* ignore */
-        }
-      }
-
-      // Write directly to our DB too so the new phone shows up before
-      // the Clerk webhook catches up.
-      const save = await fetch("/api/users/phone", {
-        method: "PUT",
+      const res = await fetch("/api/users/phone/verify", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: e164 }),
+        body: JSON.stringify({ phoneId, code: otp, phone: e164 }),
       });
-      if (!save.ok) {
-        const err = await save.json().catch(() => ({}));
-        throw new Error(err.message || "Couldn't save phone");
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.message || "Couldn't verify code");
       }
-
       setCurrentPhone(e164);
       setNewPhone("");
       setOtp("");
-      setPending(null);
+      setPhoneId(null);
       setStep("view");
       toast.success("Phone number updated");
     } catch (e) {
@@ -153,7 +109,7 @@ export default function PhoneSettingsPage() {
     }
   };
 
-  if (!isLoaded) {
+  if (!loaded) {
     return (
       <div className="mx-auto w-full max-w-[540px] px-4 py-10">
         <div className="h-6 w-24 animate-pulse rounded bg-muted" />
@@ -269,7 +225,7 @@ export default function PhoneSettingsPage() {
                 size="lg"
                 onClick={() => {
                   setOtp("");
-                  setPending(null);
+                  setPhoneId(null);
                   setStep("enter");
                 }}
               >
