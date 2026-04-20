@@ -233,16 +233,18 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           </div>
         )}
 
-        {/* Host action buttons */}
+        {/* Host action buttons. Brand purple + "Approve" matches the
+            in-thread banner CTA so host sees one consistent action
+            label across both surfaces. */}
         {isHostViewer && booking?.status === "pending" && (
           <div className="space-y-2">
             <Button
               onClick={() => respond("accepted")}
               disabled={responding !== null}
-              className="h-10 w-full rounded-lg bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700"
+              className="h-10 w-full rounded-lg bg-brand text-sm font-semibold text-white hover:bg-brand-600"
             >
               <Check className="mr-1.5 h-4 w-4" />
-              {responding === "accept" ? "Accepting…" : "Accept"}
+              {responding === "accept" ? "Approving…" : "Approve"}
             </Button>
             <Button
               onClick={() => respond("declined")}

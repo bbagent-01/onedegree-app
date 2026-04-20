@@ -11,6 +11,7 @@ import { EarningsSection } from "@/components/hosting/earnings-section";
 import { NetworkSection } from "@/components/trust/network-section";
 import { TripsList } from "@/components/trips/trips-list";
 import { UnifiedDashboard } from "./unified-dashboard";
+import { SectionNav } from "@/components/layout/section-nav";
 import { Plus } from "lucide-react";
 import type { DashboardTab } from "@/components/dashboard/dashboard-tabs";
 
@@ -90,22 +91,25 @@ export async function DashboardContent({
   ) : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-6 py-10 lg:px-10">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">
-          Welcome back, {firstName}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your dashboard for hosting, traveling, and your trust network.
-        </p>
-      </div>
+    <>
+      <SectionNav />
+      <div className="mx-auto w-full max-w-[1600px] px-6 py-10 lg:px-10">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">
+            Welcome back, {firstName}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your dashboard for hosting, traveling, and your trust network.
+          </p>
+        </div>
 
-      <UnifiedDashboard
-        defaultTab={defaultTab}
-        hostingContent={hostingContent}
-        travelingContent={travelingContent}
-        networkContent={networkContent}
-      />
-    </div>
+        <UnifiedDashboard
+          defaultTab={defaultTab}
+          hostingContent={hostingContent}
+          travelingContent={travelingContent}
+          networkContent={networkContent}
+        />
+      </div>
+    </>
   );
 }

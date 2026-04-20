@@ -9,6 +9,7 @@ import {
 import { InboxList } from "@/components/inbox/inbox-list";
 import { ThreadView } from "@/components/inbox/thread-view";
 import { ReservationSidebar } from "@/components/inbox/reservation-sidebar";
+import { SectionNav } from "@/components/layout/section-nav";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -37,10 +38,12 @@ export default async function ThreadPage({ params }: PageProps) {
   if (!thread) notFound();
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] md:px-6 md:py-6">
-      <h1 className="mb-4 hidden text-2xl font-semibold md:block md:text-3xl">
-        Messages
-      </h1>
+    <>
+      <SectionNav />
+      <div className="mx-auto w-full max-w-[1600px] md:px-6 md:py-6">
+        <h1 className="mb-4 hidden text-2xl font-semibold md:block md:text-3xl">
+          Messages
+        </h1>
 
       {/* Mobile-only top bar with back button */}
       <div className="flex items-center gap-2 border-b border-border bg-white px-3 py-2 md:hidden">
@@ -79,6 +82,7 @@ export default async function ThreadPage({ params }: PageProps) {
           <ReservationSidebar thread={thread} currentUserId={currentUser.id} />
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

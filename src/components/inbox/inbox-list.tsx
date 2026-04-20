@@ -3,11 +3,16 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search, ChevronDown, Check } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { TrustTag } from "@/components/trust/trust-tag";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { InboxThread } from "@/lib/messaging-data";
 
@@ -41,40 +46,60 @@ function relTime(iso: string) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-type Filter = "all" | "hosting" | "traveling" | "support";
+type MailboxFilter = "all" | "hosting" | "traveling" | "support";
+type Filter = MailboxFilter | "intros";
 
 export function InboxList({ threads, selectedId }: Props) {
   const router = useRouter();
-  const [filter, setFilter] = useState<Filter>("all");
+  // Two independent pieces of state: which mailbox is selected in
+  // the dropdown, and whether the Intros sibling tab overrides it.
+  // "intros" as the filter short-circuits the dropdown selection
+  // without clobbering it — flipping back to the dropdown restores
+  // the last-used mailbox.
+  const [mailbox, setMailbox] = useState<MailboxFilter>("all");
+  const [tab, setTab] = useState<"mailbox" | "intros">("mailbox");
   const [query, setQuery] = useState("");
 
-  // Filter tab counts. Split by role (host side vs guest side) rather
-  // than intro vs not — intros now render as pills on individual rows
-  // and stay in whichever tab their role maps to.
-  //   Hosting   — role === "host"   (Loren is the host, someone is
-  //                                  asking about Loren's listing)
-  //   Traveling — role === "guest"  (Loren is the guest)
-  //   Support   — reserved; not wired up yet, empty for now
-  //   All       — everything in Hosting + Traveling
-  const hostingThreads = useMemo(
-    () => threads.filter((t) => t.role === "host"),
+  // Filter buckets.
+  //   Hosting     — role === "host" and not an intro
+  //   Traveling   — role === "guest" and not an intro
+  //   Support     — reserved; empty for now
+  //   All         — Hosting + Traveling (non-intros)
+  //   Intros      — is_intro_request === true, split visually
+  //                 into "Intro received" (role=host) and
+  //                 "Intro sent" (role=guest)
+  const nonIntros = useMemo(
+    () => threads.filter((t) => !t.is_intro_request),
     [threads]
+  );
+  const hostingThreads = useMemo(
+    () => nonIntros.filter((t) => t.role === "host"),
+    [nonIntros]
   );
   const travelingThreads = useMemo(
-    () => threads.filter((t) => t.role === "guest"),
-    [threads]
+    () => nonIntros.filter((t) => t.role === "guest"),
+    [nonIntros]
   );
   const supportThreads = useMemo(() => [] as typeof threads, []);
+  const introThreads = useMemo(
+    () => threads.filter((t) => t.is_intro_request),
+    [threads]
+  );
 
   const filtered = useMemo(() => {
-    const source =
-      filter === "hosting"
-        ? hostingThreads
-        : filter === "traveling"
-          ? travelingThreads
-          : filter === "support"
-            ? supportThreads
-            : threads;
+    let source: InboxThread[];
+    if (tab === "intros") {
+      source = introThreads;
+    } else {
+      source =
+        mailbox === "hosting"
+          ? hostingThreads
+          : mailbox === "traveling"
+            ? travelingThreads
+            : mailbox === "support"
+              ? supportThreads
+              : nonIntros;
+    }
     return source.filter((t) => {
       if (query.trim()) {
         const q = query.toLowerCase();
@@ -83,14 +108,26 @@ export function InboxList({ threads, selectedId }: Props) {
       }
       return true;
     });
-  }, [threads, hostingThreads, travelingThreads, supportThreads, filter, query]);
+  }, [
+    tab,
+    mailbox,
+    nonIntros,
+    hostingThreads,
+    travelingThreads,
+    supportThreads,
+    introThreads,
+    query,
+  ]);
 
-  const tabs: { key: Filter; label: string; count: number }[] = [
-    { key: "all", label: "All", count: threads.length },
-    { key: "hosting", label: "Hosting", count: hostingThreads.length },
-    { key: "traveling", label: "Traveling", count: travelingThreads.length },
-    { key: "support", label: "Support", count: supportThreads.length },
-  ];
+  const mailboxOptions: { key: MailboxFilter; label: string; count: number }[] =
+    [
+      { key: "all", label: "All", count: nonIntros.length },
+      { key: "hosting", label: "Hosting", count: hostingThreads.length },
+      { key: "traveling", label: "Traveling", count: travelingThreads.length },
+      { key: "support", label: "Support", count: supportThreads.length },
+    ];
+  const currentMailbox =
+    mailboxOptions.find((o) => o.key === mailbox) ?? mailboxOptions[0];
 
   return (
     <div className="flex h-full flex-col">
@@ -105,32 +142,95 @@ export function InboxList({ threads, selectedId }: Props) {
             className="h-9 w-full rounded-full border border-border bg-muted/40 pl-9 pr-3 text-sm focus:border-foreground focus:bg-white focus:outline-none"
           />
         </div>
-        <Tabs
-          value={filter}
-          onValueChange={(v) => setFilter(v as Filter)}
-          className="mt-3 !flex-col"
-        >
-          <TabsList
-            variant="line"
-            className="h-auto w-full justify-start gap-4 border-b border-border !rounded-none bg-transparent p-0"
+        <div className="mt-3 flex items-center gap-2">
+          {/* Mailbox dropdown — keeps All/Hosting/Traveling/Support off
+              a crowded tab row. Scales to more mailbox types (Co-host,
+              Support routing, etc.) without a layout change. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+                tab === "mailbox"
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border text-foreground hover:bg-muted"
+              )}
+              onClick={() => setTab("mailbox")}
+            >
+              <span>{currentMailbox.label}</span>
+              {currentMailbox.count > 0 && (
+                <span
+                  className={cn(
+                    "text-xs",
+                    tab === "mailbox"
+                      ? "text-background/80"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {currentMailbox.count}
+                </span>
+              )}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-[200px]">
+              {mailboxOptions.map((opt) => {
+                const disabled = opt.key === "support" && opt.count === 0;
+                const isSelected = mailbox === opt.key && tab === "mailbox";
+                return (
+                  <DropdownMenuItem
+                    key={opt.key}
+                    disabled={disabled}
+                    onSelect={() => {
+                      setMailbox(opt.key);
+                      setTab("mailbox");
+                    }}
+                    className="flex items-center justify-between gap-3"
+                  >
+                    <span className="flex items-center gap-2">
+                      {isSelected ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <span className="h-3.5 w-3.5" />
+                      )}
+                      {opt.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {opt.count}
+                    </span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Intros sibling tab — surfaces intro_requests separately
+              from regular inbound/outbound messages. Clearly differ-
+              entiated in the row rendering as "Intro sent" vs "Intro
+              received" based on role. */}
+          <button
+            type="button"
+            onClick={() => setTab("intros")}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+              tab === "intros"
+                ? "border-foreground bg-foreground text-background"
+                : "border-border text-foreground hover:bg-muted"
+            )}
           >
-            {tabs.map((t) => (
-              <TabsTrigger
-                key={t.key}
-                value={t.key}
-                disabled={t.key === "support" && t.count === 0}
-                className="!h-auto !flex-none !px-0 pb-2 text-sm !rounded-none data-active:!bg-transparent data-active:after:!opacity-100 after:!bottom-[-1px] after:!h-0.5 after:!bg-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {t.label}
-                {t.count > 0 && (
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    {t.count}
-                  </span>
+            Intros
+            {introThreads.length > 0 && (
+              <span
+                className={cn(
+                  "text-xs",
+                  tab === "intros"
+                    ? "text-background/80"
+                    : "text-muted-foreground"
                 )}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+              >
+                {introThreads.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -216,7 +316,9 @@ export function InboxList({ threads, selectedId }: Props) {
                       </div>
                       {t.is_intro_request && (
                         <div className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
-                          Intro request
+                          {/* role='host' = someone asked about your listing → received.
+                              role='guest' = you asked about theirs → sent. */}
+                          {t.role === "host" ? "Intro received" : "Intro sent"}
                         </div>
                       )}
                       {t.listing && (

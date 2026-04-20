@@ -35,10 +35,19 @@ interface Props {
   } | null;
 }
 
+// 1° B&B doesn't process payments or charge a service fee during
+// alpha — hosts collect directly off-platform. The cleaning fee +
+// service fee code is preserved but zeroed so we can flip them back
+// on when the payment flow (see BOOKING_FLOW_V2_PLAN.md) is ready
+// to support per-host configuration.
+const CLEANING_FEE_PCT = 0;
+const SERVICE_FEE_PCT = 0;
+const SHOW_FEE_ROWS = false;
+
 function calcFees(pricePerNight: number, nights: number) {
   const subtotal = pricePerNight * nights;
-  const cleaning = Math.round(subtotal * 0.08);
-  const service = Math.round(subtotal * 0.12);
+  const cleaning = Math.round(subtotal * CLEANING_FEE_PCT);
+  const service = Math.round(subtotal * SERVICE_FEE_PCT);
   const total = subtotal + cleaning + service;
   return { subtotal, cleaning, service, total };
 }
@@ -241,17 +250,21 @@ export function BookingSidebar({
                 </span>
                 <span>${fees.subtotal.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="underline">Cleaning fee</span>
-                <span>${fees.cleaning.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="underline">Service fee</span>
-                <span>${fees.service.toLocaleString()}</span>
-              </div>
+              {SHOW_FEE_ROWS && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="underline">Cleaning fee</span>
+                    <span>${fees.cleaning.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="underline">Service fee</span>
+                    <span>${fees.service.toLocaleString()}</span>
+                  </div>
+                </>
+              )}
               <Separator />
               <div className="flex justify-between text-base font-semibold">
-                <span>Total before taxes</span>
+                <span>Estimated total</span>
                 <span>${fees.total.toLocaleString()}</span>
               </div>
             </div>
@@ -349,14 +362,18 @@ export function BookingSidebar({
                 </span>
                 <span>${fees.subtotal.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Cleaning fee</span>
-                <span>${fees.cleaning.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Service fee</span>
-                <span>${fees.service.toLocaleString()}</span>
-              </div>
+              {SHOW_FEE_ROWS && (
+                <>
+                  <div className="flex justify-between">
+                    <span>Cleaning fee</span>
+                    <span>${fees.cleaning.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Service fee</span>
+                    <span>${fees.service.toLocaleString()}</span>
+                  </div>
+                </>
+              )}
               <Separator />
               <div className="flex justify-between font-semibold">
                 <span>Total</span>

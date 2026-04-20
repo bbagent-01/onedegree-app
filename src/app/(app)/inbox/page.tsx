@@ -5,6 +5,7 @@ import { getCurrentUser, getInboxForUser, getThreadDetail } from "@/lib/messagin
 import { InboxList } from "@/components/inbox/inbox-list";
 import { ThreadView } from "@/components/inbox/thread-view";
 import { ReservationSidebar } from "@/components/inbox/reservation-sidebar";
+import { SectionNav } from "@/components/layout/section-nav";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -30,8 +31,10 @@ export default async function InboxPage({ searchParams }: PageProps) {
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-6">
-      <h1 className="mb-4 text-2xl font-semibold md:text-3xl">Messages</h1>
+    <>
+      <SectionNav />
+      <div className="mx-auto w-full max-w-[1600px] px-4 py-6 md:px-6">
+        <h1 className="mb-4 text-2xl font-semibold md:text-3xl">Messages</h1>
 
       {threads.length === 0 ? (
         <div className="mt-12 rounded-xl border border-dashed border-border bg-muted/30 p-12 text-center">
@@ -88,6 +91,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
           )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
