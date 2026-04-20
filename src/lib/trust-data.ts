@@ -928,12 +928,22 @@ async function findNDegreeReach(
 }
 
 /**
+ * Dampening factor for 3° scores. Applied to the weakest link in the
+ * chain so a 3° connection with identical per-hop strengths reads as
+ * visibly lower than a 2° connection with the same link strengths.
+ * 0.6 keeps the band obvious without collapsing the score to 0.
+ * Documented in PROJECT_PLAN.md §Trust Mechanics.
+ */
+const THREE_DEGREE_DAMPEN = 0.6;
+
+/**
  * Hydrate the chains from findNDegreeReach into full TrustResult
  * entries: fetch each intermediary's name/avatar, populate `path`
  * (head=candidate, tail=anchor for incoming; reversed for outgoing
- * per TrustResult convention), and seed `connectorPaths` with the
- * intermediary closest to the viewer — that's the "bridge face" we
- * display on the medium tag and as the entry point of the chain.
+ * per TrustResult convention), and seed `connectorPaths` with each
+ * hop's strength so the TrustTag can render mustard-tinted dots
+ * representing the per-link trust. For 3° chains we also compute a
+ * dampened numeric score (min-link × 0.6); 4° stays score-less.
  */
 async function applyMultiHopChains(
   supabase: ReturnType<typeof getSupabaseAdmin>,
@@ -949,18 +959,64 @@ async function applyMultiHopChains(
 
   const { data: profiles } = await supabase
     .from("users")
-    .select("id, name, avatar_url")
+    .select("id, name, avatar_url, vouch_power")
     .in("id", [...userIds]);
   const byId = new Map<
     string,
-    { id: string; name: string; avatar_url: string | null }
+    { id: string; name: string; avatar_url: string | null; vouch_power: number | null }
   >(
     ((profiles || []) as Array<{
       id: string;
       name: string;
       avatar_url: string | null;
+      vouch_power: number | null;
     }>).map((u) => [u.id, u])
   );
+
+  // Bulk-fetch every vouch between any two nodes that appear in any
+  // chain. One query (vs. per-edge) is cheap at alpha scale and
+  // avoids round-trip blowup for viewers with lots of 3°/4° reach.
+  const allNodeIds = [...userIds];
+  const { data: edgeRows } =
+    allNodeIds.length > 0
+      ? await supabase
+          .from("vouches")
+          .select("voucher_id, vouchee_id, vouch_type, years_known_bucket, vouch_score")
+          .in("voucher_id", allNodeIds)
+          .in("vouchee_id", allNodeIds)
+      : { data: [] };
+  type EdgeRow = {
+    voucher_id: string;
+    vouchee_id: string;
+    vouch_type: "standard" | "inner_circle";
+    years_known_bucket: string;
+    vouch_score: number | null;
+  };
+  const edgeByPair = new Map<string, EdgeRow>();
+  for (const e of (edgeRows || []) as EdgeRow[]) {
+    edgeByPair.set(`${e.voucher_id}:${e.vouchee_id}`, e);
+  }
+  const edgeStrengthBetween = (fromId: string, toId: string): number => {
+    // Prefer the directional vouch (from → to); fall back to the
+    // reverse if only it exists. Bidirectional seed data often has
+    // both; we pick the stronger.
+    const fwd = edgeByPair.get(`${fromId}:${toId}`);
+    const rev = edgeByPair.get(`${toId}:${fromId}`);
+    const candidates: number[] = [];
+    if (fwd) {
+      const fp = byId.get(fwd.voucher_id)?.vouch_power ?? 4;
+      candidates.push(
+        fwd.vouch_score ?? edgeStrength(fwd.vouch_type, fwd.years_known_bucket, fp)
+      );
+    }
+    if (rev) {
+      const rp = byId.get(rev.voucher_id)?.vouch_power ?? 4;
+      candidates.push(
+        rev.vouch_score ?? edgeStrength(rev.vouch_type, rev.years_known_bucket, rp)
+      );
+    }
+    return candidates.length > 0 ? Math.max(...candidates) : 0;
+  };
 
   for (const [targetId, { chain, degree }] of chains) {
     const pathUsers: TrustPathUser[] = chain.map((id) => {
@@ -984,24 +1040,60 @@ async function applyMultiHopChains(
           : pathUsers[1]
         : null;
 
+    // Compute the per-hop strengths so the UI can render one mustard
+    // dot per intermediate link. For 3° this is 3 hops; for 4° it's
+    // 4. We orient the chain viewer-first regardless of direction
+    // so the strengths array reads "link out of viewer first".
+    const viewerFirst =
+      direction === "incoming" ? [...chain].reverse() : [...chain];
+    const hopStrengths: number[] = [];
+    for (let i = 0; i < viewerFirst.length - 1; i++) {
+      hopStrengths.push(edgeStrengthBetween(viewerFirst[i], viewerFirst[i + 1]));
+    }
+
+    let score = 0;
+    if (degree === 3 && hopStrengths.length === 3) {
+      const minHop = Math.min(...hopStrengths);
+      score = Math.max(0, Math.min(100, Math.round(minHop * THREE_DEGREE_DAMPEN)));
+    }
+
+    // Build connectorPaths so TrustTag can render per-hop dots. Each
+    // entry represents one link in the chain. The bridge (first hop
+    // out of the viewer) is flagged viewer_knows=true so its avatar
+    // is shown; the rest stay anonymous (viewer_knows=false).
+    const hopUsersViewerFirst = direction === "incoming"
+      ? [...pathUsers].reverse()
+      : [...pathUsers];
+    const hopConnectors: ConnectorPathSummary[] = hopStrengths.map((s, i) => {
+      // The "node" for a hop is the destination of that link
+      // (i.e. hopUsersViewerFirst[i+1]).
+      const node = hopUsersViewerFirst[i + 1];
+      return {
+        id: node.id,
+        name: node.name,
+        avatar_url: node.avatar_url,
+        strength: s,
+        viewer_knows: i === 0, // first hop out of viewer = bridge
+      };
+    });
+
     out[targetId] = {
       ...EMPTY,
+      score,
       degree,
       path: pathUsers,
       connectorPaths: bridgeNode
-        ? [
-            {
-              id: bridgeNode.id,
-              name: bridgeNode.name,
-              avatar_url: bridgeNode.avatar_url,
-              strength: 0,
-              // The bridge is always the node adjacent to the
-              // viewer (1° direct to them) regardless of the
-              // chain's length, so they're always a known face
-              // and should render with their actual avatar.
-              viewer_knows: true,
-            },
-          ]
+        ? hopConnectors.length > 0
+          ? hopConnectors
+          : [
+              {
+                id: bridgeNode.id,
+                name: bridgeNode.name,
+                avatar_url: bridgeNode.avatar_url,
+                strength: 0,
+                viewer_knows: true,
+              },
+            ]
         : [],
     };
   }

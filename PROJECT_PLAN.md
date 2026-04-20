@@ -76,6 +76,11 @@ Sort all path strengths descending: p1 ≥ p2 ≥ p3 ≥ … ≥ pN
 Weights: P1 = 1.0, P2 = 0.5, P3 = 0.333, P4 = 0.25, etc.
 One strong connection outweighs many weak ones.
 
+### 3° Dampened Score (CC-C5 Revisit)
+For a 3-hop chain `[viewer, bridge, inter, target]` with hop strengths `h1, h2, h3`:
+`3° score = min(h1, h2, h3) × 0.6` (rounded, clamped [0, 100])
+Rationale: a chain is as strong as its weakest link; the 0.6 multiplier keeps 3° scores visibly below 2° scores with the same per-hop strengths. Each hop strength is the directional `vouch_score` (or the reverse if only that exists). 4° and deeper: no score (chain only, zinc pill).
+
 ### Three Rating Types (post-stay)
 - Guest Rating (1–5★) — host rates guest behavior → feeds vouch power
 - Host Rating (1–5★) — guest rates host behavior

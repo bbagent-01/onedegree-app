@@ -50,6 +50,19 @@ The C5 recap locked "3° shows degree + chain + link strengths but no composite 
 
 Formula: see `src/lib/trust-data.ts` and PROJECT_PLAN.md § Trust Mechanics.
 
-## 4. Task Completion Log
+## 4. Phone-Forward Identity Audit
+
+| Surface | Phone posture | Action taken |
+|---|---|---|
+| `/invite` (invite flow) | Phone required, email optional | No change — already phone-primary. `invite/page.tsx:140-167` |
+| `/vouch` (search) | Searches by name/email/phone, phone recognized when input is `+` or digit-heavy | No change — `api/users/search/route.ts:32-57` |
+| `POST /api/invites` | Accepts phone OR email; phone triggers SMS first, email falls back | No change — already phone-first |
+| Clerk webhook claim | Claims pending invites by phone OR email match | No change — `webhooks/clerk/route.ts:81-140` |
+| Signup (Clerk hosted) | Phone required via Clerk dashboard (requires Loren config) | **Action needed**: Clerk → Users & Authentication → Email, Phone, Username → Phone number: **Required + Primary identifier**. [Clerk dash deep link](https://dashboard.clerk.com/apps/) |
+| `/join/[token]` landing | **Missing page** — invites point at `${APP_URL}/join/${token}` but no route exists yet | Flagged for next session |
+
+**Net result:** app code is already phone-primary. The remaining gap is a Clerk dashboard setting (Loren-only action) and the missing `/join/[token]` page (out of scope this session).
+
+## 5. Task Completion Log
 
 See commit log on `track-b/1db-overlay` for per-task commits. Summary in the session recap at end of this file (populated after commits land).

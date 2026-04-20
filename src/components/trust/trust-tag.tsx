@@ -123,15 +123,17 @@ export function TrustTag({
 
   const pill = DEGREE_PILLS[effectiveDegree];
 
-  // 2° is the only state that spells out the score math. Shield +
-  // number + connector dots/avatars ride alongside the pill.
   const is2nd = effectiveDegree === 2;
-  // Multi-hop chain visual: medium 3deg / 4deg render the chain
-  // compactly as (N-2) anonymous dots, a dash, and the bridge
-  // avatars. Micro keeps the pill-only render for grid tiles.
-  const showMultiHopVisual =
-    isMedium && (effectiveDegree === 3 || effectiveDegree === 4);
-  const anonymousCount = effectiveDegree === 4 ? 2 : 1;
+  const is3rd = effectiveDegree === 3;
+  const is4th = effectiveDegree === 4;
+
+  // 3° medium uses the same shape as 2° + a single mustard dot
+  // before the bridge avatar to hint at the anonymous intermediary.
+  // 4° medium uses two anonymous zinc dots + the bridge; no score.
+  // Connector paths for 3°/4° are per-hop strengths, where the
+  // entry at index 0 is the first hop out of the viewer (bridge).
+  const bridgeOnly = connectorPaths.filter((p) => p.viewer_knows);
+  const anonHops = connectorPaths.filter((p) => !p.viewer_knows);
 
   return (
     <span
@@ -151,11 +153,11 @@ export function TrustTag({
       >
         {pill.label}
       </span>
+
+      {/* 2°: emerald shield + score + connector dots/avatars */}
       {is2nd && (
         <>
-          <span
-            className={cn("inline-flex items-center gap-0.5 font-semibold", "text-emerald-700")}
-          >
+          <span className="inline-flex items-center gap-0.5 font-semibold text-emerald-700">
             <ShieldIcon
               score={score}
               size={isMedium ? "h-4 w-4" : "h-3.5 w-3.5"}
@@ -176,22 +178,65 @@ export function TrustTag({
             ))}
         </>
       )}
-      {showMultiHopVisual && (
+
+      {/* 3°: mustard shield + dampened score + mustard connector
+          dots (micro) OR mustard hop-dot + dash + bridge avatar (medium). */}
+      {is3rd && (
+        <>
+          <span className="inline-flex items-center gap-0.5 font-semibold text-[#bf8a0d]">
+            <ShieldIcon
+              tone="mustard"
+              size={isMedium ? "h-4 w-4" : "h-3.5 w-3.5"}
+            />
+            {score > 0 && <span>{score}</span>}
+          </span>
+          {!isMedium && anonHops.length > 0 && (
+            <ConnectorDots
+              strengths={anonHops.map((p) => p.strength)}
+              size="h-3 w-3"
+              tone="mustard"
+            />
+          )}
+          {isMedium && (anonHops.length > 0 || bridgeOnly.length > 0) && (
+            <span className="inline-flex items-center gap-1">
+              {anonHops.length > 0 && (
+                <>
+                  <span className="inline-block h-5 w-5 rounded-full bg-[#e6b95c] ring-2 ring-white" />
+                  <span
+                    className="h-px w-2 bg-[#d4a024]"
+                    aria-hidden
+                  />
+                </>
+              )}
+              {bridgeOnly.length > 0 && (
+                <ConnectorAvatars
+                  connectors={bridgeOnly as AvatarConnector[]}
+                  size="h-5 w-5"
+                />
+              )}
+            </span>
+          )}
+        </>
+      )}
+
+      {/* 4°: distant — no score, zinc chain visual (medium only). */}
+      {is4th && isMedium && (
         <span className="inline-flex items-center gap-1">
-          {Array.from({ length: anonymousCount }).map((_, i) => (
+          {Array.from({ length: 2 }).map((_, i) => (
             <span key={`dot-${i}`} className="inline-flex items-center gap-1">
               <span className="inline-block h-6 w-6 rounded-full bg-zinc-300" />
               <span className="h-px w-2 bg-zinc-300" aria-hidden />
             </span>
           ))}
-          {connectorPaths.length > 0 && (
+          {bridgeOnly.length > 0 && (
             <ConnectorAvatars
-              connectors={connectorPaths as AvatarConnector[]}
+              connectors={bridgeOnly as AvatarConnector[]}
               size="h-6 w-6"
             />
           )}
         </span>
       )}
+
       {ratingNode}
     </span>
   );

@@ -24,8 +24,11 @@ function maskPhone(e164: string | null): string {
 
 type PendingPhone = {
   phoneNumberId: string;
-  prepareVerification: (opts: { strategy: "phone_code" }) => Promise<unknown>;
-  attemptVerification: (opts: { code: string }) => Promise<{ verification: { status: string } }>;
+  prepareVerification: () => Promise<unknown>;
+  attemptVerification: (opts: { code: string }) => Promise<{
+    verification: { status: string };
+  }>;
+  destroy?: () => Promise<void>;
 };
 
 export default function PhoneSettingsPage() {
@@ -73,7 +76,7 @@ export default function PhoneSettingsPage() {
       }
 
       const phoneNumber = await user.createPhoneNumber({ phoneNumber: e164 });
-      await phoneNumber.prepareVerification({ strategy: "phone_code" });
+      await phoneNumber.prepareVerification();
       setPending(phoneNumber as unknown as PendingPhone);
       setStep("verify");
       toast.success("Code sent to " + parsed!.formatNational());
