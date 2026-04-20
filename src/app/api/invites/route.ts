@@ -66,12 +66,54 @@ export async function POST(req: Request) {
 
   const { data: currentUser } = await supabase
     .from("users")
-    .select("id, name")
+    .select("id, name, phone_number, email")
     .eq("clerk_id", userId)
     .single();
 
   if (!currentUser) {
     return new Response("User not found", { status: 404 });
+  }
+
+  // ── Existing-member guard ─────────────────────────────────────
+  // If the phone or email already matches a registered user, block
+  // the invite and point the caller at the vouch flow. Returns 409
+  // with { existing: true, self?, user? } so the UI can redirect
+  // to /profile/<id> (or the in-place "invited yourself" warning)
+  // instead of creating a no-op invite. Also normalizes phone so
+  // "555-0100" and "+15555550100" collide as expected.
+  {
+    const orParts: string[] = [];
+    if (inviteePhone) orParts.push(`phone_number.eq.${inviteePhone}`);
+    if (inviteeEmail) {
+      orParts.push(`email.eq.${String(inviteeEmail).toLowerCase()}`);
+    }
+    if (orParts.length > 0) {
+      const { data: match } = await supabase
+        .from("users")
+        .select("id, name, avatar_url")
+        .or(orParts.join(","))
+        .maybeSingle();
+      if (match) {
+        const isSelf = match.id === currentUser.id;
+        return Response.json(
+          {
+            error: isSelf
+              ? "That's your own phone or email. You can't invite yourself."
+              : `${match.name} is already on 1° B&B. Vouch for them directly instead.`,
+            existing: true,
+            self: isSelf,
+            user: isSelf
+              ? null
+              : {
+                  id: match.id,
+                  name: match.name,
+                  avatar_url: match.avatar_url ?? null,
+                },
+          },
+          { status: 409 }
+        );
+      }
+    }
   }
 
   // Store the pre-vouch data as JSON for claim-time processing
