@@ -931,13 +931,15 @@ async function findNDegreeReach(
 }
 
 /**
- * Dampening factor for 3° scores. Applied to the weakest link in the
- * chain so a 3° connection with identical per-hop strengths reads as
- * visibly lower than a 2° connection with the same link strengths.
- * 0.6 keeps the band obvious without collapsing the score to 0.
- * Documented in PROJECT_PLAN.md §Trust Mechanics.
+ * Dampening factors for multi-hop composite scores. Applied to the
+ * mean of the hop strengths so the score scales with the overall
+ * quality of the chain rather than punishing a single weak link.
+ * 3° uses 0.66 (modest dampening); 4° uses 0.50 (heavier dampening
+ * since an extra hop genuinely dilutes the trust signal). Values
+ * locked with Loren 2026-04-20. See PROJECT_PLAN.md §Trust Mechanics.
  */
-const THREE_DEGREE_DAMPEN = 0.6;
+const THREE_DEGREE_DAMPEN = 0.66;
+const FOUR_DEGREE_DAMPEN = 0.5;
 
 /**
  * Hydrate the chains from findNDegreeReach into full TrustResult
@@ -1055,9 +1057,18 @@ async function applyMultiHopChains(
     }
 
     let score = 0;
+    const mean = (arr: number[]) =>
+      arr.length === 0 ? 0 : arr.reduce((s, v) => s + v, 0) / arr.length;
     if (degree === 3 && hopStrengths.length === 3) {
-      const minHop = Math.min(...hopStrengths);
-      score = Math.max(0, Math.min(100, Math.round(minHop * THREE_DEGREE_DAMPEN)));
+      score = Math.max(
+        0,
+        Math.min(100, Math.round(mean(hopStrengths) * THREE_DEGREE_DAMPEN))
+      );
+    } else if (degree === 4 && hopStrengths.length === 4) {
+      score = Math.max(
+        0,
+        Math.min(100, Math.round(mean(hopStrengths) * FOUR_DEGREE_DAMPEN))
+      );
     }
 
     // Build connectorPaths so TrustTag can render per-hop dots. Each

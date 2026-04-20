@@ -653,22 +653,25 @@ function MultiHopView({
   }
   const groups = [...byDegree.entries()].sort((a, b) => a[0] - b[0]);
 
-  // The badge score (for 3°) comes from the strongest 3° chain:
-  // min(hops) × 0.6. Find the best 3° chain and its min-hop so we
-  // can show the math.
-  const three = chainsYouFirst.filter((c) => c.degree === 3);
-  const bestThree =
-    three.length > 0
-      ? three.reduce((best, c) =>
-          Math.min(...c.linkStrengths) * 0.6 >
-          Math.min(...best.linkStrengths) * 0.6
+  // Badge score for multi-hop = mean(hop strengths) × dampen, picking
+  // the strongest chain within the viewer's actual degree bucket
+  // (closest reachable). 3° dampen = 0.66, 4° dampen = 0.5.
+  const DAMPEN = data.degree === 3 ? 0.66 : 0.5;
+  const mean = (arr: number[]) =>
+    arr.length === 0 ? 0 : arr.reduce((s, v) => s + v, 0) / arr.length;
+  const sameDegree = chainsYouFirst.filter((c) => c.degree === data.degree);
+  const bestChain =
+    sameDegree.length > 0
+      ? sameDegree.reduce((best, c) =>
+          mean(c.linkStrengths) * DAMPEN > mean(best.linkStrengths) * DAMPEN
             ? c
             : best
         )
       : null;
-  const score = bestThree
-    ? Math.round(Math.min(...bestThree.linkStrengths) * 0.6)
+  const score = bestChain
+    ? Math.round(mean(bestChain.linkStrengths) * DAMPEN)
     : 0;
+  const scoreColor = data.degree === 3 ? "text-[#bf8a0d]" : "text-zinc-700";
 
   // Global path counter so labels stay unique across groups
   // ("Path 1, Path 2, Path 3" rather than restarting at each group).
@@ -682,11 +685,13 @@ function MultiHopView({
           You&rsquo;re a {ordinal}&deg; connection to {target.name}
         </div>
       </div>
-      {data.degree === 3 && bestThree && (
+      {bestChain && (
         <div className="mt-0.5 text-xs text-muted-foreground">
           Trust score:{" "}
-          <span className="font-semibold text-[#bf8a0d]">{score}</span>{" "}
-          <span className="text-muted-foreground/70">· 3° dampened</span>
+          <span className={cn("font-semibold", scoreColor)}>{score}</span>{" "}
+          <span className="text-muted-foreground/70">
+            · {data.degree}° dampened
+          </span>
         </div>
       )}
       {chainsYouFirst.length > 1 && (
@@ -730,37 +735,33 @@ function MultiHopView({
       <ShowMathToggle on={showMath} onToggle={() => setShowMath((v) => !v)} />
       {showMath && (
         <div className="mt-2 rounded-lg bg-muted/30 p-3 text-[11px] font-mono space-y-2">
-          {bestThree && (
+          {bestChain && (
             <>
               <div className="text-foreground">
-                <span className="font-semibold">3° dampening formula:</span>
+                <span className="font-semibold">
+                  {data.degree}° dampening formula:
+                </span>
                 <br />
-                score = min(hop strengths) &times; 0.6
+                score = avg(hop strengths) &times; {DAMPEN}
               </div>
               <div className="rounded-md bg-white/70 px-2.5 py-1.5 text-foreground">
-                min({bestThree.linkStrengths.map((s) => Math.round(s)).join(", ")}){" "}
-                &times; 0.6 ={" "}
+                avg(
+                {bestChain.linkStrengths.map((s) => Math.round(s)).join(", ")}){" "}
+                &times; {DAMPEN} ={" "}
                 <span className="font-semibold">
-                  {Math.round(Math.min(...bestThree.linkStrengths))}
+                  {Math.round(mean(bestChain.linkStrengths))}
                 </span>{" "}
-                &times; 0.6 ={" "}
-                <span className="font-semibold text-[#bf8a0d]">{score} pts</span>
+                &times; {DAMPEN} ={" "}
+                <span className={cn("font-semibold", scoreColor)}>
+                  {score} pts
+                </span>
               </div>
               <div className="text-muted-foreground/70 text-[10px]">
-                The weakest link in the chain sets the ceiling; the 0.6
-                multiplier dampens 3° scores below 2° scores with the same
-                per-hop strengths. Best 3° chain wins when multiple exist.
+                {data.degree === 3
+                  ? "Average of the three hop strengths, dampened by 0.66 so 3° scores stay visibly lower than 2° scores at the same per-hop strength. Best 3° chain wins when multiple exist."
+                  : "Average of the four hop strengths, dampened by 0.5 since an extra hop genuinely dilutes the trust signal. Best 4° chain wins when multiple exist."}
               </div>
             </>
-          )}
-          {!bestThree && data.degree === 4 && (
-            <div className="text-foreground">
-              <span className="font-semibold">No composite score at 4°+.</span>
-              <br />
-              Four-hop chains are too indirect to boil down to a single
-              number. We show the chain itself so you can see who might
-              introduce you.
-            </div>
           )}
         </div>
       )}

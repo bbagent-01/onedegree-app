@@ -240,31 +240,52 @@ export function TrustTag({
         </>
       )}
 
-      {/* 4°: distant — no score, zinc chain visual (medium only).
-          Micro gets just the pill (+ optional bridge avatar) so
-          browse tiles don't lose density to a chain that won't
-          render well at small size. */}
-      {is4th && isMedium && (
-        <span className="inline-flex items-center gap-1">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <span key={`dot-${i}`} className="inline-flex items-center gap-1">
-              <span className="inline-block h-6 w-6 rounded-full bg-zinc-300" />
-              <span className="h-px w-2 bg-zinc-300" aria-hidden />
-            </span>
-          ))}
-          {bridgeOnly.length > 0 && (
-            <ConnectorAvatars
-              connectors={bridgeOnly as AvatarConnector[]}
-              size="h-6 w-6"
+      {/* 4°: zinc shield + dampened score + zinc connector dots
+          (micro) OR zinc hop-dots + dash + bridge avatar (medium).
+          Mirrors the 3° layout — 4° still gets a numeric score
+          (mean × 0.5), just with the zinc palette to read as more
+          distant. */}
+      {is4th && (
+        <>
+          <span className="inline-flex items-center gap-0.5 font-semibold text-zinc-600">
+            <ShieldIcon
+              muted
+              size={isMedium ? "h-4 w-4" : "h-3.5 w-3.5"}
             />
+            {score > 0 && <span>{score}</span>}
+          </span>
+          {!isMedium && anonHops.length > 0 && (
+            <span className="inline-flex items-center -space-x-1">
+              {anonHops.slice(0, 4).map((_, i) => (
+                <span
+                  key={i}
+                  className="inline-block h-3 w-3 rounded-full bg-zinc-300 ring-2 ring-white"
+                />
+              ))}
+            </span>
           )}
-        </span>
-      )}
-      {is4th && !isMedium && bridgeOnly.length > 0 && (
-        <ConnectorAvatars
-          connectors={bridgeOnly as AvatarConnector[]}
-          size="h-5 w-5"
-        />
+          {isMedium && (anonHops.length > 0 || bridgeOnly.length > 0) && (
+            <span className="inline-flex items-center gap-1">
+              {Array.from({ length: Math.min(anonHops.length, 2) }).map(
+                (_, i) => (
+                  <span
+                    key={`dot-${i}`}
+                    className="inline-flex items-center gap-1"
+                  >
+                    <span className="inline-block h-5 w-5 rounded-full bg-zinc-300" />
+                    <span className="h-px w-2 bg-zinc-300" aria-hidden />
+                  </span>
+                )
+              )}
+              {bridgeOnly.length > 0 && (
+                <ConnectorAvatars
+                  connectors={bridgeOnly as AvatarConnector[]}
+                  size="h-5 w-5"
+                />
+              )}
+            </span>
+          )}
+        </>
       )}
 
       {ratingNode}
