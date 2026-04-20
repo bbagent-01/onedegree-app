@@ -65,4 +65,49 @@ Formula: see `src/lib/trust-data.ts` and PROJECT_PLAN.md § Trust Mechanics.
 
 ## 5. Task Completion Log
 
-See commit log on `track-b/1db-overlay` for per-task commits. Summary in the session recap at end of this file (populated after commits land).
+Commits on top of `b2d45e6` (end of C5):
+- `b751b87` Phone uniqueness: migration 021 + settings edit flow
+- `361fd65` 3° dampened trust score + mustard badge style
+- `c6ab359` TrustTag: formal 0° and 4°+ states
+- `8028ae3` Trust detail enumerates ALL chains, not just representative
+- `eb0fbb9` max_degrees access option re-enabled (C5.1)
+
+## 6. Smoke-Test Checklist (for Loren)
+
+All tests on [alpha-c.onedegreebnb.com](https://alpha-c.onedegreebnb.com). Wait ~1 minute after each push for Cloudflare Pages to rebuild.
+
+### A. Phone uniqueness + edit
+1. Visit [Account settings](https://alpha-c.onedegreebnb.com/settings). Confirm "Phone number" row appears with your current phone masked to the last 4 (e.g. `••• ••• 4373`).
+2. Click it → [Phone settings](https://alpha-c.onedegreebnb.com/settings/phone). Confirm page loads with current phone shown.
+3. Click "Change phone number" → enter a different number (e.g. your Google Voice) → Send code → enter SMS code → Verify & save.
+4. **Expected:** toast "Phone number updated," settings list shows new number masked.
+5. Sign out. Try to create a new Clerk account with the same phone you just set.
+6. **Expected:** Clerk flow fails OR (if Clerk allows) the app rejects with "This phone number is already registered."
+
+### B. 3° dampened badge
+7. Open [/browse](https://alpha-c.onedegreebnb.com/browse). Find a tile with a **mustard 3rd° pill**. Confirm it shows: `3rd°` pill → mustard shield → integer score → mustard connector dots → `★ rating (n)`.
+8. Click the tile. On the listing detail, confirm the "Hosted by" row shows the same 3rd° pattern (medium size: pill + shield + score + mustard dot + dash + bridge avatar).
+
+### C. 0° and 4°+ states
+9. Find a 4°+ host on /browse (Pavel or Ines). Confirm tile shows zinc `4th°` pill + bridge avatar + rating.
+10. Click. On listing detail, confirm the medium badge shows `4th°` + chain visual + bridge avatar + subtext "Distant connection · Request intro through bridge" (subtext is opt-in so may not show on every surface yet).
+11. Find a listing by someone you have zero path to. Confirm the TrustTag shows zinc `Not connected` pill + muted shield.
+
+### D. Multi-chain trust detail
+12. On a 3° or 4° tile, click the TrustTag to open the popover.
+13. **Expected:** "You're a 3rd° connection to [Host]" header. If multiple paths exist, subtext reads "N paths between you · strongest first" and you see a separate `Path 1 / Path 2` card for each chain. Each card shows Target → ... → You with small score pills between every pair.
+
+### E. max_degrees visibility
+14. Go to [/hosting/listings](https://alpha-c.onedegreebnb.com/hosting/listings) → pick one → Edit → Visibility tab.
+15. Change "Full Listing + Contact" to `Within N degrees of me` → pick `Within 1° (vouched)`. Save.
+16. Open an incognito tab, sign in as a 2° viewer (or use a different account you haven't vouched directly). Visit that listing.
+17. **Expected:** You see the preview but are gated at full listing. Switch back to host, change to `Within 3°`. Reload as 2° viewer → full listing now unlocked.
+
+### Known partials (not in scope this session)
+- Pre-filled message composer for Contact Host — `handoff §1 row 5`
+- Auto system message on host-accept — `handoff §1 row 6`
+- 3-rating review form — `handoff §1 row 7`
+- "Host's trust to you" filter label — `handoff §1 row 9`
+- `/join/[token]` invite-acceptance page — `handoff §4`
+- Clerk dashboard setting "Phone required + primary" — `handoff §4`
+
