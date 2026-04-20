@@ -1037,11 +1037,12 @@ async function applyMultiHopChains(
   };
 
   // ── Bridge discovery ──────────────────────────────────────────
-  // For multi-hop targets, the micro badge's dots represent the
-  // number of DISTINCT 1° connections of the viewer who reach the
-  // target (not hops on a single chain). Build a full undirected
-  // adjacency list so we can BFS from each target and count which
-  // of the viewer's 1° neighbors sit at distance === degree - 1.
+  // The micro badge's dots count DISTINCT bridges (viewer's 1°
+  // connections who appear as the first non-viewer node on a simple
+  // chain of length === target's degree). We derive this from the
+  // SAME simple-path DFS that powers the trust-detail popover, so
+  // the dot count always matches the paths shown there — any bridge
+  // counted in one place is counted in the other.
   const { data: allVouches } = await supabase
     .from("vouches")
     .select("voucher_id, vouchee_id");
@@ -1055,39 +1056,46 @@ async function applyMultiHopChains(
     adj.get(v.voucher_id)!.add(v.vouchee_id);
     adj.get(v.vouchee_id)!.add(v.voucher_id);
   }
-  const viewer1 = adj.get(viewerId) ?? new Set<string>();
 
-  const bfsDistancesFrom = (source: string): Map<string, number> => {
-    const dist = new Map<string, number>();
-    dist.set(source, 0);
-    let frontier: string[] = [source];
-    for (let depth = 1; depth <= 4 && frontier.length > 0; depth++) {
-      const next: string[] = [];
-      for (const node of frontier) {
-        for (const n of adj.get(node) ?? new Set<string>()) {
-          if (dist.has(n)) continue;
-          dist.set(n, depth);
-          next.push(n);
+  // Enumerate simple paths viewer → target with path length ===
+  // degree. Returns the set of distinct first-hop nodes (bridges).
+  const CHAIN_ENUM_CAP = 200;
+  const enumerateBridges = (targetId: string, degree: number): string[] => {
+    const seen = new Set<string>();
+    let found = 0;
+    const stack: Array<{
+      node: string;
+      path: string[];
+      visited: Set<string>;
+    }> = [{ node: viewerId, path: [viewerId], visited: new Set([viewerId]) }];
+    while (stack.length > 0 && found < CHAIN_ENUM_CAP) {
+      const frame = stack.pop()!;
+      if (frame.node === targetId) {
+        if (frame.path.length - 1 === degree && frame.path.length > 1) {
+          // Bridge is the node immediately after the viewer.
+          seen.add(frame.path[1]);
+          found += 1;
         }
+        continue;
       }
-      frontier = next;
+      if (frame.path.length - 1 >= degree) continue;
+      const neighbors = adj.get(frame.node);
+      if (!neighbors) continue;
+      for (const n of neighbors) {
+        if (frame.visited.has(n)) continue;
+        stack.push({
+          node: n,
+          path: [...frame.path, n],
+          visited: new Set([...frame.visited, n]),
+        });
+      }
     }
-    return dist;
+    return [...seen];
   };
 
-  // Collect the bridges (viewer's 1° neighbors at exactly
-  // degree-1 from target) per target. If no bridges land at
-  // exactly that depth (shouldn't happen given target was
-  // identified at this degree), fall back to any viewer 1°
-  // within degree-1 hops.
   const bridgesByTarget = new Map<string, string[]>();
   for (const [targetId, { degree }] of chains) {
-    const dist = bfsDistancesFrom(targetId);
-    const exact: string[] = [];
-    for (const b of viewer1) {
-      if (dist.get(b) === degree - 1) exact.push(b);
-    }
-    bridgesByTarget.set(targetId, exact);
+    bridgesByTarget.set(targetId, enumerateBridges(targetId, degree));
   }
 
   // Hydrate bridge profiles we haven't already loaded (they come

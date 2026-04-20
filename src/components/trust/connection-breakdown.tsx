@@ -841,11 +841,13 @@ function ChainRow({
  * buckets read consistently.
  */
 /**
- * Pill rendered between two adjacent people in a chain row. This is
- * always a single-edge vouch score (1° link), so the pill uses the
- * purple/brand palette that 1° vouches carry everywhere else — not
- * the emerald trust-tier ramp, which is reserved for composite /
- * multi-path scores. A low-value pill still reads as a 1° link.
+ * Pill rendered between two adjacent people in a chain row. Always
+ * a single-edge vouch score (1° link), so it uses the purple
+ * palette reserved for 1° vouches — never the emerald trust-tier
+ * ramp, which is reserved for composite / multi-path scores. The
+ * pill's specific shade still scales with strength so stronger
+ * vouches read visibly heavier, matching the emerald ramp on 2°
+ * composite pills.
  */
 function LinkStrengthPill({ strength }: { strength: number }) {
   if (!strength || strength <= 0) {
@@ -853,12 +855,25 @@ function LinkStrengthPill({ strength }: { strength: number }) {
       <span className="mx-0.5 h-px w-3 shrink-0 bg-zinc-300" aria-hidden />
     );
   }
+  const rounded = Math.round(strength);
+  // Purple/violet ramp mirroring trustTier's emerald buckets.
+  const bucket =
+    strength >= 50
+      ? { bg: "bg-violet-700", label: "Very strong" }
+      : strength >= 30
+        ? { bg: "bg-violet-500", label: "Strong" }
+        : strength >= 15
+          ? { bg: "bg-violet-400", label: "Modest" }
+          : { bg: "bg-violet-300 text-violet-900", label: "Weak" };
   return (
     <span
-      className="mx-0.5 shrink-0 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-semibold text-white"
-      title={`1° vouch score: ${Math.round(strength)} pts`}
+      className={cn(
+        "mx-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold text-white",
+        bucket.bg
+      )}
+      title={`${bucket.label} 1° vouch · ${rounded} pts`}
     >
-      {Math.round(strength)}
+      {rounded}
     </span>
   );
 }
