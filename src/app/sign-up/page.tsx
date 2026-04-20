@@ -21,7 +21,9 @@ type Step =
   | "otp"
   | "account"
   | "email_fallback"
-  | "email_otp";
+  | "email_otp"
+  | "email_phone"
+  | "email_phone_otp";
 
 // Suspense wrapper: useSearchParams() forces Next.js to either
 // dynamically render or wrap in Suspense. The build fails otherwise
@@ -70,8 +72,14 @@ function SignUpInner() {
       setStep("otp");
       toast.success("Code sent to " + parsed!.formatNational());
     } catch (e) {
-      const msg = clerkError(e) || "Couldn't start sign-up";
-      toast.error(msg);
+      const code = clerkErrorCode(e);
+      if (code === "form_identifier_exists") {
+        toast.error(
+          "This phone is already registered. Sign in instead."
+        );
+      } else {
+        toast.error(clerkError(e) || "Couldn't start sign-up");
+      }
     } finally {
       setSaving(false);
     }
@@ -159,9 +167,29 @@ function SignUpInner() {
     }
   };
 
-  // Email fallback flow: phone isn't collected at all in this path.
-  // We create the Clerk signUp with email + password, send an email
-  // OTP, then the user pastes the code to complete.
+  // Route the signup to whichever step is next based on what Clerk
+  // says is still missing. Called after every successful verify /
+  // update so the UI stays in sync with Clerk's state.
+  const advanceSignUp = async (
+    res: NonNullable<ReturnType<typeof useSignUp>["signUp"]>
+  ) => {
+    if (res.status === "complete" && res.createdSessionId && setActive) {
+      await setActive({ session: res.createdSessionId });
+      router.push(redirectUrl);
+      return;
+    }
+    const missing = (res.missingFields as string[]) ?? [];
+    if (missing.includes("phone_number")) {
+      setOtp("");
+      setStep("email_phone");
+      return;
+    }
+    toast.error(
+      "Missing: " + (missing.join(", ") || "unknown field") +
+        ". Contact support if this persists."
+    );
+  };
+
   const startEmailSignup = async () => {
     if (!isLoaded) return;
     if (!email.trim() || password.length < 8) return;
@@ -179,7 +207,14 @@ function SignUpInner() {
       setStep("email_otp");
       toast.success("Verification code sent to " + email.trim());
     } catch (e) {
-      toast.error(clerkError(e) || "Couldn't start sign-up");
+      const code = clerkErrorCode(e);
+      if (code === "form_identifier_exists") {
+        toast.error(
+          "This email is already registered. Sign in instead."
+        );
+      } else {
+        toast.error(clerkError(e) || "Couldn't start sign-up");
+      }
     } finally {
       setSaving(false);
     }
@@ -190,16 +225,65 @@ function SignUpInner() {
     setSaving(true);
     try {
       const res = await signUp.attemptEmailAddressVerification({ code: otp });
-      if (res.status === "complete" && res.createdSessionId) {
-        await setActive({ session: res.createdSessionId });
-        router.push(redirectUrl);
-      } else {
-        toast.error(
-          "Additional verification required. Contact support if this persists."
-        );
-      }
+      await advanceSignUp(res);
     } catch (e) {
-      toast.error(clerkError(e) || "Wrong code. Try again.");
+      const code = clerkErrorCode(e);
+      // Email is already verified on this signUp (e.g. user retried
+      // after a successful verify). Read Clerk's current state and
+      // route to whatever's still missing.
+      if (
+        code === "verification_already_verified" ||
+        code === "verification_expired"
+      ) {
+        await advanceSignUp(signUp);
+      } else {
+        toast.error(clerkError(e) || "Wrong code. Try again.");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Final step of the email-fallback path: add phone + verify it so
+  // the signUp can flip to complete.
+  const submitEmailPhone = async () => {
+    if (!isLoaded || !phoneValid) return;
+    setSaving(true);
+    try {
+      await signUp.update({ phoneNumber: e164 });
+      await signUp.preparePhoneNumberVerification();
+      setStep("email_phone_otp");
+      toast.success("Code sent to " + parsed!.formatNational());
+    } catch (e) {
+      const code = clerkErrorCode(e);
+      if (code === "form_identifier_exists") {
+        toast.error(
+          "This phone is already registered. Sign in instead."
+        );
+      } else {
+        toast.error(clerkError(e) || "Couldn't add phone");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const verifyEmailPhoneOtp = async () => {
+    if (!isLoaded || otp.length < 6) return;
+    setSaving(true);
+    try {
+      const res = await signUp.attemptPhoneNumberVerification({ code: otp });
+      await advanceSignUp(res);
+    } catch (e) {
+      const code = clerkErrorCode(e);
+      if (
+        code === "verification_already_verified" ||
+        code === "verification_expired"
+      ) {
+        await advanceSignUp(signUp);
+      } else {
+        toast.error(clerkError(e) || "Wrong code. Try again.");
+      }
     } finally {
       setSaving(false);
     }
@@ -558,6 +642,103 @@ function SignUpInner() {
                 disabled={otp.length < 6 || saving}
                 className="flex-1 h-14 text-base"
               >
+                {saving ? "Verifying\u2026" : "Continue"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Clerk requires a phone number on this instance, so the
+            email fallback path ends with a phone collection step.
+            Also catches the case where a user clicked a stale
+            "Finish sign up" after email was already verified. */}
+        {step === "email_phone" && (
+          <div>
+            <div className="flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-900">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <div>
+                Almost done &mdash; add your phone number to finish
+                signing up. One account per number.
+              </div>
+            </div>
+            <div className="mt-5">
+              <Label htmlFor="phone-ep" className="text-base font-semibold">
+                Your phone number
+              </Label>
+              <div className="mt-2 relative">
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <Phone className="h-5 w-5" />
+                </span>
+                <Input
+                  id="phone-ep"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  onBlur={() => {
+                    if (phone.trim()) {
+                      const p = parsePhoneNumberFromString(phone.trim(), "US");
+                      if (p?.isValid()) setPhone(p.formatNational());
+                    }
+                  }}
+                  placeholder="(555) 123-4567"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  className={`${XL_INPUT} pl-14`}
+                />
+              </div>
+              {phone.trim() && !phoneValid && (
+                <p className="mt-1 text-xs text-red-500">
+                  Enter a valid US phone number
+                </p>
+              )}
+            </div>
+            <Button
+              size="lg"
+              onClick={submitEmailPhone}
+              disabled={!phoneValid || saving}
+              className="mt-5 h-14 w-full text-base"
+            >
+              {saving ? "Sending code\u2026" : "Send code"}
+            </Button>
+          </div>
+        )}
+
+        {step === "email_phone_otp" && (
+          <div>
+            <Label htmlFor="ep-otp" className="text-base font-semibold">
+              Enter the 6-digit code
+            </Label>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sent to {parsed?.formatNational() ?? phone}.
+            </p>
+            <Input
+              id="ep-otp"
+              value={otp}
+              onChange={(e) =>
+                setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              placeholder="123456"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              className={`${XL_INPUT} mt-4 text-center tracking-[0.4em]`}
+            />
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => {
+                  setOtp("");
+                  setStep("email_phone");
+                }}
+              >
+                Back
+              </Button>
+              <Button
+                size="lg"
+                onClick={verifyEmailPhoneOtp}
+                disabled={otp.length < 6 || saving}
+                className="flex-1 h-14 text-base"
+              >
                 {saving ? "Verifying\u2026" : "Finish sign up"}
               </Button>
             </div>
@@ -584,6 +765,12 @@ function clerkError(e: unknown): string | null {
   const errs = (e as { errors?: Array<{ message?: string; longMessage?: string }> }).errors;
   const first = errs?.[0];
   return first?.longMessage || first?.message || (e instanceof Error ? e.message : null);
+}
+
+function clerkErrorCode(e: unknown): string | null {
+  if (!e || typeof e !== "object") return null;
+  const errs = (e as { errors?: Array<{ code?: string }> }).errors;
+  return errs?.[0]?.code ?? null;
 }
 
 function GoogleIcon({ className }: { className?: string }) {
