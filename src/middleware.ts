@@ -51,7 +51,14 @@ export default function middleware(request: NextRequest) {
 
   return clerkMiddleware(async (auth, req) => {
     if (!isPublicRoute(req)) {
-      await auth.protect();
+      // Unauthenticated viewers get redirected to /sign-in with the
+      // original URL stashed in `redirect_url` so they land back
+      // where they started after auth. Default auth.protect() 404s
+      // in production, which hides the sign-in option entirely.
+      const { userId, redirectToSignIn } = await auth();
+      if (!userId) {
+        return redirectToSignIn({ returnBackUrl: req.url });
+      }
     }
     return addNoStoreHeaders(NextResponse.next());
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
