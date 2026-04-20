@@ -625,11 +625,11 @@ function MultiHopView({
           },
         ];
 
-  // Orient every chain you-first. Then sort by degree ascending (so
-  // the closest paths surface first) and, within same-degree ties,
-  // by composite strength descending. This matches Loren's ask:
-  // "closest connection on top, then 4° connections under their
-  // own heading."
+  // Orient every chain you-first, filter to the viewer's actual
+  // degree (i.e. only show 3° paths on a 3° host, only 4° paths on
+  // a 4° host — longer chains between two nodes aren't a shorter
+  // connection, so they'd just add noise), then sort by composite
+  // strength descending.
   const chainsYouFirst = rawChains
     .map((c) => ({
       nodes: isIncoming ? [...c.nodes].reverse() : c.nodes,
@@ -639,19 +639,12 @@ function MultiHopView({
       degree: c.degree,
       composite: c.composite,
     }))
-    .sort((a, b) => {
-      if (a.degree !== b.degree) return a.degree - b.degree;
-      return b.composite - a.composite;
-    });
+    .filter((c) => c.degree === data.degree)
+    .sort((a, b) => b.composite - a.composite);
 
-  // Group chains by degree so each group gets its own heading.
-  const byDegree = new Map<number, typeof chainsYouFirst>();
-  for (const chain of chainsYouFirst) {
-    const existing = byDegree.get(chain.degree) ?? [];
-    existing.push(chain);
-    byDegree.set(chain.degree, existing);
-  }
-  const groups = [...byDegree.entries()].sort((a, b) => a[0] - b[0]);
+  // Single-degree view now — one group per render.
+  const groups: Array<[number, typeof chainsYouFirst]> =
+    chainsYouFirst.length > 0 ? [[data.degree, chainsYouFirst]] : [];
 
   // Badge score for multi-hop = mean(hop strengths) × dampen, picking
   // the strongest chain within the viewer's actual degree bucket
@@ -700,37 +693,21 @@ function MultiHopView({
         </div>
       )}
 
-      <div className="mt-3 space-y-3">
-        {groups.map(([degree, rows]) => (
-          <div key={degree}>
-            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {rows.length} {degreeOrdinal(degree)}&deg;{" "}
-              {rows.length === 1 ? "path" : "paths"}
-              {degree === data.degree && " · closest"}
-            </div>
-            <div className="space-y-2">
-              {rows.map((chain) => {
-                counter += 1;
-                return (
-                  <ChainRow
-                    key={counter}
-                    chain={chain}
-                    viewerAvatar={viewer.avatar_url}
-                    label={`Path ${counter}`}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-      {typeof data.chainsTruncated === "number" &&
-        data.chainsTruncated > 0 && (
-          <div className="mt-2 text-[11px] text-muted-foreground">
-            + {data.chainsTruncated} more{" "}
-            {data.chainsTruncated === 1 ? "path" : "paths"} not shown
-          </div>
+      <div className="mt-3 space-y-2">
+        {groups.map(([, rows]) =>
+          rows.map((chain) => {
+            counter += 1;
+            return (
+              <ChainRow
+                key={counter}
+                chain={chain}
+                viewerAvatar={viewer.avatar_url}
+                label={`Path ${counter}`}
+              />
+            );
+          })
         )}
+      </div>
 
       <ShowMathToggle on={showMath} onToggle={() => setShowMath((v) => !v)} />
       {showMath && (

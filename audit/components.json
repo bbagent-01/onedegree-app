@@ -1,0 +1,462 @@
+{
+  "priority_components": [
+    {
+      "name": "TrustTag",
+      "file": "src/components/trust/trust-tag.tsx",
+      "used_by_routes": ["/listings/[id]", "/browse", "/inbox", "/listings/[id]/reserve", "/dashboard/network"],
+      "sizes": ["micro", "medium"],
+      "states": [
+        "1deg_direct (purple pill + score)",
+        "2deg_connected (emerald pill + shield + score + connector dots)",
+        "3deg_distant (mustard pill + chain + score)",
+        "4deg_unreachable (zinc pill + chain, no score)",
+        "0deg_not_connected (zinc not-connected state)",
+        "loading",
+        "host_view (no trust to self)"
+      ],
+      "props": ["size", "score", "degree", "direct", "connectorPaths", "hostRating", "hostReviewCount", "showSubtext", "className"],
+      "known_issues": [
+        "Inconsistent terminology: 'Trust Score' vs 'vouch score' vs '1° score' across components",
+        "No 'loading' skeleton state documented in code — relies on optional props"
+      ]
+    },
+    {
+      "name": "ConnectionPopover / ConnectionBreakdown",
+      "file": "src/components/trust/connection-breakdown.tsx",
+      "used_by_routes": ["/listings/[id]", "/profile/[id]", "/inbox"],
+      "sizes": ["popover", "mobile_sheet"],
+      "states": [
+        "direct_forward (viewer vouched target)",
+        "direct_reverse (target vouched viewer)",
+        "connected_multi_hop (bridges/paths listed)",
+        "not_connected (0°)",
+        "4deg_chain_only (no score, only chain)"
+      ],
+      "props": ["targetUserId", "isSelf", "direction", "children"],
+      "known_issues": [
+        "MultiHopView is nested as internal function (lines 555-729) — hard to test/reuse",
+        "Two direction labels: 'vouch score' (line 269) and 'Trust Score' (line 305) — inconsistent"
+      ]
+    },
+    {
+      "name": "MultiHopView",
+      "file": "src/components/trust/connection-breakdown.tsx (internal, lines 555-729)",
+      "used_by_routes": ["/listings/[id]", "/profile/[id]"],
+      "sizes": [],
+      "states": ["3degree_paths", "4degree_chain_only", "empty"],
+      "props": ["data"],
+      "known_issues": ["Not exported — can't be composed into other surfaces"]
+    },
+    {
+      "name": "ConnectorAvatars",
+      "file": "src/components/trust/connector-avatars.tsx",
+      "used_by_routes": ["/listings/[id]"],
+      "sizes": ["custom via size prop (px)"],
+      "states": ["known_connector", "anonymous_intermediary", "overflow_count"],
+      "props": ["connectors", "size", "className"],
+      "known_issues": [
+        "Feedback rule: avatars must hyperlink to /profile/[id] — verify this is honored here"
+      ]
+    },
+    {
+      "name": "ConnectorDots",
+      "file": "src/components/trust/connector-dots.tsx",
+      "used_by_routes": ["/listings/[id]"],
+      "sizes": [],
+      "states": ["1-5 dots based on connector count"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "ConnectionPath",
+      "file": "src/components/trust/connection-path.tsx",
+      "used_by_routes": ["/profile/[id]"],
+      "sizes": [],
+      "states": ["direct", "multi_hop", "none"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "ShieldIcon",
+      "file": "src/components/trust/shield-icon.tsx",
+      "used_by_routes": ["/listings/[id]", "/browse"],
+      "sizes": [],
+      "states": ["2deg only"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "NetworkSection",
+      "file": "src/components/trust/network-section.tsx",
+      "used_by_routes": ["/dashboard/network"],
+      "sizes": [],
+      "states": [
+        "loading",
+        "empty_0_connections",
+        "has_1deg_connections",
+        "mutual_connections_shown"
+      ],
+      "props": [],
+      "known_issues": [
+        "CHECK: does 0-connection state surface a CTA to invite?"
+      ]
+    },
+    {
+      "name": "VouchModal",
+      "file": "src/components/trust/vouch-modal.tsx",
+      "used_by_routes": ["/profile/[id]", "/trips/[bookingId]", "/vouch"],
+      "sizes": ["desktop_dialog", "mobile_sheet"],
+      "states": [
+        "type_selection (standard vs inner_circle)",
+        "years_known (<1, 1-3, 3-5, 5-10, 10+)",
+        "confirmation",
+        "remove_confirmation"
+      ],
+      "props": ["open", "onOpenChange", "target", "existingVouch", "isPostStay", "sourceBookingId", "onVouchSaved", "onVouchRemoved"],
+      "known_issues": [
+        "Line 477: potential a11y issue with vouch-power explanation toggle",
+        "Confirmation checkbox text references 'guest rating will affect my vouch power' — direction-drift risk"
+      ]
+    },
+    {
+      "name": "VouchButton",
+      "file": "src/components/trust/vouch-button.tsx",
+      "used_by_routes": ["/profile/[id]"],
+      "sizes": ["sm", "default", "lg"],
+      "states": ["initial_load", "vouch_exists (Update vouch)", "no_vouch (Vouch)"],
+      "props": ["targetId", "targetName", "targetAvatar", "isOwnProfile", "isPostStay", "sourceBookingId", "variant", "size", "className", "onVouchSaved"],
+      "known_issues": []
+    },
+    {
+      "name": "TrustGate",
+      "file": "src/components/trust/trust-gate.tsx",
+      "used_by_routes": ["/browse"],
+      "sizes": [],
+      "states": ["trusted", "under_gate", "disconnected"],
+      "props": ["userScore", "requiredScore", "mutualConnections", "className"],
+      "known_issues": ["Uses 'Trust Score' copy — inconsistent with other surfaces using '1° score'"]
+    },
+    {
+      "name": "RequestIntroDialog",
+      "file": "src/components/trust/request-intro-dialog.tsx",
+      "used_by_routes": ["/listings/[id]"],
+      "sizes": ["desktop_dialog", "mobile_sheet"],
+      "states": [
+        "connector_selection",
+        "message_composition",
+        "anonymous_mode",
+        "submitted",
+        "error"
+      ],
+      "props": ["open", "onOpenChange", "listingId", "listingTitle", "hostName", "mutualConnections"],
+      "known_issues": [
+        "CHECK: does listener see post-submit confirmation? Is there an inbox trail?"
+      ]
+    },
+    {
+      "name": "PostStayVouchBanner",
+      "file": "src/components/trust/post-stay-vouch-banner.tsx",
+      "used_by_routes": ["/trips/[bookingId]"],
+      "sizes": [],
+      "states": ["visible", "dismissed"],
+      "props": ["bookingId", "guestName"],
+      "known_issues": [
+        "Banner is guest-side only — host-side post-stay vouch prompt may be missing (inverse flow gap)"
+      ]
+    },
+    {
+      "name": "ListingCard",
+      "file": "src/components/listing-card.tsx",
+      "used_by_routes": ["/browse (via live-listing-card wrapper)", "/wishlists/[id]"],
+      "sizes": [],
+      "states": ["favorited", "unfavorited", "loading (skeleton)", "carousel_active"],
+      "props": ["id", "title", "location", "images", "pricePerNight", "rating", "reviewCount", "isFavorited", "trustScore", "connectionLabel", "category", "onFavoriteToggle"],
+      "known_issues": [
+        "Duplicate variant listing-card-b.tsx exists for /dashboard/traveling — potential dead code risk"
+      ]
+    },
+    {
+      "name": "ListingCardB",
+      "file": "src/components/listing-card-b.tsx",
+      "used_by_routes": ["/dashboard/traveling"],
+      "sizes": [],
+      "states": ["saved", "unsaved", "carousel_active"],
+      "props": ["listing", "className"],
+      "known_issues": [
+        "Dead code: declared but unused emblaApi state variable",
+        "Near-duplicate of listing-card.tsx — divergence risk"
+      ]
+    },
+    {
+      "name": "LiveListingCard",
+      "file": "src/components/browse/live-listing-card.tsx",
+      "used_by_routes": ["/browse", "/wishlists/[id]"],
+      "sizes": [],
+      "states": [
+        "full_access (clickable to detail)",
+        "preview_only (opens GatedListingDialog)",
+        "gated_no_preview (hidden/locked card)"
+      ],
+      "props": ["listing", "initialSaved", "onSaveChange", "trust", "isSignedIn"],
+      "known_issues": [
+        "Lines 103-112: preview_blurs parallel array — fragile if length mismatches photos",
+        "Three-branch conditional (lines 122-252, 261-332, 337-442) for access states — consider refactor"
+      ]
+    },
+    {
+      "name": "GatedListingView",
+      "file": "src/components/listing/gated-listing-view.tsx",
+      "used_by_routes": ["/listings/[id]"],
+      "sizes": [],
+      "states": ["preview_mode", "gated_preview", "host_identity_hidden"],
+      "props": ["listing", "trust", "access", "isSignedIn"],
+      "known_issues": [
+        "Line 374-399: getAccessMessage has complex conditional fallback to legacy rule — risk of drift",
+        "Copy uses 'Trust score of N required' — case-inconsistent with 'Trust Score' elsewhere"
+      ]
+    },
+    {
+      "name": "GatedListingCTA",
+      "file": "src/components/listing/gated-listing-cta.tsx",
+      "used_by_routes": ["/listings/[id]"],
+      "sizes": [],
+      "states": ["message_host", "request_intro", "no_intro_allowed", "sign_in_prompt"],
+      "props": ["listingId", "listingTitle", "hostName", "isSignedIn", "canMessage", "canRequestIntro", "mutualConnections"],
+      "known_issues": []
+    },
+    {
+      "name": "GatedListingDialog",
+      "file": "src/components/browse/gated-listing-dialog.tsx",
+      "used_by_routes": ["/browse"],
+      "sizes": ["dialog", "mobile_sheet"],
+      "states": ["signed_in", "signed_out"],
+      "props": ["open", "onOpenChange", "listing", "trust", "isSignedIn"],
+      "known_issues": []
+    },
+    {
+      "name": "BookingSidebar",
+      "file": "src/components/listing/booking-sidebar.tsx",
+      "used_by_routes": ["/listings/[id]"],
+      "sizes": ["desktop_sticky", "mobile_fixed_bottom"],
+      "states": [
+        "dates_selected (calc price)",
+        "dates_unselected (price range shown)",
+        "range_invalid (blocked)",
+        "reservation_possible (CTA active)"
+      ],
+      "props": ["listingId", "pricePerNight", "minNights", "maxNights", "avgRating", "reviewCount", "blockedRanges", "trust"],
+      "known_issues": [
+        "Under the new off-platform model, 'Reserve' flow may be orphaned — CTA text should be 'Contact Host' only"
+      ]
+    },
+    {
+      "name": "PhotoGallery",
+      "file": "src/components/listing/photo-gallery.tsx",
+      "used_by_routes": ["/listings/[id]"],
+      "sizes": [],
+      "states": ["grid", "lightbox_open", "carousel_navigating"],
+      "props": ["photos", "title"],
+      "known_issues": []
+    },
+    {
+      "name": "AvailabilityCalendar",
+      "file": "src/components/listing/availability-calendar.tsx",
+      "used_by_routes": ["/listings/[id]", "/design"],
+      "sizes": ["1-month", "2-month"],
+      "states": ["date_range_selected", "blocked_dates", "empty"],
+      "props": ["value", "onChange", "blockedRanges", "numberOfMonths"],
+      "known_issues": []
+    },
+    {
+      "name": "ReviewsSection",
+      "file": "src/components/listing/reviews-section.tsx",
+      "used_by_routes": ["/listings/[id]"],
+      "sizes": [],
+      "states": ["has_reviews", "empty"],
+      "props": ["reviews", "hostName"],
+      "known_issues": []
+    },
+    {
+      "name": "BrowseLayout",
+      "file": "src/components/browse/browse-layout.tsx",
+      "used_by_routes": ["/browse"],
+      "sizes": ["desktop_grid", "mobile_vertical", "map_split"],
+      "states": ["filters_open", "map_view", "list_view"],
+      "props": ["searchQuery", "filters", "listings", "trust", "isSignedIn"],
+      "known_issues": []
+    },
+    {
+      "name": "BrowseGrid",
+      "file": "src/components/browse/browse-grid.tsx",
+      "used_by_routes": ["/browse"],
+      "sizes": [],
+      "states": ["empty", "populated", "loading_skeleton"],
+      "props": ["listings"],
+      "known_issues": []
+    },
+    {
+      "name": "InboxList",
+      "file": "src/components/inbox/inbox-list.tsx",
+      "used_by_routes": ["/inbox", "/inbox/[threadId]"],
+      "sizes": ["desktop_sidebar", "mobile_fullscreen"],
+      "states": ["intro_request", "message", "unread", "read", "empty"],
+      "props": ["threads", "currentUserId", "selectedId"],
+      "known_issues": [
+        "Lines 140-144: media query check duplicated — extract to hook"
+      ]
+    },
+    {
+      "name": "ThreadView",
+      "file": "src/components/inbox/thread-view.tsx",
+      "used_by_routes": ["/inbox/[threadId]"],
+      "sizes": [],
+      "states": ["composing", "sending", "error", "read_receipts"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "ReserveForm",
+      "file": "src/components/booking/reserve-form.tsx",
+      "used_by_routes": ["/listings/[id]/reserve"],
+      "sizes": [],
+      "states": ["editing", "submitting", "success", "error"],
+      "props": [],
+      "known_issues": [
+        "Route itself likely orphaned post-C5 — off-platform model means no on-platform booking",
+        "Copy still says 'Reserve' in parts and 'Contact host' in others"
+      ]
+    },
+    {
+      "name": "ProfileEditForm",
+      "file": "src/components/profile/profile-edit-form.tsx",
+      "used_by_routes": ["/profile/edit"],
+      "sizes": [],
+      "states": ["editing", "saving", "error", "success"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "ProfileReviews",
+      "file": "src/components/profile/profile-reviews.tsx",
+      "used_by_routes": ["/profile/[id]"],
+      "sizes": [],
+      "states": ["has_reviews", "empty"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "EditListingForm",
+      "file": "src/components/hosting/edit-listing-form.tsx",
+      "used_by_routes": ["/hosting/listings/[id]/edit"],
+      "sizes": [],
+      "states": ["editing", "saving_section", "error"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "ReviewModal (trips)",
+      "file": "src/components/trips/review-modal.tsx",
+      "used_by_routes": ["/trips/[bookingId]"],
+      "sizes": ["dialog"],
+      "states": ["host_rating", "listing_rating", "submitting", "submitted"],
+      "props": [],
+      "known_issues": [
+        "Does this capture all three rating types (guest, host, listing)? Guest rating is host-side only — verify inverse exists"
+      ]
+    },
+    {
+      "name": "HostReviewModal",
+      "file": "src/components/hosting/host-review-modal.tsx",
+      "used_by_routes": ["/hosting"],
+      "sizes": [],
+      "states": ["guest_rating", "submitting"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "PaymentArrangementCard",
+      "file": "src/components/trips/payment-arrangement-card.tsx",
+      "used_by_routes": ["/trips/[bookingId]"],
+      "sizes": [],
+      "states": ["pending", "confirmed", "declined"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "DashboardTabs",
+      "file": "src/components/dashboard/dashboard-tabs.tsx",
+      "used_by_routes": ["/dashboard"],
+      "sizes": [],
+      "states": ["hosting", "network", "traveling"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "DesktopNav",
+      "file": "src/components/layout/desktop-nav.tsx",
+      "used_by_routes": ["(global)"],
+      "sizes": [],
+      "states": ["signed_in", "signed_out", "host_mode", "guest_mode"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "MobileNav",
+      "file": "src/components/layout/mobile-nav.tsx",
+      "used_by_routes": ["(global)"],
+      "sizes": [],
+      "states": ["bottom_fixed", "signed_in", "signed_out"],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "Footer",
+      "file": "src/components/layout/footer.tsx",
+      "used_by_routes": ["(global)"],
+      "sizes": [],
+      "states": [],
+      "props": [],
+      "known_issues": []
+    },
+    {
+      "name": "AccountMenu",
+      "file": "src/components/layout/account-menu.tsx",
+      "used_by_routes": ["(global)"],
+      "sizes": [],
+      "states": ["signed_in", "signed_out"],
+      "props": [],
+      "known_issues": []
+    }
+  ],
+  "other_components": [
+    { "name": "NavCenterPortal", "file": "src/components/layout/nav-center-portal.tsx", "used_by_routes": ["(global)"] },
+    { "name": "CategoryFilterBar", "file": "src/components/category-filter-bar.tsx", "used_by_routes": ["/browse"] },
+    { "name": "FilterSheet", "file": "src/components/browse/filter-sheet.tsx", "used_by_routes": ["/browse"] },
+    { "name": "SearchBar", "file": "src/components/browse/search-bar.tsx", "used_by_routes": ["/browse"] },
+    { "name": "SortDropdown", "file": "src/components/browse/sort-dropdown.tsx", "used_by_routes": ["/browse"] },
+    { "name": "PriceRangeSlider", "file": "src/components/browse/price-range-slider.tsx", "used_by_routes": ["/browse"] },
+    { "name": "MapView", "file": "src/components/browse/map-view.tsx", "used_by_routes": ["/browse"] },
+    { "name": "MobileSearchPill", "file": "src/components/browse/mobile-search-pill.tsx", "used_by_routes": ["/browse"] },
+    { "name": "DescriptionSection", "file": "src/components/listing/description-section.tsx", "used_by_routes": ["/listings/[id]"] },
+    { "name": "AmenitiesSection", "file": "src/components/listing/amenities-section.tsx", "used_by_routes": ["/listings/[id]"] },
+    { "name": "LocationMapClient", "file": "src/components/listing/location-map-client.tsx", "used_by_routes": ["/listings/[id]"] },
+    { "name": "LocationMap", "file": "src/components/listing/location-map.tsx", "used_by_routes": ["/listings/[id]"] },
+    { "name": "StickyAnchorBar", "file": "src/components/listing/sticky-anchor-bar.tsx", "used_by_routes": ["/listings/[id]"] },
+    { "name": "AvailabilityCalendarWrapper", "file": "src/components/listing/availability-calendar-wrapper.tsx", "used_by_routes": ["/hosting/listings/[id]/edit"] },
+    { "name": "AvailabilityEditor", "file": "src/components/hosting/availability-editor.tsx", "used_by_routes": ["/hosting/listings/[id]/edit"] },
+    { "name": "PhotoUploader", "file": "src/components/hosting/photo-uploader.tsx", "used_by_routes": ["/hosting/create", "/hosting/listings/[id]/edit"] },
+    { "name": "LocationPreview", "file": "src/components/hosting/location-preview.tsx", "used_by_routes": ["/hosting/create", "/hosting/listings/[id]/edit"] },
+    { "name": "ListingsSection", "file": "src/components/hosting/listings-section.tsx", "used_by_routes": ["/hosting"] },
+    { "name": "StatsCards", "file": "src/components/hosting/stats-cards.tsx", "used_by_routes": ["/hosting"] },
+    { "name": "EarningsSection", "file": "src/components/hosting/earnings-section.tsx", "used_by_routes": ["/hosting"] },
+    { "name": "ReservationsSection", "file": "src/components/hosting/reservations-section.tsx", "used_by_routes": ["/hosting"] },
+    { "name": "TripsList", "file": "src/components/trips/trips-list.tsx", "used_by_routes": ["/trips", "/dashboard/traveling"] },
+    { "name": "TripDetailActions", "file": "src/components/trips/trip-detail-actions.tsx", "used_by_routes": ["/trips/[bookingId]"] },
+    { "name": "WishlistActions", "file": "src/components/wishlist/wishlist-actions.tsx", "used_by_routes": ["/wishlists"] },
+    { "name": "SaveToWishlistDialog", "file": "src/components/wishlist/save-to-wishlist-dialog.tsx", "used_by_routes": ["/browse", "/wishlists/[id]"] },
+    { "name": "NotificationsForm", "file": "src/components/settings/notifications-form.tsx", "used_by_routes": ["/settings/notifications"] },
+    { "name": "DeactivateButton", "file": "src/components/settings/deactivate-button.tsx", "used_by_routes": ["/settings"] },
+    { "name": "ListingCardSkeleton", "file": "src/components/listing-card-skeleton.tsx", "used_by_routes": ["/browse"] },
+    { "name": "ListingGrid", "file": "src/components/listing-grid.tsx", "used_by_routes": ["/dashboard/traveling"] }
+  ]
+}
