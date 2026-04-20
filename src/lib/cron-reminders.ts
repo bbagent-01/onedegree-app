@@ -91,9 +91,44 @@ export async function runReminderSweep(): Promise<CronResult> {
       .not("check_out", "is", null);
     if (error) throw error;
 
+    // Pre-resolve which bookings already have a guest-side review —
+    // the cron's primary gate was review_prompt_sent_at = null,
+    // which meant seed data and anything otherwise pre-populated
+    // (stays that landed with ratings straight from the enrichment
+    // seed, or a Loren-backfilled historical stay) fired a
+    // duplicate "leave a review" email even though the review had
+    // already been submitted. We'll skip those AND mark them sent
+    // so the next sweep doesn't re-check.
+    const dueIds = (dueReview || []).map((b) => b.id as string);
+    let alreadyReviewed = new Set<string>();
+    if (dueIds.length > 0) {
+      const { data: reviewedRows } = await supabase
+        .from("stay_confirmations")
+        .select("contact_request_id, guest_rating")
+        .in("contact_request_id", dueIds)
+        .not("guest_rating", "is", null);
+      alreadyReviewed = new Set(
+        (reviewedRows || [])
+          .map((r) => r.contact_request_id as string)
+          .filter(Boolean)
+      );
+    }
+
     for (const booking of (dueReview || []) as AcceptedBooking[]) {
       // Belt-and-suspenders: only fire if check_out is actually <= today
       if (!booking.check_out || booking.check_out > todayISO) continue;
+
+      if (alreadyReviewed.has(booking.id)) {
+        // Silently mark sent — no email, no system message. This
+        // keeps the sweep idempotent on stays that were already
+        // reviewed before the cron ever saw them.
+        await supabase
+          .from("contact_requests")
+          .update({ review_prompt_sent_at: new Date().toISOString() })
+          .eq("id", booking.id);
+        continue;
+      }
+
       try {
         await fireReviewPrompt(booking);
         result.reviewPrompts.fired += 1;
