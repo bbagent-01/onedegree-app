@@ -179,7 +179,10 @@ export function InboxList({ threads, selectedId }: Props) {
                   <DropdownMenuItem
                     key={opt.key}
                     disabled={disabled}
-                    onSelect={() => {
+                    onClick={() => {
+                      // base-ui's MenuItem fires onClick (not
+                      // onSelect — that's the Radix API). closeOnClick
+                      // defaults to true so the menu closes itself.
                       setMailbox(opt.key);
                       setTab("mailbox");
                     }}
