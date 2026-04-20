@@ -68,9 +68,22 @@ export default function PhoneSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: e164 }),
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(body.message || "Couldn't send code");
+      // Surface the server's actual error so we can diagnose instead
+      // of hiding every failure behind "Couldn't send code".
+      const text = await res.text();
+      let body: { ok?: boolean; error?: string; message?: string } = {};
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = {};
+      }
+      if (!res.ok || !body.ok) {
+        const detail =
+          body.message ||
+          body.error ||
+          (text && text.length < 200 ? text : "") ||
+          `HTTP ${res.status}`;
+        throw new Error(detail);
       }
       setStep("verify");
       toast.success("Code sent to " + parsed!.formatNational());
