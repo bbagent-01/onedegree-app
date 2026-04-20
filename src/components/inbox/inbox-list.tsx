@@ -41,27 +41,40 @@ function relTime(iso: string) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-type Filter = "messages" | "intros";
+type Filter = "all" | "hosting" | "traveling" | "support";
 
 export function InboxList({ threads, selectedId }: Props) {
   const router = useRouter();
-  const [filter, setFilter] = useState<Filter>("messages");
+  const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
 
-  // Split threads by intro-request status first. Anything that's an
-  // intro request and not yet promoted lives in the Intro Requests
-  // tab; everything else is in Messages.
-  const introThreads = useMemo(
-    () => threads.filter((t) => t.is_intro_request),
+  // Filter tab counts. Split by role (host side vs guest side) rather
+  // than intro vs not — intros now render as pills on individual rows
+  // and stay in whichever tab their role maps to.
+  //   Hosting   — role === "host"   (Loren is the host, someone is
+  //                                  asking about Loren's listing)
+  //   Traveling — role === "guest"  (Loren is the guest)
+  //   Support   — reserved; not wired up yet, empty for now
+  //   All       — everything in Hosting + Traveling
+  const hostingThreads = useMemo(
+    () => threads.filter((t) => t.role === "host"),
     [threads]
   );
-  const messageThreads = useMemo(
-    () => threads.filter((t) => !t.is_intro_request),
+  const travelingThreads = useMemo(
+    () => threads.filter((t) => t.role === "guest"),
     [threads]
   );
+  const supportThreads = useMemo(() => [] as typeof threads, []);
 
   const filtered = useMemo(() => {
-    const source = filter === "intros" ? introThreads : messageThreads;
+    const source =
+      filter === "hosting"
+        ? hostingThreads
+        : filter === "traveling"
+          ? travelingThreads
+          : filter === "support"
+            ? supportThreads
+            : threads;
     return source.filter((t) => {
       if (query.trim()) {
         const q = query.toLowerCase();
@@ -70,7 +83,14 @@ export function InboxList({ threads, selectedId }: Props) {
       }
       return true;
     });
-  }, [messageThreads, introThreads, filter, query]);
+  }, [threads, hostingThreads, travelingThreads, supportThreads, filter, query]);
+
+  const tabs: { key: Filter; label: string; count: number }[] = [
+    { key: "all", label: "All", count: threads.length },
+    { key: "hosting", label: "Hosting", count: hostingThreads.length },
+    { key: "traveling", label: "Traveling", count: travelingThreads.length },
+    { key: "support", label: "Support", count: supportThreads.length },
+  ];
 
   return (
     <div className="flex h-full flex-col">
@@ -94,28 +114,21 @@ export function InboxList({ threads, selectedId }: Props) {
             variant="line"
             className="h-auto w-full justify-start gap-4 border-b border-border !rounded-none bg-transparent p-0"
           >
-            <TabsTrigger
-              value="messages"
-              className="!h-auto !flex-none !px-0 pb-2 text-sm !rounded-none data-active:!bg-transparent data-active:after:!opacity-100 after:!bottom-[-1px] after:!h-0.5 after:!bg-foreground"
-            >
-              Messages
-              {messageThreads.length > 0 && (
-                <span className="ml-1 text-xs text-muted-foreground">
-                  {messageThreads.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger
-              value="intros"
-              className="!h-auto !flex-none !px-0 pb-2 text-sm !rounded-none data-active:!bg-transparent data-active:after:!opacity-100 after:!bottom-[-1px] after:!h-0.5 after:!bg-foreground"
-            >
-              Intro Requests
-              {introThreads.length > 0 && (
-                <span className="ml-1 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-800">
-                  {introThreads.length}
-                </span>
-              )}
-            </TabsTrigger>
+            {tabs.map((t) => (
+              <TabsTrigger
+                key={t.key}
+                value={t.key}
+                disabled={t.key === "support" && t.count === 0}
+                className="!h-auto !flex-none !px-0 pb-2 text-sm !rounded-none data-active:!bg-transparent data-active:after:!opacity-100 after:!bottom-[-1px] after:!h-0.5 after:!bg-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t.label}
+                {t.count > 0 && (
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    {t.count}
+                  </span>
+                )}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
       </div>

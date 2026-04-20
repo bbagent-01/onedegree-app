@@ -8,6 +8,7 @@ import {
 } from "@/lib/messaging-data";
 import { InboxList } from "@/components/inbox/inbox-list";
 import { ThreadView } from "@/components/inbox/thread-view";
+import { ReservationSidebar } from "@/components/inbox/reservation-sidebar";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -55,7 +56,7 @@ export default async function ThreadPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div className="grid h-[calc(100vh-160px)] grid-cols-1 overflow-hidden md:h-[calc(100vh-180px)] md:grid-cols-[360px_1fr] md:rounded-xl md:border md:border-border md:bg-white">
+      <div className="grid h-[calc(100vh-160px)] grid-cols-1 overflow-hidden md:h-[calc(100vh-180px)] md:grid-cols-[360px_1fr] md:rounded-xl md:border md:border-border md:bg-white xl:grid-cols-[320px_1fr_340px]">
         {/* Sidebar — hidden on mobile, visible on desktop */}
         <div className="hidden border-r border-border md:block md:overflow-y-auto">
           <InboxList
@@ -64,7 +65,7 @@ export default async function ThreadPage({ params }: PageProps) {
             selectedId={threadId}
           />
         </div>
-        {/* Thread — full width on mobile, right column on desktop */}
+        {/* Thread — full width on mobile, middle column on desktop */}
         <div className="flex flex-col overflow-hidden">
           <ThreadView
             thread={thread}
@@ -72,6 +73,10 @@ export default async function ThreadPage({ params }: PageProps) {
             currentUserName={currentUser.name || ""}
             currentUserAvatar={currentUser.avatar_url}
           />
+        </div>
+        {/* Reservation sidebar — xl+ only. */}
+        <div className="hidden xl:flex xl:flex-col xl:overflow-hidden">
+          <ReservationSidebar thread={thread} currentUserId={currentUser.id} />
         </div>
       </div>
     </div>

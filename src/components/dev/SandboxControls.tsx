@@ -57,7 +57,7 @@ export function SandboxControls({ tokens }: Props) {
           live in <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">sessionStorage</code>{" "}
           only — closing the tab clears them. Canonical files in{" "}
           <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12px]">tailwind.config.ts</code>{" "}
-          are never touched. When you're happy, click{" "}
+          are never touched. When you&apos;re happy, click{" "}
           <strong>Export as CSS diff</strong> to copy the changes for
           permanent adoption.
         </p>

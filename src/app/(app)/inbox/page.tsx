@@ -4,6 +4,7 @@ import { MessageCircle } from "lucide-react";
 import { getCurrentUser, getInboxForUser, getThreadDetail } from "@/lib/messaging-data";
 import { InboxList } from "@/components/inbox/inbox-list";
 import { ThreadView } from "@/components/inbox/thread-view";
+import { ReservationSidebar } from "@/components/inbox/reservation-sidebar";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -48,7 +49,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
           </Link>
         </div>
       ) : (
-        <div className="grid h-[calc(100vh-180px)] grid-cols-1 overflow-hidden rounded-xl border border-border bg-white md:grid-cols-[360px_1fr]">
+        <div className="grid h-[calc(100vh-180px)] grid-cols-1 overflow-hidden rounded-xl border border-border bg-white md:grid-cols-[360px_1fr] xl:grid-cols-[320px_1fr_340px]">
           {/* Left column: list. Hidden on mobile when a thread is in URL. */}
           <div className="border-r border-border md:overflow-y-auto">
             <InboxList
@@ -57,7 +58,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
               selectedId={selectedId}
             />
           </div>
-          {/* Right column: thread. Hidden on mobile (mobile uses /inbox/[id]). */}
+          {/* Middle column: thread. Hidden on mobile (mobile uses /inbox/[id]). */}
           <div className="hidden md:flex md:flex-col">
             {selected ? (
               <ThreadView
@@ -73,6 +74,18 @@ export default async function InboxPage({ searchParams }: PageProps) {
               </div>
             )}
           </div>
+          {/* Right column: reservation sidebar. Visible at xl+ (≥1280px)
+              so the 2-column midtable view stays usable on narrower
+              desktops. Mobile + narrow desktop fall back to the trip
+              detail page for the same info. */}
+          {selected && (
+            <div className="hidden xl:flex xl:flex-col xl:overflow-hidden">
+              <ReservationSidebar
+                thread={selected}
+                currentUserId={currentUser.id}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

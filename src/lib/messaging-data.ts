@@ -65,7 +65,29 @@ export interface ThreadDetail extends InboxThread {
     check_out: string | null;
     guest_count: number;
     total_estimate: number | null;
+    message: string | null;
+    responded_at: string | null;
+    host_response_message: string | null;
   } | null;
+  /**
+   * Extra fields the reservation sidebar renders. Optional so legacy
+   * callers of ThreadDetail that don't need them stay compatible;
+   * `getThreadDetail` always populates them.
+   */
+  reservation_sidebar?: {
+    listing_price_min: number | null;
+    listing_price_max: number | null;
+    listing_rating_avg: number | null;
+    listing_review_count: number;
+    other_user_host_rating: number | null;
+    other_user_guest_rating: number | null;
+    other_user_review_count: number;
+    other_user_is_host: boolean;
+    other_user_joined_year: number | null;
+    other_user_location: string | null;
+    stay_confirmation_id: string | null;
+    stay_reviewed_by_me: boolean;
+  };
 }
 
 /** Resolves the current Clerk user to a Track B users row.
@@ -269,12 +291,16 @@ export async function getThreadDetail(
       .order("created_at", { ascending: true }),
     supabase
       .from("users")
-      .select("id, name, avatar_url")
+      .select(
+        "id, name, avatar_url, host_rating, guest_rating, host_review_count, guest_review_count, location, created_at"
+      )
       .eq("id", otherId)
       .single(),
     supabase
       .from("listings")
-      .select("id, title, area_name")
+      .select(
+        "id, title, area_name, price_min, price_max, avg_listing_rating, listing_review_count"
+      )
       .eq("id", thread.listing_id)
       .single(),
     supabase
@@ -286,11 +312,45 @@ export async function getThreadDetail(
     thread.contact_request_id
       ? supabase
           .from("contact_requests")
-          .select("id, status, check_in, check_out, guest_count, total_estimate")
+          .select(
+            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message"
+          )
           .eq("id", thread.contact_request_id)
           .single()
       : Promise.resolve({ data: null }),
   ]);
+
+  // Sidebar-only: check if the other user owns any listings (→
+  // "also a host" label) and whether this contact_request already
+  // has a stay_confirmation + whether the current user has already
+  // rated it. Both are cheap count-style queries; leave them out
+  // of the parallel bundle above to keep that block focused.
+  const { data: otherHostedListings } = await supabase
+    .from("listings")
+    .select("id")
+    .eq("host_id", otherId)
+    .limit(1);
+  const otherUserIsHost = (otherHostedListings || []).length > 0;
+
+  let stayConfirmationId: string | null = null;
+  let stayReviewedByMe = false;
+  if (thread.contact_request_id) {
+    const { data: stay } = await supabase
+      .from("stay_confirmations")
+      .select("id, guest_rating, host_rating")
+      .eq("contact_request_id", thread.contact_request_id)
+      .maybeSingle();
+    if (stay) {
+      stayConfirmationId = stay.id as string;
+      // Guests rate the host/listing → guest_rating. Hosts rate the
+      // guest → host_rating on the same row. The review is
+      // "reviewed by me" when the field corresponding to my role
+      // is filled.
+      stayReviewedByMe = isGuest
+        ? stay.guest_rating !== null
+        : stay.host_rating !== null;
+    }
+  }
 
   // Reset unread for this side now that the user is viewing the thread.
   await supabase
@@ -351,8 +411,46 @@ export async function getThreadDetail(
           total_estimate:
             (booking as { total_estimate?: number | null }).total_estimate ??
             null,
+          message: (booking as { message?: string | null }).message ?? null,
+          responded_at:
+            (booking as { responded_at?: string | null }).responded_at ?? null,
+          host_response_message:
+            (booking as { host_response_message?: string | null })
+              .host_response_message ?? null,
         }
       : null,
+    reservation_sidebar: {
+      listing_price_min:
+        (listing as { price_min?: number | null } | null)?.price_min ?? null,
+      listing_price_max:
+        (listing as { price_max?: number | null } | null)?.price_max ?? null,
+      listing_rating_avg:
+        (listing as { avg_listing_rating?: number | null } | null)
+          ?.avg_listing_rating ?? null,
+      listing_review_count:
+        (listing as { listing_review_count?: number | null } | null)
+          ?.listing_review_count ?? 0,
+      other_user_host_rating:
+        (otherUser as { host_rating?: number | null } | null)?.host_rating ??
+        null,
+      other_user_guest_rating:
+        (otherUser as { guest_rating?: number | null } | null)?.guest_rating ??
+        null,
+      other_user_review_count:
+        ((otherUser as { host_review_count?: number | null } | null)
+          ?.host_review_count ?? 0) +
+        ((otherUser as { guest_review_count?: number | null } | null)
+          ?.guest_review_count ?? 0),
+      other_user_is_host: otherUserIsHost,
+      other_user_joined_year: (otherUser as { created_at?: string | null } | null)
+        ?.created_at
+        ? new Date((otherUser as { created_at: string }).created_at).getUTCFullYear()
+        : null,
+      other_user_location:
+        (otherUser as { location?: string | null } | null)?.location ?? null,
+      stay_confirmation_id: stayConfirmationId,
+      stay_reviewed_by_me: stayReviewedByMe,
+    },
   };
 }
 
