@@ -61,9 +61,14 @@ export async function GET() {
   const { data: testUsers, error } = await supabase
     .from("users")
     .select(
-      "id, name, avatar_url, phone_number, host_rating, guest_rating, is_test_user"
+      "id, name, avatar_url, phone_number, host_rating, guest_rating, is_test_user, clerk_id"
     )
     .eq("is_test_user", true)
+    // Never list the admin's own row — on alpha-c Loren's user row
+    // is flagged is_test_user = true so he can participate in the
+    // seeded stay graph (isolation trigger requires the flag to
+    // match). Excluding him here keeps the switcher list clean.
+    .neq("clerk_id", clerkAdminId)
     .order("name", { ascending: true });
 
   if (error) {
