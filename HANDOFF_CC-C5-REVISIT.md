@@ -65,12 +65,28 @@ Formula: see `src/lib/trust-data.ts` and PROJECT_PLAN.md § Trust Mechanics.
 
 ## 5. Task Completion Log
 
-Commits on top of `b2d45e6` (end of C5):
+33 commits on top of `b2d45e6` (end of C5). Tip: `c2132bc`. Key landmarks:
+
 - `b751b87` Phone uniqueness: migration 021 + settings edit flow
-- `361fd65` 3° dampened trust score + mustard badge style
+- `361fd65` 3° dampened trust score + mustard badge style (initial min×0.6)
 - `c6ab359` TrustTag: formal 0° and 4°+ states
-- `8028ae3` Trust detail enumerates ALL chains, not just representative
+- `8028ae3` Trust detail enumerates ALL chains
 - `eb0fbb9` max_degrees access option re-enabled (C5.1)
+- `73b3082` Phone OTP via Twilio (server-side signed-cookie challenge)
+- `ba630d6` TrustTag "No Connection" dark pill
+- `bb01992` Phone-first custom /sign-up and /sign-in pages
+- `0055e4c` Flatten auth routes; middleware redirects 404s to /sign-in
+- `0f28398` Suspense wrapper fixes Pages prerender failure
+- `52c3419` Trust engines unified (46-vs-75 mismatch fix)
+- `b463da9` 3°/4° scoring switched to avg×dampen; 4° now scores
+- `6e7b995` Trust detail: only show paths at viewer's own degree
+- `ae6dfe7` Inline email/Google fields (dropped Clerk modal embed)
+- `d5241f2` Sign-up email path: handle missing phone + duplicate email
+- `fddac3c` 1° click no longer opens trust detail; purple link pills
+- `4bf5e54` 3°/4° micro dots = distinct bridges (initial BFS)
+- `3d81b27` Bridges via simple-path DFS; purple ramp on link pills
+- `952b83a` Trust math: two-line breakdown
+- `c2132bc` Google OAuth spinner paints before Clerk redirect
 
 ## 6. Smoke-Test Checklist (for Loren)
 
