@@ -740,13 +740,24 @@ function MultiHopView({
                 <br />
                 score = avg(hop strengths) &times; {DAMPEN}
               </div>
-              <div className="rounded-md bg-white/70 px-2.5 py-1.5 text-foreground">
-                avg(
-                {bestChain.linkStrengths.map((s) => Math.round(s)).join(", ")}){" "}
-                &times; {DAMPEN} ={" "}
-                <span className={cn("font-semibold", scoreColor)}>
-                  {score} pts
-                </span>
+              <div className="rounded-md bg-white/70 px-2.5 py-1.5 text-foreground space-y-1">
+                <div>
+                  avg(
+                  {bestChain.linkStrengths
+                    .map((s) => Math.round(s))
+                    .join(", ")}
+                  ) ={" "}
+                  <span className="font-semibold">
+                    {Math.round(mean(bestChain.linkStrengths))}
+                  </span>
+                </div>
+                <div>
+                  {Math.round(mean(bestChain.linkStrengths))} &times;{" "}
+                  {DAMPEN} ={" "}
+                  <span className={cn("font-semibold", scoreColor)}>
+                    {score} pts
+                  </span>
+                </div>
               </div>
               <div className="text-muted-foreground/70 text-[10px]">
                 {data.degree === 3
