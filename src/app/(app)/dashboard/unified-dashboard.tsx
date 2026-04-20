@@ -1,8 +1,4 @@
-"use client";
-
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { DashboardTabs, type DashboardTab } from "@/components/dashboard/dashboard-tabs";
+import type { DashboardTab } from "@/components/dashboard/dashboard-tabs";
 
 interface UnifiedDashboardProps {
   defaultTab: DashboardTab;
@@ -12,10 +8,12 @@ interface UnifiedDashboardProps {
 }
 
 /**
- * Single-page dashboard. All three tabs' content is rendered up-front
- * (already fetched in parallel server-side) and switched via CSS, so
- * tab changes feel instant. The URL stays in sync via history.replaceState
- * so each tab is still bookmark- and share-able at /dashboard?tab=…
+ * Section switcher for /dashboard. Previously rendered an in-page
+ * DashboardTabs row with Hosting/Traveling/Network buttons — those
+ * moved up to the global SectionNav, so this now just picks the
+ * right content block for the current ?tab= value. Server component
+ * (no client state); nav clicks reload the page with a new URL,
+ * which is what drives defaultTab.
  */
 export function UnifiedDashboard({
   defaultTab,
@@ -23,27 +21,7 @@ export function UnifiedDashboard({
   travelingContent,
   networkContent,
 }: UnifiedDashboardProps) {
-  const [tab, setTab] = useState<DashboardTab>(defaultTab);
-
-  const handleTabChange = (newTab: DashboardTab) => {
-    setTab(newTab);
-    if (typeof window !== "undefined") {
-      const qs = newTab === "hosting" ? "" : `?tab=${newTab}`;
-      window.history.replaceState(null, "", `/dashboard${qs}`);
-    }
-  };
-
-  return (
-    <>
-      <div className="mt-6">
-        <DashboardTabs active={tab} onChange={handleTabChange} />
-      </div>
-
-      <div className={cn(tab !== "hosting" && "hidden")}>{hostingContent}</div>
-      <div className={cn(tab !== "traveling" && "hidden")}>
-        {travelingContent}
-      </div>
-      <div className={cn(tab !== "network" && "hidden")}>{networkContent}</div>
-    </>
-  );
+  if (defaultTab === "traveling") return <>{travelingContent}</>;
+  if (defaultTab === "network") return <>{networkContent}</>;
+  return <>{hostingContent}</>;
 }

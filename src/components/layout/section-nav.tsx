@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import {
-  LayoutDashboard,
-  Home,
-  Luggage,
-  Users,
-  MessageCircle,
-} from "lucide-react";
+import { Home, Luggage, Users, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -17,26 +11,39 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   /**
-   * Exact-match pathnames + optional search param predicate for the
-   * active state. Some items (Network, Hosting tab) live behind
-   * ?tab= on /dashboard, so we need to consult searchParams too.
+   * Active-state predicate. Hosting is the canonical landing at
+   * /dashboard (no ?tab= or ?tab=hosting), and /hosting/* redirects
+   * into /dashboard — so either pathname counts. Trips + Network
+   * both live behind /dashboard?tab= plus a top-level /trips route
+   * that redirects.
    */
   isActive: (pathname: string, sp: URLSearchParams) => boolean;
 }
 
 const items: NavItem[] = [
   {
-    key: "dashboard",
-    label: "Dashboard",
+    key: "inbox",
+    label: "Messages",
+    href: "/inbox",
+    icon: MessageCircle,
+    isActive: (p) => p === "/inbox" || p.startsWith("/inbox/"),
+  },
+  {
+    key: "hosting",
+    label: "Hosting",
     href: "/dashboard",
-    icon: LayoutDashboard,
-    isActive: (p, sp) =>
-      p === "/dashboard" && sp.get("tab") !== "traveling" && sp.get("tab") !== "network",
+    icon: Home,
+    isActive: (p, sp) => {
+      if (p === "/hosting" || p.startsWith("/hosting/")) return true;
+      if (p !== "/dashboard") return false;
+      const tab = sp.get("tab");
+      return !tab || tab === "hosting";
+    },
   },
   {
     key: "trips",
     label: "Trips",
-    href: "/trips",
+    href: "/dashboard?tab=traveling",
     icon: Luggage,
     isActive: (p, sp) =>
       p.startsWith("/trips") ||
@@ -48,20 +55,6 @@ const items: NavItem[] = [
     href: "/dashboard?tab=network",
     icon: Users,
     isActive: (p, sp) => p === "/dashboard" && sp.get("tab") === "network",
-  },
-  {
-    key: "hosting",
-    label: "Hosting",
-    href: "/hosting",
-    icon: Home,
-    isActive: (p) => p === "/hosting" || p.startsWith("/hosting/"),
-  },
-  {
-    key: "inbox",
-    label: "Messages",
-    href: "/inbox",
-    icon: MessageCircle,
-    isActive: (p) => p === "/inbox" || p.startsWith("/inbox/"),
   },
 ];
 
