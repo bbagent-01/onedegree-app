@@ -84,6 +84,16 @@ export async function GET(req: Request) {
     .single();
 
   const targetName = targetUser?.name ?? "this user";
+  const targetAvatar = (targetUser as { avatar_url: string | null } | null)
+    ?.avatar_url ?? null;
+
+  const { data: viewerUser } = await supabase
+    .from("users")
+    .select("avatar_url")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+  const viewerAvatar = (viewerUser as { avatar_url: string | null } | null)
+    ?.avatar_url ?? null;
 
   // In outgoing mode, "forward" = viewer→target; in incoming mode,
   // "forward" = target→viewer. This keeps the popover's direct-vouch
@@ -135,6 +145,8 @@ export async function GET(req: Request) {
       type: "connected",
       direction,
       targetName,
+      targetAvatar,
+      viewerAvatar,
       score: result.score,
       paths: result.paths.map((p) => ({
         connector: p.connector ?? {

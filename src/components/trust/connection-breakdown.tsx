@@ -58,6 +58,8 @@ type ConnectionData =
       type: "connected";
       direction?: "outgoing" | "incoming";
       targetName: string;
+      targetAvatar?: string | null;
+      viewerAvatar?: string | null;
       score: number;
       paths: PathInfo[];
       connection_count: number;
@@ -309,9 +311,47 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
       </div>
 
       <div className="mt-3 space-y-2">
-        {sortedPaths.map((path) => (
-          <PathRow key={path.connector.id} path={path} />
-        ))}
+        {sortedPaths.map((path, idx) => {
+          // Shape each 2° path as a 3-node chain in viewer-first order
+          // so we can reuse the same ChainRow component the multi-hop
+          // view uses. For incoming direction the server's link_a is
+          // target→connector (first hop target-side) and link_b is
+          // connector→you. For outgoing it's the opposite. ChainRow
+          // receives viewer-first nodes + you-first link strengths
+          // (index 0 = first hop out of viewer) and reverses for
+          // display.
+          const linkA = path.link_a;
+          const linkB = path.link_b;
+          // you→connector link strength:
+          //  outgoing: link_a (you→connector)
+          //  incoming: link_b (connector→you)
+          const youToConnector = isIncoming ? linkB : linkA;
+          const connectorToTarget = isIncoming ? linkA : linkB;
+          return (
+            <ChainRow
+              key={path.connector.id}
+              label={`Path ${idx + 1} · via ${path.connector.name.split(" ")[0]}`}
+              viewerAvatar={data.viewerAvatar ?? null}
+              chain={{
+                nodes: [
+                  { id: "you", name: "You", avatar_url: data.viewerAvatar ?? null },
+                  {
+                    id: path.connector.id,
+                    name: path.connector.name,
+                    avatar_url: path.connector.avatar_url,
+                  },
+                  {
+                    id: "target",
+                    name: data.targetName,
+                    avatar_url: data.targetAvatar ?? null,
+                  },
+                ],
+                linkStrengths: [youToConnector, connectorToTarget],
+                degree: 2,
+              }}
+            />
+          );
+        })}
       </div>
 
       <ShowMathToggle on={showMath} onToggle={() => setShowMath((v) => !v)} />
