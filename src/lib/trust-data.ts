@@ -26,6 +26,10 @@
  */
 
 import { getSupabaseAdmin } from "./supabase";
+import {
+  YEARS_MULTIPLIER as CANONICAL_YEARS_MULTIPLIER,
+  VOUCH_BASE_POINTS as CANONICAL_VOUCH_POINTS,
+} from "./trust/types";
 
 export type TrustDegree = 1 | 2 | 3 | 4 | null;
 
@@ -84,18 +88,13 @@ export interface TrustResultsByTarget {
   [targetId: string]: TrustResult;
 }
 
-const YEARS_MULTIPLIER: Record<string, number> = {
-  lt1yr: 0.6,
-  "1to3yr": 0.8,
-  "4to7yr": 1.0,
-  "8to15yr": 1.4,
-  "15plusyr": 1.8,
-};
-
-const VOUCH_POINTS: Record<string, number> = {
-  standard: 15,
-  inner_circle: 25,
-};
+// Canonical multipliers live in src/lib/trust/types.ts — importing
+// them here keeps trust-data.ts and compute-score.ts in sync so the
+// badge and the popover always compute the same number. Previously
+// this file had its own drifted copy (1to3yr=0.8, 4to7yr=1.0) which
+// made the listing badge disagree with the "show math" breakdown.
+const YEARS_MULTIPLIER = CANONICAL_YEARS_MULTIPLIER;
+const VOUCH_POINTS = CANONICAL_VOUCH_POINTS;
 
 /**
  * Clamp a stored vouch_power into a [0.5, 1.5] multiplier. Post-
@@ -113,8 +112,10 @@ function edgeStrength(
   yearsKnownBucket: string,
   voucherVouchPower: number | null
 ): number {
-  const pts = VOUCH_POINTS[vouchType] ?? 15;
-  const mult = YEARS_MULTIPLIER[yearsKnownBucket] ?? 1;
+  const pts =
+    (VOUCH_POINTS as Record<string, number>)[vouchType] ?? 15;
+  const mult =
+    (YEARS_MULTIPLIER as Record<string, number>)[yearsKnownBucket] ?? 1;
   return pts * mult * clampVp(voucherVouchPower);
 }
 
@@ -292,7 +293,9 @@ export async function computeTrustPaths(
     const directScore = direct?.score ?? 0;
     const indirectScore = indirect?.score ?? 0;
 
-    const score = Math.floor(Math.max(directScore, indirectScore));
+    // Math.round (not floor) so 75.75 → 76 matches the "Total" line
+    // in the popover's math view instead of silently dropping .75.
+    const score = Math.round(Math.max(directScore, indirectScore));
     const hasDirectVouch = directScore > 0;
     // A direct vouch always wins. The composite score still reflects
     // the stronger of direct/indirect, but the badge/UI treats the
@@ -698,7 +701,7 @@ export async function computeIncomingTrustPaths(
       0
     );
 
-    const score = Math.floor(Math.max(directScore, indirectScoreRaw));
+    const score = Math.round(Math.max(directScore, indirectScoreRaw));
     const hasDirectVouch = directScore > 0;
     const degree: TrustDegree = hasDirectVouch
       ? 1

@@ -244,7 +244,11 @@ function assembleResult(rows: Array<{
   const score = paths.reduce((sum, p) => sum + p.weighted_score, 0);
 
   return {
-    score: Math.round(score * 100) / 100, // 2 decimal places
+    // Round to whole integer so the badge and the popover header
+    // always agree. Per-path breakdown in the popover still shows
+    // 2-decimal numbers (45.00, 18.75…); only the top-line Total is
+    // a whole.
+    score: Math.round(score),
     paths,
     connection_count: paths.length,
   };
