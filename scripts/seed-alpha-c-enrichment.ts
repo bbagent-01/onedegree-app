@@ -756,7 +756,142 @@ async function main() {
     }
   }
 
-  console.log("  ✓ Loren trips + hosted stays + pending request");
+  // 5f. Currently-in-progress trip (Loren as guest). check_in past,
+  // check_out future → shows as an active stay. No stay_confirmation
+  // yet, so review flow hasn't started.
+  const hanaListingRow = await supabase
+    .from("listings")
+    .select("id, host_id")
+    .eq("host_id", ids.get("hana")!)
+    .maybeSingle();
+  if (hanaListingRow.data) {
+    await ensureAcceptedRequest({
+      listingId: hanaListingRow.data.id as string,
+      hostId: hanaListingRow.data.host_id as string,
+      guestId: lorenId,
+      checkIn: pastDate(2),
+      checkOut: futureDate(3),
+      message:
+        "Quick research trip. Solo, quiet days. Thanks for the flexibility on check-in.",
+    });
+  }
+
+  // 5g. Currently-in-progress hosted stay (Loren as host). Guest
+  // checked in yesterday, checks out in 2 days. Drives the "during
+  // the stay" UI path for hosts.
+  if (lorenListingA) {
+    const theoGuest = ids.get("theo");
+    if (theoGuest) {
+      await ensureAcceptedRequest({
+        listingId: lorenListingA,
+        hostId: lorenId,
+        guestId: theoGuest,
+        checkIn: pastDate(1),
+        checkOut: futureDate(2),
+        message:
+          "Writing weekend — plan to keep to myself, no events. Thanks again!",
+      });
+    }
+  }
+
+  // 5h. Just-ended trips (Loren as guest), NO stay_confirmation
+  // yet. Surfaces the "leave a review" prompt. Two different hosts
+  // so we can test the review flow twice.
+  const sophieListingRow = await supabase
+    .from("listings")
+    .select("id, host_id")
+    .eq("host_id", ids.get("sophie")!)
+    .maybeSingle();
+  if (sophieListingRow.data) {
+    await ensureAcceptedRequest({
+      listingId: sophieListingRow.data.id as string,
+      hostId: sophieListingRow.data.host_id as string,
+      guestId: lorenId,
+      checkIn: pastDate(10),
+      checkOut: pastDate(5),
+      message: "Longer city trip. Traveling with one other person.",
+    });
+  }
+  const diegoListingRow = await supabase
+    .from("listings")
+    .select("id, host_id")
+    .eq("host_id", ids.get("diego")!)
+    .maybeSingle();
+  if (diegoListingRow.data) {
+    await ensureAcceptedRequest({
+      listingId: diegoListingRow.data.id as string,
+      hostId: diegoListingRow.data.host_id as string,
+      guestId: lorenId,
+      checkIn: pastDate(20),
+      checkOut: pastDate(17),
+      message: "Quick visit. Solo traveller. Thanks!",
+    });
+  }
+
+  // 5i. Just-ended hosted stays (Loren as host), no stay_confirmation
+  // yet. Drives the host-side "leave a review" prompt.
+  if (lorenListingA) {
+    const ivyGuest = ids.get("ivy");
+    if (ivyGuest) {
+      await ensureAcceptedRequest({
+        listingId: lorenListingA,
+        hostId: lorenId,
+        guestId: ivyGuest,
+        checkIn: pastDate(8),
+        checkOut: pastDate(3),
+        message: "Heads-down research week. Solo.",
+      });
+    }
+  }
+  if (lorenListingB) {
+    const cassidyGuest = ids.get("cassidy");
+    if (cassidyGuest) {
+      await ensureAcceptedRequest({
+        listingId: lorenListingB,
+        hostId: lorenId,
+        guestId: cassidyGuest,
+        checkIn: pastDate(14),
+        checkOut: pastDate(10),
+        message: "In town for a few days of studio sessions.",
+      });
+    }
+  }
+
+  // 5j. Additional pending requests on Loren's listings to exercise
+  // the accept/decline UI. Mix of trust levels so the host cards
+  // show a range of badges.
+  if (lorenListingA) {
+    const pavelGuest = ids.get("pavel"); // peripheral / weak
+    if (pavelGuest) {
+      await ensurePendingRequest({
+        listingId: lorenListingA,
+        hostId: lorenId,
+        guestId: pavelGuest,
+        checkIn: futureDate(60),
+        checkOut: futureDate(66),
+        message:
+          "Hi! I saw your place through a mutual friend. Wondering if it's available early in the summer.",
+      });
+    }
+  }
+  if (lorenListingB) {
+    const felixGuest = ids.get("felix");
+    if (felixGuest) {
+      await ensurePendingRequest({
+        listingId: lorenListingB,
+        hostId: lorenId,
+        guestId: felixGuest,
+        checkIn: futureDate(32),
+        checkOut: futureDate(36),
+        message:
+          "Coming to NY for a shoot — would your place work for 4 nights mid-next-month?",
+      });
+    }
+  }
+
+  console.log(
+    "  ✓ Loren trips / hosted stays / pending + in-progress + just-ended"
+  );
 
   // ── 6. Recompute vouch power for everyone ────────────────────
   console.log("\nRecomputing vouch_power…");
