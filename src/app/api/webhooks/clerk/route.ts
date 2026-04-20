@@ -44,6 +44,31 @@ export async function POST(req: Request) {
 
     const supabase = getSupabaseAdmin();
 
+    // Guard: if Clerk fires with a phone that another DB row already
+    // owns, refuse the upsert and return a structured error. The
+    // signup UI catches this and surfaces "phone already registered."
+    if (phone) {
+      const { data: conflicting } = await supabase
+        .from("users")
+        .select("id, clerk_id")
+        .eq("phone_number", phone)
+        .neq("clerk_id", id)
+        .maybeSingle();
+      if (conflicting) {
+        console.warn(
+          `[clerk-webhook] phone collision: ${phone} already on user ${conflicting.id} (clerk=${conflicting.clerk_id}); refusing upsert for ${id}`
+        );
+        return Response.json(
+          {
+            error: "phone_already_registered",
+            message:
+              "This phone number is already registered. Sign in or use a different number.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const { data: user, error } = await supabase
       .from("users")
       .upsert(
@@ -60,6 +85,23 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
+      // Unique-violation on phone is the canonical way Postgres tells us
+      // about a race we didn't catch in the pre-check above (e.g. two
+      // concurrent signups). Surface as 409 so Clerk retries don't
+      // silently squash a legitimate collision.
+      if ((error as { code?: string }).code === "23505") {
+        console.warn(
+          `[clerk-webhook] unique violation on upsert for ${id}: ${error.message}`
+        );
+        return Response.json(
+          {
+            error: "phone_already_registered",
+            message:
+              "This phone number is already registered. Sign in or use a different number.",
+          },
+          { status: 409 }
+        );
+      }
       console.error("Supabase upsert error:", error);
       return new Response("Database error", { status: 500 });
     }

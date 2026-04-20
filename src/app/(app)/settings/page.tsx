@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, User, Bell, Shield } from "lucide-react";
+import { ChevronRight, User, Bell, Shield, Phone } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DeactivateButton } from "@/components/settings/deactivate-button";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
+
+function maskPhone(e164: string | null): string {
+  if (!e164) return "Not set";
+  const digits = e164.replace(/\D/g, "");
+  if (digits.length < 4) return e164;
+  return `••• ••• ${digits.slice(-4)}`;
+}
 
 export default async function SettingsPage() {
   const { userId: clerkId } = await auth();
@@ -17,7 +24,7 @@ export default async function SettingsPage() {
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
     .from("users")
-    .select("id, name, email")
+    .select("id, name, email, phone_number")
     .eq("clerk_id", clerkId)
     .maybeSingle();
 
@@ -43,6 +50,12 @@ export default async function SettingsPage() {
             icon={User}
             title="Personal info"
             description="Name, bio, location, languages, and work."
+          />
+          <SettingsLink
+            href="/settings/phone"
+            icon={Phone}
+            title="Phone number"
+            description={maskPhone(data?.phone_number ?? null)}
           />
           <SettingsLink
             href="/settings/notifications"
