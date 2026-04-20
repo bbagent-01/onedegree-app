@@ -32,10 +32,11 @@ const isPublicRoute = createRouteMatcher([
 const IMPERSONATION_COOKIE = "imp_user_id";
 
 function impersonationEnabled(): boolean {
-  return (
-    process.env.NODE_ENV !== "production" &&
-    process.env.NEXT_PUBLIC_ENABLE_IMPERSONATION === "true"
-  );
+  // Intentionally mirrors `isImpersonationEnabled()` in
+  // src/lib/impersonation/session.ts. Kept NODE_ENV-free because
+  // Cloudflare Pages runs as production at runtime — the real
+  // prod/alpha split is the env var being set vs. unset.
+  return process.env.NEXT_PUBLIC_ENABLE_IMPERSONATION === "true";
 }
 
 function isAdminId(id: string | null | undefined): boolean {

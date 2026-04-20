@@ -16,12 +16,19 @@ const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 12;
 
 export const IMPERSONATION_COOKIE_NAME = COOKIE_NAME;
 
-/** Gate 1 + Gate 2: env-based, cheap, called on every request. */
+/**
+ * Gate 1: feature flag. `NEXT_PUBLIC_ENABLE_IMPERSONATION` is the
+ * sole runtime kill-switch — when it's not literally `"true"` every
+ * impersonation code path returns 404 / null. Cloudflare Pages runs
+ * Next.js with `NODE_ENV=production` at runtime even on the alpha-c
+ * deploy, so we cannot use NODE_ENV as a gate — doing so would
+ * disable impersonation on the alpha env where we actually need it.
+ * The real prod/alpha distinction is: prod deploys leave this
+ * variable unset. Deliberately documented here so the trade-off is
+ * visible to future readers.
+ */
 export function isImpersonationEnabled(): boolean {
-  return (
-    process.env.NODE_ENV !== "production" &&
-    process.env.NEXT_PUBLIC_ENABLE_IMPERSONATION === "true"
-  );
+  return process.env.NEXT_PUBLIC_ENABLE_IMPERSONATION === "true";
 }
 
 /** Gate 3: Clerk user ID must be in the admin allowlist. */
