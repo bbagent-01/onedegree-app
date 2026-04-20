@@ -1,0 +1,437 @@
+{
+  "_meta": {
+    "description": "Exhaustive-ish extraction of user-facing strings by route. Extracted from page.tsx + top-level client components. Placeholders shown as {name} or {expr}. Not a translation bundle — this is an audit snapshot.",
+    "caveats": [
+      "Strings from deeply nested helper components may be missing — spot-check by reading the page's imports.",
+      "Dynamic template strings rendered from data (seed listing titles, user names) are shown as {placeholders}.",
+      "Button labels captured via text content, not aria-label.",
+      "Some empty-state / error copy is inside conditional branches and may not render in normal operation."
+    ]
+  },
+  "/": {
+    "purpose": "Server redirect to /browse",
+    "titles": [],
+    "ctas": [],
+    "labels": [],
+    "empty_states": [],
+    "error_messages": [],
+    "tooltips": [],
+    "system_messages": []
+  },
+  "/sign-in": {
+    "titles": ["Welcome back"],
+    "subtitles": ["Sign in with your phone number."],
+    "labels": ["Your phone number", "Enter the 6-digit code"],
+    "ctas": [
+      "Continue with phone",
+      "Sign in with email or Google instead",
+      "Sign in",
+      "Back to phone sign-in",
+      "Create an account"
+    ],
+    "system_messages": [
+      "We'll text you a 6-digit code. No passwords needed.",
+      "Code sent to {phone}",
+      "Couldn't start sign-in",
+      "Additional verification required. Try email instead.",
+      "Wrong code. Try again."
+    ],
+    "error_messages": ["Enter a valid phone number"]
+  },
+  "/sign-up": {
+    "titles": ["Create your account"],
+    "subtitles": ["1° B&B is invite-only and phone-first. One account per number."],
+    "labels": [
+      "Your phone number",
+      "Enter the 6-digit code",
+      "First name",
+      "Last name",
+      "Email",
+      "Password"
+    ],
+    "ctas": [
+      "Continue with phone",
+      "Sign up with email or Google instead",
+      "Verify code",
+      "Back to phone sign-up",
+      "Continue with Google",
+      "Finish sign up",
+      "Sign in"
+    ],
+    "system_messages": [
+      "Your phone is your identity on 1° B&B.",
+      "We'll never share or sell it, and we'll never send marketing texts unless you opt in.",
+      "Code sent to {phone}",
+      "Couldn't start sign-up",
+      "Wrong code. Try again.",
+      "Phone verified! Finish setting up your account.",
+      "or add email & password",
+      "At least 8 characters",
+      "Passwords are hashed and never stored in plain text.",
+      "Email verification pending. Check your inbox, then return here.",
+      "Couldn't create account"
+    ],
+    "error_messages": ["Enter a valid US phone number"]
+  },
+  "/browse": {
+    "titles": ["Stays in {location}", "Stays"],
+    "ctas": ["Start your search", "Filters", "Sort", "Save", "Map"],
+    "labels": ["Where are you going?", "Add dates", "Add guests", "Price range", "Min trust score"],
+    "empty_states": ["No results found", "No listings match your filters."],
+    "system_messages": ["Browse listings"],
+    "trust_copy": [
+      "Your trust score with this host is below the required threshold. Get vouched by more people to unlock."
+    ]
+  },
+  "/dashboard": {
+    "titles": ["Dashboard"],
+    "subtitles": ["Your dashboard for hosting, traveling, and your trust network."],
+    "tabs": ["Hosting", "Network", "Traveling"],
+    "ctas": []
+  },
+  "/dashboard/network": {
+    "headings": ["Your network"],
+    "labels": ["People you've vouched for", "People who've vouched for you", "Mutual connections"],
+    "empty_states": [
+      "You haven't vouched for anyone yet",
+      "No one has vouched for you yet"
+    ]
+  },
+  "/dashboard/traveling": {
+    "headings": ["Your trips"],
+    "tabs": ["Upcoming", "Past"],
+    "empty_states": ["No trips yet"]
+  },
+  "/help": {
+    "titles": ["Help Center"],
+    "subtitles": [
+      "Answers to common questions, or send us a note and we'll get back to you within 24 hours."
+    ],
+    "headings": ["Frequently asked questions", "Contact us / report a problem"],
+    "system_messages": ["Found a bug? Have feedback? We read every message."]
+  },
+  "/hosting": {
+    "titles": ["Hosting"],
+    "redirect": "Redirects to /dashboard on some paths",
+    "ctas": ["Create listing", "View listing"],
+    "headings": ["Your listings", "Reservations", "Earnings", "Stats"],
+    "empty_states": ["You haven't created any listings yet"]
+  },
+  "/hosting/create": {
+    "titles": ["Create your listing"],
+    "headings": [
+      "Property details",
+      "Description",
+      "Photos",
+      "Location",
+      "Amenities",
+      "Pricing",
+      "Availability",
+      "House rules",
+      "Visibility"
+    ],
+    "ctas": ["Create listing", "Save and continue", "Upload photos", "Request to Book"],
+    "labels": [
+      "Property type",
+      "Title",
+      "Area name",
+      "Number of bedrooms",
+      "Number of beds",
+      "Number of bathrooms",
+      "Description",
+      "House rules",
+      "Min nights",
+      "Advance notice",
+      "Prep days",
+      "Check-in time",
+      "Check-out time",
+      "Price",
+      "Cleaning fee",
+      "Weekly discount",
+      "Monthly discount",
+      "Visibility",
+      "Preview description"
+    ],
+    "visibility_options": [
+      "Preview for anyone signed-in. Full listing + booking gated by trust score.",
+      "Only people you add can book. Others with a trust score can still request an intro."
+    ]
+  },
+  "/hosting/listings/[id]/edit": {
+    "titles": ["{listing.title}"],
+    "status_badges": ["Listed", "Paused"],
+    "subtitles": [
+      "Edit details, photos, pricing, and availability. Each section saves on its own."
+    ],
+    "ctas": ["Back to hosting", "View public page"],
+    "visibility_options": [
+      "Standard — Preview for anyone signed-in. Full listing + booking gated by trust score.",
+      "Private — Only people you add can book. Others with a minimum trust score can still request an intro."
+    ]
+  },
+  "/inbox": {
+    "titles": ["Messages"],
+    "empty_states": [
+      "No messages yet",
+      "Once you request a stay or someone reaches out about your listing, your conversations will live here."
+    ],
+    "ctas": ["Browse listings", "Select a conversation"]
+  },
+  "/inbox/[threadId]": {
+    "titles": ["Messages", "{other_user.name}"],
+    "aria_labels": ["Back to inbox"],
+    "placeholders": ["Type your message..."],
+    "ctas": ["Send"]
+  },
+  "/invite": {
+    "titles": ["Invite someone to 1° B&B"],
+    "subtitles": [
+      "Invite someone you trust. Your vouch is created automatically when they join."
+    ],
+    "steps": [
+      "Who are you inviting?",
+      "How do you know {name}?",
+      "How long have you known {name}?",
+      "Review & send"
+    ],
+    "labels": [
+      "Name",
+      "Phone number (required)",
+      "Email (optional — for email delivery)",
+      "Vouch score"
+    ],
+    "vouch_types": ["Inner Circle", "Standard"],
+    "ctas": [
+      "Continue",
+      "Back",
+      "Send invitation",
+      "Invite another person"
+    ],
+    "system_messages": [
+      "I understand that {name}'s guest rating will affect my vouch power.",
+      "Invitation sent!",
+      "{name} will receive an invitation to join 1° B&B. Your vouch will be automatically applied when they sign up.",
+      "Or share this link directly:",
+      "An invite will be sent via SMS to {phone} and email to {email}.",
+      "An invite will be sent via SMS to {phone}.",
+      "An invitation email will be sent to {email}."
+    ]
+  },
+  "/listings/[id]": {
+    "titles": ["{listing.title}"],
+    "headings": [
+      "{subtitle}",
+      "Hosted by {host.name}",
+      "About this place",
+      "What this place offers",
+      "Select check-in date",
+      "Where you'll be",
+      "Things to know",
+      "House rules",
+      "Safety & property",
+      "Cancellation policy",
+      "Meet your host",
+      "Reviews",
+      "Location"
+    ],
+    "subtitles": [
+      "Add your travel dates for exact pricing",
+      "Check-in: {checkin_time}",
+      "Checkout: {checkout_time}",
+      "Minimum stay: {min_nights}",
+      "Smoke alarm",
+      "Carbon monoxide alarm",
+      "Security camera not on property",
+      "Free cancellation before 48 hours of check-in. Review the full policy at the time of booking.",
+      "{yearsHosting} year{s} hosting",
+      "New host"
+    ],
+    "badges": ["Superhost"],
+    "trust_indicators": [
+      "Trust Score",
+      "Direct vouch",
+      "Extremely strong",
+      "Very strong",
+      "Strong",
+      "Modest",
+      "Weak",
+      "Not connected"
+    ],
+    "ctas": [
+      "Reserve",
+      "Contact Host",
+      "Message Host",
+      "Request Intro",
+      "Sign in to view",
+      "Save"
+    ],
+    "system_messages": [
+      "Trust score of {required} required"
+    ],
+    "stats": ["Reviews", "Rating", "Years hosting"]
+  },
+  "/listings/[id]/reserve": {
+    "titles": ["Contact host"],
+    "headings": ["Your trip", "Message your host", "House rules", "Price details"],
+    "subtitles": [
+      "Share a quick intro about your trip. Hosts use this to decide whether to accept your request."
+    ],
+    "labels": ["Dates", "Guests", "Price", "Cleaning fee", "Service fee", "Total before taxes"],
+    "ctas": ["Back to listing", "Confirm and reserve"],
+    "system_messages": [
+      "By selecting Confirm and reserve, you agree to follow the host's house rules and the One Degree BNB rebooking and refund policy."
+    ],
+    "default_rules": ["No parties or events", "No smoking"]
+  },
+  "/profile/[id]": {
+    "titles": ["{user.name}"],
+    "subtitles": ["Member since {formatMemberSince}"],
+    "headings": [
+      "About",
+      "{user.name}'s listings",
+      "Reviews",
+      "Your Trust Score",
+      "Your connection to {first}"
+    ],
+    "sections": [
+      "Email verified",
+      "Vouch power",
+      "Vouches given · received",
+      "Host · Guest rating",
+      "Trust Score",
+      "Strongest path",
+      "Mutual connections"
+    ],
+    "ctas": ["Edit profile", "Contact", "Vouch", "Update vouch"],
+    "empty_states": [
+      "Add a short bio so guests and hosts can get to know you.",
+      "{user.name} hasn't written a bio yet.",
+      "You don't share any connections with {first} yet. Grow your network and these paths will light up automatically."
+    ],
+    "hints": [
+      "Boosts the weight of every vouch you write. Derived from the avg guest rating of people you've vouched for.",
+      "Track your network activity. Each vouch you receive raises your 1° score with everyone the voucher knows.",
+      "Your average ratings from people who've stayed with you or whom you've stayed with."
+    ]
+  },
+  "/profile/edit": {
+    "titles": ["Edit profile"],
+    "subtitles": [
+      "This info appears on your public profile. Avatar and email are managed through your account settings."
+    ],
+    "labels": ["Name", "Bio", "Location", "Occupation", "Languages"],
+    "ctas": ["Account settings", "Save profile"],
+    "system_messages": [
+      "We're still finishing setting up your account. Give it a few seconds and reload this page."
+    ]
+  },
+  "/settings": {
+    "titles": ["Account settings"],
+    "subtitles": ["Signed in as {email}"],
+    "sections": ["Your account", "Account management"],
+    "links": ["Personal info", "Phone number", "Notifications", "View public profile"],
+    "descriptions": [
+      "Name, bio, location, languages, and work.",
+      "Choose which emails you want to receive.",
+      "See how your profile looks to other users."
+    ],
+    "headings": ["Deactivate account"],
+    "system_messages": [
+      "Your listings will be hidden and you'll be signed out. We don't delete your data — contact support if you need a full deletion."
+    ]
+  },
+  "/settings/notifications": {
+    "titles": ["Email notifications"],
+    "subtitles": ["Choose which transactional emails One Degree BNB sends you."],
+    "ctas": ["Account settings"],
+    "notification_options": [
+      "New booking request",
+      "When a guest requests to book your listing.",
+      "Booking confirmed",
+      "Booking declined",
+      "New message",
+      "Check-in reminder",
+      "Review reminder"
+    ]
+  },
+  "/settings/phone": {
+    "titles": ["Phone number"],
+    "subtitles": [
+      "Your phone is how friends find you when they vouch or send an intro. It's also your primary identifier on 1° B&B — one account per number."
+    ],
+    "labels": ["Current phone number", "New phone number", "Enter the 6-digit code"],
+    "ctas": [
+      "Settings",
+      "Change phone number",
+      "Add phone number",
+      "Send code",
+      "Cancel",
+      "Back",
+      "Verify & save"
+    ],
+    "system_messages": [
+      "We'll send a 6-digit code by SMS to verify. No calls, no marketing.",
+      "Code sent to {phone}",
+      "Phone number updated"
+    ],
+    "error_messages": ["Enter a valid phone number"],
+    "placeholder": "Not set"
+  },
+  "/trips": {
+    "redirect": "Redirects to /dashboard?tab=traveling"
+  },
+  "/trips/[bookingId]": {
+    "titles": ["{trip.listing?.title || 'Trip'}"],
+    "status_badges": ["Pending", "Confirmed", "Declined", "Cancelled"],
+    "headings": [
+      "Your trip",
+      "Your host",
+      "Your request",
+      "Host's reply",
+      "House manual",
+      "Payment arrangement"
+    ],
+    "labels": ["Check-in", "Checkout", "Guests"],
+    "ctas": [
+      "Back to trips",
+      "Message them for check-in instructions.",
+      "Coordinate directly via the in-app conversation."
+    ],
+    "empty_states": ["Your host hasn't shared a house manual yet."],
+    "system_messages": ["Contact info unlocks once your host confirms."],
+    "vouch_prompt": [
+      "You stayed at {listing}",
+      "Vouch for them to unlock more opportunities on 1° B&B."
+    ]
+  },
+  "/vouch": {
+    "titles": ["Vouch for someone"],
+    "subtitles": [
+      "Search by name, email, or phone. If they're not on 1° B&B yet, you can invite them."
+    ],
+    "labels": ["Search by name, email, or phone..."],
+    "ctas": ["Vouch", "Update vouch", "Invite them to 1° B&B", "Invite them to join"],
+    "empty_states": [
+      "Searching...",
+      "No members found for \"{query}\"",
+      "They might not be on 1° B&B yet. Invite them to join!",
+      "Don't see who you're looking for?"
+    ]
+  },
+  "/wishlists": {
+    "titles": ["Wishlists"],
+    "subtitles": ["{lists.length} {lists.length === 1 ? 'list' : 'lists'}"],
+    "empty_states": [
+      "No saved stays yet",
+      "Save your favorite places by tapping the heart icon while you browse."
+    ],
+    "ctas": ["Start exploring"]
+  },
+  "/wishlists/[id]": {
+    "titles": ["{wishlist.name}"],
+    "subtitles": ["{wishlist.item_count} {wishlist.item_count === 1 ? 'place' : 'places'} saved"],
+    "headings": ["All wishlists"],
+    "empty_states": ["This list is empty", "Tap the heart on any listing to add it here."],
+    "ctas": ["Browse stays"]
+  }
+}
