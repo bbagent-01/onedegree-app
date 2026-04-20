@@ -3,7 +3,6 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SignIn } from "@clerk/nextjs";
 import { useSignIn } from "@clerk/nextjs/legacy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,8 @@ import { Phone, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 
+const BIG_INPUT =
+  "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
 const XL_INPUT =
   "h-16 rounded-2xl border-2 border-border !bg-white px-5 text-xl font-semibold shadow-sm focus-visible:border-brand";
 
@@ -40,6 +41,8 @@ function SignInInner() {
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
 
   const parsed = phone.trim()
@@ -91,6 +94,41 @@ function SignInInner() {
       setStep("email_fallback");
     } catch (e) {
       toast.error(clerkError(e) || "Wrong code. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    if (!isLoaded) return;
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: redirectUrl,
+      });
+    } catch (e) {
+      toast.error(clerkError(e) || "Couldn't start Google sign-in");
+    }
+  };
+
+  const signInWithEmail = async () => {
+    if (!isLoaded) return;
+    if (!email.trim() || !password) return;
+    setSaving(true);
+    try {
+      const res = await signIn.create({
+        identifier: email.trim(),
+        password,
+      });
+      if (res.status === "complete" && res.createdSessionId) {
+        await setActive({ session: res.createdSessionId });
+        router.push(redirectUrl);
+      } else {
+        toast.error("Additional verification needed.");
+      }
+    } catch (e) {
+      toast.error(clerkError(e) || "Couldn't sign in");
     } finally {
       setSaving(false);
     }
@@ -228,13 +266,53 @@ function SignInInner() {
             >
               &larr; Back to phone sign-in
             </button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={signInWithGoogle}
+              className="mt-4 h-14 w-full text-base"
+            >
+              <span className="inline-flex items-center gap-2">
+                <GoogleIcon className="h-4 w-4" />
+                Continue with Google
+              </span>
+            </Button>
+            <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>or email and password</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
             <div className="mt-4">
-              <SignIn
-                routing="hash"
-                signUpUrl="/sign-up"
-                forceRedirectUrl={redirectUrl}
+              <Label htmlFor="email-si">Email</Label>
+              <Input
+                id="email-si"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                type="email"
+                autoComplete="email"
+                className={`mt-1 ${BIG_INPUT}`}
               />
             </div>
+            <div className="mt-3">
+              <Label htmlFor="password-si">Password</Label>
+              <Input
+                id="password-si"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                autoComplete="current-password"
+                className={`mt-1 ${BIG_INPUT}`}
+              />
+            </div>
+            <Button
+              size="lg"
+              onClick={signInWithEmail}
+              disabled={saving || !email.trim() || !password}
+              className="mt-5 h-14 w-full text-base"
+            >
+              {saving ? "Signing in\u2026" : "Sign in"}
+            </Button>
           </div>
         )}
       </div>
@@ -257,4 +335,15 @@ function clerkError(e: unknown): string | null {
   const errs = (e as { errors?: Array<{ message?: string; longMessage?: string }> }).errors;
   const first = errs?.[0];
   return first?.longMessage || first?.message || (e instanceof Error ? e.message : null);
+}
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22.5 12.2c0-.7-.1-1.4-.2-2.1H12v4h5.9a5.1 5.1 0 0 1-2.2 3.3v2.7h3.5c2-1.9 3.3-4.6 3.3-7.9z" fill="#4285F4" />
+      <path d="M12 23c3 0 5.5-1 7.3-2.8l-3.5-2.7c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.3-1.9-6.2-4.5H2.2v2.8A11 11 0 0 0 12 23z" fill="#34A853" />
+      <path d="M5.8 14.1a6.7 6.7 0 0 1 0-4.2V7.1H2.2a11 11 0 0 0 0 9.8l3.6-2.8z" fill="#FBBC04" />
+      <path d="M12 5.4c1.6 0 3 .6 4.2 1.6l3.1-3.1A11 11 0 0 0 2.2 7.1l3.6 2.8C6.7 7.3 9.1 5.4 12 5.4z" fill="#EA4335" />
+    </svg>
+  );
 }

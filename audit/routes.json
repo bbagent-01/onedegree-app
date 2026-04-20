@@ -1,0 +1,1284 @@
+{
+  "routes": [
+    {
+      "path": "/",
+      "file": "src/app/page.tsx",
+      "purpose": "Homepage. Redirects authenticated users to /browse. Serves as entry point for the app.",
+      "auth_required": false,
+      "gate": {
+        "type": "none",
+        "description": "Public landing page; redirects to browse (no gate)"
+      },
+      "persona_access": {
+        "guest": "Redirected to /browse",
+        "host": "Redirected to /browse",
+        "inviter": "Redirected to /browse"
+      },
+      "entry_points": [
+        "Direct navigation / deep links from invite tokens"
+      ],
+      "exit_points": [
+        "Redirect to /browse (server-side)"
+      ],
+      "states": [
+        "redirect"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "N/A (redirect only)",
+      "notes": "Minimal route; essentially a router. No content rendered."
+    },
+    {
+      "path": "/design",
+      "file": "src/app/design/page.tsx",
+      "purpose": "Dev-only design system preview. Renders AvailabilityCalendar component for visual testing.",
+      "auth_required": false,
+      "gate": {
+        "type": "none",
+        "description": "Public dev page; no authentication or gating"
+      },
+      "persona_access": {
+        "guest": "Full access",
+        "host": "Full access",
+        "inviter": "Full access"
+      },
+      "entry_points": [
+        "Direct /design URL (dev only)"
+      ],
+      "exit_points": [
+        "None (dead-end dev page)"
+      ],
+      "states": [
+        "static"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "Uses inline padding (p-10); likely breaks at <375px mobile. No responsive Tailwind sm:/md: classes.",
+      "notes": "Dead-end dev-only page. Should be hidden in production or behind a feature flag. Hardcoded blockedRanges=[] with no interactivity."
+    },
+    {
+      "path": "/sign-in",
+      "file": "src/app/sign-in/page.tsx",
+      "purpose": "Phone-first sign-in flow with OTP verification and email fallback. Uses Clerk's phone_code strategy.",
+      "auth_required": false,
+      "gate": {
+        "type": "none",
+        "description": "Public; no authentication required (unauthenticated users sign in here)"
+      },
+      "persona_access": {
+        "guest": "Full access \u2014 phone/OTP/email entry",
+        "host": "Full access \u2014 same as guest",
+        "inviter": "Full access \u2014 same as guest"
+      },
+      "entry_points": [
+        "Middleware redirect from protected routes (?redirect_url parameter)",
+        "Link from /sign-up",
+        "Direct /sign-in URL"
+      ],
+      "exit_points": [
+        "redirect_url query param (defaults to /browse)",
+        "Link to /sign-up (new account)"
+      ],
+      "states": [
+        "phone (enter phone number)",
+        "otp (verify 6-digit code)",
+        "email_fallback (Clerk's default email/password/Google UI)",
+        "loading (Suspense fallback)"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "Good: max-w-[520px], md:py-16, responsive text sizes (md:text-4xl), XL_INPUT uses h-16 rounded-2xl. Should scale well to 375px.",
+      "notes": "Multi-step state machine (phone \u2192 OTP \u2192 email fallback). Properly handles Clerk's createdSessionId flow. Uses parsePhoneNumberFromString for validation. Email fallback wraps Clerk's <SignIn /> component with routing='hash'."
+    },
+    {
+      "path": "/sign-up",
+      "file": "src/app/sign-up/page.tsx",
+      "purpose": "Phone-first account creation with OTP verification, followed by name/password entry and optional Google SSO.",
+      "auth_required": false,
+      "gate": {
+        "type": "none",
+        "description": "Public; no authentication required"
+      },
+      "persona_access": {
+        "guest": "Full access \u2014 new account creation",
+        "host": "Full access \u2014 same path as guests",
+        "inviter": "Full access \u2014 same path as guests"
+      },
+      "entry_points": [
+        "Link from /sign-in",
+        "Direct /sign-up URL",
+        "Invite token redirect (via ?redirect_url)"
+      ],
+      "exit_points": [
+        "redirect_url query param on success (defaults to /browse)",
+        "Link to /sign-in (existing account)"
+      ],
+      "states": [
+        "phone (enter phone number)",
+        "otp (verify 6-digit code)",
+        "account (name, password, optional email + Google SSO button)",
+        "email_fallback (Clerk's default UI)",
+        "loading (Suspense fallback)"
+      ],
+      "trust_direction_copy": "N/A (pre-authentication)",
+      "mobile_responsive_notes": "Good: max-w-[520px], responsive text (md:text-4xl), md:py-16. XL_INPUT and BIG_INPUT Tailwind classes handle sizing well on narrow screens.",
+      "notes": "Two-factor signup: phone + password. Email is optional (only used if user provides it). Google SSO offered on account step. Post-phone-verification, email verification is skipped for alpha (comment at line 119-121 notes this will be enabled later). Password minimum is 8 characters. Properly marshals through Clerk's signUp.update() and setActive()."
+    },
+    {
+      "path": "/browse",
+      "file": "src/app/(app)/browse/page.tsx",
+      "purpose": "Main public listing browse/search interface. Server-renders grid of listings with trust gating, filters (location/price/bedrooms/trust score), and search.",
+      "auth_required": false,
+      "gate": {
+        "type": "trust",
+        "description": "Anonymous viewers see only listings with see_preview='anyone_anywhere'. Signed-in users see listings based on trust degree (1\u00b0=direct vouch, 2\u00b0=connector, 3\u00b0=mustard, 4\u00b0+=zinc). Zero-vouch users see only 'anyone' listings. Trust-scored filter (--trust) available to signed-in users."
+      },
+      "persona_access": {
+        "guest": "Sees 'anyone_anywhere' preview listings only; cannot request book, message, or request intro. Can see full details on hover/preview but cannot book.",
+        "host": "Sees all listings except own. Trust direction: host\u2192viewer (how much host trusts guest).",
+        "inviter": "Same as guest \u2014 browse is uniform across personas; inviter role doesn't unlock additional listings."
+      },
+      "entry_points": [
+        "Homepage redirect from /",
+        "Logo/nav clicks from any authenticated route",
+        "Mobile nav from any (app) route",
+        "Links from /help, /profile/[id], /listings/[id]"
+      ],
+      "exit_points": [
+        "/listings/[id] (click listing card)",
+        "/profile/[id] (click host avatar/name)",
+        "/sign-in (click 'sign in' when anonymous and trust-gated)",
+        "Filter/search interactions (all client-side, no navigation)"
+      ],
+      "states": [
+        "loading (GridSkeleton during data fetch)",
+        "empty (zero results after filtering)",
+        "gated (authenticated user with insufficient trust sees 'not accessible' overlay)",
+        "full-access (listing fully visible with book button)",
+        "preview-only (partial info, 'unlock' prompt)",
+        "zero-vouches (user has no vouches; filtered to 'anyone' listings only)"
+      ],
+      "trust_direction_copy": "Host's trust of guest. Labels appear as 'X degree connection' / 'Vouched by' badges on listing cards showing direction of host\u2192guest vouch path.",
+      "mobile_responsive_notes": "Excellent: sticky search pill (md:hidden), grid responsive (grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4), px-4 md:px-10 lg:px-20 padding scales well. Suspense boundaries isolate search/filter loading states.",
+      "notes": "Complex trust evaluation server-side: computeIncomingTrustPaths batches all listings' hosts at once (reverse-batched for 1 DB roundtrip). Zero-vouch users filtered in JS. Trust score sorting optional. canSeePreview/canSeeFull gates determine overlay rendering. Desktop nav portals search + filters into nav center slot (NavCenterPortal). Mobile uses collapsing search pill + filter sheet."
+    },
+    {
+      "path": "/dashboard",
+      "file": "src/app/(app)/dashboard/page.tsx",
+      "purpose": "Main user hub. Tabs for hosting (listings management), traveling (upcoming/past trips), and network (vouch/trust management). Tab state in query param.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Middleware redirects unauthenticated users to /sign-in. Authenticated users can access all three tabs."
+      },
+      "persona_access": {
+        "guest": "Sees 'traveling' (trips) and 'network' (vouches) tabs. 'Hosting' tab visible but redirects to /dashboard (empty state).",
+        "host": "Sees all three tabs: 'hosting' (manage listings), 'traveling' (trips as guest), 'network'.",
+        "inviter": "Same as host \u2014 role doesn't gate tab visibility; inviter capability is just a flag on data."
+      },
+      "entry_points": [
+        "/hosting (legacy route, redirects here)",
+        "/dashboard/network (legacy route, redirects here with ?tab=network)",
+        "/dashboard/traveling (legacy route, redirects here with ?tab=traveling)",
+        "Sidebar nav from any (app) route",
+        "Logo/nav clicks"
+      ],
+      "exit_points": [
+        "/dashboard?tab=hosting (click Hosting tab)",
+        "/dashboard?tab=traveling (click Traveling tab)",
+        "/dashboard?tab=network (click Network tab)",
+        "/hosting/listings/[id]/edit (from hosting tab, click edit)",
+        "/trips/[bookingId] (from traveling tab, click trip)",
+        "/vouch (from network tab, click 'vouch for someone')",
+        "/invite (from network tab, click 'invite someone')"
+      ],
+      "states": [
+        "loading (DashboardContent renders client-side tabs)",
+        "hosting (empty state if no listings; grid of listing cards otherwise)",
+        "traveling (empty state if no trips; list of upcoming/past trips otherwise)",
+        "network (trust overview, vouch count, invite list, 'add vouch' button)"
+      ],
+      "trust_direction_copy": "Outgoing (viewer's trust of others, for vouch/invite UI). Network tab shows vouchees and incoming vouch count.",
+      "mobile_responsive_notes": "Likely responsive; uses client-side tab switching (DashboardContent handles layout). Inherits (app) layout padding/nav. No hardcoded widths visible in this file.",
+      "notes": "Server renders minimal page.tsx; DashboardContent is client-side with state machine for tab selection. Query param ?tab={hosting|traveling|network} sets default tab. Legacy redirect routes consolidate all into one page. Edge-compatible (export const runtime='edge')."
+    },
+    {
+      "path": "/dashboard/network",
+      "file": "src/app/(app)/dashboard/network/page.tsx",
+      "purpose": "Legacy redirect route. Directs to /dashboard?tab=network for consolidated dashboard UI.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Middleware enforces auth; redirect happens server-side."
+      },
+      "persona_access": {
+        "guest": "Redirected to /dashboard?tab=network (same access as from main dashboard)",
+        "host": "Redirected to /dashboard?tab=network",
+        "inviter": "Redirected to /dashboard?tab=network"
+      },
+      "entry_points": [
+        "Old /dashboard/network deep links",
+        "Legacy bookmarks"
+      ],
+      "exit_points": [
+        "Redirect to /dashboard?tab=network (server-side)"
+      ],
+      "states": [
+        "redirect"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "N/A (redirect only)",
+      "notes": "Orphaned legacy route. Should be removed or kept as redirect for backward compatibility. Comment explains migration to single /dashboard page."
+    },
+    {
+      "path": "/dashboard/traveling",
+      "file": "src/app/(app)/dashboard/traveling/page.tsx",
+      "purpose": "Legacy redirect route. Directs to /dashboard?tab=traveling for unified dashboard.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced by middleware."
+      },
+      "persona_access": {
+        "guest": "Redirected to /dashboard?tab=traveling",
+        "host": "Redirected to /dashboard?tab=traveling",
+        "inviter": "Redirected to /dashboard?tab=traveling"
+      },
+      "entry_points": [
+        "Old /dashboard/traveling deep links"
+      ],
+      "exit_points": [
+        "Redirect to /dashboard?tab=traveling"
+      ],
+      "states": [
+        "redirect"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "N/A",
+      "notes": "Legacy redirect. Candidate for removal."
+    },
+    {
+      "path": "/help",
+      "file": "src/app/(app)/help/page.tsx",
+      "purpose": "Public help center with FAQ and contact form. Allows any user (authenticated or not) to browse FAQs and submit support requests.",
+      "auth_required": false,
+      "gate": {
+        "type": "none",
+        "description": "Fully public; no authentication or trust gating."
+      },
+      "persona_access": {
+        "guest": "Full access to FAQs and contact form. Can submit support requests as anonymous.",
+        "host": "Full access; name/email pre-fill likely from Clerk context.",
+        "inviter": "Full access; same as host."
+      },
+      "entry_points": [
+        "Help link from nav (likely in footer or mobile nav)",
+        "Direct /help URL",
+        "Links from error states or onboarding"
+      ],
+      "exit_points": [
+        "Browse back (no outbound links visible in code)",
+        "Submit contact form (POSTs to /api/support)"
+      ],
+      "states": [
+        "loaded (FAQs + form rendered)",
+        "submitting (form submit loading state)",
+        "submitted (success message)"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "Good: max-w-[880px] container, px-4 md:px-6 md:py-10, text responsive (md:text-3xl). Uses md: breakpoints correctly.",
+      "notes": "Simple static page. Uses HelpFaq component with imported FAQS constant. HelpContactForm handles POST logic (network error handling in form component). Edge-compatible (runtime='edge')."
+    },
+    {
+      "path": "/hosting",
+      "file": "src/app/(app)/hosting/page.tsx",
+      "purpose": "Legacy redirect. Directs to /dashboard for consolidated hosting/traveling/network UI.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced by middleware."
+      },
+      "persona_access": {
+        "guest": "Redirected to /dashboard (hosting tab empty if user has no listings)",
+        "host": "Redirected to /dashboard (hosting tab shows listings)",
+        "inviter": "Same as host"
+      },
+      "entry_points": [
+        "Old /hosting deep links",
+        "Legacy host-specific nav items"
+      ],
+      "exit_points": [
+        "Redirect to /dashboard"
+      ],
+      "states": [
+        "redirect"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "N/A",
+      "notes": "Orphaned route. Consolidation complete; should remove."
+    },
+    {
+      "path": "/hosting/create",
+      "file": "src/app/(app)/hosting/create/page.tsx",
+      "purpose": "Listing creation wizard. Multi-step form for hosts to create a new listing with details, photos, availability, pricing, amenities, and trust-gating rules.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced by middleware. Creators (logged-in users) can create listings for themselves."
+      },
+      "persona_access": {
+        "guest": "Cannot access; attempted access redirects to /sign-in.",
+        "host": "Full access to complete listing wizard.",
+        "inviter": "Full access; same as host (inviter is a secondary capability, not a primary role)."
+      },
+      "entry_points": [
+        "Button/link from /dashboard hosting tab ('Create listing')",
+        "Direct /hosting/create URL"
+      ],
+      "exit_points": [
+        "On success: redirect to /dashboard or /hosting/listings/[newId]/edit",
+        "Cancel: back to /dashboard",
+        "Inline 'Edit' link to jump to full listing detail"
+      ],
+      "states": [
+        "step 1: placeKind + propertyLabel selection",
+        "step 2: address entry + location map",
+        "step 3: capacity (guests, bedrooms, beds, bathrooms)",
+        "step 4: amenities picker",
+        "step 5: photos upload (PhotoUploader)",
+        "step 6: title + description",
+        "step 7: house rules + check-in/check-out times",
+        "step 8: pricing + discounts + min nights",
+        "step 9: availability calendar picker",
+        "step 10: visibility + access gating (trust rules)",
+        "step 11: review + submit"
+      ],
+      "trust_direction_copy": "Listing gate (host-facing). Hosts set see_preview, see_full, can_message, can_request_book rules. Direction: host controls who sees what (host\u2192guest visibility rules). Later shown in browse as host\u2192guest score.",
+      "mobile_responsive_notes": "Very large component (35k+ tokens). Likely responsive via Tailwind (grid-cols-2 gap-2 for name/last name, max-w-[1100px] container), but needs verification by reading full file. Uses relative layouts and flex for step content.",
+      "notes": "Huge multi-step component using useState for WizardState. PhotoUploader delegates to separate component (likely uses Cloudinary or similar). LocationPreview, AmenitiesSection, AvailabilityCalendarWrapper, LocationMapClient all delegated. Uses encodeListingMeta() for serialization. Visibility/access rules merged into single collapsed model (visibility_mode + access_settings). Two-gate model (preview vs. full access)."
+    },
+    {
+      "path": "/hosting/listings/[id]/edit",
+      "file": "src/app/(app)/hosting/listings/[id]/edit/page.tsx",
+      "purpose": "Listing editor for hosts. Shows cover photo, status (Active/Paused), title, and location. Allows editing of listing details via EditListingForm.",
+      "auth_required": true,
+      "gate": {
+        "type": "role",
+        "description": "Auth enforced. Additionally, route checks if current user is the listing owner (listing.host_id === currentUser.id). Non-owners redirected to /hosting."
+      },
+      "persona_access": {
+        "guest": "Cannot access (redirected to /sign-in).",
+        "host": "Full access if they own the listing. Non-owner hosts see 404 or redirect.",
+        "inviter": "Full access if they're also a host who owns this listing."
+      },
+      "entry_points": [
+        "Button from /dashboard hosting tab ('Edit' on listing card)",
+        "Direct /hosting/listings/[id]/edit URL (if you own it)"
+      ],
+      "exit_points": [
+        "Back link to /hosting (at top)",
+        "EditListingForm buttons (save, delete, etc. \u2014 form handles routing)",
+        "Breadcrumb or nav back"
+      ],
+      "states": [
+        "loading (cover photo + title card shown as hero)",
+        "active (green 'Listed' badge)",
+        "paused (gray 'Paused' badge)",
+        "editing (form state from EditListingForm component)"
+      ],
+      "trust_direction_copy": "N/A (editing interface, not a public view)",
+      "mobile_responsive_notes": "Good: md:flex-row for hero card (switches to col on mobile), max-w-[1100px] container, px-6 lg:px-10, responsive image sizing (h-36 w-full md:h-32 md:w-48). Layout should adapt to 375px.",
+      "notes": "Owner-gated. Renders hero card with cover photo, status badge, area name, title. Checks is_active flag for badge styling. EditListingForm component delegated for actual form. parseListingMeta() deserializes description field (uses separator to split metadata + body). Photos prefetched from DB. Edge-compatible."
+    },
+    {
+      "path": "/inbox",
+      "file": "src/app/(app)/inbox/page.tsx",
+      "purpose": "Message inbox hub. Desktop split-view: left sidebar lists threads, right pane shows selected thread detail. Mobile shows list only (threads link to /inbox/[threadId]).",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Enforced by middleware. Auth required to view your own threads."
+      },
+      "persona_access": {
+        "guest": "Redirected to /sign-in if not authenticated. Cannot see others' threads.",
+        "host": "Sees all threads they're a party to (as host or guest).",
+        "inviter": "Same as host."
+      },
+      "entry_points": [
+        "Nav link from (app) layout",
+        "Booking confirmation (contact request created) \u2192 new thread",
+        "Profile \u2192 message button",
+        "Listing \u2192 request book \u2192 message thread",
+        "Direct /inbox URL"
+      ],
+      "exit_points": [
+        "/inbox/[threadId] (click thread on mobile or on list)",
+        "/browse (if inbox empty, 'Browse listings' button)",
+        "Inline reply composing (stays on page)"
+      ],
+      "states": [
+        "loading (Suspense)",
+        "empty (zero threads: empty state with 'Browse listings' button)",
+        "thread-list (list of InboxList items on left)",
+        "thread-detail (ThreadView on right, desktop only)",
+        "select-prompt (desktop, no thread selected: 'Select a conversation')"
+      ],
+      "trust_direction_copy": "N/A (messaging interface, not trust display)",
+      "mobile_responsive_notes": "Excellent responsive design: grid-cols-1 md:grid-cols-[360px_1fr] splits sidebar + detail on desktop. Mobile shows list only (detail hidden with hidden md:flex). Sticky header on mobile with back button (md:hidden). SafeAreaInset padding handled in layout.tsx.",
+      "notes": "Desktop split-view pattern. Mobile routes through /inbox/[threadId] for full-screen threads. ThreadView can show message composition. Threads fetched server-side; selectedId param in query (?thread=<id>) for desktop pre-selection. Empty state checks threads.length === 0 and shows placeholder. Uses getCurrentUser() to enforce auth."
+    },
+    {
+      "path": "/inbox/[threadId]",
+      "file": "src/app/(app)/inbox/[threadId]/page.tsx",
+      "purpose": "Thread detail page. On desktop, renders same split-view as /inbox (sidebar + selected thread). On mobile, full-screen thread view with back button. Allows viewing and composing messages within a single conversation.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Enforced by middleware. Additionally, route validates that current user is a party to the thread (getThreadDetail checks ownership)."
+      },
+      "persona_access": {
+        "guest": "Redirected to /sign-in if not authenticated.",
+        "host": "Can view and compose messages in threads they're party to.",
+        "inviter": "Same as host."
+      },
+      "entry_points": [
+        "InboxList item click (from /inbox or /inbox/[threadId] sidebar)",
+        "Direct /inbox/[threadId] URL (if you're a party to the thread)",
+        "Booking/contact request creation"
+      ],
+      "exit_points": [
+        "Back link to /inbox (mobile only, top left)",
+        "Inline reply composition (stays on page)"
+      ],
+      "states": [
+        "loading (notFound() if thread not found)",
+        "thread-detail (ThreadView rendered full-screen on mobile, right pane on desktop)"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "Excellent: md:hidden for back button (mobile-only). Desktop shows split-view (md:grid-cols-[360px_1fr]). Full-screen height calculated (md:h-[calc(100vh-180px)], mobile h-[calc(100vh-160px)]). Sidebar hidden on mobile (hidden md:block).",
+      "notes": "Dual-layout pattern: mobile full-screen, desktop split-view (mirrors /inbox). Fetches thread + all threads (for sidebar). ThreadView component handles UI. notFound() if thread not found; no 404 page content shown. Edge-compatible."
+    },
+    {
+      "path": "/invite",
+      "file": "src/app/(app)/invite/page.tsx",
+      "purpose": "Invite wizard. Multi-step form for users to invite new members to the platform, with vouch score calculation (vouch type \u00d7 years known = score). Sends SMS/email invitations.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Middleware enforces auth. Users must be signed in to invite."
+      },
+      "persona_access": {
+        "guest": "Full access to invite others.",
+        "host": "Full access.",
+        "inviter": "Full access; this is the primary inviter UI."
+      },
+      "entry_points": [
+        "Nav link from (app) layout ('Invite')",
+        "Button from /vouch ('Invite them to 1\u00b0 B&B')",
+        "Direct /invite URL",
+        "Dashboard network tab ('Invite someone')"
+      ],
+      "exit_points": [
+        "On success: show invite URL + 'Invite another person' button loops back to step 1",
+        "Link to /vouch ('Vouch for someone instead')"
+      ],
+      "states": [
+        "step 1 (info): name + phone (required) + email (optional) input",
+        "step 2 (vouch): select vouch type (Inner Circle vs. Standard)",
+        "step 3 (years): select years known (multiplier buckets)",
+        "step 4 (preview): review summary + reputation stake checkbox",
+        "step 5 (done): show invite URL + SMS/email confirmation text",
+        "loading (saving, sending SMS/email)"
+      ],
+      "trust_direction_copy": "Outgoing (inviter's vouch of invitee). Display shows vouch type (Inner Circle vs. Standard) + years known + calculated score (X pts). 'Reputation stake' message notes that invitee's guest rating affects voucher's power.",
+      "mobile_responsive_notes": "Excellent: max-w-[540px] container, px-4 md:px-6 md:py-12, responsive text (md:text-3xl), step-indicator bars responsive. BIG_INPUT uses h-14 border-2, mt-1.5 spacing. Should scale well to 375px.",
+      "notes": "Multi-step state machine with step indicators (4 bars, all filled when done=step 5). Uses VOUCH_TYPES + YEARS_KNOWN_BUCKETS constants from lib/vouch-constants.ts. Computes score via computeVouchScore(vouchType, yearsKnown). Phone required (primary), email optional. Sends via POST /api/invites. Renders invite URL for manual sharing if SMS/email delivery isn't enough. Reputation stake acknowledgement checkbox enforces user understands invitee's ratings affect their vouch power."
+    },
+    {
+      "path": "/listings/[id]",
+      "file": "src/app/(app)/listings/[id]/page.tsx",
+      "purpose": "Listing detail page. Full listing view with photos, description, amenities, reviews, availability calendar, booking sidebar, trust tags, and house manual. Trust-gated: anonymous/low-trust viewers see preview or gated message.",
+      "auth_required": false,
+      "gate": {
+        "type": "trust",
+        "description": "Anonymous viewers see only listings with see_preview='anyone'. Signed-in viewers evaluated via checkListingAccess: canSeePreview=true shows partial info; canSeeFull=true shows everything. Hosts see their own listings unrestricted. Direct URL access to hidden listings shows gated preview (hidden listings blocked in browse but accessible via direct link)."
+      },
+      "persona_access": {
+        "guest": "Sees preview info only (title, cover photo, house rules, area). 'Unlock to see full listing' overlay. Cannot see reviews, full description, or pricing if gated.",
+        "host": "Sees own listing fully. Edit button, pause/unpause toggle.",
+        "inviter": "Full access if access rules permit; trust degree (1\u00b0=direct vouch, 2\u00b0=connector, etc.) determines gate."
+      },
+      "entry_points": [
+        "BrowseLayout listing card click",
+        "Search results / filter",
+        "Direct /listings/[id] URL",
+        "Profile host's listings link"
+      ],
+      "exit_points": [
+        "/listings/[id]/reserve (click 'Request to book' with dates)",
+        "/profile/[hostId] (click host name/avatar)",
+        "Connection popover (shows trust path popover for trust details)",
+        "Wishlist save button (stays on page, adds to wishlist)"
+      ],
+      "states": [
+        "loading (photo gallery + amenities Suspense)",
+        "full-access (everything visible: photos, description, reviews, calendar, book button)",
+        "preview-only (gated overlay: 'This listing is private. __ degree connection required' or similar)",
+        "error (notFound() if listing doesn't exist)"
+      ],
+      "trust_direction_copy": "Host's trust of guest (incoming direction: how much the host trusts this viewer). Shown as 'X degree connection' badge or 'No mutual connections' message. Vouch path displayed in ConnectionPopover.",
+      "mobile_responsive_notes": "Should be responsive but needs full code review. Max width likely set on container. Sticky booking sidebar on desktop (sticky top-24). Anchor bar for jump links likely uses responsive widths. Image gallery likely responsive.",
+      "notes": "Complex trust evaluation: host sees own listing fully; non-host viewers evaluated via computeIncomingTrustPath (host\u2192viewer). Direct link access bypasses hidden-listing browse-blocking (treats hidden as preview_gated for direct-link access only). StickyAnchorBar for jump links (Description, Reviews, Calendar, etc.). GatedListingView shown if access.can_see_preview=false and canSeePreview/canSeeFull checks fail. TrustTag badges show degree + mutual connections. PostStayVouchBanner likely appears below (for guests after checkout). Edge-compatible."
+    },
+    {
+      "path": "/listings/[id]/reserve",
+      "file": "src/app/(app)/listings/[id]/reserve/page.tsx",
+      "purpose": "Booking confirmation page (off-platform payment). Guest enters check-in, check-out, guest count, and optional intro message for host. Shows price breakdown (subtotal + cleaning + service fees). Note: Platform appears to use off-platform payment now (no payment processing in UI).",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced by middleware. Route requires valid dates (?from=..&to=..&guests=..); invalid params redirect to listing detail."
+      },
+      "persona_access": {
+        "guest": "Full access to submit booking request (if they can access the listing).",
+        "host": "Likely redirected or cannot access (not validated in code, but route is for guests).",
+        "inviter": "Full access if also a guest."
+      },
+      "entry_points": [
+        "Booking sidebar 'Select dates' \u2192 calendar \u2192 'Reserve' button (from /listings/[id])",
+        "Direct /listings/[id]/reserve URL (with dates + guests)"
+      ],
+      "exit_points": [
+        "Back link to /listings/[id]",
+        "ReserveForm submit \u2192 POST /api/bookings \u2192 redirect to /inbox (new thread created)"
+      ],
+      "states": [
+        "loading (getListingDetail, getTripDetail, computeTrust)",
+        "form (ReserveForm with trip summary + pricing + message input)",
+        "submitting (form sending booking request)",
+        "success (redirect to /inbox or thread)"
+      ],
+      "trust_direction_copy": "Host's trust of guest (for intro message context). Shows 'Strongest connector: __ vouched for you' if multi-hop path exists (trust score awareness).",
+      "mobile_responsive_notes": "Good: order-1 md:order-2 for reordering on mobile (summary card moves below on mobile). grid gap-10 md:grid-cols-[1fr_400px] for layout. Sticky sidebar on desktop (sticky top-24).",
+      "notes": "Off-platform payment model: form collects intro message, computes fees client-side (8% cleaning, 12% service) for display only. ReserveForm handles POST to /api/bookings. Dates validated (required), redirect back if missing. Prices shown as summary (subtotal \u00d7 nights + fees). House rules fetched from listing or shows defaults. Trust context passed (strongestConnector name for personalization). Edge-compatible."
+    },
+    {
+      "path": "/profile/[id]",
+      "file": "src/app/(app)/profile/[id]/page.tsx",
+      "purpose": "Public user profile. Shows user info (name, avatar, member since, bio, location, occupation, languages), vouch count, reviews, listings, and trust connection summary.",
+      "auth_required": false,
+      "gate": {
+        "type": "trust",
+        "description": "Profiles are public. Anonymous viewers see name + avatar + member since + reviews (if any). Signed-in viewers also see trust path to this user (outgoing direction: 'You have X degree connection'). Vouch button available to signed-in users."
+      },
+      "persona_access": {
+        "guest": "Can view profile. Cannot vouch (unauthenticated). Can see public reviews + listings.",
+        "host": "Full access including vouch button. Can see trust path (degree + connectors).",
+        "inviter": "Full access; same as host."
+      },
+      "entry_points": [
+        "Browse listing card \u2192 host name click",
+        "Connection popover \u2192 user name click",
+        "/inbox thread \u2192 other_user name click",
+        "Direct /profile/[id] URL"
+      ],
+      "exit_points": [
+        "VouchButton \u2192 opens vouch modal (stays on page)",
+        "Message button (in modal or elsewhere) \u2192 /inbox",
+        "/vouch (if clicked from network tab)",
+        "Listing links \u2192 /listings/[id]"
+      ],
+      "states": [
+        "loading (notFound() if user doesn't exist)",
+        "public-profile (name, avatar, info chips, reviews, listings grid)",
+        "own-profile (user viewing their own profile: shows edit button)",
+        "trust-connection (shows degree badge + trust path if signed-in viewer)"
+      ],
+      "trust_direction_copy": "Outgoing (viewer's trust of this user). Shows 'X degree connection' badge + 'Path: You \u2192 Connector \u2192 User' visualization. Vouch button labeled 'Add vouch' or 'Update vouch'.",
+      "mobile_responsive_notes": "Good: md:flex-row for header card (col on mobile). Avatar h-28 w-28 md:h-32 md:w-32 responsive sizing. Text responsive (md:text-3xl). Likely responsive throughout.",
+      "notes": "Public page, no auth gate. getProfileById(id) fetches user + listings + reviews. computeTrustPath(viewerId, profileId) returns degree + paths (only if viewerId !== profileId). isOwn check shows edit button + vouch context changes. ConnectionPopover on avatar for detailed trust breakdown. ProfileReviews component renders guest/host reviews. VouchButton opens VouchModal for creating/updating vouch. Edge-compatible."
+    },
+    {
+      "path": "/profile/edit",
+      "file": "src/app/(app)/profile/edit/page.tsx",
+      "purpose": "Edit public profile info. Allows users to update name, bio, location, occupation, languages. Avatar and email managed through account settings (Clerk).",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced. Users edit their own profile only."
+      },
+      "persona_access": {
+        "guest": "Full access to edit their profile.",
+        "host": "Full access.",
+        "inviter": "Full access."
+      },
+      "entry_points": [
+        "Settings page \u2192 'Personal info' link",
+        "Direct /profile/edit URL"
+      ],
+      "exit_points": [
+        "Back link to /settings",
+        "ProfileEditForm submit \u2192 updates DB, stays on page or redirects"
+      ],
+      "states": [
+        "loading (fetching user from DB)",
+        "setup-pending (user webhook not yet synced: shows 'Give it a few seconds and reload')",
+        "editing (form visible with current values)"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "Good: max-w-[680px] container, px-4 md:px-6 md:py-10, responsive text (md:text-3xl). Single-column layout, should scale well.",
+      "notes": "Fetches current profile from Supabase users table. Falls back gracefully if webhook hasn't synced yet (shows friendly message instead of 404). ProfileEditForm handles form submission logic. Clarifies that avatar/email are managed through 'account settings' (Clerk integration). Edge-compatible."
+    },
+    {
+      "path": "/settings",
+      "file": "src/app/(app)/settings/page.tsx",
+      "purpose": "Account settings hub. Shows links to: Personal info, Phone number, Notifications, Public profile. Also has Deactivate account section.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced."
+      },
+      "persona_access": {
+        "guest": "Full access to their settings.",
+        "host": "Full access.",
+        "inviter": "Full access."
+      },
+      "entry_points": [
+        "Nav link from (app) layout",
+        "Back link from /profile/edit, /settings/*, etc.",
+        "Direct /settings URL"
+      ],
+      "exit_points": [
+        "Link to /profile/edit ('Personal info')",
+        "Link to /settings/phone ('Phone number')",
+        "Link to /settings/notifications ('Notifications')",
+        "Link to /profile/[userId] ('View public profile')",
+        "DeactivateButton (form/modal)"
+      ],
+      "states": [
+        "loading (fetching user info)",
+        "loaded (settings links shown)"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "Good: max-w-[780px] container, px-4 md:px-6 md:py-10, rounded-2xl cards. Should scale well.",
+      "notes": "Hub page with SettingsLink components (Icon + title + description). Fetches user from Supabase for email display + phone masking. DeactivateButton wrapped in separate section. Edge-compatible."
+    },
+    {
+      "path": "/settings/notifications",
+      "file": "src/app/(app)/settings/notifications/page.tsx",
+      "purpose": "Email notification preferences. Allows users to toggle which transactional emails they receive (booking requests, confirmations, messages, reminders, reviews).",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced."
+      },
+      "persona_access": {
+        "guest": "Full access to own preferences.",
+        "host": "Full access.",
+        "inviter": "Full access."
+      },
+      "entry_points": [
+        "Settings page \u2192 'Notifications' link",
+        "Direct /settings/notifications URL"
+      ],
+      "exit_points": [
+        "Back link to /settings",
+        "NotificationsForm submit (stays on page)"
+      ],
+      "states": [
+        "loading (fetching email_prefs from DB)",
+        "editing (form with toggles)"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "Good: max-w-[680px] container, px-4 md:px-6 md:py-10.",
+      "notes": "Fetches email_prefs JSON from users table; merges with DEFAULTS if missing fields. NotificationsForm handles submit. Transactional email types: booking_request, booking_confirmed, booking_declined, new_message, checkin_reminder, review_reminder. Edge-compatible."
+    },
+    {
+      "path": "/settings/phone",
+      "file": "src/app/(app)/settings/phone/page.tsx",
+      "purpose": "Phone number management. Shows current phone (masked), allows changing to a new number via OTP verification.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced."
+      },
+      "persona_access": {
+        "guest": "Full access to change their own phone.",
+        "host": "Full access.",
+        "inviter": "Full access."
+      },
+      "entry_points": [
+        "Settings page \u2192 'Phone number' link",
+        "Direct /settings/phone URL"
+      ],
+      "exit_points": [
+        "Back link to /settings",
+        "Form submission (stays on page after success)"
+      ],
+      "states": [
+        "view (show masked current phone + 'Change' button)",
+        "enter (input new phone number)",
+        "verify (input 6-digit OTP)",
+        "loading (sending OTP or verifying)"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "Good: max-w-[540px] container, px-4 md:px-6 md:py-10, responsive text (md:text-3xl). BIG_INPUT h-14 rounded-xl spacing. Should scale well.",
+      "notes": "Client-side state machine (\"use client\"). Fetches current phone via /api/users/me on mount. POST /api/users/phone/start to send OTP, POST /api/users/phone/verify to confirm. maskPhone utility hides all but last 4 digits. Phone required for account identity on 1DB (note in description). Edge-compatible (component, not route handler)."
+    },
+    {
+      "path": "/trips",
+      "file": "src/app/(app)/trips/page.tsx",
+      "purpose": "Legacy redirect. Routes to /dashboard?tab=traveling for consolidated dashboard.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced by middleware."
+      },
+      "persona_access": {
+        "guest": "Redirected to /dashboard?tab=traveling",
+        "host": "Redirected to /dashboard?tab=traveling",
+        "inviter": "Redirected to /dashboard?tab=traveling"
+      },
+      "entry_points": [
+        "Old /trips deep links"
+      ],
+      "exit_points": [
+        "Redirect to /dashboard?tab=traveling"
+      ],
+      "states": [
+        "redirect"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "N/A",
+      "notes": "Orphaned route. Candidate for removal."
+    },
+    {
+      "path": "/trips/[bookingId]",
+      "file": "src/app/(app)/trips/[bookingId]/page.tsx",
+      "purpose": "Trip detail page. Shows booking info (dates, guests, status), house manual, contact info, payment arrangement card. Prompts guest to vouch for host after checkout (PostStayVouchBanner).",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced. Route validates that current user is a party to the booking (getTripDetail checks ownership)."
+      },
+      "persona_access": {
+        "guest": "Full access to view their own bookings.",
+        "host": "Likely cannot access (route is guest-facing; hosts see bookings on /dashboard hosting tab).",
+        "inviter": "Full access if also a guest with this booking."
+      },
+      "entry_points": [
+        "Dashboard traveling tab \u2192 trip click",
+        "Direct /trips/[bookingId] URL (if you're the guest)"
+      ],
+      "exit_points": [
+        "Back link to /trips (redirects to /dashboard?tab=traveling)",
+        "PostStayVouchBanner \u2192 /vouch or vouch modal (post-checkout guest vouches for host)",
+        "TripDetailActions buttons (likely message, cancel, review, etc.)"
+      ],
+      "states": [
+        "pending (booking awaiting host response)",
+        "accepted (confirmed)",
+        "declined (rejected by host)",
+        "cancelled (cancelled by either party)",
+        "post-checkout (shows PostStayVouchBanner if today > check_out date)"
+      ],
+      "trust_direction_copy": "Outgoing (guest vouching for host post-stay). PostStayVouchBanner prompts 'Vouch for [host name]' after checkout.",
+      "mobile_responsive_notes": "Not fully visible in excerpt, but uses max-w-[860px] container, px-4 md:px-6 md:py-10. Should be responsive.",
+      "notes": "Shows booking summary (dates, guests, status badge). Renders house_manual.content if present (Object.entries filters null/undefined/empty). TripDetailActions delegates cancel/review/message logic. PostStayVouchBanner shown only after checkout (isPostCheckout = check_out < today). Payment arrangement card shown (PaymentArrangementCard component). Edge-compatible."
+    },
+    {
+      "path": "/vouch",
+      "file": "src/app/(app)/vouch/page.tsx",
+      "purpose": "Search-based vouch interface. Allows users to search for members by name/email/phone and vouch for them (or update existing vouch). Shows search results with avatar + contact info + 'Vouch' / 'Update vouch' buttons.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced."
+      },
+      "persona_access": {
+        "guest": "Full access to vouch for others.",
+        "host": "Full access.",
+        "inviter": "Full access; this is secondary to /invite (which creates pre-vouch invites)."
+      },
+      "entry_points": [
+        "Dashboard network tab \u2192 'Vouch for someone' button",
+        "Link from /invite (if user not found, prompt to invite instead)",
+        "Direct /vouch URL"
+      ],
+      "exit_points": [
+        "User avatar/name \u2192 /profile/[id]",
+        "Vouch button \u2192 VouchModal (stays on page)",
+        "Link to /invite ('Invite them to join')"
+      ],
+      "states": [
+        "idle (search field empty)",
+        "searching (debounced GET /api/users/search?q=...)",
+        "no-results (query entered, no matches found + invite prompt)",
+        "results (user list with vouch buttons)",
+        "vouch-modal-open (VouchModal for creating/updating vouch)"
+      ],
+      "trust_direction_copy": "Outgoing (voucher's trust of vouchee). VouchModal shows vouch type + years known + calculated score.",
+      "mobile_responsive_notes": "Good: max-w-[640px] container, px-4 md:px-6 md:py-12, responsive text (md:text-3xl). Search input (BIG_INPUT) responsive. User list div readable on narrow screens.",
+      "notes": "Client-side search component (\"use client\"). Debounced search with useEffect (300ms delay). Fetches /api/users/search?q=... (case-insensitive, matches name/email/phone). Results show already_vouched flag; button text 'Vouch' or 'Update vouch' changes accordingly. VouchModal handles form + submission. handleVouchSaved callback updates results list (sets already_vouched=true). No-results state links to /invite to encourage inviting non-members."
+    },
+    {
+      "path": "/wishlists",
+      "file": "src/app/(app)/wishlists/page.tsx",
+      "purpose": "Wishlists hub. Shows user's saved listing collections as grid of cards with cover photo mosaics. Each card links to /wishlists/[id].",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced."
+      },
+      "persona_access": {
+        "guest": "Can create + view their own wishlists.",
+        "host": "Same as guest.",
+        "inviter": "Same as guest."
+      },
+      "entry_points": [
+        "Nav link from (app) layout",
+        "Heart icon in browse \u2192 wishlist selector \u2192 /wishlists",
+        "Direct /wishlists URL"
+      ],
+      "exit_points": [
+        "/wishlists/[id] (click wishlist card)",
+        "/browse (from empty state 'Start exploring')"
+      ],
+      "states": [
+        "empty (no wishlists: empty state with 'Start exploring' button)",
+        "loaded (grid of WishlistCollectionCard items)"
+      ],
+      "trust_direction_copy": "N/A",
+      "mobile_responsive_notes": "Good: px-4 md:px-10 lg:px-20 padding, grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 responsive grid. Should scale well.",
+      "notes": "Fetches lists via getUserWishlists(userId). WishlistCollectionCard renders cover_photos mosaic (see below). Defaults to empty state if no lists. Edge-compatible."
+    },
+    {
+      "path": "/wishlists/[id]",
+      "file": "src/app/(app)/wishlists/[id]/page.tsx",
+      "purpose": "Wishlist detail page. Shows list of saved listings as grid. Allows renaming and deleting the list (if not default). Shows empty state if list is empty.",
+      "auth_required": true,
+      "gate": {
+        "type": "auth",
+        "description": "Auth enforced. Route validates ownership (getWishlistWithItems checks user_id)."
+      },
+      "persona_access": {
+        "guest": "Full access to their own wishlists.",
+        "host": "Full access to their own wishlists.",
+        "inviter": "Full access to their own wishlists."
+      },
+      "entry_points": [
+        "Wishlists hub card click",
+        "Direct /wishlists/[id] URL (if owned by current user)"
+      ],
+      "exit_points": [
+        "Back link to /wishlists",
+        "LiveListingCard click \u2192 /listings/[id]",
+        "WishlistActions \u2192 rename/delete modal (stays on page)"
+      ],
+      "states": [
+        "empty (zero items: empty state with 'Browse stays' button)",
+        "loaded (grid of LiveListingCard items)"
+      ],
+      "trust_direction_copy": "N/A (display of saved listings; no trust context)",
+      "mobile_responsive_notes": "Good: px-4 md:px-10 lg:px-20 padding, likely uses responsive grid from live listing cards.",
+      "notes": "Fetches wishlist + items via getWishlistWithItems(userId, listId). WishlistActions component handles rename + delete; delete disabled if is_default=true. LiveListingCard component renders each item (trust context passed separately if needed). notFound() if list doesn't exist or user doesn't own it. Edge-compatible."
+    }
+  ],
+  "api_routes": [
+    {
+      "path": "/api/bookings",
+      "method": "POST",
+      "purpose": "Create pending contact_request (booking) from guest to host. Opens/reuses message thread, sends notification emails.",
+      "auth": "Required (Clerk)",
+      "known_callers": [
+        "ReserveForm submit from /listings/[id]/reserve"
+      ]
+    },
+    {
+      "path": "/api/browse/count",
+      "method": "GET",
+      "purpose": "Return aggregate listing count (for browse page stats, pagination hints, etc.)",
+      "auth": "None",
+      "known_callers": [
+        "Browse page stats display (if present)"
+      ]
+    },
+    {
+      "path": "/api/contact-requests",
+      "method": "GET, POST",
+      "purpose": "GET: list contact requests for current user (role={host|guest}, status filter). POST: likely redundant with /api/bookings.",
+      "auth": "Required (Clerk)",
+      "known_callers": [
+        "Dashboard hosting/traveling tabs"
+      ]
+    },
+    {
+      "path": "/api/contact-requests/[id]",
+      "method": "PATCH, DELETE",
+      "purpose": "Update contact request status (accept, decline, cancel).",
+      "auth": "Required",
+      "known_callers": [
+        "TripDetailActions (accept/decline buttons)"
+      ]
+    },
+    {
+      "path": "/api/contact-requests/[id]/cancel",
+      "method": "POST",
+      "purpose": "Cancel a contact request (guest cancels their booking request).",
+      "auth": "Required",
+      "known_callers": [
+        "TripDetailActions"
+      ]
+    },
+    {
+      "path": "/api/cron/check-reminders",
+      "method": "GET",
+      "purpose": "Cron job: checks for upcoming check-ins, sends reminder emails.",
+      "auth": "Public (webhook; secret token validation server-side)",
+      "known_callers": [
+        "External cron scheduler (e.g., EasyCron, Vercel cron)"
+      ]
+    },
+    {
+      "path": "/api/geocode",
+      "method": "POST",
+      "purpose": "Geocode address \u2192 lat/lng (reverse or forward geocoding).",
+      "auth": "Public (used during listing creation)",
+      "known_callers": [
+        "LocationPreview / hosting/create form"
+      ]
+    },
+    {
+      "path": "/api/incidents",
+      "method": "POST",
+      "purpose": "Report an incident/safety issue. Creates incident record.",
+      "auth": "Required",
+      "known_callers": [
+        "Help form or profile action menu"
+      ]
+    },
+    {
+      "path": "/api/invites",
+      "method": "GET, POST",
+      "purpose": "GET: list current user's sent invites (with status/claimed-by info). POST: create new invite + send SMS/email.",
+      "auth": "Required",
+      "known_callers": [
+        "InvitePage form submit",
+        "Dashboard network tab (invite list display)"
+      ]
+    },
+    {
+      "path": "/api/listings",
+      "method": "GET, POST",
+      "purpose": "GET: likely unused (browse uses getBrowseListings from lib). POST: create new listing (with photos, amenities, pricing, gating rules).",
+      "auth": "Required",
+      "known_callers": [
+        "HostingCreatePage form submit"
+      ]
+    },
+    {
+      "path": "/api/listings/[id]",
+      "method": "GET, PATCH, DELETE",
+      "purpose": "GET: fetch single listing. PATCH: update listing (host only). DELETE: delete listing (host only).",
+      "auth": "Required (PATCH/DELETE verify ownership)",
+      "known_callers": [
+        "EditListingForm, listing preview"
+      ]
+    },
+    {
+      "path": "/api/listings/[id]/availability",
+      "method": "GET, POST, PUT",
+      "purpose": "Manage availability calendar: query blocked ranges, set/update blocking, delete blockings.",
+      "auth": "Required",
+      "known_callers": [
+        "AvailabilityCalendarWrapper component"
+      ]
+    },
+    {
+      "path": "/api/listings/[id]/availability/[rangeId]",
+      "method": "DELETE",
+      "purpose": "Delete a specific blocked range from listing calendar.",
+      "auth": "Required",
+      "known_callers": [
+        "Calendar drag-to-unblock interaction"
+      ]
+    },
+    {
+      "path": "/api/listings/[id]/availability/unset",
+      "method": "POST",
+      "purpose": "Clear all blocked ranges for listing (reset calendar).",
+      "auth": "Required",
+      "known_callers": [
+        "Listing edit form 'Reset calendar' button"
+      ]
+    },
+    {
+      "path": "/api/listings/[id]/calendar-settings",
+      "method": "GET, PATCH",
+      "purpose": "Get/update calendar-specific settings (check-in/out times, min stay, etc.).",
+      "auth": "Required",
+      "known_callers": [
+        "EditListingForm"
+      ]
+    },
+    {
+      "path": "/api/listings/[id]/photos",
+      "method": "GET, POST, DELETE",
+      "purpose": "Manage listing photos: fetch, upload, delete, reorder.",
+      "auth": "Required",
+      "known_callers": [
+        "PhotoUploader component"
+      ]
+    },
+    {
+      "path": "/api/message-threads",
+      "method": "GET, POST",
+      "purpose": "GET: fetch user's message threads. POST: create new thread (from booking).",
+      "auth": "Required",
+      "known_callers": [
+        "InboxPage, getTripDetail"
+      ]
+    },
+    {
+      "path": "/api/message-threads/[id]/messages",
+      "method": "GET, POST",
+      "purpose": "GET: fetch messages in thread. POST: send new message.",
+      "auth": "Required",
+      "known_callers": [
+        "ThreadView component"
+      ]
+    },
+    {
+      "path": "/api/photos/upload",
+      "method": "POST",
+      "purpose": "Upload single photo to storage (Cloudinary/S3). Returns public URL + storage path.",
+      "auth": "Required",
+      "known_callers": [
+        "PhotoUploader component"
+      ]
+    },
+    {
+      "path": "/api/stay-confirmations",
+      "method": "GET, POST",
+      "purpose": "Manage stay confirmations (check-in/out confirmation logic).",
+      "auth": "Required",
+      "known_callers": [
+        "TripDetail, booking flows"
+      ]
+    },
+    {
+      "path": "/api/stay-confirmations/[id]",
+      "method": "GET, PATCH",
+      "purpose": "Fetch/update specific stay confirmation.",
+      "auth": "Required",
+      "known_callers": [
+        "TripDetail"
+      ]
+    },
+    {
+      "path": "/api/stay-confirmations/[id]/guest-review",
+      "method": "POST",
+      "purpose": "Guest submits review of host (after checkout).",
+      "auth": "Required",
+      "known_callers": [
+        "TripDetail post-stay review form"
+      ]
+    },
+    {
+      "path": "/api/stay-confirmations/[id]/host-review",
+      "method": "POST",
+      "purpose": "Host submits review of guest.",
+      "auth": "Required",
+      "known_callers": [
+        "Booking detail / dashboard"
+      ]
+    },
+    {
+      "path": "/api/support",
+      "method": "POST",
+      "purpose": "Submit support/help request (contact form). Creates support ticket.",
+      "auth": "Public (no auth required; email/name in body)",
+      "known_callers": [
+        "HelpContactForm on /help"
+      ]
+    },
+    {
+      "path": "/api/tools/house-manual",
+      "method": "GET",
+      "purpose": "Fetch pre-filled house manual template.",
+      "auth": "Public or Required (unclear; likely for listing creation)",
+      "known_callers": [
+        "HostingCreatePage house manual section"
+      ]
+    },
+    {
+      "path": "/api/tools/rental-agreement",
+      "method": "GET",
+      "purpose": "Fetch rental agreement template document.",
+      "auth": "Public",
+      "known_callers": [
+        "Help/tools section"
+      ]
+    },
+    {
+      "path": "/api/tools/security-deposit",
+      "method": "GET",
+      "purpose": "Fetch security deposit policy/template.",
+      "auth": "Public",
+      "known_callers": [
+        "Help/tools section"
+      ]
+    },
+    {
+      "path": "/api/trust/connection",
+      "method": "GET",
+      "purpose": "Fetch detailed connection breakdown between current user and target (outgoing or incoming trust direction).",
+      "auth": "Required",
+      "known_callers": [
+        "ConnectionPopover component"
+      ]
+    },
+    {
+      "path": "/api/trust/request-intro",
+      "method": "POST",
+      "purpose": "Request introduction to a user through a mutual connector.",
+      "auth": "Required",
+      "known_callers": [
+        "Listing/profile intro request button"
+      ]
+    },
+    {
+      "path": "/api/users/bio",
+      "method": "PATCH",
+      "purpose": "Update user's bio (short description).",
+      "auth": "Required",
+      "known_callers": [
+        "ProfileEditForm"
+      ]
+    },
+    {
+      "path": "/api/users/deactivate",
+      "method": "POST",
+      "purpose": "Deactivate user account (soft delete; hide listings, sign out).",
+      "auth": "Required",
+      "known_callers": [
+        "DeactivateButton on /settings"
+      ]
+    },
+    {
+      "path": "/api/users/email-prefs",
+      "method": "GET, PATCH",
+      "purpose": "Get/update email notification preferences.",
+      "auth": "Required",
+      "known_callers": [
+        "NotificationsForm on /settings/notifications"
+      ]
+    },
+    {
+      "path": "/api/users/me",
+      "method": "GET",
+      "purpose": "Fetch current authenticated user's profile (phone, email, bio, etc.).",
+      "auth": "Required",
+      "known_callers": [
+        "PhoneSettingsPage useEffect (get current phone)",
+        "Other client-side user context queries"
+      ]
+    },
+    {
+      "path": "/api/users/phone",
+      "method": "GET",
+      "purpose": "Fetch user's current phone number.",
+      "auth": "Required",
+      "known_callers": [
+        "PhoneSettingsPage"
+      ]
+    },
+    {
+      "path": "/api/users/phone/start",
+      "method": "POST",
+      "purpose": "Initiate phone change: send OTP to new phone number.",
+      "auth": "Required",
+      "known_callers": [
+        "PhoneSettingsPage 'Send code' button"
+      ]
+    },
+    {
+      "path": "/api/users/phone/verify",
+      "method": "POST",
+      "purpose": "Verify OTP and confirm phone change via Clerk Backend API.",
+      "auth": "Required",
+      "known_callers": [
+        "PhoneSettingsPage OTP verification"
+      ]
+    },
+    {
+      "path": "/api/users/phone/check",
+      "method": "POST",
+      "purpose": "Check if phone number is available (for registration).",
+      "auth": "None",
+      "known_callers": [
+        "Sign-up flow (optional availability check)"
+      ]
+    },
+    {
+      "path": "/api/users/profile",
+      "method": "PATCH",
+      "purpose": "Update user profile (name, location, occupation, languages, bio).",
+      "auth": "Required",
+      "known_callers": [
+        "ProfileEditForm"
+      ]
+    },
+    {
+      "path": "/api/users/search",
+      "method": "GET",
+      "purpose": "Search for users by name, email, or phone. Returns list of matching users.",
+      "auth": "Required",
+      "known_callers": [
+        "VouchPage search input"
+      ]
+    },
+    {
+      "path": "/api/vouches",
+      "method": "GET, POST, DELETE",
+      "purpose": "GET: fetch existing vouch between current user and target. POST: create/update vouch. DELETE: remove vouch.",
+      "auth": "Required",
+      "known_callers": [
+        "VouchModal, ProfilePage vouch button"
+      ]
+    },
+    {
+      "path": "/api/webhooks/clerk",
+      "method": "POST",
+      "purpose": "Clerk webhook: sync user creation/deletion/updates from Clerk to Supabase users table.",
+      "auth": "Public (Clerk webhook signature verification server-side)",
+      "known_callers": [
+        "Clerk account management"
+      ]
+    },
+    {
+      "path": "/api/wishlists",
+      "method": "GET, POST",
+      "purpose": "GET: list user's wishlists. POST: create new wishlist.",
+      "auth": "Required",
+      "known_callers": [
+        "WishlistsPage, wishlist creation modal"
+      ]
+    },
+    {
+      "path": "/api/wishlists/[id]",
+      "method": "GET, PATCH, DELETE",
+      "purpose": "GET: fetch wishlist with items. PATCH: update name. DELETE: delete list.",
+      "auth": "Required",
+      "known_callers": [
+        "WishlistDetailPage, WishlistActions"
+      ]
+    },
+    {
+      "path": "/api/wishlists/save",
+      "method": "POST",
+      "purpose": "Add listing to a wishlist (from browse card).",
+      "auth": "Required",
+      "known_callers": [
+        "BrowseLayout listing card 'Save' button / wishlist popover"
+      ]
+    }
+  ]
+}

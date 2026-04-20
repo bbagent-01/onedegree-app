@@ -3,7 +3,6 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SignUp } from "@clerk/nextjs";
 import { useSignUp } from "@clerk/nextjs/legacy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +16,12 @@ const BIG_INPUT =
 const XL_INPUT =
   "h-16 rounded-2xl border-2 border-border !bg-white px-5 text-xl font-semibold shadow-sm focus-visible:border-brand";
 
-type Step = "phone" | "otp" | "account" | "email_fallback";
+type Step =
+  | "phone"
+  | "otp"
+  | "account"
+  | "email_fallback"
+  | "email_otp";
 
 // Suspense wrapper: useSearchParams() forces Next.js to either
 // dynamically render or wrap in Suspense. The build fails otherwise
@@ -150,6 +154,52 @@ function SignUpInner() {
     }
   };
 
+  // Email fallback flow: phone isn't collected at all in this path.
+  // We create the Clerk signUp with email + password, send an email
+  // OTP, then the user pastes the code to complete.
+  const startEmailSignup = async () => {
+    if (!isLoaded) return;
+    if (!email.trim() || password.length < 8) return;
+    setSaving(true);
+    try {
+      await signUp.create({
+        emailAddress: email.trim(),
+        password,
+        firstName: firstName.trim() || undefined,
+        lastName: lastName.trim() || undefined,
+      });
+      await signUp.prepareEmailAddressVerification({
+        strategy: "email_code",
+      });
+      setStep("email_otp");
+      toast.success("Verification code sent to " + email.trim());
+    } catch (e) {
+      toast.error(clerkError(e) || "Couldn't start sign-up");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const verifyEmail = async () => {
+    if (!isLoaded || otp.length < 6) return;
+    setSaving(true);
+    try {
+      const res = await signUp.attemptEmailAddressVerification({ code: otp });
+      if (res.status === "complete" && res.createdSessionId) {
+        await setActive({ session: res.createdSessionId });
+        router.push(redirectUrl);
+      } else {
+        toast.error(
+          "Additional verification required. Contact support if this persists."
+        );
+      }
+    } catch (e) {
+      toast.error(clerkError(e) || "Wrong code. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!isLoaded) {
     return (
       <div className="mx-auto w-full max-w-[520px] px-4 py-16">
@@ -211,8 +261,8 @@ function SignUpInner() {
                   Your phone is your identity on 1&deg; B&amp;B.
                 </strong>
                 <span>
-                  We&rsquo;ll never share or sell it, and we&rsquo;ll never
-                  send marketing texts unless you opt in.
+                  We&rsquo;ll never share or sell it, or send marketing
+                  texts (unless you opt in).
                 </span>
               </div>
             </div>
@@ -383,15 +433,121 @@ function SignUpInner() {
             >
               &larr; Back to phone sign-up
             </button>
-            <div className="mt-4">
-              {/* Clerk's default sign-up component covers the Google
-                  + email/password path as a fallback for users who
-                  don't want to lead with phone. */}
-              <SignUp
-                routing="hash"
-                signInUrl="/sign-in"
-                forceRedirectUrl={redirectUrl}
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={signUpWithGoogle}
+              className="mt-4 h-14 w-full text-base"
+            >
+              <span className="inline-flex items-center gap-2">
+                <GoogleIcon className="h-4 w-4" />
+                Continue with Google
+              </span>
+            </Button>
+            <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>or email and password</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="first-e">First name</Label>
+                <Input
+                  id="first-e"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className={`mt-1 ${BIG_INPUT}`}
+                  autoComplete="given-name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="last-e">Last name</Label>
+                <Input
+                  id="last-e"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className={`mt-1 ${BIG_INPUT}`}
+                  autoComplete="family-name"
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <Label htmlFor="email-e">Email</Label>
+              <Input
+                id="email-e"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                type="email"
+                autoComplete="email"
+                className={`mt-1 ${BIG_INPUT}`}
               />
+            </div>
+            <div className="mt-3">
+              <Label htmlFor="password-e">Password</Label>
+              <Input
+                id="password-e"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                type="password"
+                autoComplete="new-password"
+                className={`mt-1 ${BIG_INPUT}`}
+              />
+            </div>
+            <Button
+              size="lg"
+              onClick={startEmailSignup}
+              disabled={
+                saving ||
+                !email.trim() ||
+                password.length < 8
+              }
+              className="mt-5 h-14 w-full text-base"
+            >
+              {saving ? "Sending code\u2026" : "Continue"}
+            </Button>
+          </div>
+        )}
+
+        {step === "email_otp" && (
+          <div>
+            <Label htmlFor="email-otp" className="text-base font-semibold">
+              Enter the 6-digit code
+            </Label>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sent to {email}.
+            </p>
+            <Input
+              id="email-otp"
+              value={otp}
+              onChange={(e) =>
+                setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              placeholder="123456"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              className={`${XL_INPUT} mt-4 text-center tracking-[0.4em]`}
+            />
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => {
+                  setOtp("");
+                  setStep("email_fallback");
+                }}
+              >
+                Back
+              </Button>
+              <Button
+                size="lg"
+                onClick={verifyEmail}
+                disabled={otp.length < 6 || saving}
+                className="flex-1 h-14 text-base"
+              >
+                {saving ? "Verifying\u2026" : "Finish sign up"}
+              </Button>
             </div>
           </div>
         )}
