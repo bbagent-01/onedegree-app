@@ -19,6 +19,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ThreadDetail } from "@/lib/messaging-data";
+import { resolveStages } from "@/lib/booking-stage";
+import { TripTimeline } from "@/components/booking/TripTimeline";
 
 interface Props {
   thread: ThreadDetail;
@@ -365,18 +367,56 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           </div>
         </div>
 
-        {/* Trip timeline placeholder — Chunk 2 replaces this block */}
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-3 text-[11px] text-muted-foreground">
-          Trip timeline (payments, cancellation terms, check-in)
-          ships next in the booking-flow overhaul. See{" "}
-          <Link
-            href="https://github.com/bbagent-01/onedegree-app/blob/track-b/1db-overlay/docs/BOOKING_FLOW_V2_PLAN.md"
-            className="underline hover:text-foreground"
-          >
-            plan doc
-          </Link>
-          .
-        </div>
+        {/* Trip timeline — compact variant (no detail subtext) so
+            the sidebar stays scannable. Full-detail variant renders
+            on /trips/[bookingId]. */}
+        {booking && (
+          <div>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Trip timeline
+            </div>
+            <div className="rounded-xl border border-border p-3">
+              <TripTimeline
+                stages={resolveStages({
+                  status: booking.status,
+                  check_in: booking.check_in,
+                  check_out: booking.check_out,
+                  created_at:
+                    (booking as { created_at?: string | null }).created_at ??
+                    null,
+                  responded_at: booking.responded_at,
+                  viewer_role: role,
+                  stay_confirmation: reservation_sidebar?.stay_confirmation_id
+                    ? {
+                        // stay_confirmations column names invert the
+                        // role→column mapping: a guest's review of
+                        // the host lands in `host_rating`, a host's
+                        // review of the guest lands in `guest_rating`.
+                        // `stay_reviewed_by_me` was computed with
+                        // that same inversion server-side, so we
+                        // feed the "1 or null" flag back into the
+                        // corresponding column and leave the other
+                        // as null (the sidebar doesn't have full
+                        // stay_confirmation data; the /trips page
+                        // does).
+                        guest_rating:
+                          role === "host" &&
+                          reservation_sidebar.stay_reviewed_by_me
+                            ? 1
+                            : null,
+                        host_rating:
+                          role === "guest" &&
+                          reservation_sidebar.stay_reviewed_by_me
+                            ? 1
+                            : null,
+                      }
+                    : null,
+                })}
+                compact
+              />
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

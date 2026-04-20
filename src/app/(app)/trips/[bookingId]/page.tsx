@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { TripDetailActions } from "@/components/trips/trip-detail-actions";
 import { PostStayVouchBanner } from "@/components/trust/post-stay-vouch-banner";
 import { PaymentArrangementCard } from "@/components/trips/payment-arrangement-card";
+import { TripTimeline } from "@/components/booking/TripTimeline";
+import { resolveStages } from "@/lib/booking-stage";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -84,6 +86,29 @@ export default async function TripDetailPage({ params }: PageProps) {
         <ChevronLeft className="h-4 w-4" />
         Back to trips
       </Link>
+
+      {/* Trip timeline — full-detail vertical stepper. Renders
+          above all other cards so the current stage is the first
+          thing the user sees on the page. */}
+      <div className="mt-4 rounded-2xl border border-border bg-white p-4 md:p-6">
+        <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Trip timeline
+        </div>
+        <TripTimeline
+          stages={resolveStages({
+            status: trip.status,
+            check_in: trip.check_in,
+            check_out: trip.check_out,
+            created_at: trip.created_at,
+            responded_at: trip.responded_at,
+            viewer_role: "guest",
+            stay_confirmation: {
+              guest_rating: trip.stay_guest_rating,
+              host_rating: trip.stay_host_rating,
+            },
+          })}
+        />
+      </div>
 
       {/* Post-stay vouch prompt — guest vouching for host */}
       {isPostCheckout && trip.host && (

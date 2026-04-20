@@ -179,6 +179,10 @@ export interface TripDetail extends TripCard {
   responded_at: string | null;
   house_manual: { id: string; content: Record<string, unknown> } | null;
   host_email: string | null;
+  /** Raw ratings from the paired stay_confirmation — used by the
+   *  trip timeline resolver. */
+  stay_host_rating: number | null;
+  stay_guest_rating: number | null;
 }
 
 /** Fetch a single trip with extra detail for the trip detail page. */
@@ -228,7 +232,7 @@ export async function getTripDetail(
       .maybeSingle(),
     supabase
       .from("stay_confirmations")
-      .select("id, host_rating")
+      .select("id, host_rating, guest_rating")
       .eq("contact_request_id", bookingId)
       .maybeSingle(),
     supabase
@@ -282,5 +286,7 @@ export async function getTripDetail(
       ? { id: manual.id as string, content: (manual.content || {}) as Record<string, unknown> }
       : null,
     host_email: request.status === "accepted" ? host?.email || null : null,
+    stay_host_rating: (stay as { host_rating?: number | null } | null)?.host_rating ?? null,
+    stay_guest_rating: (stay as { guest_rating?: number | null } | null)?.guest_rating ?? null,
   };
 }
