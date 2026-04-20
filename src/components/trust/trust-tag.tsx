@@ -10,15 +10,16 @@ import {
 interface Props {
   size?: "micro" | "medium";
   /** Composite trust score from viewer → target user. Only rendered
-   *  for degree=2; degree=1 / 3 / 4 surface just the degree pill. */
+   *  for degree=2 and degree=3 (dampened); 1/4 surface just the
+   *  degree pill. */
   score?: number;
   /**
    * Degrees of separation.
    *   1 = direct vouch        → purple "1st°" pill
    *   2 = friend of a friend  → green "2nd°" pill + shield + score + dots
-   *   3 = two hops out        → amber "3rd°" pill
-   *   4 = three hops out      → gray "4th°" pill
-   *   null = not connected    → em-dash
+   *   3 = two hops out        → mustard "3rd°" pill + dampened score
+   *   4 = three hops out      → zinc "4th°" pill + chain visual
+   *   null = not connected    → zinc "Not connected" pill
    */
   degree?: 1 | 2 | 3 | 4 | null;
   /** Legacy direct-vouch flag. The engine also sets degree=1 when
@@ -36,6 +37,12 @@ interface Props {
   hostRating?: number | null;
   /** Host's total reviews received. */
   hostReviewCount?: number;
+  /**
+   * When true on a medium tag, render the subtext line under the row
+   * ("0 paths · Ask a friend to vouch" for 0°; "Request intro through
+   * bridge" for 4°+). Medium-only; micro never shows subtext.
+   */
+  showSubtext?: boolean;
   className?: string;
 }
 
@@ -71,6 +78,7 @@ export function TrustTag({
   connectorPaths = [],
   hostRating,
   hostReviewCount = 0,
+  showSubtext = false,
   className,
 }: Props) {
   const isMedium = size === "medium";
@@ -99,26 +107,44 @@ export function TrustTag({
   // Normalize direct → degree=1 so the pill selection is uniform.
   const effectiveDegree: 1 | 2 | 3 | 4 | null = direct ? 1 : degree;
 
-  // Not connected — no pill, just the em-dash indicator.
+  // 0° (not connected). Zinc pill labeled "Not connected" so the
+  // state reads as a first-class degree in the TrustTag system
+  // rather than an ad-hoc fallback. Optional subtext ("0 paths · Ask
+  // a friend to vouch for them") renders beneath on medium tags.
   if (!effectiveDegree) {
-    return (
+    const row = (
       <span
         className={cn(
           "inline-flex items-center gap-1.5 tabular-nums",
-          isMedium ? "text-sm" : "text-xs",
-          className
+          isMedium ? "text-sm" : "text-xs"
         )}
       >
-        <span className="inline-flex items-center gap-0.5 font-semibold text-zinc-500">
-          <ShieldIcon
-            muted
-            size={isMedium ? "h-4 w-4" : "h-3.5 w-3.5"}
-          />
-          <span>&mdash;</span>
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full bg-zinc-200 font-semibold text-zinc-700",
+            isMedium ? "px-2.5 py-0.5 text-xs" : "px-2 py-[1px] text-[11px]"
+          )}
+        >
+          Not connected
         </span>
+        <ShieldIcon
+          muted
+          size={isMedium ? "h-4 w-4" : "h-3.5 w-3.5"}
+        />
         {ratingNode}
       </span>
     );
+    if (isMedium && showSubtext) {
+      return (
+        <span className={cn("flex flex-col gap-0.5", className)}>
+          {row}
+          <span className="text-xs text-muted-foreground">
+            0 paths to this host &middot; Ask a friend to vouch for them
+          </span>
+        </span>
+      );
+    }
+    return <span className={className}>{row}</span>;
   }
 
   const pill = DEGREE_PILLS[effectiveDegree];
@@ -135,12 +161,11 @@ export function TrustTag({
   const bridgeOnly = connectorPaths.filter((p) => p.viewer_knows);
   const anonHops = connectorPaths.filter((p) => !p.viewer_knows);
 
-  return (
+  const row = (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 tabular-nums",
-        isMedium ? "text-sm" : "text-xs",
-        className
+        isMedium ? "text-sm" : "text-xs"
       )}
     >
       <span
@@ -219,7 +244,10 @@ export function TrustTag({
         </>
       )}
 
-      {/* 4°: distant — no score, zinc chain visual (medium only). */}
+      {/* 4°: distant — no score, zinc chain visual (medium only).
+          Micro gets just the pill (+ optional bridge avatar) so
+          browse tiles don't lose density to a chain that won't
+          render well at small size. */}
       {is4th && isMedium && (
         <span className="inline-flex items-center gap-1">
           {Array.from({ length: 2 }).map((_, i) => (
@@ -236,8 +264,30 @@ export function TrustTag({
           )}
         </span>
       )}
+      {is4th && !isMedium && bridgeOnly.length > 0 && (
+        <ConnectorAvatars
+          connectors={bridgeOnly as AvatarConnector[]}
+          size="h-5 w-5"
+        />
+      )}
 
       {ratingNode}
     </span>
   );
+
+  // Wrap with subtext when the caller opts in (medium only). Same
+  // pattern as the 0° state; keeps micro tags dense and lets medium
+  // surface explanatory copy alongside the pill.
+  if (isMedium && showSubtext && (is3rd || is4th)) {
+    const subtext = is3rd
+      ? "Distant connection \u00B7 2 hops away from your network"
+      : "Distant connection \u00B7 Request intro through bridge";
+    return (
+      <span className={cn("flex flex-col gap-0.5", className)}>
+        {row}
+        <span className="text-xs text-muted-foreground">{subtext}</span>
+      </span>
+    );
+  }
+  return <span className={className}>{row}</span>;
 }
