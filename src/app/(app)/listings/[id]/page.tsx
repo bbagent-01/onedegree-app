@@ -90,7 +90,7 @@ export default async function ListingPage({
     viewerId ?? null,
     listingForAccess,
     trust?.score ?? 0,
-    trust?.degree === 1 ? 1 : trust?.degree === 2 ? 2 : undefined
+    trust?.degree ?? null
   );
 
   // If even the preview is denied — and the viewer isn't signed in —

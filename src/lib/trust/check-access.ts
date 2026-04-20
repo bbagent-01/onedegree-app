@@ -33,7 +33,7 @@ export function checkListingAccess(
   viewerId: string | null,
   listing: ListingForAccess,
   score: number,
-  _unusedDegree?: number
+  degree?: number | null
 ): ListingAccessResult {
   const NO_ACCESS: ListingAccessResult = {
     can_see_preview: false,
@@ -64,7 +64,12 @@ export function checkListingAccess(
     listing.access_settings ?? DEFAULT_ACCESS_SETTINGS
   );
 
-  const canSeePreview = evaluateRule(settings.see_preview, viewerId, score);
+  const canSeePreview = evaluateRule(
+    settings.see_preview,
+    viewerId,
+    score,
+    degree ?? null
+  );
 
   // Clamp: full_listing_contact can never be more permissive than
   // see_preview, regardless of what's in the DB. Also: any inner-
@@ -73,7 +78,12 @@ export function checkListingAccess(
   const canSeeFull =
     canSeePreview &&
     !!viewerId &&
-    evaluateRule(settings.full_listing_contact, viewerId, score);
+    evaluateRule(
+      settings.full_listing_contact,
+      viewerId,
+      score,
+      degree ?? null
+    );
 
   // Intro requests are available to anyone who can see the preview
   // but not the full listing, provided the host left the toggle on
@@ -103,7 +113,8 @@ export function checkListingAccess(
 function evaluateRule(
   rule: AccessRule | undefined,
   viewerId: string | null,
-  score: number
+  score: number,
+  degree: number | null
 ): boolean {
   if (!rule) return false;
 
@@ -114,11 +125,16 @@ function evaluateRule(
       return viewerId != null;
     case "min_score":
       return viewerId != null && score >= (rule.threshold ?? 0);
+    case "max_degrees": {
+      if (viewerId == null) return false;
+      // degree=null means "no path within 4 hops" — always a miss.
+      if (degree == null) return false;
+      const limit = Math.max(1, Math.min(3, rule.threshold ?? 2));
+      return degree <= limit;
+    }
     case "specific_people":
       return viewerId != null && (rule.user_ids ?? []).includes(viewerId);
     default:
-      // Unknown legacy types get denied. normalizeAccessSettings
-      // should have converted them before we reach this point.
       return false;
   }
 }

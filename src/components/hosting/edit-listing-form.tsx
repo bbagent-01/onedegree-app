@@ -54,6 +54,11 @@ function rank(rule: AccessRule): number {
   if (rule.type === "anyone_anywhere") return -1;
   if (rule.type === "anyone") return 0;
   if (rule.type === "min_score") return 1 + (rule.threshold ?? 0);
+  // max_degrees: tighter = smaller N; 1° gates more tightly than 3°.
+  // Mirror the mostRestrictive() ranking in trust/types.ts so the
+  // two stay in sync.
+  if (rule.type === "max_degrees")
+    return 25 * (4 - Math.max(1, Math.min(3, rule.threshold ?? 2)));
   if (rule.type === "specific_people") return 9999;
   return 0;
 }
@@ -569,15 +574,15 @@ export function EditListingForm({
       const rule = prev[key];
       if (field === "type") {
         const newType = value as AccessType;
+        const defaultThreshold =
+          newType === "min_score"
+            ? rule.threshold ?? 15
+            : newType === "max_degrees"
+              ? rule.threshold ?? 2
+              : undefined;
         return {
           ...prev,
-          [key]: {
-            type: newType,
-            threshold:
-              newType === "min_score"
-                ? rule.threshold ?? 15
-                : undefined,
-          },
+          [key]: { type: newType, threshold: defaultThreshold },
         };
       }
       return { ...prev, [key]: { ...rule, threshold: Number(value) || 0 } };
@@ -1343,6 +1348,9 @@ export function EditListingForm({
                           )}
                           <option value="anyone">Anyone signed in</option>
                           <option value="min_score">Min 1° score</option>
+                          <option value="max_degrees">
+                            Within N degrees of me
+                          </option>
                           <option value="specific_people">
                             Specific people
                           </option>
@@ -1358,6 +1366,19 @@ export function EditListingForm({
                             }
                             placeholder="Score"
                           />
+                        )}
+                        {rule.type === "max_degrees" && (
+                          <select
+                            value={rule.threshold ?? 2}
+                            onChange={(e) =>
+                              updateRule(key, "threshold", e.target.value)
+                            }
+                            className="h-10 rounded-lg border border-border bg-white px-3 text-sm focus-visible:border-brand focus-visible:outline-none"
+                          >
+                            <option value={1}>Within 1&deg; (vouched)</option>
+                            <option value={2}>Within 2&deg;</option>
+                            <option value={3}>Within 3&deg;</option>
+                          </select>
                         )}
                         {rule.type === "specific_people" && (
                           <span className="text-xs text-muted-foreground">

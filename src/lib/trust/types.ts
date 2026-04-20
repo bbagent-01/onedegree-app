@@ -10,7 +10,7 @@ export type YearsKnownBucket = "lt1" | "1to3" | "3to5" | "5to10" | "10plus";
 export type VisibilityMode = "public" | "preview_gated" | "hidden";
 
 /**
- * Simplified access model (mid-session refactor):
+ * Access model:
  *
  * - "anyone_anywhere": logged-out viewers included. Only valid on the
  *                      outer `see_preview` gate — the inner
@@ -18,18 +18,21 @@ export type VisibilityMode = "public" | "preview_gated" | "hidden";
  *                      (messaging and booking both need an identity).
  * - "anyone":          any signed-in user on the platform
  * - "min_score":       signed-in users whose 1° score ≥ threshold
+ * - "max_degrees":     signed-in users within N degrees of the host
+ *                      (1°/2°/3°). Re-enabled in CC-C5 Revisit;
+ *                      complements min_score, does not replace it.
  * - "specific_people": only the listed user IDs
- *
- * Legacy "max_degrees" values are normalized to min_score on read.
  */
 export type AccessType =
   | "anyone_anywhere"
   | "anyone"
   | "min_score"
+  | "max_degrees"
   | "specific_people";
 
 export interface AccessRule {
   type: AccessType;
+  /** min_score: minimum 1° score. max_degrees: maximum hops (1–3). */
   threshold?: number;
   user_ids?: string[];
 }
@@ -174,11 +177,11 @@ export function normalizeAccessSettings(
 
 function normalizeRule(rule: AccessRule | undefined): AccessRule | undefined {
   if (!rule) return undefined;
-  // Legacy max_degrees no longer exists — roughly: 1 degree ≈
-  // min_score 30, 2 degrees ≈ min_score 10.
-  if ((rule.type as string) === "max_degrees") {
-    const threshold = (rule.threshold ?? 2) <= 1 ? 30 : 10;
-    return { type: "min_score", threshold };
+  // max_degrees is live again — clamp threshold to [1, 3].
+  if (rule.type === "max_degrees") {
+    const raw = rule.threshold ?? 2;
+    const clamped = Math.max(1, Math.min(3, Math.round(raw)));
+    return { type: "max_degrees", threshold: clamped };
   }
   return rule;
 }
@@ -189,6 +192,10 @@ function mostRestrictive(a: AccessRule, b: AccessRule): AccessRule {
   const rank = (r: AccessRule) => {
     if (r.type === "anyone") return 0;
     if (r.type === "min_score") return 1 + (r.threshold ?? 0);
+    // max_degrees: tighter = smaller N. Rank 1°→100, 2°→50, 3°→25
+    // so it outranks any practical min_score threshold.
+    if (r.type === "max_degrees")
+      return 25 * (4 - Math.max(1, Math.min(3, r.threshold ?? 2)));
     if (r.type === "specific_people") return 9999;
     return 0;
   };

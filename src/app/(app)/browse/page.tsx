@@ -173,7 +173,9 @@ async function BrowseResults({
       const degree = r?.degree ?? null;
       const mutualConnections = r?.mutualConnections ?? [];
 
-      // Use checkListingAccess for proper per-action evaluation
+      // Use checkListingAccess for proper per-action evaluation.
+      // Pass the full degree (1-4 or null) so max_degrees can
+      // evaluate 3° viewers correctly.
       const access = checkListingAccess(
         viewerId,
         {
@@ -182,7 +184,7 @@ async function BrowseResults({
           access_settings: l.access_settings as AccessSettings | null,
         },
         score,
-        degree === 1 ? 1 : degree === 2 ? 2 : undefined
+        degree
       );
 
       trustByListing[l.id] = {
