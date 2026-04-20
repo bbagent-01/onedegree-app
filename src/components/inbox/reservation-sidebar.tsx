@@ -149,6 +149,49 @@ export function ReservationSidebar({ thread, onClose }: Props) {
       </div>
 
       <div className="flex-1 space-y-6 p-4">
+        {/* Trip timeline — surfaced at the top so the current stage
+            is always the first thing a host/guest sees. Compact
+            variant (no per-stage detail subtext) keeps the sidebar
+            scannable. Full-detail timeline renders on
+            /trips/[bookingId]. */}
+        {booking && (
+          <div className="rounded-xl border border-border p-3">
+            <TripTimeline
+              stages={resolveStages({
+                status: booking.status,
+                check_in: booking.check_in,
+                check_out: booking.check_out,
+                created_at:
+                  (booking as { created_at?: string | null }).created_at ??
+                  null,
+                responded_at: booking.responded_at,
+                viewer_role: role,
+                stay_confirmation: reservation_sidebar?.stay_confirmation_id
+                  ? {
+                      // stay_confirmations column names invert the
+                      // role→column mapping: a guest's review of the
+                      // host lands in `host_rating`, a host's review
+                      // of the guest lands in `guest_rating`.
+                      // `stay_reviewed_by_me` is computed with that
+                      // same inversion server-side.
+                      guest_rating:
+                        role === "host" &&
+                        reservation_sidebar.stay_reviewed_by_me
+                          ? 1
+                          : null,
+                      host_rating:
+                        role === "guest" &&
+                        reservation_sidebar.stay_reviewed_by_me
+                          ? 1
+                          : null,
+                    }
+                  : null,
+              })}
+              compact
+            />
+          </div>
+        )}
+
         {/* Listing */}
         {listing && (
           <div>
@@ -278,29 +321,9 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           </Link>
         )}
 
-        {/* Original request message */}
-        {booking?.message && (
-          <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Request message
-            </div>
-            <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm leading-relaxed">
-              {booking.message}
-            </div>
-          </div>
-        )}
-
-        {/* Host response */}
-        {booking?.host_response_message && (
-          <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Host response
-            </div>
-            <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm leading-relaxed">
-              {booking.host_response_message}
-            </div>
-          </div>
-        )}
+        {/* Request message + host response deliberately live in the
+            thread itself — duplicating them in the sidebar made the
+            view feel repetitive. See the message pane to the left. */}
 
         {/* About the other person */}
         <div>
@@ -367,56 +390,6 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           </div>
         </div>
 
-        {/* Trip timeline — compact variant (no detail subtext) so
-            the sidebar stays scannable. Full-detail variant renders
-            on /trips/[bookingId]. */}
-        {booking && (
-          <div>
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Trip timeline
-            </div>
-            <div className="rounded-xl border border-border p-3">
-              <TripTimeline
-                stages={resolveStages({
-                  status: booking.status,
-                  check_in: booking.check_in,
-                  check_out: booking.check_out,
-                  created_at:
-                    (booking as { created_at?: string | null }).created_at ??
-                    null,
-                  responded_at: booking.responded_at,
-                  viewer_role: role,
-                  stay_confirmation: reservation_sidebar?.stay_confirmation_id
-                    ? {
-                        // stay_confirmations column names invert the
-                        // role→column mapping: a guest's review of
-                        // the host lands in `host_rating`, a host's
-                        // review of the guest lands in `guest_rating`.
-                        // `stay_reviewed_by_me` was computed with
-                        // that same inversion server-side, so we
-                        // feed the "1 or null" flag back into the
-                        // corresponding column and leave the other
-                        // as null (the sidebar doesn't have full
-                        // stay_confirmation data; the /trips page
-                        // does).
-                        guest_rating:
-                          role === "host" &&
-                          reservation_sidebar.stay_reviewed_by_me
-                            ? 1
-                            : null,
-                        host_rating:
-                          role === "guest" &&
-                          reservation_sidebar.stay_reviewed_by_me
-                            ? 1
-                            : null,
-                      }
-                    : null,
-                })}
-                compact
-              />
-            </div>
-          </div>
-        )}
       </div>
     </aside>
   );

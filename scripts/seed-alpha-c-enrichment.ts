@@ -295,6 +295,111 @@ async function ensureCompletedStay(spec: {
 }
 
 /**
+ * Ensure a message_thread exists for the (listing, guest) pair and
+ * seed the guest's request message (+ optional host response) as
+ * actual message rows. Without this the inbox renders "No messages
+ * yet. Say hello!" on seeded reservations even though the message
+ * text exists on the contact_request itself. Called by both the
+ * pending and accepted helpers below.
+ *
+ * Idempotent — keys on (thread, sender, content) so re-runs never
+ * double-insert the same seed lines.
+ */
+async function ensureThreadMessages(spec: {
+  listingId: string;
+  hostId: string;
+  guestId: string;
+  contactRequestId: string;
+  guestMessage: string;
+  hostResponse: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+}): Promise<void> {
+  const { data: existingThread } = await supabase
+    .from("message_threads")
+    .select("id, contact_request_id")
+    .eq("listing_id", spec.listingId)
+    .eq("guest_id", spec.guestId)
+    .maybeSingle();
+
+  let threadId: string;
+  if (existingThread?.id) {
+    threadId = existingThread.id as string;
+    if (!existingThread.contact_request_id) {
+      await supabase
+        .from("message_threads")
+        .update({ contact_request_id: spec.contactRequestId })
+        .eq("id", threadId);
+    }
+  } else {
+    const { data: inserted, error } = await supabase
+      .from("message_threads")
+      .insert({
+        listing_id: spec.listingId,
+        guest_id: spec.guestId,
+        host_id: spec.hostId,
+        contact_request_id: spec.contactRequestId,
+        last_message_at: spec.createdAt,
+      })
+      .select("id")
+      .single();
+    if (error || !inserted) return;
+    threadId = inserted.id as string;
+  }
+
+  // Guest intro
+  if (spec.guestMessage.trim()) {
+    const { data: existingGuest } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("thread_id", threadId)
+      .eq("sender_id", spec.guestId)
+      .eq("content", spec.guestMessage)
+      .limit(1)
+      .maybeSingle();
+    if (!existingGuest) {
+      await supabase.from("messages").insert({
+        thread_id: threadId,
+        sender_id: spec.guestId,
+        content: spec.guestMessage,
+        is_system: false,
+        created_at: spec.createdAt,
+      });
+    }
+  }
+
+  // Host response
+  if (spec.hostResponse?.trim()) {
+    const { data: existingHost } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("thread_id", threadId)
+      .eq("sender_id", spec.hostId)
+      .eq("content", spec.hostResponse)
+      .limit(1)
+      .maybeSingle();
+    if (!existingHost) {
+      await supabase.from("messages").insert({
+        thread_id: threadId,
+        sender_id: spec.hostId,
+        content: spec.hostResponse,
+        is_system: false,
+        created_at: spec.respondedAt ?? spec.createdAt,
+      });
+    }
+  }
+
+  const newestAt = spec.hostResponse && spec.respondedAt
+    ? spec.respondedAt
+    : spec.createdAt;
+  const preview = (spec.hostResponse || spec.guestMessage).slice(0, 160);
+  await supabase
+    .from("message_threads")
+    .update({ last_message_at: newestAt, last_message_preview: preview })
+    .eq("id", threadId);
+}
+
+/**
  * Pending contact_request — shows up in the host's dashboard as an
  * action item. Keyed by (listing_id, guest_id, check_in).
  */
@@ -308,22 +413,46 @@ async function ensurePendingRequest(spec: {
 }): Promise<void> {
   const { data: existing } = await supabase
     .from("contact_requests")
-    .select("id")
+    .select("id, created_at")
     .eq("listing_id", spec.listingId)
     .eq("guest_id", spec.guestId)
     .eq("check_in", spec.checkIn)
     .maybeSingle();
-  if (existing?.id) return;
 
-  await supabase.from("contact_requests").insert({
-    listing_id: spec.listingId,
-    guest_id: spec.guestId,
-    host_id: spec.hostId,
-    message: spec.message,
-    check_in: spec.checkIn,
-    check_out: spec.checkOut,
-    guest_count: 2,
-    status: "pending",
+  let requestId: string;
+  let createdAt: string;
+  if (existing?.id) {
+    requestId = existing.id as string;
+    createdAt = (existing.created_at as string) ?? new Date().toISOString();
+  } else {
+    const { data: inserted, error } = await supabase
+      .from("contact_requests")
+      .insert({
+        listing_id: spec.listingId,
+        guest_id: spec.guestId,
+        host_id: spec.hostId,
+        message: spec.message,
+        check_in: spec.checkIn,
+        check_out: spec.checkOut,
+        guest_count: 2,
+        status: "pending",
+      })
+      .select("id, created_at")
+      .single();
+    if (error || !inserted) return;
+    requestId = inserted.id as string;
+    createdAt = (inserted.created_at as string) ?? new Date().toISOString();
+  }
+
+  await ensureThreadMessages({
+    listingId: spec.listingId,
+    hostId: spec.hostId,
+    guestId: spec.guestId,
+    contactRequestId: requestId,
+    guestMessage: spec.message,
+    hostResponse: null,
+    createdAt,
+    respondedAt: null,
   });
 }
 
@@ -338,24 +467,55 @@ async function ensureAcceptedRequest(spec: {
 }): Promise<void> {
   const { data: existing } = await supabase
     .from("contact_requests")
-    .select("id")
+    .select("id, created_at, responded_at, host_response_message")
     .eq("listing_id", spec.listingId)
     .eq("guest_id", spec.guestId)
     .eq("check_in", spec.checkIn)
     .maybeSingle();
-  if (existing?.id) return;
 
-  await supabase.from("contact_requests").insert({
-    listing_id: spec.listingId,
-    guest_id: spec.guestId,
-    host_id: spec.hostId,
-    message: spec.message,
-    check_in: spec.checkIn,
-    check_out: spec.checkOut,
-    guest_count: 2,
-    status: "accepted",
-    host_response_message: "Can't wait to have you — I'll send the door code.",
-    responded_at: new Date().toISOString(),
+  const hostResponse = "Can't wait to have you — I'll send the door code.";
+  let requestId: string;
+  let createdAt: string;
+  let respondedAt: string;
+
+  if (existing?.id) {
+    requestId = existing.id as string;
+    createdAt = (existing.created_at as string) ?? new Date().toISOString();
+    respondedAt =
+      (existing.responded_at as string) ?? new Date().toISOString();
+  } else {
+    const now = new Date().toISOString();
+    const { data: inserted, error } = await supabase
+      .from("contact_requests")
+      .insert({
+        listing_id: spec.listingId,
+        guest_id: spec.guestId,
+        host_id: spec.hostId,
+        message: spec.message,
+        check_in: spec.checkIn,
+        check_out: spec.checkOut,
+        guest_count: 2,
+        status: "accepted",
+        host_response_message: hostResponse,
+        responded_at: now,
+      })
+      .select("id, created_at, responded_at")
+      .single();
+    if (error || !inserted) return;
+    requestId = inserted.id as string;
+    createdAt = (inserted.created_at as string) ?? now;
+    respondedAt = (inserted.responded_at as string) ?? now;
+  }
+
+  await ensureThreadMessages({
+    listingId: spec.listingId,
+    hostId: spec.hostId,
+    guestId: spec.guestId,
+    contactRequestId: requestId,
+    guestMessage: spec.message,
+    hostResponse,
+    createdAt,
+    respondedAt,
   });
 }
 
