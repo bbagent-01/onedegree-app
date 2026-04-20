@@ -20,6 +20,35 @@ const isPublicRoute = createRouteMatcher([
   "/sso-callback(.*)",
 ]);
 
+// ── ALPHA-ONLY (CC-Dev1 Impersonation Switcher) ─────────────────
+// Middleware-level cookie revalidation. The impersonation cookie
+// alone is not trusted — we re-check the env gates and admin
+// allowlist on every request. If the cookie is present but any gate
+// now fails (env flipped, user removed from allowlist, secrets
+// unset), we strip the cookie so downstream server code reads a
+// clean session. Inlined here to keep middleware edge-compatible and
+// avoid importing the session module (which pulls in supabase-admin).
+// Remove the whole block before beta along with the env vars.
+const IMPERSONATION_COOKIE = "imp_user_id";
+
+function impersonationEnabled(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_ENABLE_IMPERSONATION === "true"
+  );
+}
+
+function isAdminId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const raw = process.env.IMPERSONATION_ADMIN_USER_IDS ?? "";
+  if (!raw) return false;
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .includes(id);
+}
+
 /**
  * Add no-store cache headers to every SSR'd HTML response.
  *
@@ -51,17 +80,34 @@ export default function middleware(request: NextRequest) {
   }
 
   return clerkMiddleware(async (auth, req) => {
+    let userId: string | null = null;
     if (!isPublicRoute(req)) {
       // Unauthenticated viewers get redirected to /sign-in with the
       // original URL stashed in `redirect_url` so they land back
       // where they started after auth. Default auth.protect() 404s
       // in production, which hides the sign-in option entirely.
-      const { userId, redirectToSignIn } = await auth();
-      if (!userId) {
+      const { userId: resolvedUserId, redirectToSignIn } = await auth();
+      if (!resolvedUserId) {
         return redirectToSignIn({ returnBackUrl: req.url });
       }
+      userId = resolvedUserId;
+    } else {
+      const a = await auth();
+      userId = a.userId;
     }
-    return addNoStoreHeaders(NextResponse.next());
+
+    const res = addNoStoreHeaders(NextResponse.next());
+
+    // ALPHA ONLY: if an impersonation cookie is present but any gate
+    // now fails, strip it. Never trust the cookie alone — the
+    // session helper re-validates too, but stripping here means a
+    // stale cookie can't even reach server components.
+    const hasCookie = req.cookies.get(IMPERSONATION_COOKIE);
+    if (hasCookie && !(impersonationEnabled() && isAdminId(userId))) {
+      res.cookies.delete(IMPERSONATION_COOKIE);
+    }
+
+    return res;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   })(request, {} as any);
 }

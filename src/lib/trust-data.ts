@@ -1582,8 +1582,14 @@ export async function findAllChains(
 }
 
 /**
- * Resolve a Clerk user id to the internal users.id PK. Cached per
- * request via the Next.js fetch cache — safe for frequent calls.
+ * Resolve a Clerk user id to the internal users.id PK.
+ *
+ * NOTE: this helper stays unaware of impersonation because
+ * `trust-data.ts` is also imported from client components (for
+ * `trustTier` et al). Pulling `next/headers` in via an impersonation
+ * shim here would break the client bundle. Server-only call sites
+ * that need the impersonation shim should import
+ * `getEffectiveUserId` from `@/lib/impersonation/session` directly.
  */
 export async function getInternalUserIdFromClerk(
   clerkId: string | null | undefined

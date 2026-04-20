@@ -2,10 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { Star, Medal } from "lucide-react";
 import { getListingDetail } from "@/lib/listing-detail-data";
-import {
-  computeIncomingTrustPath,
-  getInternalUserIdFromClerk,
-} from "@/lib/trust-data";
+import { computeIncomingTrustPath } from "@/lib/trust-data";
+import { getEffectiveUserId } from "@/lib/impersonation/session";
 import { checkListingAccess } from "@/lib/trust/check-access";
 import type { AccessSettings } from "@/lib/trust/types";
 import { Separator } from "@/components/ui/separator";
@@ -67,7 +65,8 @@ export default async function ListingPage({
   // Anonymous viewers are allowed in as far as the preview gate lets
   // them; if even that denies them, we bounce to sign-in.
   const { userId: clerkId } = await auth();
-  const viewerId = await getInternalUserIdFromClerk(clerkId);
+  // ALPHA ONLY: impersonation-aware viewer resolution.
+  const viewerId = await getEffectiveUserId(clerkId);
   const isHost = viewerId && viewerId === listing.host_id;
   const trust =
     viewerId && !isHost

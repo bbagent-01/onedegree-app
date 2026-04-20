@@ -2,7 +2,29 @@ import { DesktopNav } from "@/components/layout/desktop-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Footer } from "@/components/layout/footer";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+// ALPHA ONLY (CC-Dev1): compile-time gate. Both `NODE_ENV` and
+// `NEXT_PUBLIC_*` env vars are inlined by Next.js at build time, so
+// when this evaluates to `false` webpack dead-code-eliminates the
+// dynamic import below AND everything it transitively references.
+// This is what keeps the switcher + bar client bundles out of
+// production deploys entirely. Remove this block before beta.
+const IMPERSONATION_ENABLED_AT_BUILD =
+  process.env.NODE_ENV !== "production" &&
+  process.env.NEXT_PUBLIC_ENABLE_IMPERSONATION === "true";
+
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  let impersonationMount: React.ReactNode = null;
+  if (IMPERSONATION_ENABLED_AT_BUILD) {
+    const { ImpersonationMount } = await import(
+      "@/components/admin/ImpersonationMount"
+    );
+    impersonationMount = <ImpersonationMount />;
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <DesktopNav />
@@ -19,6 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </main>
       <Footer />
       <MobileNav />
+      {impersonationMount}
     </div>
   );
 }

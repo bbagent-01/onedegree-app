@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "./supabase";
+import { getEffectiveUserId } from "./impersonation/session";
 
 export interface NetworkPerson {
   user_id: string;
@@ -42,10 +43,15 @@ export async function getNetworkData(): Promise<NetworkData | null> {
 
   const supabase = getSupabaseAdmin();
 
+  // ALPHA ONLY: resolve via the impersonation-aware helper so network
+  // data follows the impersonated user when active.
+  const effectiveId = await getEffectiveUserId(userId);
+  if (!effectiveId) return null;
+
   const { data: user } = await supabase
     .from("users")
     .select("id, vouch_power, vouch_count_given, vouch_count_received")
-    .eq("clerk_id", userId)
+    .eq("id", effectiveId)
     .single();
 
   if (!user) return null;

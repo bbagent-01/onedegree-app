@@ -489,6 +489,12 @@ async function main() {
           location: u.location ?? null,
           guest_rating: u.guest_rating ?? null,
           host_rating: u.host_rating ?? null,
+          // ALPHA ONLY (CC-Dev1 Impersonation Switcher). Flags every
+          // user this seed creates as impersonable and, via the
+          // migration 022 trigger, isolates them from real-user
+          // interactions. Remove with the rest of the impersonation
+          // stack before beta.
+          is_test_user: true,
         },
         { onConflict: "email" }
       )

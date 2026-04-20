@@ -3,10 +3,8 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { CheckCircle2, MapPin, Briefcase, Languages, Info, Star } from "lucide-react";
 import { getProfileById, type ProfileReview } from "@/lib/profile-data";
-import {
-  computeTrustPath,
-  getInternalUserIdFromClerk,
-} from "@/lib/trust-data";
+import { computeTrustPath } from "@/lib/trust-data";
+import { getEffectiveUserId } from "@/lib/impersonation/session";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileReviews } from "@/components/profile/profile-reviews";
 import { VouchButton } from "@/components/trust/vouch-button";
@@ -46,7 +44,8 @@ export default async function ProfilePage({
 
   // Figure out whether this is the signed-in user viewing their own profile.
   const { userId: clerkId } = await auth();
-  const viewerId = await getInternalUserIdFromClerk(clerkId);
+  // ALPHA ONLY: impersonation-aware viewer resolution.
+  const viewerId = await getEffectiveUserId(clerkId);
   const isOwn = !!viewerId && viewerId === user.id;
 
   // Compute viewer → this-profile trust only when the viewer isn't

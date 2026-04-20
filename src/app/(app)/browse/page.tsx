@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { auth } from "@clerk/nextjs/server";
+import { getEffectiveUserId } from "@/lib/impersonation/session";
 import {
   getBrowseListings,
   getBrowsePriceRange,
@@ -137,7 +138,10 @@ async function BrowseResults({
   let savedIds: string[] = [];
   let viewerVouchCountReceived = 0;
   if (clerkId) {
-    viewerId = await getInternalUserIdFromClerk(clerkId);
+    // ALPHA ONLY: getEffectiveUserId returns the impersonated user
+    // when an admin is impersonating; otherwise it matches the
+    // original clerk_id → users.id resolution.
+    viewerId = await getEffectiveUserId(clerkId);
     if (viewerId) {
       const set = await getSavedListingIds(viewerId);
       savedIds = [...set];
