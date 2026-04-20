@@ -744,10 +744,6 @@ function MultiHopView({
                 avg(
                 {bestChain.linkStrengths.map((s) => Math.round(s)).join(", ")}){" "}
                 &times; {DAMPEN} ={" "}
-                <span className="font-semibold">
-                  {Math.round(mean(bestChain.linkStrengths))}
-                </span>{" "}
-                &times; {DAMPEN} ={" "}
                 <span className={cn("font-semibold", scoreColor)}>
                   {score} pts
                 </span>
