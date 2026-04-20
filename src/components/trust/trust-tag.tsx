@@ -107,10 +107,10 @@ export function TrustTag({
   // Normalize direct → degree=1 so the pill selection is uniform.
   const effectiveDegree: 1 | 2 | 3 | 4 | null = direct ? 1 : degree;
 
-  // 0° (not connected). Zinc pill labeled "Not connected" so the
-  // state reads as a first-class degree in the TrustTag system
-  // rather than an ad-hoc fallback. Optional subtext ("0 paths · Ask
-  // a friend to vouch for them") renders beneath on medium tags.
+  // 0° (not connected, or 5°+ beyond BFS reach). Dark pill labeled
+  // "No Connection" per Loren's spec; no shield — the pill carries
+  // the whole signal. Optional subtext ("0 paths · Ask a friend to
+  // vouch for them") renders beneath on medium tags.
   if (!effectiveDegree) {
     const row = (
       <span
@@ -121,16 +121,12 @@ export function TrustTag({
       >
         <span
           className={cn(
-            "inline-flex items-center rounded-full bg-zinc-200 font-semibold text-zinc-700",
+            "inline-flex items-center rounded-full bg-zinc-900 font-semibold text-white",
             isMedium ? "px-2.5 py-0.5 text-xs" : "px-2 py-[1px] text-[11px]"
           )}
         >
-          Not connected
+          No Connection
         </span>
-        <ShieldIcon
-          muted
-          size={isMedium ? "h-4 w-4" : "h-3.5 w-3.5"}
-        />
         {ratingNode}
       </span>
     );
