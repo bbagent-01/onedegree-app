@@ -79,6 +79,17 @@ type ConnectionData =
         name: string;
         avatar_url: string | null;
       }>;
+      /** Every simple path between viewer and target up to 4 hops,
+       *  oriented same as `path` (target-first for incoming,
+       *  viewer-first for outgoing). Up to 10 entries. */
+      chains?: Array<{
+        nodes: Array<{ id: string; name: string; avatar_url: string | null }>;
+        linkStrengths: number[];
+        composite: number;
+        degree: number;
+      }>;
+      /** Count of chains beyond the 10-cap returned in `chains`. */
+      chainsTruncated?: number;
     };
 
 // ── Helpers ──
@@ -555,9 +566,34 @@ function MultiHopView({
   const viewer = chainYouFirst[0];
   const ordinal = data.degree === 4 ? "4th" : "3rd";
 
-  // Flip for display: target on the left → You on the right.
-  const displayChain = [...chainYouFirst].reverse();
-  const youIndex = displayChain.length - 1;
+  // Build the full list of chains to render. Prefer the enumerated
+  // `chains` array from the API (every simple path up to 4 hops);
+  // fall back to just the representative `path` when the server
+  // hasn't populated chains (older API shape / upgrade path).
+  const rawChains =
+    data.chains && data.chains.length > 0
+      ? data.chains
+      : [
+          {
+            nodes: data.path,
+            // No per-link strengths on the fallback — render dashes
+            // between nodes instead of strength pills.
+            linkStrengths: data.path.slice(1).map(() => 0),
+            composite: 0,
+            degree: data.path.length - 1,
+          },
+        ];
+
+  // Orient every chain you-first so rendering is uniform, then flip
+  // each row for display (target on the left, You on the right).
+  const chainsYouFirst = rawChains.map((c) => ({
+    nodes: isIncoming ? [...c.nodes].reverse() : c.nodes,
+    linkStrengths: isIncoming
+      ? [...c.linkStrengths].reverse()
+      : c.linkStrengths,
+    degree: c.degree,
+    composite: c.composite,
+  }));
 
   return (
     <div className="p-4">
@@ -567,37 +603,88 @@ function MultiHopView({
           You&rsquo;re a {ordinal}&deg; connection to {target.name}
         </div>
       </div>
+      {chainsYouFirst.length > 1 && (
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          {chainsYouFirst.length} paths between you &middot; strongest
+          first
+        </div>
+      )}
 
-      {/* Chain: Target → ... → You */}
-      <div className="mt-4 flex items-center gap-1 overflow-x-auto pb-1">
-        {displayChain.map((node, i) => {
-          if (i === youIndex) {
-            return (
-              <span key="you" className="contents">
-                {i > 0 && <ChainArrow />}
-                <ChainSegment
-                  name="You"
-                  avatarUrl={viewer.avatar_url}
-                  isTarget={false}
-                  viewerKnows
-                  label="You"
-                />
-              </span>
-            );
-          }
+      <div className="mt-3 space-y-2.5">
+        {chainsYouFirst.map((chain, chainIdx) => (
+          <ChainRow
+            key={chainIdx}
+            chain={chain}
+            viewerAvatar={viewer.avatar_url}
+            label={`Path ${chainIdx + 1}`}
+          />
+        ))}
+      </div>
+      {typeof data.chainsTruncated === "number" &&
+        data.chainsTruncated > 0 && (
+          <div className="mt-2 text-[11px] text-muted-foreground">
+            + {data.chainsTruncated} more{" "}
+            {data.chainsTruncated === 1 ? "path" : "paths"} not shown
+          </div>
+        )}
+    </div>
+  );
+}
+
+/**
+ * One row in the enumerated-chains view. Nodes are drawn
+ * target → ... → You (left to right). Between each consecutive pair
+ * we show a small strength pill (colored by trust-tier) regardless
+ * of whether either endpoint is anonymized — the strength of the
+ * link is public information even when the identities aren't.
+ *
+ * Mobile: row scrolls horizontally when it overflows. At 3 hops the
+ * whole row fits at 375px; at 4 hops it scrolls.
+ */
+function ChainRow({
+  chain,
+  viewerAvatar,
+  label,
+}: {
+  chain: {
+    nodes: Array<{ id: string; name: string; avatar_url: string | null }>;
+    linkStrengths: number[];
+    degree: number;
+  };
+  viewerAvatar: string | null;
+  label: string;
+}) {
+  // Flip for display: target on the left → You on the right.
+  const displayNodes = [...chain.nodes].reverse();
+  const displayStrengths = [...chain.linkStrengths].reverse();
+  const youIndex = displayNodes.length - 1;
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-2.5">
+      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="flex items-center gap-1 overflow-x-auto pb-1">
+        {displayNodes.map((node, i) => {
           const isTarget = i === 0;
-          // Anonymity rule: target (i===0) and bridge (directly
-          // adjacent to viewer, i===youIndex-1) are KNOWN.
-          // Everyone else in between is anonymized.
+          // Anonymity: target (i===0), the bridge (i===youIndex-1,
+          // directly adjacent to viewer), and the viewer (youIndex)
+          // are KNOWN. Everyone else is anonymized.
           const isBridge = i === youIndex - 1;
+          const isYou = i === youIndex;
+          const known = isTarget || isBridge || isYou;
+
           return (
             <span key={`${node.id}-${i}`} className="contents">
-              {i > 0 && <ChainArrow />}
+              {i > 0 && (
+                <LinkStrengthPill strength={displayStrengths[i - 1]} />
+              )}
               <ChainSegment
-                name={node.name}
-                avatarUrl={node.avatar_url}
+                name={isYou ? "You" : node.name}
+                avatarUrl={isYou ? viewerAvatar : node.avatar_url}
                 isTarget={isTarget}
-                viewerKnows={isTarget || isBridge}
+                viewerKnows={known}
+                label={isYou ? "You" : undefined}
               />
             </span>
           );
@@ -607,8 +694,29 @@ function MultiHopView({
   );
 }
 
-function ChainArrow() {
-  return <div className="shrink-0 text-muted-foreground">&rarr;</div>;
+/**
+ * Compact strength chip shown between two chain nodes. Uses the
+ * same trustTier palette as the rest of the app so the color
+ * buckets read consistently.
+ */
+function LinkStrengthPill({ strength }: { strength: number }) {
+  if (!strength || strength <= 0) {
+    return (
+      <span className="mx-0.5 h-px w-3 shrink-0 bg-zinc-300" aria-hidden />
+    );
+  }
+  const tier = trustTier(strength);
+  return (
+    <span
+      className={cn(
+        "mx-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold",
+        tier.solidClass
+      )}
+      title={`${tier.label} · ${Math.round(strength)} pts`}
+    >
+      {Math.round(strength)}
+    </span>
+  );
 }
 
 

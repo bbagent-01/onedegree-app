@@ -1288,6 +1288,186 @@ export function trustTier(score: number): TrustTier {
 }
 
 /**
+ * Enumerate every simple path (no repeated nodes) between two users
+ * up to `maxDepth` hops, in the viewer→target direction. Each chain
+ * is returned with hydrated profile info for every node plus the
+ * strength of each consecutive edge.
+ *
+ * Sort order: composite strength descending (strongest chain first),
+ * where composite = sum of hop strengths (longer chains win ties
+ * only when the extra hop is meaningful). Returns at most `cap`
+ * chains; the caller can surface a "+ N more" row if needed.
+ *
+ * Shape of a chain: [{id, name, avatar_url}, ...] with a parallel
+ * array of link strengths one shorter (one per consecutive pair).
+ *
+ * Used by the trust-detail popover (ConnectionPopover / MultiHopView)
+ * to render one row per path between viewer and host — e.g. if the
+ * host is friends with Matt who knows both Jake and Josh, and the
+ * viewer knows both Jake and Josh, enumerate both paths.
+ */
+export interface ChainNode {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+}
+
+export interface EnumeratedChain {
+  /** Ordered [viewer, ..., target]. */
+  nodes: ChainNode[];
+  /** Strength per consecutive pair. Length = nodes.length - 1. */
+  linkStrengths: number[];
+  /** Sum of linkStrengths — used for sort ordering. */
+  composite: number;
+  /** 1-based hop count (2 = direct + 1 mutual, 3 = 3rd°, etc.). */
+  degree: number;
+}
+
+export async function findAllChains(
+  viewerId: string,
+  targetId: string,
+  maxDepth = 4,
+  cap = 10
+): Promise<{ chains: EnumeratedChain[]; truncated: number }> {
+  if (!viewerId || !targetId || viewerId === targetId) {
+    return { chains: [], truncated: 0 };
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  // Pull the entire vouches graph — at alpha scale (<1K users, <5K
+  // vouches) this is faster than iteratively expanding frontiers
+  // with round-tripped queries. If the graph grows past ~50K edges,
+  // swap for a recursive CTE that enumerates paths server-side.
+  const { data: vouches } = await supabase
+    .from("vouches")
+    .select("voucher_id, vouchee_id, vouch_type, years_known_bucket, vouch_score");
+
+  type Edge = {
+    voucher_id: string;
+    vouchee_id: string;
+    vouch_type: "standard" | "inner_circle";
+    years_known_bucket: string;
+    vouch_score: number | null;
+  };
+  const allEdges = (vouches || []) as Edge[];
+  if (allEdges.length === 0) return { chains: [], truncated: 0 };
+
+  // Adjacency: symmetric — a vouch in either direction makes a
+  // "connection" edge. We record the stronger direction's score so
+  // the chain's per-link strength reflects the best trust signal
+  // available for that pair, regardless of who vouched for whom.
+  const nodeIds = new Set<string>();
+  const edgeByPair = new Map<string, Edge>();
+  for (const e of allEdges) {
+    nodeIds.add(e.voucher_id);
+    nodeIds.add(e.vouchee_id);
+    edgeByPair.set(`${e.voucher_id}:${e.vouchee_id}`, e);
+  }
+  nodeIds.add(viewerId);
+  nodeIds.add(targetId);
+
+  // Hydrate vouch_power for every node we might score through.
+  const { data: userRows } = await supabase
+    .from("users")
+    .select("id, name, avatar_url, vouch_power")
+    .in("id", [...nodeIds]);
+  type UserRow = {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    vouch_power: number | null;
+  };
+  const userById = new Map<string, UserRow>(
+    ((userRows || []) as UserRow[]).map((u) => [u.id, u])
+  );
+
+  const strengthBetween = (aId: string, bId: string): number => {
+    const fwd = edgeByPair.get(`${aId}:${bId}`);
+    const rev = edgeByPair.get(`${bId}:${aId}`);
+    const pick = (e: Edge): number => {
+      const vp = userById.get(e.voucher_id)?.vouch_power ?? 4;
+      return e.vouch_score ?? edgeStrength(e.vouch_type, e.years_known_bucket, vp);
+    };
+    const vals: number[] = [];
+    if (fwd) vals.push(pick(fwd));
+    if (rev) vals.push(pick(rev));
+    return vals.length > 0 ? Math.max(...vals) : 0;
+  };
+
+  // Undirected adjacency list.
+  const adj = new Map<string, Set<string>>();
+  for (const e of allEdges) {
+    if (!adj.has(e.voucher_id)) adj.set(e.voucher_id, new Set());
+    if (!adj.has(e.vouchee_id)) adj.set(e.vouchee_id, new Set());
+    adj.get(e.voucher_id)!.add(e.vouchee_id);
+    adj.get(e.vouchee_id)!.add(e.voucher_id);
+  }
+
+  // DFS enumerate all simple paths from viewer → target within
+  // maxDepth. We cap enumeration defensively at 200 raw paths to
+  // prevent pathological fan-out; cap + 1 is what we keep after
+  // sorting and slicing.
+  const RAW_CAP = 200;
+  const rawPaths: string[][] = [];
+  const stack: Array<{ node: string; path: string[]; visited: Set<string> }> = [
+    { node: viewerId, path: [viewerId], visited: new Set([viewerId]) },
+  ];
+  while (stack.length > 0 && rawPaths.length < RAW_CAP) {
+    const frame = stack.pop()!;
+    if (frame.node === targetId && frame.path.length > 1) {
+      rawPaths.push(frame.path);
+      continue;
+    }
+    if (frame.path.length - 1 >= maxDepth) continue;
+    const neighbors = adj.get(frame.node);
+    if (!neighbors) continue;
+    for (const n of neighbors) {
+      if (frame.visited.has(n)) continue;
+      stack.push({
+        node: n,
+        path: [...frame.path, n],
+        visited: new Set([...frame.visited, n]),
+      });
+    }
+  }
+
+  // Score and hydrate each path.
+  const enumerated: EnumeratedChain[] = rawPaths.map((ids) => {
+    const nodes: ChainNode[] = ids.map((id) => {
+      const u = userById.get(id);
+      return {
+        id,
+        name: u?.name ?? "Connection",
+        avatar_url: u?.avatar_url ?? null,
+      };
+    });
+    const linkStrengths: number[] = [];
+    for (let i = 0; i < ids.length - 1; i++) {
+      linkStrengths.push(strengthBetween(ids[i], ids[i + 1]));
+    }
+    const composite = linkStrengths.reduce((s, v) => s + v, 0);
+    return {
+      nodes,
+      linkStrengths,
+      composite,
+      degree: ids.length - 1,
+    };
+  });
+
+  // Sort strongest-first, then shortest-first on ties so the best
+  // representative path floats to the top.
+  enumerated.sort((a, b) => {
+    if (b.composite !== a.composite) return b.composite - a.composite;
+    return a.degree - b.degree;
+  });
+
+  const chains = enumerated.slice(0, cap);
+  const truncated = Math.max(0, enumerated.length - cap);
+  return { chains, truncated };
+}
+
+/**
  * Resolve a Clerk user id to the internal users.id PK. Cached per
  * request via the Next.js fetch cache — safe for frequent calls.
  */

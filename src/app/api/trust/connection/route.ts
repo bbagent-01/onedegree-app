@@ -9,6 +9,7 @@ import {
 import {
   computeTrustPath,
   computeIncomingTrustPath,
+  findAllChains,
 } from "@/lib/trust-data";
 
 /**
@@ -168,6 +169,28 @@ export async function GET(req: Request) {
     (multiHop.degree === 3 || multiHop.degree === 4) &&
     multiHop.path.length >= 2
   ) {
+    // Enumerate every simple path up to 4 hops for the detail view.
+    // The trust-detail popover renders one row per chain; we cap at
+    // 10 and report the truncation count separately.
+    const { chains, truncated } = await findAllChains(
+      currentUser.id,
+      targetId,
+      4,
+      10
+    );
+    // Orient chains per `direction` so the detail view can normalize
+    // them to "target → ... → you". findAllChains always returns
+    // viewer-first; for the incoming direction we flip here so the
+    // popover's existing flow (target-first) still applies.
+    const orientedChains = chains.map((c) => ({
+      nodes: direction === "incoming" ? [...c.nodes].reverse() : c.nodes,
+      linkStrengths:
+        direction === "incoming"
+          ? [...c.linkStrengths].reverse()
+          : c.linkStrengths,
+      composite: c.composite,
+      degree: c.degree,
+    }));
     return Response.json({
       type: "multi_hop",
       direction,
@@ -182,6 +205,8 @@ export async function GET(req: Request) {
         name: u.name,
         avatar_url: u.avatar_url,
       })),
+      chains: orientedChains,
+      chainsTruncated: truncated,
     });
   }
 
