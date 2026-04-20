@@ -10,7 +10,9 @@ import {
   isAdmin,
 } from "@/lib/impersonation/session";
 
-export const runtime = "nodejs";
+// Edge runtime required by Cloudflare Pages. crypto.randomUUID and
+// Math.random are both available in the edge runtime.
+export const runtime = "edge";
 
 const gateFailed = () => new Response("Not Found", { status: 404 });
 

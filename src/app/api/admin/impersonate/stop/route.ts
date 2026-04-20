@@ -10,7 +10,9 @@ import {
   clearImpersonation,
 } from "@/lib/impersonation/session";
 
-export const runtime = "nodejs";
+// Edge runtime required by Cloudflare Pages. All deps (next/headers
+// cookies(), supabase-js, Clerk auth()) are edge-compatible.
+export const runtime = "edge";
 
 const gateFailed = () => new Response("Not Found", { status: 404 });
 

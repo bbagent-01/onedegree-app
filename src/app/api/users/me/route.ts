@@ -1,8 +1,4 @@
-// Switched from edge to nodejs so we can import the impersonation
-// session module, which reads/writes cookies + signs with Node's
-// Web Crypto (both work on edge too, but bundling server-only
-// utilities is simpler on node). Pre-impersonation this was edge.
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";

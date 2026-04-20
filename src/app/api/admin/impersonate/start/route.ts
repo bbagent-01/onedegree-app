@@ -11,9 +11,10 @@ import {
   setImpersonation,
 } from "@/lib/impersonation/session";
 
-// Node runtime — Web Crypto is available, and we need `cookies()` +
-// `headers()` write access which is cleanest outside edge.
-export const runtime = "nodejs";
+// Cloudflare Pages requires all dynamic routes to use the edge
+// runtime. Everything we use (cookies/headers from next/headers,
+// Web Crypto subtle, supabase-js, Clerk auth()) is edge-compatible.
+export const runtime = "edge";
 
 const gateFailed = () => new Response("Not Found", { status: 404 });
 

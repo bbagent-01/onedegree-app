@@ -11,7 +11,9 @@ import {
   isAdmin,
 } from "@/lib/impersonation/session";
 
-export const runtime = "nodejs";
+// Edge runtime required by Cloudflare Pages. compute1DegreeScores
+// uses supabase-js which is edge-compatible.
+export const runtime = "edge";
 
 const gateFailed = () => new Response("Not Found", { status: 404 });
 
