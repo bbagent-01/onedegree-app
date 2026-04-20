@@ -99,8 +99,10 @@ function SignInInner() {
     }
   };
 
+  const [googleLoading, setGoogleLoading] = useState(false);
   const signInWithGoogle = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || googleLoading) return;
+    setGoogleLoading(true);
     try {
       await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
@@ -108,6 +110,7 @@ function SignInInner() {
         redirectUrlComplete: redirectUrl,
       });
     } catch (e) {
+      setGoogleLoading(false);
       toast.error(clerkError(e) || "Couldn't start Google sign-in");
     }
   };
@@ -270,11 +273,18 @@ function SignInInner() {
               variant="outline"
               size="lg"
               onClick={signInWithGoogle}
+              disabled={googleLoading}
               className="mt-4 h-14 w-full text-base"
             >
               <span className="inline-flex items-center gap-2">
-                <GoogleIcon className="h-4 w-4" />
-                Continue with Google
+                {googleLoading ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-foreground" />
+                ) : (
+                  <GoogleIcon className="h-4 w-4" />
+                )}
+                {googleLoading
+                  ? "Opening Google\u2026"
+                  : "Continue with Google"}
               </span>
             </Button>
             <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground">
