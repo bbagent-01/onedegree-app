@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SignUp } from "@clerk/nextjs";
@@ -19,7 +19,24 @@ const XL_INPUT =
 
 type Step = "phone" | "otp" | "account" | "email_fallback";
 
+// Suspense wrapper: useSearchParams() forces Next.js to either
+// dynamically render or wrap in Suspense. The build fails otherwise
+// during prerender with a "missing-suspense-with-csr-bailout" error.
 export default function SignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto w-full max-w-[520px] px-4 py-16">
+          <div className="h-6 w-24 animate-pulse rounded bg-muted" />
+        </div>
+      }
+    >
+      <SignUpInner />
+    </Suspense>
+  );
+}
+
+function SignUpInner() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const router = useRouter();
   const params = useSearchParams();

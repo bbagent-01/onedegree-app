@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SignIn } from "@clerk/nextjs";
@@ -18,6 +18,20 @@ const XL_INPUT =
 type Step = "phone" | "otp" | "email_fallback";
 
 export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto w-full max-w-[520px] px-4 py-16">
+          <div className="h-6 w-24 animate-pulse rounded bg-muted" />
+        </div>
+      }
+    >
+      <SignInInner />
+    </Suspense>
+  );
+}
+
+function SignInInner() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const router = useRouter();
   const params = useSearchParams();
