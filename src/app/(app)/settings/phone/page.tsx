@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useReverification } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +33,17 @@ type PendingPhone = {
 
 export default function PhoneSettingsPage() {
   const { user, isLoaded } = useUser();
+  // Clerk treats phone-number changes as a "sensitive action" and
+  // will throw `needs_reverification` unless the session was recently
+  // re-authenticated. useReverification wraps the call and pops
+  // Clerk's reverification modal (password / 2FA / email code) when
+  // needed, retrying the original call once the user clears it.
+  const createPhoneWithReverification = useReverification(
+    (phoneNumber: string) => {
+      if (!user) throw new Error("No user");
+      return user.createPhoneNumber({ phoneNumber });
+    }
+  );
   const [step, setStep] = useState<Step>("view");
   const [newPhone, setNewPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -75,12 +86,17 @@ export default function PhoneSettingsPage() {
         throw new Error(err.message || "Phone unavailable");
       }
 
-      const phoneNumber = await user.createPhoneNumber({ phoneNumber: e164 });
+      const phoneNumber = await createPhoneWithReverification(e164);
       await phoneNumber.prepareVerification();
       setPending(phoneNumber as unknown as PendingPhone);
       setStep("verify");
       toast.success("Code sent to " + parsed!.formatNational());
     } catch (e) {
+      // Clerk's reverification cancelled flow throws a specific
+      // error; swallow it without a noisy red toast since the user
+      // just closed the modal.
+      const msg = e instanceof Error ? e.message : "";
+      if (/cancelled|canceled/i.test(msg)) return;
       toast.error(e instanceof Error ? e.message : "Couldn't send code");
     } finally {
       setSaving(false);
