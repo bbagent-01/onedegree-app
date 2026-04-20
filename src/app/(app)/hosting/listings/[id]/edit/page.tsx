@@ -5,6 +5,7 @@ import { EditListingForm } from "@/components/hosting/edit-listing-form";
 import { parseListingMeta } from "@/lib/listing-meta";
 import Link from "next/link";
 import { ChevronLeft, ExternalLink } from "lucide-react";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ interface PageProps {
 
 export default async function EditListingPage({ params }: PageProps) {
   const { id } = await params;
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) redirect("/");
 
   const supabase = getSupabaseAdmin();

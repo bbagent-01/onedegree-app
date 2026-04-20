@@ -6,6 +6,7 @@ import {
   verifyChallengeCookie,
   COOKIE_NAME,
 } from "@/lib/sms/otp-challenge";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * POST /api/users/phone/verify — finalize the phone change after the
@@ -36,7 +37,7 @@ function clearCookieHeader(): [string, string] {
 }
 
 export async function POST(req: Request) {
-  const { userId: clerkId } = await auth();
+  const { userId: clerkId } = await effectiveAuth();
   if (!clerkId) return new Response("Unauthorized", { status: 401 });
 
   const body = (await req.json().catch(() => ({}))) as {

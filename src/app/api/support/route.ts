@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 const CATEGORIES = ["bug", "question", "feedback", "other"] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid category" }, { status: 400 });
   }
 
-  const { userId: clerkId } = await auth();
+  const { userId: clerkId } = await effectiveAuth();
   const supabase = getSupabaseAdmin();
 
   let userRowId: string | null = null;

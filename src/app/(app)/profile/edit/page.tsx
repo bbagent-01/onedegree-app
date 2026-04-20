@@ -4,12 +4,13 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { ProfileEditForm } from "@/components/profile/profile-edit-form";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 export default async function ProfileEditPage() {
-  const { userId: clerkId } = await auth();
+  const { userId: clerkId } = await effectiveAuth();
   if (!clerkId) {
     redirect("/sign-in?redirect_url=/profile/edit");
   }

@@ -4,6 +4,7 @@ import { ChevronRight, User, Bell, Shield, Phone } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DeactivateButton } from "@/components/settings/deactivate-button";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ function maskPhone(e164: string | null): string {
 }
 
 export default async function SettingsPage() {
-  const { userId: clerkId } = await auth();
+  const { userId: clerkId } = await effectiveAuth();
   if (!clerkId) {
     redirect("/sign-in?redirect_url=/settings");
   }

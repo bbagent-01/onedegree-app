@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * POST /api/contact-requests/[id]/cancel
@@ -13,7 +14,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = getSupabaseAdmin();

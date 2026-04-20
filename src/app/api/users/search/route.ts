@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * GET /api/users/search?q=...
@@ -9,7 +10,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
  * Excludes the requesting user from results.
  */
 export async function GET(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });
   }

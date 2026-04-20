@@ -4,10 +4,11 @@ import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailInvitation } from "@/lib/email";
 import { sendInviteSMS } from "@/lib/sms/send-invite";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 // GET: list current user's invites
 export async function GET() {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -42,7 +43,7 @@ export async function GET() {
 
 // POST: create an invite with pre-vouch data
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });
   }

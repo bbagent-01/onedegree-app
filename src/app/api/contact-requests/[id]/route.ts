@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailBookingConfirmed, emailBookingDeclined } from "@/lib/email";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 // PATCH: host responds to a contact request (accept/decline)
 export async function PATCH(
@@ -10,7 +11,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const supabase = getSupabaseAdmin();

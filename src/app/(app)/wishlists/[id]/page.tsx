@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getWishlistWithItems } from "@/lib/wishlist-data";
 import { LiveListingCard } from "@/components/browse/live-listing-card";
 import { WishlistActions } from "@/components/wishlist/wishlist-actions";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export default async function WishlistDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { userId: clerkId } = await auth();
+  const { userId: clerkId } = await effectiveAuth();
   if (!clerkId) {
     redirect(`/sign-in?redirect_url=/wishlists/${id}`);
   }

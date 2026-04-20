@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailNewMessage } from "@/lib/email";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * POST /api/trust/request-intro
@@ -21,7 +22,7 @@ import { emailNewMessage } from "@/lib/email";
  *   revealed once the host replies (thread then promotes to Messages).
  */
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await req.json().catch(() => null)) as {

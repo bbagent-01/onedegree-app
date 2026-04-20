@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * PUT /api/users/phone — update the caller's DB phone_number after
@@ -11,7 +12,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
  * reflecting the change.
  */
 export async function PUT(req: Request) {
-  const { userId: clerkId } = await auth();
+  const { userId: clerkId } = await effectiveAuth();
   if (!clerkId) return new Response("Unauthorized", { status: 401 });
 
   const body = (await req.json().catch(() => ({}))) as { phone?: string };

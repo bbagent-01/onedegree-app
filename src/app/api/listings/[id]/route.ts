@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 // PATCH: update owner-editable fields on a listing
 export async function PATCH(
@@ -9,7 +10,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const supabase = getSupabaseAdmin();
@@ -93,7 +94,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const supabase = getSupabaseAdmin();

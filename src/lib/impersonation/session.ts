@@ -7,6 +7,7 @@
 
 import "server-only";
 import { cookies, headers } from "next/headers";
+import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 const COOKIE_NAME = "imp_user_id";
@@ -241,4 +242,62 @@ export async function getIdentityState(
     };
   }
   return { realUserId, effectiveUserId: realUserId, isImpersonating: false };
+}
+
+/**
+ * Drop-in replacement for Clerk's `auth()` that transparently swaps
+ * in the impersonated user's `clerk_id` when appropriate.
+ *
+ * Why this exists: the codebase has ~60 places that do
+ * `const { userId } = await auth(); …eq("clerk_id", userId)`. Rather
+ * than migrate every call site to a new id-resolution pattern, we
+ * intercept at the `auth()` layer. Because every test user
+ * (seeded + spawned) has a unique `clerk_id` in the users table
+ * (`seed_hostgraph_*`, `spawned_imp_*`), returning that fake id
+ * makes every downstream query treat the impersonated user as the
+ * signed-in user.
+ *
+ * The Clerk session itself is untouched — components that need the
+ * real admin id for audit purposes can read `realUserId` from the
+ * return value, or call the unwrapped `auth()` directly.
+ *
+ * ALPHA ONLY. Remove along with the rest of src/lib/impersonation/.
+ */
+export async function effectiveAuth(): Promise<{
+  userId: string | null;
+  realUserId: string | null;
+  isImpersonating: boolean;
+}> {
+  const a = await auth();
+  const realUserId = a.userId ?? null;
+  if (!realUserId) {
+    return { userId: null, realUserId: null, isImpersonating: false };
+  }
+
+  if (!passesTripleGate(realUserId)) {
+    return { userId: realUserId, realUserId, isImpersonating: false };
+  }
+
+  const impersonatedDbId = await getImpersonatedUserId();
+  if (!impersonatedDbId) {
+    return { userId: realUserId, realUserId, isImpersonating: false };
+  }
+
+  // Resolve the impersonated users row's clerk_id so downstream
+  // `.eq("clerk_id", userId)` queries target the impersonated row.
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("users")
+    .select("clerk_id")
+    .eq("id", impersonatedDbId)
+    .maybeSingle();
+  const targetClerkId = (data?.clerk_id as string | null) ?? null;
+  if (!targetClerkId) {
+    return { userId: realUserId, realUserId, isImpersonating: false };
+  }
+  return {
+    userId: targetClerkId,
+    realUserId,
+    isImpersonating: true,
+  };
 }

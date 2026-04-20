@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getWishlistsContainingListing } from "@/lib/wishlist-data";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * GET /api/wishlists?listingId=...
@@ -13,7 +14,7 @@ import { getWishlistsContainingListing } from "@/lib/wishlist-data";
  * whether that listing is already saved into it.
  */
 export async function GET(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const url = new URL(req.url);
@@ -56,7 +57,7 @@ export async function GET(req: Request) {
  * the same round-trip.
  */
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const body = (await req.json().catch(() => null)) as {

@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { ensureDefaultWishlist } from "@/lib/wishlist-data";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * POST /api/wishlists/save
@@ -15,7 +16,7 @@ import { ensureDefaultWishlist } from "@/lib/wishlist-data";
  *   update fills accurately.
  */
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const body = (await req.json().catch(() => null)) as {

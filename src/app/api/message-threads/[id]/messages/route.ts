@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailNewMessage } from "@/lib/email";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * POST /api/message-threads/[id]/messages
@@ -14,7 +15,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: threadId } = await params;
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = getSupabaseAdmin();

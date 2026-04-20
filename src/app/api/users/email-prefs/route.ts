@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 const ALLOWED_KEYS = [
   "booking_request",
@@ -15,7 +16,7 @@ const ALLOWED_KEYS = [
 type EmailPrefKey = (typeof ALLOWED_KEYS)[number];
 
 export async function GET() {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
@@ -27,7 +28,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = getSupabaseAdmin();

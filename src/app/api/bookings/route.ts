@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOrCreateThread } from "@/lib/messaging-data";
 import { emailNewBookingRequest } from "@/lib/email";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * Track B reservation endpoint.
@@ -12,7 +13,7 @@ import { emailNewBookingRequest } from "@/lib/email";
  * No payment processing — host reviews and responds via the dashboard.
  */
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) {
     return Response.json(
       { error: "Sign in to reserve this place." },

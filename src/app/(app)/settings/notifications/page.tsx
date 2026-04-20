@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { NotificationsForm } from "@/components/settings/notifications-form";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ const DEFAULTS = {
 };
 
 export default async function NotificationsSettingsPage() {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) {
     redirect("/sign-in?redirect_url=/settings/notifications");
   }

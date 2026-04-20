@@ -6,6 +6,7 @@ import { getListingDetail } from "@/lib/listing-detail-data";
 import { ReserveForm } from "@/components/booking/reserve-form";
 import { computeIncomingTrustPath } from "@/lib/trust-data";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ function formatDate(iso: string) {
 export default async function ReservePage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const sp = await searchParams;
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
 
   if (!userId) {
     redirect(`/sign-in?redirect_url=/listings/${id}/reserve`);

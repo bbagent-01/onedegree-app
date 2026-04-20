@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOrCreateThread } from "@/lib/messaging-data";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * POST /api/message-threads
@@ -12,7 +13,7 @@ import { getOrCreateThread } from "@/lib/messaging-data";
  * (if current user is the listing's host messaging a guest).
  */
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = getSupabaseAdmin();

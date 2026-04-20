@@ -2,10 +2,11 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 // GET: fetch existing vouch between current user and target
 export async function GET(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -40,7 +41,7 @@ export async function GET(req: Request) {
 
 // POST: create or update a vouch
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -126,7 +127,7 @@ export async function POST(req: Request) {
 
 // DELETE: remove a vouch
 export async function DELETE(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });
   }

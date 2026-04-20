@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 // PUT: replace the full set of photos for a listing.
 // Body: { photos: [{ id?, public_url, storage_path?, is_preview, sort_order }] }
@@ -13,7 +14,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: listingId } = await params;
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const supabase = getSupabaseAdmin();

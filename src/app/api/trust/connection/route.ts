@@ -11,6 +11,7 @@ import {
   computeIncomingTrustPath,
   findAllChains,
 } from "@/lib/trust-data";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 /**
  * GET /api/trust/connection?targetId=...&direction=outgoing|incoming
@@ -27,7 +28,7 @@ import {
  * without additional context from the client.
  */
 export async function GET(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });
   }

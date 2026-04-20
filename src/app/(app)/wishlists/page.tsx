@@ -4,12 +4,13 @@ import { Heart } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getUserWishlists, type WishlistSummary } from "@/lib/wishlist-data";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 export default async function WishlistsPage() {
-  const { userId: clerkId } = await auth();
+  const { userId: clerkId } = await effectiveAuth();
   if (!clerkId) {
     redirect("/sign-in?redirect_url=/wishlists");
   }
