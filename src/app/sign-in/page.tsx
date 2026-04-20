@@ -100,19 +100,25 @@ function SignInInner() {
   };
 
   const [googleLoading, setGoogleLoading] = useState(false);
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = () => {
     if (!isLoaded || googleLoading) return;
     setGoogleLoading(true);
-    try {
-      await signIn.authenticateWithRedirect({
-        strategy: "oauth_google",
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: redirectUrl,
-      });
-    } catch (e) {
-      setGoogleLoading(false);
-      toast.error(clerkError(e) || "Couldn't start Google sign-in");
-    }
+    // rAF defer so React paints the spinner state before Clerk's
+    // authenticateWithRedirect fires. Without it, React's state
+    // commit can get interleaved after the navigation starts and
+    // the spinner never visibly renders.
+    requestAnimationFrame(() => {
+      signIn
+        .authenticateWithRedirect({
+          strategy: "oauth_google",
+          redirectUrl: "/sso-callback",
+          redirectUrlComplete: redirectUrl,
+        })
+        .catch((e: unknown) => {
+          setGoogleLoading(false);
+          toast.error(clerkError(e) || "Couldn't start Google sign-in");
+        });
+    });
   };
 
   const signInWithEmail = async () => {

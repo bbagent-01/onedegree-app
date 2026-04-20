@@ -150,21 +150,27 @@ function SignUpInner() {
   };
 
   const [googleLoading, setGoogleLoading] = useState(false);
-  const signUpWithGoogle = async () => {
+  const signUpWithGoogle = () => {
     if (!isLoaded || googleLoading) return;
     setGoogleLoading(true);
-    try {
-      await signUp.authenticateWithRedirect({
-        strategy: "oauth_google",
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: redirectUrl,
-      });
-      // If authenticateWithRedirect succeeds the page navigates
-      // before this line runs — no need to unset the loading flag.
-    } catch (e) {
-      setGoogleLoading(false);
-      toast.error(clerkError(e) || "Couldn't start Google sign-up");
-    }
+    // Defer the Clerk call to the next animation frame so React has
+    // time to commit the loading state and the browser paints the
+    // spinner BEFORE authenticateWithRedirect starts its network
+    // round-trip + page navigation. Without the rAF, the navigation
+    // sometimes fires inside the same task the click handler
+    // runs in and the spinner never paints.
+    requestAnimationFrame(() => {
+      signUp
+        .authenticateWithRedirect({
+          strategy: "oauth_google",
+          redirectUrl: "/sso-callback",
+          redirectUrlComplete: redirectUrl,
+        })
+        .catch((e: unknown) => {
+          setGoogleLoading(false);
+          toast.error(clerkError(e) || "Couldn't start Google sign-up");
+        });
+    });
   };
 
   // Route the signup to whichever step is next based on what Clerk
