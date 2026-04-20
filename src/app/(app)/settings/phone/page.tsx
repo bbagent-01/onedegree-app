@@ -32,7 +32,6 @@ export default function PhoneSettingsPage() {
   const [step, setStep] = useState<Step>("view");
   const [newPhone, setNewPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [phoneId, setPhoneId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [currentPhone, setCurrentPhone] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -73,7 +72,6 @@ export default function PhoneSettingsPage() {
       if (!res.ok) {
         throw new Error(body.message || "Couldn't send code");
       }
-      setPhoneId(body.phoneId);
       setStep("verify");
       toast.success("Code sent to " + parsed!.formatNational());
     } catch (e) {
@@ -84,13 +82,13 @@ export default function PhoneSettingsPage() {
   };
 
   const verifyCode = async () => {
-    if (!phoneId || otp.length < 6) return;
+    if (otp.length < 6) return;
     setSaving(true);
     try {
       const res = await fetch("/api/users/phone/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneId, code: otp, phone: e164 }),
+        body: JSON.stringify({ code: otp, phone: e164 }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -99,7 +97,6 @@ export default function PhoneSettingsPage() {
       setCurrentPhone(e164);
       setNewPhone("");
       setOtp("");
-      setPhoneId(null);
       setStep("view");
       toast.success("Phone number updated");
     } catch (e) {
@@ -225,7 +222,6 @@ export default function PhoneSettingsPage() {
                 size="lg"
                 onClick={() => {
                   setOtp("");
-                  setPhoneId(null);
                   setStep("enter");
                 }}
               >
