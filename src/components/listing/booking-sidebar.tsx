@@ -215,7 +215,7 @@ export function BookingSidebar({
             onClick={reserve}
             disabled={!range?.from || !range?.to}
           >
-            Contact Host
+            Request to stay
           </Button>
           {trust && (
             <div className="mt-3 flex justify-center">
@@ -297,7 +297,7 @@ export function BookingSidebar({
             onClick={reserve}
             disabled={!range?.from || !range?.to}
           >
-            Contact Host
+            Request to stay
           </Button>
         </div>
       </div>

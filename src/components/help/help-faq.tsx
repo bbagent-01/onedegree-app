@@ -20,7 +20,7 @@ export const FAQS: FaqItem[] = [
   },
   {
     q: "How do I contact a host?",
-    a: "From any listing page, tap 'Contact host' to start a thread. Your messages live in your Inbox until the host responds. You don't need an active booking to say hello.",
+    a: "From any listing page, tap 'Request to stay' to start a thread. Your messages live in your Inbox until the host responds. You don't need an active booking to say hello.",
   },
   {
     q: "How do I leave a review?",
@@ -52,7 +52,7 @@ export const FAQS: FaqItem[] = [
   },
   {
     q: "Why can't I see all amenities on a listing?",
-    a: "Only amenities the host has explicitly listed appear. If something looks missing, tap 'Contact host' and ask — hosts can update their listing at any time.",
+    a: "Only amenities the host has explicitly listed appear. If something looks missing, tap 'Request to stay' and ask — hosts can update their listing at any time.",
   },
   {
     q: "Can I have more than one listing as a host?",
