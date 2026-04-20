@@ -185,11 +185,13 @@ async function ensureVouch(
 }
 
 /**
- * Create (or no-op) a completed stay_confirmation between host and
- * guest on a listing, with all three rating fields filled. Keys the
- * row by (listing_id, guest_id, check_in) so re-runs don't duplicate.
- * Post-trigger: listing avg rating + host/guest ratings recompute
- * via the existing DB triggers.
+ * Create (or no-op) a completed stay: both the backing
+ * contact_request (status='accepted', responded in past) AND the
+ * stay_confirmation with ratings. The app derives completed stays
+ * from contact_requests joined to stay_confirmations via
+ * contact_request_id — orphan stay_confirmations don't surface on
+ * the trips / hosting tabs. Keys on (listing_id, guest_id, check_in)
+ * so re-runs idempotently no-op.
  */
 async function ensureCompletedStay(spec: {
   listingId: string;
@@ -204,19 +206,76 @@ async function ensureCompletedStay(spec: {
   hostReview: string;
   listingReview: string;
 }): Promise<void> {
-  const { data: existing } = await supabase
+  // 1. Find or create the contact_request.
+  let requestId: string | null = null;
+  const { data: existingReq } = await supabase
+    .from("contact_requests")
+    .select("id, status")
+    .eq("listing_id", spec.listingId)
+    .eq("guest_id", spec.guestId)
+    .eq("check_in", spec.checkIn)
+    .maybeSingle();
+  if (existingReq?.id) {
+    requestId = existingReq.id as string;
+    // If it was pending, bump to accepted so the derived tabs show
+    // "completed" for past dates.
+    if (existingReq.status !== "accepted") {
+      await supabase
+        .from("contact_requests")
+        .update({
+          status: "accepted",
+          responded_at: new Date(spec.checkIn).toISOString(),
+        })
+        .eq("id", requestId);
+    }
+  } else {
+    const { data: inserted, error: reqErr } = await supabase
+      .from("contact_requests")
+      .insert({
+        listing_id: spec.listingId,
+        guest_id: spec.guestId,
+        host_id: spec.hostId,
+        message: "Hi! Booking via seed.",
+        check_in: spec.checkIn,
+        check_out: spec.checkOut,
+        guest_count: 2,
+        status: "accepted",
+        responded_at: new Date(spec.checkIn).toISOString(),
+      })
+      .select("id")
+      .single();
+    if (reqErr || !inserted) {
+      console.warn(
+        `  ✗ req ${spec.checkIn} listing=${spec.listingId.slice(0, 8)}: ${reqErr?.message}`
+      );
+      return;
+    }
+    requestId = inserted.id as string;
+  }
+
+  // 2. Find or create the stay_confirmation linked to that request.
+  const { data: existingStay } = await supabase
     .from("stay_confirmations")
     .select("id")
     .eq("listing_id", spec.listingId)
     .eq("guest_id", spec.guestId)
     .eq("check_in", spec.checkIn)
     .maybeSingle();
-  if (existing?.id) return;
+  if (existingStay?.id) {
+    // Ensure linkage is set (older seed rows wrote orphans).
+    await supabase
+      .from("stay_confirmations")
+      .update({ contact_request_id: requestId })
+      .eq("id", existingStay.id as string)
+      .is("contact_request_id", null);
+    return;
+  }
 
   const { error } = await supabase.from("stay_confirmations").insert({
     listing_id: spec.listingId,
     host_id: spec.hostId,
     guest_id: spec.guestId,
+    contact_request_id: requestId,
     check_in: spec.checkIn,
     check_out: spec.checkOut,
     host_confirmed: true,
