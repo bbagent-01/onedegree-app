@@ -40,7 +40,15 @@ export async function POST(req: Request) {
     const { id, email_addresses, first_name, last_name, image_url, phone_numbers } = evt.data;
     const email = email_addresses?.[0]?.email_address;
     const name = [first_name, last_name].filter(Boolean).join(" ") || "User";
-    const phone = phone_numbers?.[0]?.phone_number ?? null;
+    // Only mirror phones that are actually verified. An unverified
+    // phone number on the Clerk user means someone started a flow
+    // but hasn't proven ownership yet — writing that to our DB
+    // would block legitimate signups of the same number. The verified
+    // phone, if present, is picked over any unverified one.
+    const verifiedPhone = phone_numbers?.find(
+      (p) => p.verification?.status === "verified"
+    );
+    const phone = verifiedPhone?.phone_number ?? null;
 
     const supabase = getSupabaseAdmin();
 

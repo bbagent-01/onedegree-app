@@ -557,6 +557,7 @@ function MultiHopView({
 }: {
   data: Extract<ConnectionData, { type: "multi_hop" }>;
 }) {
+  const [showMath, setShowMath] = useState(false);
   const isIncoming = data.direction === "incoming";
   // Normalize to [you, intermediary..., target] so target is always
   // at the end regardless of the raw direction that came back from
@@ -584,16 +585,54 @@ function MultiHopView({
           },
         ];
 
-  // Orient every chain you-first so rendering is uniform, then flip
-  // each row for display (target on the left, You on the right).
-  const chainsYouFirst = rawChains.map((c) => ({
-    nodes: isIncoming ? [...c.nodes].reverse() : c.nodes,
-    linkStrengths: isIncoming
-      ? [...c.linkStrengths].reverse()
-      : c.linkStrengths,
-    degree: c.degree,
-    composite: c.composite,
-  }));
+  // Orient every chain you-first. Then sort by degree ascending (so
+  // the closest paths surface first) and, within same-degree ties,
+  // by composite strength descending. This matches Loren's ask:
+  // "closest connection on top, then 4° connections under their
+  // own heading."
+  const chainsYouFirst = rawChains
+    .map((c) => ({
+      nodes: isIncoming ? [...c.nodes].reverse() : c.nodes,
+      linkStrengths: isIncoming
+        ? [...c.linkStrengths].reverse()
+        : c.linkStrengths,
+      degree: c.degree,
+      composite: c.composite,
+    }))
+    .sort((a, b) => {
+      if (a.degree !== b.degree) return a.degree - b.degree;
+      return b.composite - a.composite;
+    });
+
+  // Group chains by degree so each group gets its own heading.
+  const byDegree = new Map<number, typeof chainsYouFirst>();
+  for (const chain of chainsYouFirst) {
+    const existing = byDegree.get(chain.degree) ?? [];
+    existing.push(chain);
+    byDegree.set(chain.degree, existing);
+  }
+  const groups = [...byDegree.entries()].sort((a, b) => a[0] - b[0]);
+
+  // The badge score (for 3°) comes from the strongest 3° chain:
+  // min(hops) × 0.6. Find the best 3° chain and its min-hop so we
+  // can show the math.
+  const three = chainsYouFirst.filter((c) => c.degree === 3);
+  const bestThree =
+    three.length > 0
+      ? three.reduce((best, c) =>
+          Math.min(...c.linkStrengths) * 0.6 >
+          Math.min(...best.linkStrengths) * 0.6
+            ? c
+            : best
+        )
+      : null;
+  const score = bestThree
+    ? Math.round(Math.min(...bestThree.linkStrengths) * 0.6)
+    : 0;
+
+  // Global path counter so labels stay unique across groups
+  // ("Path 1, Path 2, Path 3" rather than restarting at each group).
+  let counter = 0;
 
   return (
     <div className="p-4">
@@ -603,21 +642,41 @@ function MultiHopView({
           You&rsquo;re a {ordinal}&deg; connection to {target.name}
         </div>
       </div>
+      {data.degree === 3 && bestThree && (
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          Trust score:{" "}
+          <span className="font-semibold text-[#bf8a0d]">{score}</span>{" "}
+          <span className="text-muted-foreground/70">· 3° dampened</span>
+        </div>
+      )}
       {chainsYouFirst.length > 1 && (
         <div className="mt-0.5 text-xs text-muted-foreground">
-          {chainsYouFirst.length} paths between you &middot; strongest
-          first
+          {chainsYouFirst.length} paths between you
         </div>
       )}
 
-      <div className="mt-3 space-y-2.5">
-        {chainsYouFirst.map((chain, chainIdx) => (
-          <ChainRow
-            key={chainIdx}
-            chain={chain}
-            viewerAvatar={viewer.avatar_url}
-            label={`Path ${chainIdx + 1}`}
-          />
+      <div className="mt-3 space-y-3">
+        {groups.map(([degree, rows]) => (
+          <div key={degree}>
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {rows.length} {degreeOrdinal(degree)}&deg;{" "}
+              {rows.length === 1 ? "path" : "paths"}
+              {degree === data.degree && " · closest"}
+            </div>
+            <div className="space-y-2">
+              {rows.map((chain) => {
+                counter += 1;
+                return (
+                  <ChainRow
+                    key={counter}
+                    chain={chain}
+                    viewerAvatar={viewer.avatar_url}
+                    label={`Path ${counter}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
         ))}
       </div>
       {typeof data.chainsTruncated === "number" &&
@@ -627,8 +686,53 @@ function MultiHopView({
             {data.chainsTruncated === 1 ? "path" : "paths"} not shown
           </div>
         )}
+
+      <ShowMathToggle on={showMath} onToggle={() => setShowMath((v) => !v)} />
+      {showMath && (
+        <div className="mt-2 rounded-lg bg-muted/30 p-3 text-[11px] font-mono space-y-2">
+          {bestThree && (
+            <>
+              <div className="text-foreground">
+                <span className="font-semibold">3° dampening formula:</span>
+                <br />
+                score = min(hop strengths) &times; 0.6
+              </div>
+              <div className="rounded-md bg-white/70 px-2.5 py-1.5 text-foreground">
+                min({bestThree.linkStrengths.map((s) => Math.round(s)).join(", ")}){" "}
+                &times; 0.6 ={" "}
+                <span className="font-semibold">
+                  {Math.round(Math.min(...bestThree.linkStrengths))}
+                </span>{" "}
+                &times; 0.6 ={" "}
+                <span className="font-semibold text-[#bf8a0d]">{score} pts</span>
+              </div>
+              <div className="text-muted-foreground/70 text-[10px]">
+                The weakest link in the chain sets the ceiling; the 0.6
+                multiplier dampens 3° scores below 2° scores with the same
+                per-hop strengths. Best 3° chain wins when multiple exist.
+              </div>
+            </>
+          )}
+          {!bestThree && data.degree === 4 && (
+            <div className="text-foreground">
+              <span className="font-semibold">No composite score at 4°+.</span>
+              <br />
+              Four-hop chains are too indirect to boil down to a single
+              number. We show the chain itself so you can see who might
+              introduce you.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
+}
+
+function degreeOrdinal(n: number): string {
+  if (n === 1) return "1st";
+  if (n === 2) return "2nd";
+  if (n === 3) return "3rd";
+  return `${n}th`;
 }
 
 /**
