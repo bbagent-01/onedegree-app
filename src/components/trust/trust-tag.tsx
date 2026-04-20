@@ -200,8 +200,11 @@ export function TrustTag({
         </>
       )}
 
-      {/* 3°: mustard shield + dampened score + mustard connector
-          dots (micro) OR mustard hop-dot + dash + bridge avatar (medium). */}
+      {/* 3°: mustard shield + dampened score. The dots here count
+          distinct bridges (viewer's 1° connections who reach the
+          host via a 3° chain), not hops on any single chain.
+          Medium additionally shows one anon intermediate dot to
+          signal the chain length, then the bridge avatar(s). */}
       {is3rd && (
         <>
           <span className="inline-flex items-center gap-0.5 font-semibold text-[#bf8a0d]">
@@ -211,40 +214,30 @@ export function TrustTag({
             />
             {score > 0 && <span>{score}</span>}
           </span>
-          {!isMedium && anonHops.length > 0 && (
+          {!isMedium && bridgeOnly.length > 0 && (
             <ConnectorDots
-              strengths={anonHops.map((p) => p.strength)}
+              strengths={bridgeOnly.map((p) => p.strength)}
               size="h-3 w-3"
               tone="mustard"
             />
           )}
-          {isMedium && (anonHops.length > 0 || bridgeOnly.length > 0) && (
+          {isMedium && bridgeOnly.length > 0 && (
             <span className="inline-flex items-center gap-1">
-              {anonHops.length > 0 && (
-                <>
-                  <span className="inline-block h-5 w-5 rounded-full bg-[#e6b95c] ring-2 ring-white" />
-                  <span
-                    className="h-px w-2 bg-[#d4a024]"
-                    aria-hidden
-                  />
-                </>
-              )}
-              {bridgeOnly.length > 0 && (
-                <ConnectorAvatars
-                  connectors={bridgeOnly as AvatarConnector[]}
-                  size="h-5 w-5"
-                />
-              )}
+              <span className="inline-block h-5 w-5 rounded-full bg-[#e6b95c] ring-2 ring-white" />
+              <span className="h-px w-2 bg-[#d4a024]" aria-hidden />
+              <ConnectorAvatars
+                connectors={bridgeOnly as AvatarConnector[]}
+                size="h-5 w-5"
+              />
             </span>
           )}
         </>
       )}
 
-      {/* 4°: zinc shield + dampened score + zinc connector dots
-          (micro) OR zinc hop-dots + dash + bridge avatar (medium).
-          Mirrors the 3° layout — 4° still gets a numeric score
-          (mean × 0.5), just with the zinc palette to read as more
-          distant. */}
+      {/* 4°: zinc shield + dampened score. Same bridge-count
+          semantics as 3° — dots = distinct 1° bridges who reach
+          the host via a 4° chain. Medium shows two anon zinc dots
+          + dash + bridge avatar(s). */}
       {is4th && (
         <>
           <span className="inline-flex items-center gap-0.5 font-semibold text-zinc-600">
@@ -254,35 +247,36 @@ export function TrustTag({
             />
             {score > 0 && <span>{score}</span>}
           </span>
-          {!isMedium && anonHops.length > 0 && (
+          {!isMedium && bridgeOnly.length > 0 && (
             <span className="inline-flex items-center -space-x-1">
-              {anonHops.slice(0, 4).map((_, i) => (
+              {bridgeOnly.slice(0, 4).map((_, i) => (
                 <span
                   key={i}
                   className="inline-block h-3 w-3 rounded-full bg-zinc-300 ring-2 ring-white"
                 />
               ))}
+              {bridgeOnly.length > 4 && (
+                <span className="inline-flex h-3 w-3 items-center justify-center rounded-full bg-zinc-500 text-[8px] font-semibold text-white ring-2 ring-white">
+                  +{bridgeOnly.length - 4}
+                </span>
+              )}
             </span>
           )}
-          {isMedium && (anonHops.length > 0 || bridgeOnly.length > 0) && (
+          {isMedium && bridgeOnly.length > 0 && (
             <span className="inline-flex items-center gap-1">
-              {Array.from({ length: Math.min(anonHops.length, 2) }).map(
-                (_, i) => (
-                  <span
-                    key={`dot-${i}`}
-                    className="inline-flex items-center gap-1"
-                  >
-                    <span className="inline-block h-5 w-5 rounded-full bg-zinc-300" />
-                    <span className="h-px w-2 bg-zinc-300" aria-hidden />
-                  </span>
-                )
-              )}
-              {bridgeOnly.length > 0 && (
-                <ConnectorAvatars
-                  connectors={bridgeOnly as AvatarConnector[]}
-                  size="h-5 w-5"
-                />
-              )}
+              {Array.from({ length: 2 }).map((_, i) => (
+                <span
+                  key={`dot-${i}`}
+                  className="inline-flex items-center gap-1"
+                >
+                  <span className="inline-block h-5 w-5 rounded-full bg-zinc-300" />
+                  <span className="h-px w-2 bg-zinc-300" aria-hidden />
+                </span>
+              ))}
+              <ConnectorAvatars
+                connectors={bridgeOnly as AvatarConnector[]}
+                size="h-5 w-5"
+              />
             </span>
           )}
         </>

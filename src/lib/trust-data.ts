@@ -496,7 +496,13 @@ export async function computeTrustPaths(
     }
   }
   if (multiHopChains.size > 0) {
-    await applyMultiHopChains(supabase, out, multiHopChains, "outgoing");
+    await applyMultiHopChains(
+      supabase,
+      viewerId,
+      out,
+      multiHopChains,
+      "outgoing"
+    );
   }
 
   return out;
@@ -830,7 +836,13 @@ export async function computeIncomingTrustPaths(
     }
   }
   if (multiHopChains.size > 0) {
-    await applyMultiHopChains(supabase, out, multiHopChains, "incoming");
+    await applyMultiHopChains(
+      supabase,
+      viewerId,
+      out,
+      multiHopChains,
+      "incoming"
+    );
   }
 
   return out;
@@ -952,6 +964,7 @@ const FOUR_DEGREE_DAMPEN = 0.5;
  */
 async function applyMultiHopChains(
   supabase: ReturnType<typeof getSupabaseAdmin>,
+  viewerId: string,
   out: TrustResultsByTarget,
   chains: Map<string, { chain: string[]; degree: 3 | 4 }>,
   direction: "incoming" | "outgoing"
@@ -1023,6 +1036,83 @@ async function applyMultiHopChains(
     return candidates.length > 0 ? Math.max(...candidates) : 0;
   };
 
+  // ── Bridge discovery ──────────────────────────────────────────
+  // For multi-hop targets, the micro badge's dots represent the
+  // number of DISTINCT 1° connections of the viewer who reach the
+  // target (not hops on a single chain). Build a full undirected
+  // adjacency list so we can BFS from each target and count which
+  // of the viewer's 1° neighbors sit at distance === degree - 1.
+  const { data: allVouches } = await supabase
+    .from("vouches")
+    .select("voucher_id, vouchee_id");
+  const adj = new Map<string, Set<string>>();
+  for (const v of (allVouches ?? []) as Array<{
+    voucher_id: string;
+    vouchee_id: string;
+  }>) {
+    if (!adj.has(v.voucher_id)) adj.set(v.voucher_id, new Set());
+    if (!adj.has(v.vouchee_id)) adj.set(v.vouchee_id, new Set());
+    adj.get(v.voucher_id)!.add(v.vouchee_id);
+    adj.get(v.vouchee_id)!.add(v.voucher_id);
+  }
+  const viewer1 = adj.get(viewerId) ?? new Set<string>();
+
+  const bfsDistancesFrom = (source: string): Map<string, number> => {
+    const dist = new Map<string, number>();
+    dist.set(source, 0);
+    let frontier: string[] = [source];
+    for (let depth = 1; depth <= 4 && frontier.length > 0; depth++) {
+      const next: string[] = [];
+      for (const node of frontier) {
+        for (const n of adj.get(node) ?? new Set<string>()) {
+          if (dist.has(n)) continue;
+          dist.set(n, depth);
+          next.push(n);
+        }
+      }
+      frontier = next;
+    }
+    return dist;
+  };
+
+  // Collect the bridges (viewer's 1° neighbors at exactly
+  // degree-1 from target) per target. If no bridges land at
+  // exactly that depth (shouldn't happen given target was
+  // identified at this degree), fall back to any viewer 1°
+  // within degree-1 hops.
+  const bridgesByTarget = new Map<string, string[]>();
+  for (const [targetId, { degree }] of chains) {
+    const dist = bfsDistancesFrom(targetId);
+    const exact: string[] = [];
+    for (const b of viewer1) {
+      if (dist.get(b) === degree - 1) exact.push(b);
+    }
+    bridgesByTarget.set(targetId, exact);
+  }
+
+  // Hydrate bridge profiles we haven't already loaded (they come
+  // from outside the chain-node set).
+  const needsProfile = new Set<string>();
+  for (const bridges of bridgesByTarget.values()) {
+    for (const b of bridges) {
+      if (!byId.has(b)) needsProfile.add(b);
+    }
+  }
+  if (needsProfile.size > 0) {
+    const { data: extraProfiles } = await supabase
+      .from("users")
+      .select("id, name, avatar_url, vouch_power")
+      .in("id", [...needsProfile]);
+    for (const p of (extraProfiles ?? []) as Array<{
+      id: string;
+      name: string;
+      avatar_url: string | null;
+      vouch_power: number | null;
+    }>) {
+      byId.set(p.id, p);
+    }
+  }
+
   for (const [targetId, { chain, degree }] of chains) {
     const pathUsers: TrustPathUser[] = chain.map((id) => {
       const u = byId.get(id);
@@ -1071,44 +1161,46 @@ async function applyMultiHopChains(
       );
     }
 
-    // Build connectorPaths so TrustTag can render per-hop dots. Each
-    // entry represents one link in the chain. The bridge (first hop
-    // out of the viewer) is flagged viewer_knows=true so its avatar
-    // is shown; the rest stay anonymous (viewer_knows=false).
-    const hopUsersViewerFirst = direction === "incoming"
-      ? [...pathUsers].reverse()
-      : [...pathUsers];
-    const hopConnectors: ConnectorPathSummary[] = hopStrengths.map((s, i) => {
-      // The "node" for a hop is the destination of that link
-      // (i.e. hopUsersViewerFirst[i+1]).
-      const node = hopUsersViewerFirst[i + 1];
-      return {
-        id: node.id,
-        name: node.name,
-        avatar_url: node.avatar_url,
-        strength: s,
-        viewer_knows: i === 0, // first hop out of viewer = bridge
-      };
-    });
+    // connectorPaths for multi-hop targets = one entry per DISTINCT
+    // 1° bridge of the viewer that reaches this target at exactly
+    // degree-1 hops. TrustTag's micro badge renders one dot per
+    // entry (capped at 4 + overflow), and the medium badge shows
+    // the bridge avatars. Per-chain anonymous intermediaries are
+    // represented by the medium badge's zinc/mustard dot-dash
+    // visual whose count is derived from degree itself.
+    const bridgeIds = bridgesByTarget.get(targetId) ?? [];
+    const bridgeConnectors: ConnectorPathSummary[] = bridgeIds
+      .map((bid) => {
+        const prof = byId.get(bid);
+        return {
+          id: bid,
+          name: prof?.name ?? "Connection",
+          avatar_url: prof?.avatar_url ?? null,
+          strength: edgeStrengthBetween(viewerId, bid),
+          viewer_knows: true,
+        };
+      })
+      .sort((a, b) => b.strength - a.strength);
 
     out[targetId] = {
       ...EMPTY,
       score,
       degree,
       path: pathUsers,
-      connectorPaths: bridgeNode
-        ? hopConnectors.length > 0
-          ? hopConnectors
-          : [
-              {
-                id: bridgeNode.id,
-                name: bridgeNode.name,
-                avatar_url: bridgeNode.avatar_url,
-                strength: 0,
-                viewer_knows: true,
-              },
-            ]
-        : [],
+      connectorPaths:
+        bridgeConnectors.length > 0
+          ? bridgeConnectors
+          : bridgeNode
+            ? [
+                {
+                  id: bridgeNode.id,
+                  name: bridgeNode.name,
+                  avatar_url: bridgeNode.avatar_url,
+                  strength: 0,
+                  viewer_knows: true,
+                },
+              ]
+            : [],
     };
   }
 }
