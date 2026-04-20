@@ -83,7 +83,7 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
   const accessMessage = getAccessMessage(listing, score, trust?.degree);
 
   return (
-    <div className="mx-auto w-full max-w-[1080px] px-4 pb-24 pt-6 md:px-6">
+    <div className="mx-auto w-full max-w-[1280px] px-4 pb-24 pt-6 md:px-6 md:pb-12">
       {/* Header row — just the back link now. The preview marker
           moved next to the title below so the two pieces of
           information are grouped. */}
