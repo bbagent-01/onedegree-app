@@ -18,6 +18,13 @@ returns **zero hits**.
 - [ ] `rm src/components/admin/ImpersonationMount.tsx`
 - [ ] `rmdir src/components/admin` *(only if directory is empty after the above)*
 
+### Dev2 (design system page) — same removal sweep
+
+- [ ] `rm -rf src/app/dev/design-system/`
+- [ ] `rm -rf src/components/dev/`
+- [ ] `rm -rf src/lib/dev-theme/`
+- [ ] `rmdir src/app/dev` *(only if directory is empty after the above)*
+
 ## 2. Revert call-site shims
 
 All shims import `getEffectiveUserId` from `@/lib/impersonation/session`
@@ -50,6 +57,8 @@ import + restore the original lookup in each file:
 - [ ] Drop the `isImpersonationEnabled` import and the dynamic-import
       block that renders `<ImpersonationMount />`. Make the component
       sync again (no `async`).
+- [ ] Drop the Dev2 `SandboxMount` dynamic import + `{sandboxMount}`
+      JSX in the same block — comment-tagged `REMOVE BEFORE BETA (Dev2)`.
 
 ## 5. Drop DB objects
 
