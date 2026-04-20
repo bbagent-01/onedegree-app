@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, User, Bell, Shield, Phone } from "lucide-react";
+import { ChevronRight, User, Bell, Shield, Phone, Home } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DeactivateButton } from "@/components/settings/deactivate-button";
@@ -63,6 +63,12 @@ export default async function SettingsPage() {
             icon={Bell}
             title="Notifications"
             description="Choose which emails you want to receive."
+          />
+          <SettingsLink
+            href="/settings/hosting"
+            icon={Home}
+            title="Hosting policies"
+            description="Cancellation terms that apply to all your listings."
           />
           {data?.id && (
             <SettingsLink

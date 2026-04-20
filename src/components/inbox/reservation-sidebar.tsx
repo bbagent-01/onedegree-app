@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import type { ThreadDetail } from "@/lib/messaging-data";
 import { resolveStages } from "@/lib/booking-stage";
 import { TripTimeline } from "@/components/booking/TripTimeline";
+import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
+import { computeRefund } from "@/lib/cancellation";
 
 interface Props {
   thread: ThreadDetail;
@@ -324,6 +326,28 @@ export function ReservationSidebar({ thread, onClose }: Props) {
         {/* Request message + host response deliberately live in the
             thread itself — duplicating them in the sidebar made the
             view feel repetitive. See the message pane to the left. */}
+
+        {/* Cancellation policy — compact. Shows the refund-now
+            callout for guests on accepted requests so they can see
+            what cancelling today would mean. Hosts also see it
+            so both sides have a shared source of truth. */}
+        {reservation_sidebar?.cancellation_policy && (
+          <CancellationPolicyCard
+            policy={reservation_sidebar.cancellation_policy}
+            scope={booking?.status === "accepted" ? "reservation" : "listing"}
+            compact
+            refundNow={
+              role === "guest" &&
+              booking?.status === "accepted" &&
+              booking.check_in
+                ? computeRefund(
+                    reservation_sidebar.cancellation_policy,
+                    booking.check_in
+                  )
+                : null
+            }
+          />
+        )}
 
         {/* About the other person */}
         <div>

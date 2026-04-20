@@ -18,6 +18,8 @@ import { PostStayVouchBanner } from "@/components/trust/post-stay-vouch-banner";
 import { PaymentArrangementCard } from "@/components/trips/payment-arrangement-card";
 import { TripTimeline } from "@/components/booking/TripTimeline";
 import { resolveStages } from "@/lib/booking-stage";
+import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
+import { computeRefund } from "@/lib/cancellation";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -188,6 +190,22 @@ export default async function TripDetailPage({ params }: PageProps) {
           hostFirstName={trip.host.name?.split(" ")[0] ?? "your host"}
         />
       )}
+
+      {/* Cancellation policy — snapshot on accepted reservations, live
+          resolver before that. Guests see a refund-now callout when
+          their stay is confirmed and in the future. */}
+      <section className="mt-6">
+        <h2 className="mb-3 text-base font-semibold">Cancellation policy</h2>
+        <CancellationPolicyCard
+          policy={trip.cancellation_policy}
+          scope={isConfirmed ? "reservation" : "listing"}
+          refundNow={
+            isConfirmed && trip.check_in
+              ? computeRefund(trip.cancellation_policy, trip.check_in)
+              : null
+          }
+        />
+      </section>
 
       {/* Host section */}
       {trip.host && (

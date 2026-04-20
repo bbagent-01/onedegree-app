@@ -1,0 +1,55 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { effectiveAuth } from "@/lib/impersonation/session";
+import { parsePolicy } from "@/lib/cancellation";
+import { CancellationPolicyForm } from "@/components/settings/cancellation-policy-form";
+
+export const runtime = "edge";
+export const dynamic = "force-dynamic";
+
+export default async function HostingSettingsPage() {
+  const { userId: clerkId } = await effectiveAuth();
+  if (!clerkId) redirect("/sign-in?redirect_url=/settings/hosting");
+
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("users")
+    .select("cancellation_policy")
+    .eq("clerk_id", clerkId)
+    .maybeSingle();
+
+  const policy = parsePolicy(data?.cancellation_policy);
+
+  return (
+    <div className="mx-auto w-full max-w-[880px] px-4 py-6 md:px-6 md:py-10">
+      <Link
+        href="/settings"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back to settings
+      </Link>
+
+      <header className="mt-4">
+        <h1 className="text-2xl font-semibold md:text-3xl">Hosting policies</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Default terms that apply to all your listings. You can override
+          any setting on a specific listing or reservation later.
+        </p>
+      </header>
+
+      <section className="mt-8">
+        <h2 className="text-base font-semibold">Cancellation policy</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          How much of the agreed price a guest gets back if they cancel,
+          depending on how close to check-in they cancel.
+        </p>
+        <div className="mt-5">
+          <CancellationPolicyForm initial={policy} />
+        </div>
+      </section>
+    </div>
+  );
+}

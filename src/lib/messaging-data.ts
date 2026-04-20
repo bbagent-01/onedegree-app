@@ -5,6 +5,7 @@ import {
   computeIncomingTrustPaths,
   type ConnectorPathSummary,
 } from "./trust-data";
+import { resolveEffectivePolicy } from "./cancellation";
 
 export type ThreadRole = "guest" | "host";
 
@@ -88,6 +89,10 @@ export interface ThreadDetail extends InboxThread {
     other_user_location: string | null;
     stay_confirmation_id: string | null;
     stay_reviewed_by_me: boolean;
+    /** Effective cancellation policy for this reservation: snapshot
+     *  on the contact_request if accepted, otherwise listing
+     *  override → host default → platform default. */
+    cancellation_policy: import("./cancellation").CancellationPolicy;
   };
 }
 
@@ -300,7 +305,7 @@ export async function getThreadDetail(
     supabase
       .from("listings")
       .select(
-        "id, title, area_name, price_min, price_max, avg_listing_rating, listing_review_count"
+        "id, title, area_name, price_min, price_max, avg_listing_rating, listing_review_count, host_id, cancellation_policy_override"
       )
       .eq("id", thread.listing_id)
       .single(),
@@ -314,12 +319,28 @@ export async function getThreadDetail(
       ? supabase
           .from("contact_requests")
           .select(
-            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at"
+            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy"
           )
           .eq("id", thread.contact_request_id)
           .single()
       : Promise.resolve({ data: null }),
   ]);
+
+  // Look up the listing's host cancellation policy as the fallback
+  // for the resolver. Single targeted query — keeps the parallel
+  // bundle above tidy.
+  const hostId = (listing as { host_id?: string } | null)?.host_id ?? null;
+  let hostCancellationPolicy: unknown = null;
+  if (hostId) {
+    const { data: hostRow } = await supabase
+      .from("users")
+      .select("cancellation_policy")
+      .eq("id", hostId)
+      .maybeSingle();
+    hostCancellationPolicy =
+      (hostRow as { cancellation_policy?: unknown } | null)
+        ?.cancellation_policy ?? null;
+  }
 
   // Sidebar-only: check if the other user owns any listings (→
   // "also a host" label) and whether this contact_request already
@@ -453,6 +474,15 @@ export async function getThreadDetail(
         (otherUser as { location?: string | null } | null)?.location ?? null,
       stay_confirmation_id: stayConfirmationId,
       stay_reviewed_by_me: stayReviewedByMe,
+      cancellation_policy: resolveEffectivePolicy({
+        hostDefault: hostCancellationPolicy,
+        listingOverride:
+          (listing as { cancellation_policy_override?: unknown } | null)
+            ?.cancellation_policy_override ?? null,
+        reservationSnapshot:
+          (booking as { cancellation_policy?: unknown } | null)
+            ?.cancellation_policy ?? null,
+      }),
     },
   };
 }

@@ -3,6 +3,7 @@ import {
   computeIncomingTrustPaths,
   type ConnectorPathSummary,
 } from "./trust-data";
+import { resolveEffectivePolicy } from "./cancellation";
 
 export type TripTab = "upcoming" | "completed" | "cancelled";
 
@@ -183,6 +184,10 @@ export interface TripDetail extends TripCard {
    *  trip timeline resolver. */
   stay_host_rating: number | null;
   stay_guest_rating: number | null;
+  /** Effective cancellation policy: reservation snapshot (if
+   *  accepted) → listing override → host default → platform
+   *  default. Always populated. */
+  cancellation_policy: import("./cancellation").CancellationPolicy;
 }
 
 /** Fetch a single trip with extra detail for the trip detail page. */
@@ -210,7 +215,7 @@ export async function getTripDetail(
   ] = await Promise.all([
     supabase
       .from("listings")
-      .select("id, title, area_name")
+      .select("id, title, area_name, cancellation_policy_override")
       .eq("id", request.listing_id)
       .maybeSingle(),
     supabase
@@ -221,7 +226,7 @@ export async function getTripDetail(
       .limit(4),
     supabase
       .from("users")
-      .select("id, name, avatar_url, email, phone_number")
+      .select("id, name, avatar_url, email, phone_number, cancellation_policy")
       .eq("id", request.host_id)
       .maybeSingle(),
     supabase
@@ -288,5 +293,14 @@ export async function getTripDetail(
     host_email: request.status === "accepted" ? host?.email || null : null,
     stay_host_rating: (stay as { host_rating?: number | null } | null)?.host_rating ?? null,
     stay_guest_rating: (stay as { guest_rating?: number | null } | null)?.guest_rating ?? null,
+    cancellation_policy: resolveEffectivePolicy({
+      hostDefault: (host as { cancellation_policy?: unknown } | null)
+        ?.cancellation_policy,
+      listingOverride: (listing as {
+        cancellation_policy_override?: unknown;
+      } | null)?.cancellation_policy_override,
+      reservationSnapshot: (request as { cancellation_policy?: unknown })
+        .cancellation_policy,
+    }),
   };
 }

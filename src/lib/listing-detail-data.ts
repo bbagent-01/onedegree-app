@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "./supabase";
+import { resolveEffectivePolicy } from "./cancellation";
 import type { ListingPhoto, ListingRow } from "./listing-data";
 import { derivedExtras } from "./listing-derived";
 import { parseListingMeta } from "./listing-meta";
@@ -63,6 +64,12 @@ export interface ListingDetail {
   preview_description: string | null;
   /** Per-action access rules (JSONB from DB) */
   access_settings: import("./trust/types").AccessSettings | null;
+  /**
+   * Effective cancellation policy for this listing — listing-level
+   * override if set, otherwise the host's default. Always populated
+   * (falls back to the platform Moderate preset as a last resort).
+   */
+  cancellation_policy: import("./cancellation").CancellationPolicy;
 }
 
 export async function getListingDetail(
@@ -85,6 +92,7 @@ export async function getListingDetail(
     visibility_mode: string | null;
     preview_description: string | null;
     access_settings: import("./trust/types").AccessSettings | null;
+    cancellation_policy_override: unknown;
   };
 
   const [photosRes, hostRes, reviewsRes, blocksRes] = await Promise.all([
@@ -96,7 +104,7 @@ export async function getListingDetail(
     supabase
       .from("users")
       .select(
-        "id, name, avatar_url, bio, created_at, host_rating, host_review_count"
+        "id, name, avatar_url, bio, created_at, host_rating, host_review_count, cancellation_policy"
       )
       .eq("id", row.host_id)
       .maybeSingle(),
@@ -127,7 +135,9 @@ export async function getListingDetail(
     if (ap !== bp) return ap - bp;
     return (a.sort_order ?? 0) - (b.sort_order ?? 0);
   });
-  const host = hostRes.data as ListingHost | null;
+  const host = hostRes.data as
+    | (ListingHost & { cancellation_policy: unknown })
+    | null;
   const reviewRows = (reviewsRes.data || []) as Array<{
     id: string;
     guest_id: string;
@@ -204,6 +214,11 @@ export async function getListingDetail(
     visibility_mode: row.visibility_mode ?? "preview_gated",
     preview_description: row.preview_description ?? null,
     access_settings: row.access_settings ?? null,
+    cancellation_policy: resolveEffectivePolicy({
+      hostDefault: host?.cancellation_policy,
+      listingOverride: row.cancellation_policy_override,
+      reservationSnapshot: null,
+    }),
     ...derived,
   };
 }

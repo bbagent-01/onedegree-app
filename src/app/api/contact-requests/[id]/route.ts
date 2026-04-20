@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailBookingConfirmed, emailBookingDeclined } from "@/lib/email";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { resolveEffectivePolicy } from "@/lib/cancellation";
 
 // PATCH: host responds to a contact request (accept/decline)
 export async function PATCH(
@@ -48,12 +49,39 @@ export async function PATCH(
     return Response.json({ error: "Invalid status" }, { status: 400 });
   }
 
+  // On accept, snapshot the effective cancellation policy onto the
+  // contact_request so the terms are locked in at approval time.
+  // Future edits to the host default or listing override won't move
+  // the goalposts on an already-approved reservation.
+  let cancellationSnapshot: ReturnType<typeof resolveEffectivePolicy> | null =
+    null;
+  if (status === "accepted") {
+    const { data: hostRow } = await supabase
+      .from("users")
+      .select("cancellation_policy")
+      .eq("id", request.host_id)
+      .maybeSingle();
+    const { data: listingRow } = await supabase
+      .from("listings")
+      .select("cancellation_policy_override")
+      .eq("id", request.listing_id)
+      .maybeSingle();
+    cancellationSnapshot = resolveEffectivePolicy({
+      hostDefault: hostRow?.cancellation_policy,
+      listingOverride: listingRow?.cancellation_policy_override,
+      reservationSnapshot: null,
+    });
+  }
+
   const { error } = await supabase
     .from("contact_requests")
     .update({
       status,
       host_response_message: hostResponseMessage || null,
       responded_at: new Date().toISOString(),
+      ...(cancellationSnapshot
+        ? { cancellation_policy: cancellationSnapshot }
+        : {}),
     })
     .eq("id", id);
 

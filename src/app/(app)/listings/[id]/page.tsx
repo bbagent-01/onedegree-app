@@ -18,6 +18,7 @@ import { LocationMapClient } from "@/components/listing/location-map-client";
 import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
 import { GatedListingView } from "@/components/listing/gated-listing-view";
 import { TrustTag } from "@/components/trust/trust-tag";
+import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -386,12 +387,12 @@ export default async function ListingPage({
               <li>Security camera not on property</li>
             </ul>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <h3 className="mb-3 font-semibold">Cancellation policy</h3>
-            <p className="text-sm text-muted-foreground">
-              Free cancellation before 48 hours of check-in. Review the full
-              policy at the time of booking.
-            </p>
+            <CancellationPolicyCard
+              policy={listing.cancellation_policy}
+              scope="listing"
+            />
           </div>
         </div>
       </section>
