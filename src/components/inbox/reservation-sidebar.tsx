@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import {
   Calendar as CalendarIcon,
   Users as UsersIcon,
@@ -29,7 +28,6 @@ import {
 import { resolveStages } from "@/lib/booking-stage";
 import { TripTimeline } from "@/components/booking/TripTimeline";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
-import { ReviewFlowDialog } from "@/components/booking/ReviewFlowDialog";
 
 interface Props {
   thread: ThreadDetail;
@@ -85,18 +83,10 @@ export function ReservationSidebar({ thread, onClose }: Props) {
   const { booking, listing, other_user, role, reservation_sidebar } = thread;
   const isHostViewer = role === "host";
   const status = statusLabel(booking?.status);
-  const [reviewOpen, setReviewOpen] = useState(false);
 
   const otherRating = reservation_sidebar?.other_user_is_host
     ? reservation_sidebar.other_user_host_rating
     : reservation_sidebar?.other_user_guest_rating ?? null;
-
-  // Show the inline review CTA whenever the viewer hasn't reviewed
-  // yet AND a stay_confirmation exists. Clicking opens the unified
-  // ReviewFlowDialog right here — no more navigation to /trips.
-  const canReview =
-    Boolean(reservation_sidebar?.stay_confirmation_id) &&
-    !reservation_sidebar?.stay_reviewed_by_me;
 
   return (
     <aside className="flex h-full w-full flex-col overflow-y-auto border-l border-border bg-white">
@@ -286,37 +276,10 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           </div>
         )}
 
-        {/* Review CTA — opens ReviewFlowDialog inline so the
-            reviewer never leaves the inbox. */}
-        {canReview && booking?.id && (
-          <button
-            type="button"
-            onClick={() => setReviewOpen(true)}
-            className={buttonVariants({
-              variant: "default",
-              className: "h-10 w-full text-sm font-semibold",
-            })}
-          >
-            <Star className="mr-1.5 h-4 w-4" />
-            Leave a review
-          </button>
-        )}
-        {canReview && booking?.id && (
-          <ReviewFlowDialog
-            open={reviewOpen}
-            onOpenChange={setReviewOpen}
-            viewerRole={role}
-            bookingId={booking.id}
-            stayConfirmationId={
-              reservation_sidebar?.stay_confirmation_id ?? null
-            }
-            otherUser={{ id: other_user.id, name: other_user.name }}
-            listingTitle={listing?.title ?? "your stay"}
-            alreadyVouched={
-              reservation_sidebar?.viewer_has_vouched ?? false
-            }
-          />
-        )}
+        {/* Review CTA removed from sidebar — the review flow lives
+            entirely in the ReviewPromptCard inside the thread so
+            there's one canonical call-to-action per reservation.
+            Sidebar stays clean. */}
 
         {/* Request message + host response deliberately live in the
             thread itself — duplicating them in the sidebar made the

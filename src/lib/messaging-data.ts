@@ -435,13 +435,16 @@ export async function getThreadDetail(
       .maybeSingle();
     if (stay) {
       stayConfirmationId = stay.id as string;
-      // Guests rate the host/listing → guest_rating. Hosts rate the
-      // guest → host_rating on the same row. The review is
-      // "reviewed by me" when the field corresponding to my role
-      // is filled.
+      // stay_confirmations column naming: each *_rating column
+      // holds the rating given TO that role. So host_rating is
+      // the rating the GUEST gave to the host (set by the
+      // guest-review endpoint), and guest_rating is the rating
+      // the HOST gave the guest (set by the host-review endpoint).
+      // The review is "reviewed by me" when the column opposite
+      // my role is populated.
       stayReviewedByMe = isGuest
-        ? stay.guest_rating !== null
-        : stay.host_rating !== null;
+        ? stay.host_rating !== null
+        : stay.guest_rating !== null;
     }
   }
 

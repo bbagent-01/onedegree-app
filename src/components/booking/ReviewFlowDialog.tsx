@@ -30,12 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import {
-  VOUCH_TYPES,
-  YEARS_KNOWN_BUCKETS,
-  type VouchType,
-  type YearsKnownBucket,
-} from "@/lib/vouch-constants";
+import { type VouchType } from "@/lib/vouch-constants";
 
 interface Props {
   open: boolean;
@@ -120,10 +115,11 @@ export function ReviewFlowDialog({
   // Shared text
   const [reviewText, setReviewText] = useState("");
 
-  // Vouch step state
-  const [vouchType, setVouchType] = useState<VouchType | null>(null);
-  const [yearsKnown, setYearsKnown] =
-    useState<YearsKnownBucket | null>("lt1");
+  // Vouch step — simplified to a single "Met on Trustead"
+  // option so a post-stay vouch is one click. Type defaults to
+  // "standard"; years-known is hardcoded to "lt1" (the existing
+  // smallest multiplier) until a dedicated Trustead-only bucket
+  // ships. FOLLOW-UP: new bucket w/ a lower multiplier than 0.6.
 
   const otherFirst = otherUser.name.split(" ")[0] || "them";
 
@@ -136,8 +132,6 @@ export function ReviewFlowDialog({
       setListingRating(0);
       setGuestRating(0);
       setReviewText("");
-      setVouchType(null);
-      setYearsKnown("lt1");
     }
   }, [open]);
 
@@ -204,12 +198,17 @@ export function ReviewFlowDialog({
       }
       toast.success("Review saved");
 
+      // Always refresh the thread now that the review landed.
+      // Otherwise a user who closes the dialog after the review
+      // step (but before the vouch step) would keep seeing the
+      // "Leave a review" card until they navigated away.
+      router.refresh();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+      }
+
       if (alreadyVouched) {
         onOpenChange(false);
-        router.refresh();
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
-        }
       } else {
         setStep("vouch");
       }
@@ -222,10 +221,6 @@ export function ReviewFlowDialog({
 
   const submitVouch = async () => {
     if (submitting) return;
-    if (!vouchType || !yearsKnown) {
-      toast.error("Pick a vouch type and how long you've known them");
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/vouches", {
@@ -233,8 +228,12 @@ export function ReviewFlowDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           targetUserId: otherUser.id,
-          vouchType,
-          yearsKnownBucket: yearsKnown,
+          // Single "Met on Trustead" bucket for now — uses
+          // existing standard/lt1 values under the hood. Will
+          // switch to a dedicated lower-multiplier Trustead
+          // bucket once that ships.
+          vouchType: "standard" as VouchType,
+          yearsKnownBucket: "lt1",
           isPostStay: true,
           sourceBookingId: bookingId,
         }),
@@ -347,57 +346,21 @@ export function ReviewFlowDialog({
               </DialogDescription>
             </DialogHeader>
             <div className="mt-2 space-y-5">
-              <div>
-                <div className="text-sm font-medium">Vouch type</div>
-                <div className="mt-1.5 space-y-2">
-                  {VOUCH_TYPES.map((t) => (
-                    <label
-                      key={t.value}
-                      className={cn(
-                        "flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition",
-                        vouchType === t.value
-                          ? "border-brand bg-brand/5"
-                          : "border-border hover:border-muted-foreground/30"
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="vouch-type"
-                        checked={vouchType === t.value}
-                        onChange={() => setVouchType(t.value)}
-                        className="mt-1"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold">{t.label}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {t.description}
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-sm font-medium">
-                  How long have you known {otherFirst}?
-                </div>
-                <div className="mt-1.5 grid grid-cols-2 gap-2">
-                  {YEARS_KNOWN_BUCKETS.map((b) => (
-                    <button
-                      key={b.value}
-                      type="button"
-                      onClick={() => setYearsKnown(b.value)}
-                      className={cn(
-                        "rounded-lg border-2 px-3 py-2 text-xs font-semibold transition",
-                        yearsKnown === b.value
-                          ? "border-brand bg-brand/5 text-brand"
-                          : "border-border hover:border-muted-foreground/30"
-                      )}
-                    >
-                      {b.label}
-                    </button>
-                  ))}
+              <div className="rounded-xl border-2 border-brand bg-brand/5 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-brand shadow-sm">
+                    <Shield className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">
+                      Met on Trustead
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      A light vouch — you only know {otherFirst} from this
+                      stay. Counts less than vouching for someone you knew
+                      before.
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -412,7 +375,7 @@ export function ReviewFlowDialog({
                 </Button>
                 <Button
                   onClick={submitVouch}
-                  disabled={submitting || !vouchType || !yearsKnown}
+                  disabled={submitting}
                   className="flex-1 bg-brand text-white hover:bg-brand-600"
                 >
                   {submitting ? (
