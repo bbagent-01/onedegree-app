@@ -3,17 +3,24 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  CalendarDays,
   Check,
-  ShieldCheck,
+  Copy,
   Loader2,
   Receipt,
-  CalendarDays,
+  ShieldCheck,
   Users,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CancellationPolicyCard } from "./CancellationPolicyCard";
 import type { CancellationPolicy } from "@/lib/cancellation";
+import {
+  displayHandle,
+  paymentMethodMeta,
+  type PaymentMethod,
+} from "@/lib/payment-methods";
 
 /**
  * Structured-message prefixes. Posted by the contact-request PATCH
@@ -50,6 +57,10 @@ interface TermsOfferedProps {
   originalGuestCount: number | null;
   originalTotalEstimate: number | null;
   policy: CancellationPolicy;
+  /** Host's enabled off-platform methods. Shown only to the guest
+   *  so they know where to send money after confirming. Host
+   *  already knows their own handles. */
+  paymentMethods: PaymentMethod[];
   viewerRole: "guest" | "host";
   termsAcceptedAt: string | null;
   hostFirstName: string;
@@ -82,6 +93,7 @@ export function TermsOfferedCard({
   originalGuestCount,
   originalTotalEstimate,
   policy,
+  paymentMethods,
   viewerRole,
   termsAcceptedAt,
   hostFirstName,
@@ -228,6 +240,27 @@ export function TermsOfferedCard({
         <CancellationPolicyCard policy={policy} scope="reservation" />
       </div>
 
+      {/* Host payment methods — shown to the guest so the terms they
+          acknowledge include where money actually goes. Host side
+          hides this (they know their own handles). */}
+      {viewerRole === "guest" && paymentMethods.length > 0 && (
+        <div className="border-t border-border px-4 py-3">
+          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <Wallet className="h-3 w-3" />
+            How to pay {hostFirstName}
+          </div>
+          <div className="space-y-1.5">
+            {paymentMethods.map((m, i) => (
+              <TermsPaymentMethodRow key={`${m.type}-${i}`} method={m} />
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+            Payment happens directly between you and {hostFirstName}.
+            1° B&amp;B doesn&apos;t process payments.
+          </p>
+        </div>
+      )}
+
       {viewerRole === "guest" &&
         (acceptedAt ? (
           <div className="flex items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
@@ -291,19 +324,28 @@ export function TermsOfferedCard({
 interface TermsAcceptedProps {
   totalEstimate: number | null;
   policy: CancellationPolicy;
+  /** Host's enabled off-platform methods. Shown only to the guest
+   *  viewer; host hides (they know their own handles). */
+  paymentMethods: PaymentMethod[];
+  viewerRole: "guest" | "host";
   acceptedAt: string;
+  hostFirstName: string;
   guestFirstName: string;
 }
 
 /**
  * Posted after the guest confirms. Spells out the locked terms in
  * the thread one more time so both sides have a scannable record of
- * what was agreed and when.
+ * what was agreed and when, plus the host's payment handles so the
+ * guest knows where the money goes.
  */
 export function TermsAcceptedCard({
   totalEstimate,
   policy,
+  paymentMethods,
+  viewerRole,
   acceptedAt,
+  hostFirstName,
   guestFirstName,
 }: TermsAcceptedProps) {
   return (
@@ -343,6 +385,20 @@ export function TermsAcceptedCard({
       <div className="p-4">
         <CancellationPolicyCard policy={policy} scope="reservation" />
       </div>
+
+      {viewerRole === "guest" && paymentMethods.length > 0 && (
+        <div className="border-t border-emerald-200 px-4 py-3">
+          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-900/70">
+            <Wallet className="h-3 w-3" />
+            How to pay {hostFirstName}
+          </div>
+          <div className="space-y-1.5">
+            {paymentMethods.map((m, i) => (
+              <TermsPaymentMethodRow key={`${m.type}-${i}`} method={m} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -371,6 +427,45 @@ function FieldTile({
         <div className="mt-0.5 text-[11px] font-medium text-amber-800">
           {originalLabel}
         </div>
+      )}
+    </div>
+  );
+}
+
+function TermsPaymentMethodRow({ method }: { method: PaymentMethod }) {
+  const meta = paymentMethodMeta(method.type);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(displayHandle(method));
+      toast.success(`${meta.label} handle copied`);
+    } catch {
+      toast.error("Couldn't copy");
+    }
+  };
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-white p-2.5">
+      <div className="min-w-0">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {meta.label}
+        </div>
+        <div className="truncate text-xs font-medium">
+          {displayHandle(method)}
+        </div>
+        {method.note && (
+          <div className="mt-0.5 whitespace-pre-wrap text-[11px] text-muted-foreground">
+            {method.note}
+          </div>
+        )}
+      </div>
+      {method.handle && (
+        <button
+          type="button"
+          onClick={copy}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label={`Copy ${meta.label} handle`}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
       )}
     </div>
   );

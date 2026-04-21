@@ -346,6 +346,9 @@ export function ThreadView({
                           thread.booking.original_total_estimate
                         }
                         policy={thread.reservation_sidebar.cancellation_policy}
+                        paymentMethods={
+                          thread.reservation_sidebar.host_payment_methods
+                        }
                         viewerRole={thread.role}
                         termsAcceptedAt={thread.booking.terms_accepted_at}
                         hostFirstName={
@@ -374,7 +377,17 @@ export function ThreadView({
                       <TermsAcceptedCard
                         totalEstimate={thread.booking.total_estimate}
                         policy={thread.reservation_sidebar.cancellation_policy}
+                        paymentMethods={
+                          thread.reservation_sidebar.host_payment_methods
+                        }
+                        viewerRole={thread.role}
                         acceptedAt={thread.booking.terms_accepted_at}
+                        hostFirstName={
+                          (thread.role === "host"
+                            ? "you"
+                            : thread.other_user.name
+                          ).split(" ")[0]
+                        }
                         guestFirstName={
                           (thread.role === "guest"
                             ? "you"
