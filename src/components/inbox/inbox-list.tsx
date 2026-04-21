@@ -20,6 +20,13 @@ interface Props {
   threads: InboxThread[];
   currentUserId: string;
   selectedId: string | null;
+  /**
+   * When provided, desktop clicks call this instead of doing a full
+   * RSC navigation. Lets the parent shell swap threads via
+   * /api/inbox/thread/[id] without re-running the inbox RSC.
+   * Mobile navigation still uses router.push regardless.
+   */
+  onSelectThread?: (threadId: string) => void;
 }
 
 function initials(name: string) {
@@ -49,7 +56,7 @@ function relTime(iso: string) {
 type MailboxFilter = "all" | "hosting" | "traveling" | "support";
 type Filter = MailboxFilter | "intros";
 
-export function InboxList({ threads, selectedId }: Props) {
+export function InboxList({ threads, selectedId, onSelectThread }: Props) {
   const router = useRouter();
   // Two independent pieces of state: which mailbox is selected in
   // the dropdown, and whether the Intros sibling tab overrides it.
@@ -251,10 +258,21 @@ export function InboxList({ threads, selectedId }: Props) {
                   <button
                     type="button"
                     onClick={() => {
-                      // Desktop: stay on /inbox?thread=…
-                      // Mobile: navigate to /inbox/[id]
-                      if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-                        router.push(`/inbox?thread=${t.id}`);
+                      // Desktop: swap via the shell's onSelectThread
+                      // callback when present (no RSC round-trip). Fall
+                      // back to router.push for legacy mounts that
+                      // don't wire the callback.
+                      // Mobile: always navigate to /inbox/[id] so the
+                      // thread takes over the whole viewport.
+                      const isDesktop =
+                        typeof window !== "undefined" &&
+                        window.matchMedia("(min-width: 768px)").matches;
+                      if (isDesktop) {
+                        if (onSelectThread) {
+                          onSelectThread(t.id);
+                        } else {
+                          router.push(`/inbox?thread=${t.id}`);
+                        }
                       } else {
                         router.push(`/inbox/${t.id}`);
                       }
