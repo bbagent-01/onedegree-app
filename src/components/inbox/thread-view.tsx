@@ -526,12 +526,15 @@ export function ThreadView({
                     </div>
                   );
                 }
+                // Plain-text system messages (booking request
+                // announcement, check-in reminder, legacy prompts).
+                // Styled as a full-width card to match the rest of
+                // the timeline instead of a small muted pill.
                 return (
-                  <div
-                    key={m.id}
-                    className="mx-auto max-w-md rounded-full bg-muted px-4 py-1.5 text-center text-xs text-muted-foreground"
-                  >
-                    {friendlyMessagePreview(m.content)}
+                  <div key={m.id} className="py-1">
+                    <div className="mx-auto w-full max-w-xl rounded-2xl border border-border bg-white px-4 py-3 text-sm text-foreground">
+                      {friendlyMessagePreview(m.content)}
+                    </div>
                   </div>
                 );
               }

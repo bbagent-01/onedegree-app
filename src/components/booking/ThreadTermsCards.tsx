@@ -161,25 +161,31 @@ export function TermsOfferedCard({
       ? `${hostFirstName} approved your stay`
       : `You approved ${guestFirstName}'s stay`;
 
-  return (
-    <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-border bg-white shadow-sm">
-      <div className="flex items-start gap-3 border-b border-border p-4">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-          <ShieldCheck className="h-4 w-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold">{title}</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            {anyChanged && viewerRole === "guest"
-              ? `${hostFirstName} updated some details before approving — look for the red pills below.`
-              : "Here are the full terms for this reservation."}
-          </div>
+  // Once the guest has accepted, the big middle (dates tiles,
+  // total breakdown, policy block, payment methods) auto-collapses
+  // so the thread reads as a compact "header + confirmed footer"
+  // timeline entry. Clicking the header opens it back up.
+  const headerRow = (
+    <div className="flex items-start gap-3 p-4">
+      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+        <ShieldCheck className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold">{title}</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          {anyChanged && viewerRole === "guest" && !acceptedAt
+            ? `${hostFirstName} updated some details before approving — look for the red pills below.`
+            : "Here are the full terms for this reservation."}
         </div>
       </div>
+      {acceptedAt && (
+        <ChevronDownIcon className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+      )}
+    </div>
+  );
 
-      {/* Details section — dates + guests collapsed into one group.
-          Section-level pill fires if any of those three fields
-          changed; we don't call out which one specifically. */}
+  const detailsBody = (
+    <>
       <SectionHeader
         label="Trip details"
         changed={detailsChanged && viewerRole === "guest"}
@@ -230,9 +236,6 @@ export function TermsOfferedCard({
         <CancellationPolicyCard policy={policy} scope="reservation" />
       </div>
 
-      {/* Host payment methods — shown to the guest so the terms they
-          acknowledge include where money actually goes. Host side
-          hides this (they know their own handles). */}
       {viewerRole === "guest" && paymentMethods.length > 0 && (
         <div className="border-t border-border px-4 py-3">
           <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -249,6 +252,28 @@ export function TermsOfferedCard({
             1° B&amp;B doesn&apos;t process payments.
           </p>
         </div>
+      )}
+    </>
+  );
+
+  return (
+    <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border-2 border-border bg-white shadow-sm">
+      {acceptedAt ? (
+        // Accepted — collapsible shell. Header + footer stay
+        // visible; middle body hides until tapped.
+        <details className="group">
+          <summary className="cursor-pointer list-none border-b border-border focus-visible:outline-none">
+            {headerRow}
+          </summary>
+          {detailsBody}
+        </details>
+      ) : (
+        // Pending acceptance — full card, no toggle. Guest needs
+        // to see every detail before hitting Accept.
+        <>
+          <div className="border-b border-border">{headerRow}</div>
+          {detailsBody}
+        </>
       )}
 
       {viewerRole === "guest" &&
@@ -1112,8 +1137,6 @@ export function PaymentConfirmedCard({
         </div>
       </div>
 
-      {/* Big blue check moment — mirrors the green Reservation
-          confirmed block on the terms_offered card. */}
       <div className="flex items-center gap-3 border-t border-sky-200 bg-sky-50 px-4 py-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 text-white shadow-sm">
           <Check className="h-5 w-5" />

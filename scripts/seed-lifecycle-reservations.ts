@@ -90,6 +90,20 @@ const SCENARIOS: Scenario[] = [
     introMessage: "Hi Yuki — thanks again, can't wait to settle in.",
     postReviewPrompt: true,
   },
+  {
+    label: "checked-out-clean",
+    guestName: "Loren Polster",
+    hostName: "Rosa Delgado",
+    listingSlugHint: ["rosa", "mexico", "roma"],
+    checkInOffset: -14,
+    checkOutOffset: -4,
+    nightlyRate: 120,
+    cleaningFee: 45,
+    guestCount: 2,
+    introMessage:
+      "Hi Rosa — looking forward to Mexico City, we'll be in touch!",
+    postReviewPrompt: true,
+  },
 ];
 
 async function main() {
