@@ -198,15 +198,14 @@ export function ReviewFlowDialog({
       }
       toast.success("Review saved");
 
-      // Always refresh the thread now that the review landed.
-      // Otherwise a user who closes the dialog after the review
-      // step (but before the vouch step) would keep seeing the
-      // "Leave a review" card until they navigated away.
-      router.refresh();
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
-      }
-
+      // Don't refresh the thread here — that triggers a
+      // reviewedByMe flip upstream and the surrounding
+      // ReviewPromptCard's ternary re-render was racing with
+      // our setStep("vouch") call, sometimes swallowing the
+      // vouch step. The refresh now runs when the dialog
+      // closes (see onOpenChange below), so review state always
+      // syncs when the user exits — regardless of which step
+      // they were on.
       if (alreadyVouched) {
         onOpenChange(false);
       } else {
@@ -251,14 +250,26 @@ export function ReviewFlowDialog({
 
   const finish = () => {
     onOpenChange(false);
-    router.refresh();
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+    // Refresh runs in the Dialog's onOpenChange handler below,
+    // so we don't need to call it here.
+  };
+
+  // Single refresh point — fires whenever the dialog transitions
+  // from open to closed, no matter how (finish, Skip, Done, ESC,
+  // backdrop click, or parent setOpen). Keeps the thread in sync
+  // without racing the in-dialog setStep transitions.
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      router.refresh();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+      }
     }
+    onOpenChange(next);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         {step === "review" && (
           <>
