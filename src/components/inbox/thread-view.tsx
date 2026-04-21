@@ -105,12 +105,18 @@ export function ThreadView({
       ? thread.booking.id
       : null;
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages. Also runs after the
+  // pending-review card renders for the host — the card is the
+  // action item, so it should be on-screen when the thread loads.
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages]);
+    // rAF so the DOM has laid out the inline review card before we
+    // measure scrollHeight on first render.
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+  }, [messages, pendingBookingId]);
 
   // Subscribe to realtime inserts on this thread
   useEffect(() => {
@@ -297,10 +303,12 @@ export function ThreadView({
         </div>
       )}
 
-      {/* Messages */}
+      {/* Messages. `min-h-0` is load-bearing — without it, the
+          flex-1 child grows to content height and overflow-y-auto
+          never kicks in. Classic flex-col scroll pitfall. */}
       <div
         ref={scrollerRef}
-        className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
+        className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
       >
         {grouped.length === 0 && (
           <div className="py-12 text-center text-sm text-muted-foreground">
@@ -423,6 +431,9 @@ export function ThreadView({
                 bookingId={pendingBookingId}
                 initialTotal={thread.booking.total_estimate}
                 initialPolicy={thread.reservation_sidebar.cancellation_policy}
+                checkIn={thread.booking.check_in}
+                checkOut={thread.booking.check_out}
+                guestCount={thread.booking.guest_count}
                 guestFirstName={thread.other_user.name.split(" ")[0]}
               />
             </div>
