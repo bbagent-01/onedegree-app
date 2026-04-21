@@ -3,6 +3,12 @@ import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { EditListingForm } from "@/components/hosting/edit-listing-form";
 import { parseListingMeta } from "@/lib/listing-meta";
+import {
+  DEFAULT_CANCELLATION_APPROACH,
+  DEFAULT_CANCELLATION_PRESET,
+  buildPolicyFromPreset,
+  parsePolicy,
+} from "@/lib/cancellation";
 import Link from "next/link";
 import { ChevronLeft, ExternalLink } from "lucide-react";
 import { effectiveAuth } from "@/lib/impersonation/session";
@@ -40,6 +46,21 @@ export default async function EditListingPage({ params }: PageProps) {
     .select("id, public_url, storage_path, is_cover, is_preview, sort_order")
     .eq("listing_id", id)
     .order("sort_order", { ascending: true });
+
+  // Booking v2 Chunk 4 — policy inheritance state for the Cancellation
+  // tab. Fetch the host's default so the "inherit" preview is accurate.
+  const { data: hostRow } = await supabase
+    .from("users")
+    .select("cancellation_policy")
+    .eq("id", listing.host_id)
+    .maybeSingle();
+  const hostCancellationPolicy =
+    parsePolicy(hostRow?.cancellation_policy) ??
+    buildPolicyFromPreset(
+      DEFAULT_CANCELLATION_APPROACH,
+      DEFAULT_CANCELLATION_PRESET
+    );
+  const listingOverride = parsePolicy(listing.cancellation_policy_override);
 
   const { meta, body } = parseListingMeta(listing.description);
   const coverPhoto =
@@ -140,6 +161,9 @@ export default async function EditListingPage({ params }: PageProps) {
               visibility_mode: listing.visibility_mode || "preview_gated",
               preview_description: listing.preview_description || "",
               access_settings: listing.access_settings || null,
+              // Booking v2 Chunk 4 — policy inheritance state
+              host_cancellation_policy: hostCancellationPolicy,
+              listing_cancellation_override: listingOverride,
             }}
           />
         </div>

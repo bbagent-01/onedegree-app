@@ -28,6 +28,21 @@ import {
 
 interface Props {
   initial: CancellationPolicy | null;
+  /**
+   * API endpoint to PUT the policy payload. Defaults to the
+   * host-default route so existing call sites don't need to change.
+   * Listing-override callers pass a listing-scoped URL.
+   */
+  endpoint?: string;
+  /**
+   * Hide the amber platform-neutrality banner. The /settings/hosting
+   * page is where the banner lives canonically; when the same editor
+   * appears on a listing edit page (underneath the host-defaults one),
+   * re-rendering the banner is noise.
+   */
+  suppressPlatformBanner?: boolean;
+  /** Optional callback once a save succeeds. */
+  onSaved?: (policy: CancellationPolicy) => void;
 }
 
 const DUE_AT_OPTIONS: { value: DueAt; label: string }[] = [
@@ -56,7 +71,12 @@ function defaultRefundWindow(): RefundWindow {
  * level edit flips `preset` to "custom" so save-time intent is
  * preserved.
  */
-export function CancellationPolicyForm({ initial }: Props) {
+export function CancellationPolicyForm({
+  initial,
+  endpoint = "/api/users/cancellation-policy",
+  suppressPlatformBanner = false,
+  onSaved,
+}: Props) {
   const seed =
     initial ?? buildPolicyFromPreset("installments", "moderate");
 
@@ -109,7 +129,7 @@ export function CancellationPolicyForm({ initial }: Props) {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/users/cancellation-policy", {
+      const res = await fetch(endpoint, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -126,6 +146,14 @@ export function CancellationPolicyForm({ initial }: Props) {
         throw new Error(err.error ?? `Save failed (${res.status})`);
       }
       toast.success("Saved");
+      onSaved?.({
+        approach,
+        preset,
+        payment_schedule: payment,
+        refund_schedule: refunds,
+        security_deposit: deposit,
+        custom_note: customNote.trim() || null,
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -135,17 +163,21 @@ export function CancellationPolicyForm({ initial }: Props) {
 
   return (
     <div className="space-y-8">
-      {/* Platform-neutrality banner — most prominent element on the page */}
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <p className="text-sm font-semibold text-amber-900">
-          1° B&amp;B doesn&apos;t process payments or manage refunds.
-        </p>
-        <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
-          This is guidance hosts and guests share to set expectations.
-          Every payment and refund happens directly between you — no
-          money ever touches the platform.
-        </p>
-      </div>
+      {/* Platform-neutrality banner — most prominent element on the page.
+          Suppressed when this editor renders nested inside a listing
+          edit form where the banner would duplicate one already on screen. */}
+      {!suppressPlatformBanner && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">
+            1° B&amp;B doesn&apos;t process payments or manage refunds.
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
+            This is guidance hosts and guests share to set expectations.
+            Every payment and refund happens directly between you — no
+            money ever touches the platform.
+          </p>
+        </div>
+      )}
 
       {/* Approach toggle — large, obvious choice */}
       <section>

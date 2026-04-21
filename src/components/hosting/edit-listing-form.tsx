@@ -21,6 +21,7 @@ import {
   type UploadedPhoto,
 } from "@/components/hosting/photo-uploader";
 import { AvailabilityEditor } from "@/components/hosting/availability-editor";
+import { ListingCancellationOverride } from "@/components/hosting/listing-cancellation-override";
 import {
   encodeListingMeta,
   propertyTypeToDb,
@@ -83,6 +84,9 @@ interface InitialData {
   visibility_mode: string;
   preview_description: string;
   access_settings: AccessSettings | null;
+  // Booking v2 Chunk 4 — policy inheritance state
+  host_cancellation_policy: import("@/lib/cancellation").CancellationPolicy;
+  listing_cancellation_override: import("@/lib/cancellation").CancellationPolicy | null;
 }
 
 const BIG_INPUT =
@@ -626,6 +630,7 @@ export function EditListingForm({
           ["rules", "House rules"],
           ["preview", "Preview"],
           ["visibility", "Visibility"],
+          ["cancellation", "Cancellation"],
           ["danger", "Danger zone"],
         ].map(([val, label]) => (
           <TabsTrigger
@@ -1426,6 +1431,22 @@ export function EditListingForm({
             )}
           </div>
 
+        </SectionCard>
+      </TabsContent>
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* Cancellation & payment — inherit or override             */}
+      {/* ──────────────────────────────────────────────────────── */}
+      <TabsContent value="cancellation" className="mt-0">
+        <SectionCard
+          title="Cancellation & payment"
+          subtitle="Use your host default, or set a policy specific to this listing."
+        >
+          <ListingCancellationOverride
+            listingId={listingId}
+            hostDefault={initial.host_cancellation_policy}
+            initialOverride={initial.listing_cancellation_override}
+          />
         </SectionCard>
       </TabsContent>
 
