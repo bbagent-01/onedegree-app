@@ -21,6 +21,7 @@ import { policiesEqual, type CancellationPolicy } from "@/lib/cancellation";
 import {
   displayHandle,
   paymentMethodMeta,
+  paymentMethodUrl,
   type PaymentMethod,
 } from "@/lib/payment-methods";
 
@@ -597,7 +598,10 @@ function SectionHeader({
 
 function TermsPaymentMethodRow({ method }: { method: PaymentMethod }) {
   const meta = paymentMethodMeta(method.type);
-  const copy = async () => {
+  const url = paymentMethodUrl(method);
+  const copy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     try {
       await navigator.clipboard.writeText(displayHandle(method));
       toast.success(`${meta.label} handle copied`);
@@ -605,8 +609,12 @@ function TermsPaymentMethodRow({ method }: { method: PaymentMethod }) {
       toast.error("Couldn't copy");
     }
   };
-  return (
-    <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-white p-2.5">
+  // When the method has a deep-link URL (Venmo, PayPal, Wise,
+  // Zelle-with-email), the whole row is a clickable anchor that
+  // opens the payment app. The copy button still works but is
+  // stopPropagation'd so a click there doesn't also navigate.
+  const contents = (
+    <>
       <div className="min-w-0">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           {meta.label}
@@ -630,8 +638,23 @@ function TermsPaymentMethodRow({ method }: { method: PaymentMethod }) {
           <Copy className="h-3.5 w-3.5" />
         </button>
       )}
-    </div>
+    </>
   );
+  const base =
+    "flex items-center justify-between gap-2 rounded-lg border border-border bg-white p-2.5";
+  if (url) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(base, "transition hover:border-foreground/40 hover:bg-muted/40")}
+      >
+        {contents}
+      </a>
+    );
+  }
+  return <div className={base}>{contents}</div>;
 }
 
 // ─── Payment event cards ─────────────────────────────────────────

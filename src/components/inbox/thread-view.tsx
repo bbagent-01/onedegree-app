@@ -411,28 +411,23 @@ export function ThreadView({
                 // Payment event cards. The thread is a timeline of
                 // record — every event contributes one visible card
                 // showing its CURRENT state (due / claimed /
-                // confirmed). An event may have multiple history
-                // messages in the DB (payment_due, payment_claimed,
-                // payment_confirmed); render only the one whose
-                // kind matches the event's live status so a claimed
-                // event shows its claimed card, not its old due one.
+                // confirmed). Render the card at the position of
+                // the earliest `payment_due` message for the event
+                // so Payment 1 stays above Payment 2 even after
+                // Payment 1 transitions to confirmed (which would
+                // otherwise post a newer message that sorts later).
+                // Skip the claimed/confirmed history messages
+                // entirely — they're just state signals.
                 const paymentParse = parsePaymentEventId(m.content);
                 if (paymentParse) {
+                  // Only render on the payment_due anchor message.
+                  if (paymentParse.kind !== "due") {
+                    return null;
+                  }
                   const ev = (thread.payment_events ?? []).find(
                     (e) => e.id === paymentParse.eventId
                   );
                   if (!ev) return null;
-                  const expectedKind =
-                    ev.status === "scheduled"
-                      ? "due"
-                      : ev.status === "claimed"
-                        ? "claimed"
-                        : ev.status === "confirmed"
-                          ? "confirmed"
-                          : null;
-                  if (paymentParse.kind !== expectedKind) {
-                    return null;
-                  }
                   const total = (thread.payment_events ?? []).length;
                   const hostFirst = (
                     thread.role === "host" ? "you" : thread.other_user.name
@@ -440,7 +435,12 @@ export function ThreadView({
                   const guestFirst = (
                     thread.role === "guest" ? "you" : thread.other_user.name
                   ).split(" ")[0];
-                  if (paymentParse.kind === "due") {
+                  // Render the card component that matches the
+                  // event's LIVE status. Anchor position is the
+                  // payment_due message, so cards stay in
+                  // schedule_index order even after later
+                  // transitions post newer messages.
+                  if (ev.status === "scheduled") {
                     return (
                       <div key={m.id} className="py-1">
                         <PaymentDueCard
@@ -457,7 +457,7 @@ export function ThreadView({
                       </div>
                     );
                   }
-                  if (paymentParse.kind === "claimed") {
+                  if (ev.status === "claimed") {
                     return (
                       <div key={m.id} className="py-1">
                         <PaymentClaimedCard
@@ -470,7 +470,7 @@ export function ThreadView({
                       </div>
                     );
                   }
-                  if (paymentParse.kind === "confirmed") {
+                  if (ev.status === "confirmed") {
                     return (
                       <div key={m.id} className="py-1">
                         <PaymentConfirmedCard

@@ -105,6 +105,39 @@ export function displayHandle(method: PaymentMethod): string {
   return h.startsWith(meta.displayPrefix) ? h : `${meta.displayPrefix}${h}`;
 }
 
+/**
+ * Deep-link to the payment app for a given method. Returns null
+ * when there's no useful URL (offline-only, or handle is empty,
+ * or Zelle — Zelle doesn't have a public profile URL, the handle
+ * is just an email/phone). The payment card UI falls back to a
+ * plain copy button when this returns null.
+ */
+export function paymentMethodUrl(method: PaymentMethod): string | null {
+  if (!method.handle) return null;
+  const raw = method.handle.trim().replace(/^@/, "");
+  if (!raw) return null;
+  switch (method.type) {
+    case "venmo":
+      // venmo.com/u/<handle> opens the profile in browser + app.
+      return `https://venmo.com/u/${encodeURIComponent(raw)}`;
+    case "paypal":
+      // PayPal.me short link — works for any PayPal handle.
+      return `https://paypal.me/${encodeURIComponent(raw)}`;
+    case "wise":
+      return `https://wise.com/pay/me/${encodeURIComponent(raw)}`;
+    case "zelle":
+      // Zelle has no public profile URL. If the handle looks like
+      // an email, fall back to mailto so clicking opens the user's
+      // mail app with the address pre-filled; phone handles are
+      // copy-only.
+      if (raw.includes("@")) return `mailto:${raw}`;
+      return null;
+    case "offline_other":
+    default:
+      return null;
+  }
+}
+
 // ── Parsing / validation ────────────────────────────────────
 
 const VALID_TYPES: readonly PaymentMethodType[] = [

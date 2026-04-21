@@ -364,6 +364,18 @@ export default async function ListingPage({
       <section>
         <h2 className="mb-6 text-xl font-semibold">Things to know</h2>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+          {/* Cancellation policy promoted above house rules so
+              guests see the money commitment before the rules of
+              the place. */}
+          <div className="md:col-span-2">
+            <h3 className="mb-3 font-semibold">
+              Cancellation &amp; payment policy
+            </h3>
+            <CancellationPolicyCard
+              policy={listing.cancellation_policy}
+              scope="listing"
+            />
+          </div>
           <div>
             <h3 className="mb-3 font-semibold">House rules</h3>
             <ul className="space-y-1 text-sm text-muted-foreground">
@@ -388,15 +400,6 @@ export default async function ListingPage({
               <li>Carbon monoxide alarm</li>
               <li>Security camera not on property</li>
             </ul>
-          </div>
-          <div className="md:col-span-2">
-            <h3 className="mb-3 font-semibold">
-              Cancellation &amp; payment policy
-            </h3>
-            <CancellationPolicyCard
-              policy={listing.cancellation_policy}
-              scope="listing"
-            />
           </div>
           {listing.host_payment_method_types.length > 0 && (
             <div className="md:col-span-2">
