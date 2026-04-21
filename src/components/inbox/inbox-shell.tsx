@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { InboxList } from "./inbox-list";
@@ -67,6 +67,32 @@ export function InboxShell({
     },
     [selected?.id, loadingId]
   );
+
+  // Force a re-fetch of the current thread (bypasses the early-
+  // return guard in handleSelect). Fired by nested action cards
+  // (Review & send terms, accept terms) after a successful PATCH
+  // so the UI catches up without a full page reload.
+  const refreshSelected = useCallback(() => {
+    const threadId = selected?.id;
+    if (!threadId) return;
+    latestRequestId.current = threadId;
+    fetch(`/api/inbox/thread/${threadId}`, { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Failed (${res.status})`);
+        const data = (await res.json()) as { thread: ThreadDetail };
+        if (latestRequestId.current !== threadId) return;
+        setSelected(data.thread);
+      })
+      .catch(() => {
+        // Silent — the nested card already showed its own toast.
+      });
+  }, [selected?.id]);
+
+  useEffect(() => {
+    const handler = () => refreshSelected();
+    window.addEventListener("inbox:thread-refresh", handler);
+    return () => window.removeEventListener("inbox:thread-refresh", handler);
+  }, [refreshSelected]);
 
   // The row visually marked as selected should follow the clicked
   // id immediately, even before the fetch settles. Otherwise the

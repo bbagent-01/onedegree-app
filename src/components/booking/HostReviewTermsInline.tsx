@@ -248,9 +248,20 @@ export function HostReviewTermsInline({
           ? `Terms sent to ${guestFirstName}`
           : "Request declined"
       );
+      // RSC refresh + client-side refetch of the inbox thread. The
+      // InboxShell listens for this custom event and re-pulls the
+      // thread via /api/inbox/thread/[id] so the review card
+      // unmounts and the terms_offered message renders immediately.
       router.refresh();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      // Always reset the spinner — on success the card usually
+      // unmounts, but this guards against the "stuck spinner"
+      // bug Loren hit when router.refresh was slow.
       setSubmitting(null);
     }
   };

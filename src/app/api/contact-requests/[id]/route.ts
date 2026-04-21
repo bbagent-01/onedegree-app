@@ -258,17 +258,23 @@ export async function PATCH(
     }
   }
 
-  // Fire-and-forget transactional email to the guest
-  const { data: listingRow } = await supabase
-    .from("listings")
-    .select("id, title")
-    .eq("id", request.listing_id)
-    .maybeSingle();
-  const { data: hostUser } = await supabase
-    .from("users")
-    .select("id, name")
-    .eq("id", request.host_id)
-    .maybeSingle();
+  // Fire-and-forget transactional email to the guest. Don't await
+  // Resend — the Edge runtime will sometimes hang on its fetch,
+  // which leaves the client stuck on "Sending…" even though the
+  // DB write already succeeded. We care that the DB is consistent;
+  // email delivery can retry or be resent manually.
+  const [{ data: listingRow }, { data: hostUser }] = await Promise.all([
+    supabase
+      .from("listings")
+      .select("id, title")
+      .eq("id", request.listing_id)
+      .maybeSingle(),
+    supabase
+      .from("users")
+      .select("id, name")
+      .eq("id", request.host_id)
+      .maybeSingle(),
+  ]);
 
   const emailPayload = {
     hostId: request.host_id,
@@ -283,10 +289,16 @@ export async function PATCH(
     hostResponseMessage: hostResponseMessage || null,
   };
 
+  // Detached so the handler returns immediately; Edge occasionally
+  // hangs on the Resend fetch and that leaves the client spinning.
   if (status === "accepted") {
-    await emailBookingConfirmed(emailPayload);
+    emailBookingConfirmed(emailPayload).catch((e) =>
+      console.error("emailBookingConfirmed failed:", e)
+    );
   } else if (status === "declined") {
-    await emailBookingDeclined(emailPayload);
+    emailBookingDeclined(emailPayload).catch((e) =>
+      console.error("emailBookingDeclined failed:", e)
+    );
   }
 
   return Response.json({ ok: true });

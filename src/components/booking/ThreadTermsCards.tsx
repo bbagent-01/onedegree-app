@@ -131,6 +131,9 @@ export function TermsOfferedCard({
       setAcceptedAt(data.terms_accepted_at ?? new Date().toISOString());
       toast.success("Terms accepted — reservation confirmed");
       router.refresh();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't accept");
     } finally {
