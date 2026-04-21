@@ -5,7 +5,7 @@ import {
   computeIncomingTrustPaths,
   type ConnectorPathSummary,
 } from "./trust-data";
-import { resolveEffectivePolicy } from "./cancellation";
+import { parsePolicy, resolveEffectivePolicy } from "./cancellation";
 import {
   enabledMethods,
   parsePaymentMethods,
@@ -85,6 +85,11 @@ export interface ThreadDetail extends InboxThread {
     original_check_out: string | null;
     original_guest_count: number | null;
     original_total_estimate: number | null;
+    /** Snapshot of the cancellation policy as the guest saw it at
+     *  submission (listing override → host default → platform
+     *  default). Drives the "Host updated" pill on the policy
+     *  section when the host counter-offers. */
+    original_cancellation_policy: import("./cancellation").CancellationPolicy | null;
   } | null;
   /**
    * Extra fields the reservation sidebar renders. Optional so legacy
@@ -351,7 +356,7 @@ export async function getThreadDetail(
       ? supabase
           .from("contact_requests")
           .select(
-            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at, original_check_in, original_check_out, original_guest_count, original_total_estimate"
+            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at, original_check_in, original_check_out, original_guest_count, original_total_estimate, original_cancellation_policy"
           )
           .eq("id", thread.contact_request_id)
           .single()
@@ -508,6 +513,10 @@ export async function getThreadDetail(
           original_total_estimate:
             (booking as { original_total_estimate?: number | null })
               .original_total_estimate ?? null,
+          original_cancellation_policy: parsePolicy(
+            (booking as { original_cancellation_policy?: unknown })
+              .original_cancellation_policy ?? null
+          ),
         }
       : null,
     reservation_sidebar: {

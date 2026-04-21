@@ -499,6 +499,61 @@ export function estimateRefundForCancel(
   };
 }
 
+/**
+ * Structural equality for two policies. Used by the terms_offered
+ * diff logic — returns true when both policies describe the same
+ * approach, preset, and schedule shape. Order of schedule rows is
+ * significant (hosts reorder intentionally).
+ */
+export function policiesEqual(
+  a: CancellationPolicy | null | undefined,
+  b: CancellationPolicy | null | undefined
+): boolean {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  if (a.approach !== b.approach) return false;
+  if (a.preset !== b.preset) return false;
+  if ((a.custom_note ?? null) !== (b.custom_note ?? null)) return false;
+  if (a.payment_schedule.length !== b.payment_schedule.length) return false;
+  for (let i = 0; i < a.payment_schedule.length; i++) {
+    const x = a.payment_schedule[i];
+    const y = b.payment_schedule[i];
+    if (
+      x.due_at !== y.due_at ||
+      x.amount_type !== y.amount_type ||
+      x.amount !== y.amount ||
+      (x.days_before_checkin ?? 0) !== (y.days_before_checkin ?? 0)
+    ) {
+      return false;
+    }
+  }
+  if (a.refund_schedule.length !== b.refund_schedule.length) return false;
+  for (let i = 0; i < a.refund_schedule.length; i++) {
+    const x = a.refund_schedule[i];
+    const y = b.refund_schedule[i];
+    if (
+      x.cutoff_days_before_checkin !== y.cutoff_days_before_checkin ||
+      x.refund_pct !== y.refund_pct
+    ) {
+      return false;
+    }
+  }
+  if (a.security_deposit.length !== b.security_deposit.length) return false;
+  for (let i = 0; i < a.security_deposit.length; i++) {
+    const x = a.security_deposit[i];
+    const y = b.security_deposit[i];
+    if (
+      x.due_at !== y.due_at ||
+      x.amount_type !== y.amount_type ||
+      x.amount !== y.amount ||
+      (x.days_before_checkin ?? 0) !== (y.days_before_checkin ?? 0)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /** Platform disclaimers. Used in one or more places everywhere
  *  the policy surfaces, so copy stays consistent. */
 export const PLATFORM_NEUTRALITY_NOTE =

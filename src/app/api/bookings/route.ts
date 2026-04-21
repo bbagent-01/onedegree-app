@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOrCreateThread } from "@/lib/messaging-data";
 import { emailNewBookingRequest } from "@/lib/email";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { resolveEffectivePolicy } from "@/lib/cancellation";
 
 /**
  * Track B reservation endpoint.
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
 
   const { data: listing } = await supabase
     .from("listings")
-    .select("id, host_id, title")
+    .select("id, host_id, title, cancellation_policy_override")
     .eq("id", body.listingId)
     .single();
   if (!listing) {
@@ -57,9 +58,21 @@ export async function POST(req: Request) {
   }
   const { data: hostUser } = await supabase
     .from("users")
-    .select("id, name")
+    .select("id, name, cancellation_policy")
     .eq("id", listing.host_id)
     .maybeSingle();
+
+  // Snapshot the effective cancellation policy at this exact
+  // moment so the terms_offered card can diff it later if the
+  // host counter-offers. Listing override > host default >
+  // platform default.
+  const originalPolicy = resolveEffectivePolicy({
+    hostDefault: (hostUser as { cancellation_policy?: unknown } | null)
+      ?.cancellation_policy ?? null,
+    listingOverride: (listing as { cancellation_policy_override?: unknown })
+      .cancellation_policy_override ?? null,
+    reservationSnapshot: null,
+  });
   if (listing.host_id === currentUser.id) {
     return Response.json(
       { error: "You can't reserve your own listing." },
@@ -113,6 +126,7 @@ export async function POST(req: Request) {
         original_check_out: body.checkOut,
         original_guest_count: body.guests ?? 1,
         original_total_estimate: totalEstimate,
+        original_cancellation_policy: originalPolicy,
         status: "pending",
       })
       .select("id")

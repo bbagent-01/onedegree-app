@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CancellationPolicyCard } from "./CancellationPolicyCard";
-import type { CancellationPolicy } from "@/lib/cancellation";
+import { policiesEqual, type CancellationPolicy } from "@/lib/cancellation";
 import {
   displayHandle,
   paymentMethodMeta,
@@ -124,13 +124,18 @@ interface TermsOfferedProps {
   checkOut: string | null;
   guestCount: number | null;
   totalEstimate: number | null;
-  /** Original-request values — used to highlight what the host
-   *  counter-offered on. When null, treat as "unchanged". */
+  /** Original-request values — used to flag "Host updated" on the
+   *  relevant section. When null, treat as "unchanged". */
   originalCheckIn: string | null;
   originalCheckOut: string | null;
   originalGuestCount: number | null;
   originalTotalEstimate: number | null;
   policy: CancellationPolicy;
+  /** Original snapshot of the cancellation policy at submission
+   *  time — drives the "Host updated" pill on the policy section
+   *  when the host counter-offers. Null for legacy rows that
+   *  predate Migration 031. */
+  originalPolicy: CancellationPolicy | null;
   /** Host's enabled off-platform methods. Shown only to the guest
    *  so they know where to send money after confirming. Host
    *  already knows their own handles. */
@@ -167,24 +172,27 @@ export function TermsOfferedCard({
   originalGuestCount,
   originalTotalEstimate,
   policy,
+  originalPolicy,
   paymentMethods,
   viewerRole,
   termsAcceptedAt,
   hostFirstName,
   guestFirstName,
 }: TermsOfferedProps) {
-  // Diff flags — only surface a "Changed from X" hint when the
-  // original value actually differs (and was captured).
-  const datesChanged =
-    (originalCheckIn && originalCheckIn !== checkIn) ||
-    (originalCheckOut && originalCheckOut !== checkOut);
-  const guestsChanged =
-    originalGuestCount !== null && originalGuestCount !== guestCount;
+  // Section-level diff flags. Dates + guests collapse into one
+  // "details" section; total and policy each get their own. We
+  // only show the pill when we have an original to compare.
+  const detailsChanged =
+    (originalCheckIn !== null && originalCheckIn !== checkIn) ||
+    (originalCheckOut !== null && originalCheckOut !== checkOut) ||
+    (originalGuestCount !== null && originalGuestCount !== guestCount);
   const totalChanged =
     originalTotalEstimate !== null &&
     totalEstimate !== null &&
     originalTotalEstimate !== totalEstimate;
-  const anyChanged = datesChanged || guestsChanged || totalChanged;
+  const policyChanged =
+    originalPolicy !== null && !policiesEqual(originalPolicy, policy);
+  const anyChanged = detailsChanged || totalChanged || policyChanged;
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [acceptedAt, setAcceptedAt] = useState<string | null>(termsAcceptedAt);
@@ -229,48 +237,30 @@ export function TermsOfferedCard({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold">{title}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">
-            Here are the full terms for this reservation.
-            {anyChanged && viewerRole === "guest" && (
-              <>
-                {" "}
-                <span className="font-medium text-amber-800">
-                  Some fields have been changed from your original
-                  request — look for the amber highlights.
-                </span>
-              </>
-            )}
+            {anyChanged && viewerRole === "guest"
+              ? `${hostFirstName} updated some details before approving — look for the red pills below.`
+              : "Here are the full terms for this reservation."}
           </div>
         </div>
       </div>
 
-      {/* Dates + guests row — with diff highlighting when the host
-          counter-offered. */}
+      {/* Details section — dates + guests collapsed into one group.
+          Section-level pill fires if any of those three fields
+          changed; we don't call out which one specifically. */}
+      <SectionHeader
+        label="Trip details"
+        changed={detailsChanged && viewerRole === "guest"}
+      />
       <div className="grid grid-cols-1 divide-y divide-border border-b border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <FieldTile
           icon={CalendarDays}
           label="Check-in"
           value={fmtDate(checkIn)}
-          changed={Boolean(
-            originalCheckIn && originalCheckIn !== checkIn
-          )}
-          originalLabel={
-            originalCheckIn && originalCheckIn !== checkIn
-              ? `was ${fmtDate(originalCheckIn)}`
-              : null
-          }
         />
         <FieldTile
           icon={CalendarDays}
           label="Checkout"
           value={fmtDate(checkOut)}
-          changed={Boolean(
-            originalCheckOut && originalCheckOut !== checkOut
-          )}
-          originalLabel={
-            originalCheckOut && originalCheckOut !== checkOut
-              ? `was ${fmtDate(originalCheckOut)}`
-              : null
-          }
         />
         <FieldTile
           icon={Users}
@@ -280,39 +270,31 @@ export function TermsOfferedCard({
               ? `${guestCount} guest${guestCount === 1 ? "" : "s"}`
               : "—"
           }
-          changed={guestsChanged}
-          originalLabel={
-            guestsChanged && originalGuestCount !== null
-              ? `was ${originalGuestCount}`
-              : null
-          }
         />
       </div>
 
       {typeof totalEstimate === "number" && totalEstimate > 0 && (
-        <div
-          className={cn(
-            "flex items-center justify-between gap-3 border-b border-border px-4 py-3",
-            totalChanged && "bg-amber-50"
-          )}
-        >
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Receipt className="h-3.5 w-3.5" />
-            Total
-          </div>
-          <div className="text-right">
+        <>
+          <SectionHeader
+            label="Total"
+            changed={totalChanged && viewerRole === "guest"}
+          />
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Receipt className="h-3.5 w-3.5" />
+              Estimated total
+            </div>
             <div className="text-base font-bold">
               ${totalEstimate.toLocaleString()}
             </div>
-            {totalChanged && originalTotalEstimate !== null && (
-              <div className="text-[11px] font-medium text-amber-800">
-                was ${originalTotalEstimate.toLocaleString()}
-              </div>
-            )}
           </div>
-        </div>
+        </>
       )}
 
+      <SectionHeader
+        label="Cancellation policy"
+        changed={policyChanged && viewerRole === "guest"}
+      />
       <div className="p-4">
         <CancellationPolicyCard policy={policy} scope="reservation" />
       </div>
@@ -484,26 +466,45 @@ function FieldTile({
   icon: Icon,
   label,
   value,
-  changed,
-  originalLabel,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
-  changed: boolean;
-  originalLabel: string | null;
 }) {
   return (
-    <div className={cn("px-4 py-3", changed && "bg-amber-50")}>
+    <div className="px-4 py-3">
       <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Icon className="h-3 w-3" />
         {label}
       </div>
       <div className="mt-0.5 text-sm font-semibold">{value}</div>
-      {changed && originalLabel && (
-        <div className="mt-0.5 text-[11px] font-medium text-amber-800">
-          {originalLabel}
-        </div>
+    </div>
+  );
+}
+
+/**
+ * Small section header used on the terms_offered card — shows a
+ * section label and, if the host changed anything in that section
+ * since the original request, a red "Host updated" pill. Keeps
+ * the diff surface scannable without per-field amber tinting.
+ */
+function SectionHeader({
+  label,
+  changed,
+}: {
+  label: string;
+  changed: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/20 px-4 py-1.5">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      {changed && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-800">
+          <span aria-hidden>!</span>
+          Host updated
+        </span>
       )}
     </div>
   );

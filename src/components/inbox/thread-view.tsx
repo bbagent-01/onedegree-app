@@ -351,6 +351,9 @@ export function ThreadView({
                           thread.booking.original_total_estimate
                         }
                         policy={thread.reservation_sidebar.cancellation_policy}
+                        originalPolicy={
+                          thread.booking.original_cancellation_policy
+                        }
                         paymentMethods={
                           thread.reservation_sidebar.host_payment_methods
                         }
