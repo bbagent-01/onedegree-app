@@ -210,29 +210,51 @@ export async function PATCH(
       // Structured terms_offered message — the thread renderer
       // reads live policy + price from thread.booking and draws a
       // rich card with an Accept button for the guest.
-      await supabase.from("messages").insert({
+      const { error: msgErr } = await supabase.from("messages").insert({
         thread_id: thread.id,
         sender_id: null,
         content: TERMS_OFFERED_PREFIX,
         is_system: true,
       });
+      if (msgErr) {
+        console.error(
+          "[contact-requests PATCH] terms_offered insert failed:",
+          msgErr
+        );
+      }
     } else {
-      await supabase.from("messages").insert({
+      const { error: msgErr } = await supabase.from("messages").insert({
         thread_id: thread.id,
         sender_id: null,
         content: `${hostFirst} declined the reservation request.`,
         is_system: true,
       });
+      if (msgErr) {
+        console.error(
+          "[contact-requests PATCH] decline insert failed:",
+          msgErr
+        );
+      }
     }
 
     if (hostResponseMessage && hostResponseMessage.trim()) {
-      await supabase.from("messages").insert({
+      const { error: msgErr } = await supabase.from("messages").insert({
         thread_id: thread.id,
         sender_id: currentUser.id,
         content: hostResponseMessage.trim(),
         is_system: false,
       });
+      if (msgErr) {
+        console.error(
+          "[contact-requests PATCH] host_response_message insert failed:",
+          msgErr
+        );
+      }
     }
+  } else {
+    console.warn(
+      `[contact-requests PATCH] no thread found for listing=${request.listing_id} guest=${request.guest_id}`
+    );
   }
 
   // Auto-create a stay_confirmation row for accepted bookings so the guest
