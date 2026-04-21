@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Send, Check } from "lucide-react";
+import { Send } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
@@ -16,7 +16,7 @@ import {
   TermsAcceptedCard,
   TermsOfferedCard,
 } from "@/components/booking/ThreadTermsCards";
-import { HostReviewTermsModal } from "@/components/booking/HostReviewTermsModal";
+import { HostReviewTermsInline } from "@/components/booking/HostReviewTermsInline";
 
 interface Props {
   thread: ThreadDetail;
@@ -97,7 +97,6 @@ export function ThreadView({
   const [messages, setMessages] = useState<ThreadMessage[]>(thread.messages);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   const isHost = thread.role === "host";
@@ -238,53 +237,30 @@ export function ThreadView({
         </div>
       </div>
 
-      {/* Host action panel — only visible to the host while a booking is pending */}
+      {/* Host awareness banner — just flags that a request is
+          pending. The actual Review & send editor renders inline at
+          the end of the thread so the host edits in context of the
+          conversation. */}
       {isHost && pendingBookingId && thread.booking && (
         <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-amber-900">
-                Reservation request pending
-              </div>
-              <div className="mt-0.5 text-xs text-amber-800">
-                {formatStayDates(thread.booking.check_in, thread.booking.check_out)}
-                {" · "}
-                {thread.booking.guest_count} guest
-                {thread.booking.guest_count === 1 ? "" : "s"}
-                {typeof thread.booking.total_estimate === "number" &&
-                  thread.booking.total_estimate > 0 && (
-                    <>
-                      {" · "}${thread.booking.total_estimate.toLocaleString()}{" "}
-                      estimated
-                    </>
-                  )}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setReviewOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600"
-            >
-              <Check className="h-3.5 w-3.5" />
-              Review &amp; send terms
-            </button>
+          <div className="text-sm font-semibold text-amber-900">
+            Reservation request pending · review &amp; send terms below
+          </div>
+          <div className="mt-0.5 text-xs text-amber-800">
+            {formatStayDates(thread.booking.check_in, thread.booking.check_out)}
+            {" · "}
+            {thread.booking.guest_count} guest
+            {thread.booking.guest_count === 1 ? "" : "s"}
+            {typeof thread.booking.total_estimate === "number" &&
+              thread.booking.total_estimate > 0 && (
+                <>
+                  {" · "}${thread.booking.total_estimate.toLocaleString()}{" "}
+                  estimated
+                </>
+              )}
           </div>
         </div>
       )}
-
-      {isHost &&
-        pendingBookingId &&
-        thread.booking &&
-        thread.reservation_sidebar?.cancellation_policy && (
-          <HostReviewTermsModal
-            open={reviewOpen}
-            onOpenChange={setReviewOpen}
-            bookingId={pendingBookingId}
-            initialTotal={thread.booking.total_estimate}
-            initialPolicy={thread.reservation_sidebar.cancellation_policy}
-            guestFirstName={thread.other_user.name.split(" ")[0]}
-          />
-        )}
 
       {/* Listing context card */}
       {thread.listing && (
@@ -432,6 +408,25 @@ export function ThreadView({
             })}
           </div>
         ))}
+
+        {/* Host's Review & send terms editor — inline at the end of
+            the thread when the request is still pending. Drops out
+            the moment the host approves (the terms_offered system
+            message replaces it as the conversation's terms-of-
+            record). */}
+        {isHost &&
+          pendingBookingId &&
+          thread.booking &&
+          thread.reservation_sidebar?.cancellation_policy && (
+            <div className="pt-2">
+              <HostReviewTermsInline
+                bookingId={pendingBookingId}
+                initialTotal={thread.booking.total_estimate}
+                initialPolicy={thread.reservation_sidebar.cancellation_policy}
+                guestFirstName={thread.other_user.name.split(" ")[0]}
+              />
+            </div>
+          )}
       </div>
 
       {/* Input */}

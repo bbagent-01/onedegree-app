@@ -6,19 +6,11 @@ import {
   CalendarClock,
   Check,
   Loader2,
+  Receipt,
   RotateCcw,
   X,
-  Receipt,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   CANCELLATION_APPROACHES,
@@ -32,31 +24,27 @@ import { CancellationPolicyCard } from "./CancellationPolicyCard";
 
 interface Props {
   bookingId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   /** Initial total from the original request. Editable. */
   initialTotal: number | null;
-  /** The currently-resolved policy (listing override → host default).
-   *  Used as the default approach/preset the host can tweak. */
+  /** Currently-resolved policy (listing override → host default) —
+   *  seeds the form so the host isn't starting from scratch. */
   initialPolicy: CancellationPolicy;
   guestFirstName: string;
 }
 
 /**
- * Host-side modal that replaces the old instant "Approve" action.
- * Shows the inbound terms the guest would lock to, lets the host
- * edit the total price + cancellation approach/preset, and sends
- * a single PATCH with the edits. Backend snapshots whatever the
- * host submits onto the contact_request.
+ * Inline "Review & send terms" card. Renders directly inside the
+ * message thread when the host is viewing a pending request, so
+ * editing the offer feels like part of the conversation instead of
+ * popping a modal over the top. After the host sends, the thread
+ * gets a terms_offered system message and this card drops out.
  *
- * Design intent: the host's approval IS the offer — the guest then
- * confirms via the inline Accept button in the thread's
- * terms_offered system message.
+ * Kept separate from CancellationPolicyForm because this is the
+ * quick-edit flow (approach + preset + total). Full custom-schedule
+ * edits still live on /settings/hosting and the listing edit page.
  */
-export function HostReviewTermsModal({
+export function HostReviewTermsInline({
   bookingId,
-  open,
-  onOpenChange,
   initialTotal,
   initialPolicy,
   guestFirstName,
@@ -71,9 +59,6 @@ export function HostReviewTermsModal({
   const [approach, setApproach] = useState<CancellationApproach>(
     initialPolicy.approach
   );
-  // Host can only pick a named preset from the quick editor. Custom
-  // policies still have to be set via the full form on the listing
-  // edit / settings pages.
   const initialPreset =
     initialPolicy.preset === "custom"
       ? "moderate"
@@ -81,7 +66,6 @@ export function HostReviewTermsModal({
   const [preset, setPreset] =
     useState<Exclude<CancellationPreset, "custom">>(initialPreset);
 
-  // Live preview — matches what the terms_offered card will render.
   const previewPolicy: CancellationPolicy = useMemo(
     () => buildPolicyFromPreset(approach, preset),
     [approach, preset]
@@ -112,41 +96,43 @@ export function HostReviewTermsModal({
             : {}),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-      };
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`);
       toast.success(
         decision === "accepted"
           ? `Terms sent to ${guestFirstName}`
           : "Request declined"
       );
-      onOpenChange(false);
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
       setSubmitting(null);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Review &amp; send terms</DialogTitle>
-        </DialogHeader>
+    <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-amber-300 bg-white shadow-sm">
+      <div className="flex items-start gap-3 border-b border-amber-200 bg-amber-50 p-4">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
+          <Check className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-amber-900">
+            Review &amp; send terms to {guestFirstName}
+          </div>
+          <p className="mt-0.5 text-xs leading-relaxed text-amber-900/80">
+            Adjust the total and cancellation policy if you want — these
+            numbers lock when {guestFirstName} confirms. The reservation
+            isn&apos;t final until they accept.
+          </p>
+        </div>
+      </div>
 
-        <p className="text-sm text-muted-foreground">
-          Adjust the total and cancellation policy if you want — these
-          numbers lock when {guestFirstName} accepts. The reservation
-          isn&apos;t final until they confirm.
-        </p>
-
+      <div className="space-y-5 p-4">
         {/* Total price */}
         <section>
           <label
-            htmlFor="total-price"
+            htmlFor={`total-${bookingId}`}
             className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold"
           >
             <Receipt className="h-3.5 w-3.5" />
@@ -157,7 +143,7 @@ export function HostReviewTermsModal({
               $
             </span>
             <input
-              id="total-price"
+              id={`total-${bookingId}`}
               type="number"
               min="0"
               step="1"
@@ -168,8 +154,8 @@ export function HostReviewTermsModal({
             />
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Editable until the guest accepts. Leave blank to keep the
-            estimate the guest submitted.
+            Editable until the guest accepts. Leave blank to keep their
+            submitted estimate.
           </p>
         </section>
 
@@ -244,35 +230,37 @@ export function HostReviewTermsModal({
           </div>
           <CancellationPolicyCard policy={previewPolicy} scope="reservation" />
         </section>
+      </div>
 
-        <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-          <Button
-            variant="outline"
-            onClick={() => send("declined")}
-            disabled={submitting !== null}
-            className="rounded-lg text-red-700 hover:bg-red-50"
-          >
-            <X className="mr-1.5 h-4 w-4" />
-            {submitting === "decline" ? "Declining…" : "Decline request"}
-          </Button>
-          <Button
-            onClick={() => send("accepted")}
-            disabled={submitting !== null}
-            className="rounded-lg bg-brand text-white hover:bg-brand-600"
-          >
-            {submitting === "approve" ? (
-              <>
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Sending…
-              </>
-            ) : (
-              <>
-                <Check className="mr-1.5 h-4 w-4" />
-                Approve &amp; send terms
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <div className="flex flex-col-reverse gap-2 border-t border-border bg-muted/30 p-4 sm:flex-row sm:justify-between">
+        <button
+          type="button"
+          onClick={() => send("declined")}
+          disabled={submitting !== null}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+        >
+          <X className="h-4 w-4" />
+          {submitting === "decline" ? "Declining…" : "Decline request"}
+        </button>
+        <button
+          type="button"
+          onClick={() => send("accepted")}
+          disabled={submitting !== null}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-60"
+        >
+          {submitting === "approve" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Sending…
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4" />
+              Approve &amp; send terms
+            </>
+          )}
+        </button>
+      </div>
+    </div>
   );
 }

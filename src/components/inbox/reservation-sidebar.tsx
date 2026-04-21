@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
   Calendar as CalendarIcon,
@@ -8,7 +7,6 @@ import {
   MapPin,
   Star,
   ExternalLink,
-  Check,
   X,
   ChevronRight,
   Home,
@@ -18,7 +16,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ThreadDetail } from "@/lib/messaging-data";
@@ -30,7 +28,6 @@ import {
 import { resolveStages } from "@/lib/booking-stage";
 import { TripTimeline } from "@/components/booking/TripTimeline";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
-import { HostReviewTermsModal } from "@/components/booking/HostReviewTermsModal";
 
 interface Props {
   thread: ThreadDetail;
@@ -83,8 +80,6 @@ function statusLabel(s: string | null | undefined): {
  * payment/cancellation slots (Chunks 3–4) — those layer in later.
  */
 export function ReservationSidebar({ thread, onClose }: Props) {
-  const [reviewOpen, setReviewOpen] = useState(false);
-
   const { booking, listing, other_user, role, reservation_sidebar } = thread;
   const isHostViewer = role === "host";
   const status = statusLabel(booking?.status);
@@ -271,38 +266,19 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           </div>
         )}
 
-        {/* Host action. Opens the Review & send terms modal so the
-            host can confirm (or edit) the total + cancellation policy
-            before the offer lands in the guest's thread. */}
-        {isHostViewer && booking?.status === "pending" && booking?.id && (
-          <div className="space-y-2">
-            <Button
-              onClick={() => setReviewOpen(true)}
-              className="h-10 w-full rounded-lg bg-brand text-sm font-semibold text-white hover:bg-brand-600"
-            >
-              <Check className="mr-1.5 h-4 w-4" />
-              Review &amp; send terms
-            </Button>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Approving sends {other_user.name.split(" ")[0]} the final
-              price + cancellation terms. They confirm to lock in the
-              reservation.
+        {/* Host action (Review & send terms) now lives inline at the
+            end of the thread — see HostReviewTermsInline. Sidebar
+            stays a scannable summary; the editor is a conversation
+            step, not a separate surface. */}
+        {isHostViewer && booking?.status === "pending" && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="text-[11px] leading-relaxed text-amber-900">
+              Request pending. Scroll to the bottom of the thread on
+              the left to review &amp; send terms to{" "}
+              {other_user.name.split(" ")[0]}.
             </p>
           </div>
         )}
-        {isHostViewer &&
-          booking?.status === "pending" &&
-          booking?.id &&
-          reservation_sidebar?.cancellation_policy && (
-            <HostReviewTermsModal
-              open={reviewOpen}
-              onOpenChange={setReviewOpen}
-              bookingId={booking.id}
-              initialTotal={booking.total_estimate}
-              initialPolicy={reservation_sidebar.cancellation_policy}
-              guestFirstName={other_user.name.split(" ")[0]}
-            />
-          )}
 
         {/* Review CTA */}
         {reviewHref && (
