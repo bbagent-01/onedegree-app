@@ -26,7 +26,7 @@ import {
   type PaymentMethod,
 } from "@/lib/payment-methods";
 import { resolveStages } from "@/lib/booking-stage";
-import { TripTimeline } from "@/components/booking/TripTimeline";
+import { CollapsibleTripTimeline } from "@/components/booking/CollapsibleTripTimeline";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
 
 interface Props {
@@ -125,43 +125,40 @@ export function ReservationSidebar({ thread, onClose }: Props) {
             scannable. Full-detail timeline renders on
             /trips/[bookingId]. */}
         {booking && (
-          <div className="rounded-xl border border-border p-3">
-            <TripTimeline
-              stages={resolveStages({
-                status: booking.status,
-                check_in: booking.check_in,
-                check_out: booking.check_out,
-                created_at:
-                  (booking as { created_at?: string | null }).created_at ??
-                  null,
-                responded_at: booking.responded_at,
-                terms_accepted_at: booking.terms_accepted_at,
-                viewer_role: role,
-                stay_confirmation: reservation_sidebar?.stay_confirmation_id
-                  ? {
-                      // stay_confirmations column names invert the
-                      // role→column mapping: a guest's review of the
-                      // host lands in `host_rating`, a host's review
-                      // of the guest lands in `guest_rating`.
-                      // `stay_reviewed_by_me` is computed with that
-                      // same inversion server-side.
-                      guest_rating:
-                        role === "host" &&
-                        reservation_sidebar.stay_reviewed_by_me
-                          ? 1
-                          : null,
-                      host_rating:
-                        role === "guest" &&
-                        reservation_sidebar.stay_reviewed_by_me
-                          ? 1
-                          : null,
-                    }
-                  : null,
-                payment_events: thread.payment_events ?? null,
-              })}
-              compact
-            />
-          </div>
+          <CollapsibleTripTimeline
+            compact
+            stages={resolveStages({
+              status: booking.status,
+              check_in: booking.check_in,
+              check_out: booking.check_out,
+              created_at:
+                (booking as { created_at?: string | null }).created_at ?? null,
+              responded_at: booking.responded_at,
+              terms_accepted_at: booking.terms_accepted_at,
+              viewer_role: role,
+              stay_confirmation: reservation_sidebar?.stay_confirmation_id
+                ? {
+                    // stay_confirmations column names invert the
+                    // role→column mapping: a guest's review of the
+                    // host lands in `host_rating`, a host's review
+                    // of the guest lands in `guest_rating`.
+                    // `stay_reviewed_by_me` is computed with that
+                    // same inversion server-side.
+                    guest_rating:
+                      role === "host" &&
+                      reservation_sidebar.stay_reviewed_by_me
+                        ? 1
+                        : null,
+                    host_rating:
+                      role === "guest" &&
+                      reservation_sidebar.stay_reviewed_by_me
+                        ? 1
+                        : null,
+                  }
+                : null,
+              payment_events: thread.payment_events ?? null,
+            })}
+          />
         )}
 
         {/* Listing */}

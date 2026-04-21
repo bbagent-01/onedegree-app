@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { TripDetailActions } from "@/components/trips/trip-detail-actions";
 import { PaymentArrangementCard } from "@/components/trips/payment-arrangement-card";
-import { TripTimeline } from "@/components/booking/TripTimeline";
+import { CollapsibleTripTimeline } from "@/components/booking/CollapsibleTripTimeline";
 import { resolveStages } from "@/lib/booking-stage";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
 import { AcceptTermsCheckbox } from "@/components/booking/AcceptTermsCheckbox";
@@ -166,64 +166,28 @@ export default async function TripDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Trip timeline — collapsed to current stage by default,
-          tap to expand the full vertical stepper. Moved below the
-          listing card so the stay identity comes first. */}
-      <details className="group mt-6 rounded-2xl border border-border bg-white">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 md:p-6 focus-visible:outline-none">
-          <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Trip timeline
-            </div>
-            <div className="mt-0.5 text-sm font-semibold">
-              {(() => {
-                const stages = resolveStages({
-                  status: trip.status,
-                  check_in: trip.check_in,
-                  check_out: trip.check_out,
-                  created_at: trip.created_at,
-                  responded_at: trip.responded_at,
-                  terms_accepted_at: trip.terms_accepted_at,
-                  viewer_role: "guest",
-                  stay_confirmation: {
-                    guest_rating: trip.stay_guest_rating,
-                    host_rating: trip.stay_host_rating,
-                  },
-                  payment_events: trip.payment_events,
-                });
-                const current =
-                  stages.find((s) => s.status === "current") ??
-                  stages.find((s) => s.status === "upcoming");
-                return current?.label ?? "All done";
-              })()}
-            </div>
-          </div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground group-open:hidden">
-            Show all
-          </span>
-          <span className="hidden text-xs font-semibold uppercase tracking-wide text-muted-foreground group-open:inline">
-            Hide
-          </span>
-        </summary>
-        <div className="border-t border-border p-4 md:p-6">
-          <TripTimeline
-            stages={resolveStages({
-              status: trip.status,
-              check_in: trip.check_in,
-              check_out: trip.check_out,
-              created_at: trip.created_at,
-              responded_at: trip.responded_at,
-              terms_accepted_at: trip.terms_accepted_at,
-              viewer_role: "guest",
-              stay_confirmation: {
-                guest_rating: trip.stay_guest_rating,
-                host_rating: trip.stay_host_rating,
-              },
-              payment_events: trip.payment_events,
-            })}
-          />
-        </div>
-      </details>
+      {/* Trip timeline — collapsible. Collapsed state shows all
+          done stages + next 3 upcoming; expanded shows every
+          stage. Moved below the listing card so the stay identity
+          comes first. */}
+      <div className="mt-6">
+        <CollapsibleTripTimeline
+          stages={resolveStages({
+            status: trip.status,
+            check_in: trip.check_in,
+            check_out: trip.check_out,
+            created_at: trip.created_at,
+            responded_at: trip.responded_at,
+            terms_accepted_at: trip.terms_accepted_at,
+            viewer_role: "guest",
+            stay_confirmation: {
+              guest_rating: trip.stay_guest_rating,
+              host_rating: trip.stay_host_rating,
+            },
+            payment_events: trip.payment_events,
+          })}
+        />
+      </div>
 
       {/* Payment arrangement — only after host accepts */}
       {isConfirmed && trip.host && (
