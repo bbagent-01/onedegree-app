@@ -12,6 +12,7 @@ import {
   type CancellationPolicy,
   type PaymentScheduleEntry,
 } from "./cancellation";
+import { paymentDueMessage } from "./structured-messages";
 
 export type PaymentEventStatus =
   | "scheduled"
@@ -134,7 +135,9 @@ export async function createPaymentEventsForRequest(
 
   const { data: request } = await supabase
     .from("contact_requests")
-    .select("id, check_in, total_estimate, cancellation_policy, terms_accepted_at")
+    .select(
+      "id, check_in, total_estimate, cancellation_policy, terms_accepted_at, listing_id, guest_id"
+    )
     .eq("id", contactRequestId)
     .maybeSingle();
 
@@ -175,7 +178,7 @@ export async function createPaymentEventsForRequest(
   const { data: inserted, error } = await supabase
     .from("payment_events")
     .insert(rows)
-    .select("id");
+    .select("id, schedule_index, due_at");
 
   if (error) {
     // Race: another concurrent accept-terms beat us. The unique
@@ -185,6 +188,42 @@ export async function createPaymentEventsForRequest(
       return { createdIds: [], skipped: "already_exists" };
     }
     throw error;
+  }
+
+  // Post a `payment_due` structured message per event into the
+  // thread immediately. The card renders with "coming up — due
+  // in N days" wording when due_at is in the future, and "due
+  // now" when the window has opened. Previously only the daily
+  // cron posted these; doing it inline means the guest sees the
+  // upcoming payments right after they accept terms (nothing to
+  // wait for). The cron's dedup logic already skips events that
+  // already have a payment_due message in the thread.
+  const listingId = (request as { listing_id?: string }).listing_id;
+  const guestId = (request as { guest_id?: string }).guest_id;
+  if (listingId && guestId && (inserted || []).length > 0) {
+    const { data: thread } = await supabase
+      .from("message_threads")
+      .select("id")
+      .eq("listing_id", listingId)
+      .eq("guest_id", guestId)
+      .maybeSingle();
+    if (thread) {
+      const messageRows = (inserted || []).map((ev) => ({
+        thread_id: thread.id as string,
+        sender_id: null,
+        content: paymentDueMessage(ev.id as string),
+        is_system: true,
+      }));
+      const { error: msgErr } = await supabase
+        .from("messages")
+        .insert(messageRows);
+      if (msgErr) {
+        console.error(
+          "[payment-events] payment_due messages insert failed:",
+          msgErr
+        );
+      }
+    }
   }
 
   return {

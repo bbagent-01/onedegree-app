@@ -104,6 +104,23 @@ export function ThreadView({
   const [sending, setSending] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
+  // Sync local messages state when the thread prop refreshes. The
+  // InboxShell fires `inbox:thread-refresh` after a successful
+  // accept/decline/accept-terms and re-fetches the thread; without
+  // this sync, newly-inserted system messages (like terms_offered)
+  // stay invisible until the user hard-reloads.
+  //
+  // Merge strategy: take the server's list, but keep any local
+  // optimistic rows (id starts with "temp-") that haven't been
+  // reconciled yet — those will be replaced by their real rows on
+  // the next send() round-trip.
+  useEffect(() => {
+    setMessages((prev) => {
+      const optimistic = prev.filter((m) => m.id.startsWith("temp-"));
+      return [...thread.messages, ...optimistic];
+    });
+  }, [thread.messages]);
+
   const isHost = thread.role === "host";
   const pendingBookingId =
     thread.booking && thread.booking.status === "pending"
@@ -357,6 +374,12 @@ export function ThreadView({
                         paymentMethods={
                           thread.reservation_sidebar.host_payment_methods
                         }
+                        nightlyRate={
+                          thread.reservation_sidebar.listing_price_min
+                        }
+                        cleaningFee={
+                          thread.reservation_sidebar.listing_cleaning_fee
+                        }
                         viewerRole={thread.role}
                         termsAcceptedAt={thread.booking.terms_accepted_at}
                         hostFirstName={
@@ -445,10 +468,18 @@ export function ThreadView({
                   return (
                     <div key={m.id} className="py-1">
                       <TermsAcceptedCard
+                        checkIn={thread.booking.check_in}
+                        checkOut={thread.booking.check_out}
                         totalEstimate={thread.booking.total_estimate}
                         policy={thread.reservation_sidebar.cancellation_policy}
                         paymentMethods={
                           thread.reservation_sidebar.host_payment_methods
+                        }
+                        nightlyRate={
+                          thread.reservation_sidebar.listing_price_min
+                        }
+                        cleaningFee={
+                          thread.reservation_sidebar.listing_cleaning_fee
                         }
                         viewerRole={thread.role}
                         acceptedAt={thread.booking.terms_accepted_at}

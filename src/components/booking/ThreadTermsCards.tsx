@@ -65,6 +65,11 @@ interface TermsOfferedProps {
    *  so they know where to send money after confirming. Host
    *  already knows their own handles. */
   paymentMethods: PaymentMethod[];
+  /** Listing's nightly rate + cleaning fee. Drives the total
+   *  breakdown ("2 nights × $140 = $280, Cleaning fee $50"). Both
+   *  can be null — row falls back to the total-only view. */
+  nightlyRate: number | null;
+  cleaningFee: number | null;
   viewerRole: "guest" | "host";
   termsAcceptedAt: string | null;
   hostFirstName: string;
@@ -99,6 +104,8 @@ export function TermsOfferedCard({
   policy,
   originalPolicy,
   paymentMethods,
+  nightlyRate,
+  cleaningFee,
   viewerRole,
   termsAcceptedAt,
   hostFirstName,
@@ -204,15 +211,13 @@ export function TermsOfferedCard({
             label="Total"
             changed={totalChanged && viewerRole === "guest"}
           />
-          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <Receipt className="h-3.5 w-3.5" />
-              Estimated total
-            </div>
-            <div className="text-base font-bold">
-              ${totalEstimate.toLocaleString()}
-            </div>
-          </div>
+          <PriceBreakdown
+            checkIn={checkIn}
+            checkOut={checkOut}
+            totalEstimate={totalEstimate}
+            nightlyRate={nightlyRate}
+            cleaningFee={cleaningFee}
+          />
         </>
       )}
 
@@ -306,11 +311,17 @@ export function TermsOfferedCard({
 }
 
 interface TermsAcceptedProps {
+  checkIn: string | null;
+  checkOut: string | null;
   totalEstimate: number | null;
   policy: CancellationPolicy;
   /** Host's enabled off-platform methods. Shown only to the guest
    *  viewer; host hides (they know their own handles). */
   paymentMethods: PaymentMethod[];
+  /** Listing's nightly rate + cleaning fee. Drives the total
+   *  breakdown on the receipt card. */
+  nightlyRate: number | null;
+  cleaningFee: number | null;
   viewerRole: "guest" | "host";
   acceptedAt: string;
   hostFirstName: string;
@@ -324,9 +335,13 @@ interface TermsAcceptedProps {
  * guest knows where the money goes.
  */
 export function TermsAcceptedCard({
+  checkIn,
+  checkOut,
   totalEstimate,
   policy,
   paymentMethods,
+  nightlyRate,
+  cleaningFee,
   viewerRole,
   acceptedAt,
   hostFirstName,
@@ -355,14 +370,15 @@ export function TermsAcceptedCard({
       </div>
 
       {typeof totalEstimate === "number" && totalEstimate > 0 && (
-        <div className="flex items-center justify-between gap-3 border-b border-emerald-200 px-4 py-3">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-900/70">
-            <Receipt className="h-3.5 w-3.5" />
-            Total
-          </div>
-          <div className="text-base font-bold text-emerald-900">
-            ${totalEstimate.toLocaleString()}
-          </div>
+        <div className="border-b border-emerald-200">
+          <PriceBreakdown
+            checkIn={checkIn}
+            checkOut={checkOut}
+            totalEstimate={totalEstimate}
+            nightlyRate={nightlyRate}
+            cleaningFee={cleaningFee}
+            tone="emerald"
+          />
         </div>
       )}
 
@@ -383,6 +399,105 @@ export function TermsAcceptedCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Nights × nightly + cleaning fee + adjustment = total. When the
+ * host manually overrode the total (total_estimate differs from
+ * nights × rate + cleaning), surface the delta as an "Adjustment"
+ * line so the numbers reconcile instead of silently not summing.
+ */
+function PriceBreakdown({
+  checkIn,
+  checkOut,
+  totalEstimate,
+  nightlyRate,
+  cleaningFee,
+  tone = "default",
+}: {
+  checkIn: string | null;
+  checkOut: string | null;
+  totalEstimate: number;
+  nightlyRate: number | null;
+  cleaningFee: number | null;
+  tone?: "default" | "emerald";
+}) {
+  const nights = (() => {
+    if (!checkIn || !checkOut) return null;
+    const a = new Date(checkIn);
+    const b = new Date(checkOut);
+    const ms = b.getTime() - a.getTime();
+    const n = Math.round(ms / 86_400_000);
+    return n > 0 ? n : null;
+  })();
+  const haveRate = typeof nightlyRate === "number" && nightlyRate > 0;
+  const haveCleaning = typeof cleaningFee === "number" && cleaningFee > 0;
+
+  const nightsSubtotal = nights !== null && haveRate ? nights * nightlyRate! : null;
+  const cleaningAmount = haveCleaning ? cleaningFee! : 0;
+  const sumKnown = (nightsSubtotal ?? 0) + cleaningAmount;
+  const adjustment =
+    nightsSubtotal !== null ? totalEstimate - sumKnown : 0;
+
+  const labelTone =
+    tone === "emerald" ? "text-emerald-900/70" : "text-muted-foreground";
+  const valueTone = tone === "emerald" ? "text-emerald-900" : "";
+  const totalTone =
+    tone === "emerald" ? "text-emerald-900" : "text-foreground";
+
+  return (
+    <div className="px-4 py-3">
+      {nightsSubtotal !== null && (
+        <div className="flex items-center justify-between gap-3 py-1 text-sm">
+          <span className={labelTone}>
+            {nights} night{nights === 1 ? "" : "s"} × $
+            {nightlyRate!.toLocaleString()}
+          </span>
+          <span className={cn("font-medium", valueTone)}>
+            ${nightsSubtotal.toLocaleString()}
+          </span>
+        </div>
+      )}
+      {haveCleaning && (
+        <div className="flex items-center justify-between gap-3 py-1 text-sm">
+          <span className={labelTone}>Cleaning fee</span>
+          <span className={cn("font-medium", valueTone)}>
+            ${cleaningAmount.toLocaleString()}
+          </span>
+        </div>
+      )}
+      {nightsSubtotal !== null && Math.abs(adjustment) >= 1 && (
+        <div className="flex items-center justify-between gap-3 py-1 text-sm">
+          <span className={labelTone}>
+            {adjustment > 0 ? "Adjustment" : "Discount"}
+          </span>
+          <span className={cn("font-medium", valueTone)}>
+            {adjustment > 0 ? "+" : "−"}$
+            {Math.abs(adjustment).toLocaleString()}
+          </span>
+        </div>
+      )}
+      <div
+        className={cn(
+          "mt-1 flex items-center justify-between gap-3 border-t pt-2 text-sm",
+          tone === "emerald" ? "border-emerald-200" : "border-border"
+        )}
+      >
+        <span
+          className={cn(
+            "flex items-center gap-2 text-xs font-semibold uppercase tracking-wide",
+            labelTone
+          )}
+        >
+          <Receipt className="h-3.5 w-3.5" />
+          Estimated total
+        </span>
+        <span className={cn("text-base font-bold", totalTone)}>
+          ${totalEstimate.toLocaleString()}
+        </span>
+      </div>
     </div>
   );
 }
@@ -426,8 +541,7 @@ function SectionHeader({
         {label}
       </div>
       {changed && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-800">
-          <span aria-hidden>!</span>
+        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-800">
           Host updated
         </span>
       )}
@@ -555,6 +669,27 @@ export function PaymentDueCard({
   );
   const pastScheduled = event.status !== "scheduled";
 
+  // "Coming up" vs "due now" gates copy + CTA. Computed UTC-midnight
+  // so the calendar boundary matches the due_at DATE column.
+  const daysUntilDue = (() => {
+    const today = new Date();
+    const todayUtc = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+    );
+    const [y, m, d] = event.due_at.slice(0, 10).split("-").map(Number);
+    if (!y || !m || !d) return 0;
+    const due = new Date(Date.UTC(y, m - 1, d));
+    return Math.round((due.getTime() - todayUtc.getTime()) / 86_400_000);
+  })();
+  const isUpcoming = daysUntilDue > 0;
+  const dueCopy = isUpcoming
+    ? daysUntilDue === 1
+      ? "due tomorrow"
+      : `due in ${daysUntilDue} days`
+    : daysUntilDue === 0
+      ? "due today"
+      : "past due";
+
   const markPaid = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -581,24 +716,47 @@ export function PaymentDueCard({
     }
   };
 
+  // Visual tone also flips with the state — muted slate for upcoming,
+  // amber for due/past-due so the thread hierarchy matches urgency.
+  const iconBg =
+    isUpcoming && !pastScheduled
+      ? "bg-slate-100 text-slate-600"
+      : "bg-amber-100 text-amber-700";
+
   return (
     <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-border bg-white shadow-sm">
       <div className="flex items-start gap-3 border-b border-border p-4">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+        <div
+          className={cn(
+            "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+            iconBg
+          )}
+        >
           <DollarSign className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {paymentOrdinal(event.schedule_index, totalEvents)}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {paymentOrdinal(event.schedule_index, totalEvents)}
+            </span>
+            {isUpcoming && !pastScheduled && (
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
+                Coming up
+              </span>
+            )}
           </div>
           <div className="mt-0.5 text-sm font-semibold">
-            {formatCentsDisplay(event.amount_cents)} due{" "}
+            {formatCentsDisplay(event.amount_cents)} {dueCopy} ·{" "}
             {fmtDueDate(event.due_at)}
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">
             {viewerRole === "guest"
-              ? `Send to ${hostFirstName} off-platform, then mark it paid here.`
-              : `Waiting on ${guestFirstName} to send this payment.`}
+              ? isUpcoming && !pastScheduled
+                ? `Payment isn't due yet — you can pay early if you'd like.`
+                : `Send to ${hostFirstName} off-platform, then mark it paid here.`
+              : isUpcoming && !pastScheduled
+                ? `${guestFirstName} will see this in their thread.`
+                : `Waiting on ${guestFirstName} to send this payment.`}
           </div>
         </div>
       </div>
@@ -649,6 +807,11 @@ export function PaymentDueCard({
               <>
                 <Loader2 className="h-4 w-4 animate-spin" /> Marking paid…
               </>
+            ) : isUpcoming ? (
+              <>
+                <Check className="h-4 w-4" />
+                Pay early — {formatCentsDisplay(event.amount_cents)}
+              </>
             ) : (
               <>
                 <Check className="h-4 w-4" />
@@ -657,8 +820,9 @@ export function PaymentDueCard({
             )}
           </button>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Marking paid sends {hostFirstName} a confirmation message so they
-            can confirm they received it. 1° B&amp;B doesn&apos;t move money.
+            {isUpcoming
+              ? `No rush — this isn't due yet. Only mark it paid once you've actually sent ${hostFirstName} the money.`
+              : `Marking paid sends ${hostFirstName} a confirmation message so they can confirm they received it. 1° B&B doesn't move money.`}
           </p>
         </div>
       )}
