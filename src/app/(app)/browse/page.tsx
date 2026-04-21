@@ -277,6 +277,7 @@ async function BrowseResults({
       trustByListing={trustByListing}
       isSignedIn={Boolean(viewerId)}
       isZeroVouches={isZeroVouches}
+      currentUserId={viewerId}
       headingText={headingText}
       mobileFiltersSlot={
         <Suspense fallback={null}>

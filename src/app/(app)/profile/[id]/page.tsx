@@ -7,6 +7,7 @@ import { computeTrustPath } from "@/lib/trust-data";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileReviews } from "@/components/profile/profile-reviews";
+import { VouchPrompt } from "@/components/profile/vouch-prompt";
 import { VouchButton } from "@/components/trust/vouch-button";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { ConnectionPath } from "@/components/trust/connection-path";
@@ -127,6 +128,16 @@ export default async function ProfilePage({
           )}
         </div>
       </div>
+
+      {/* Request-a-vouch prompt — only renders when ?vouch=1 is present.
+          0° users share this link to nudge someone to vouch for them. */}
+      <VouchPrompt
+        targetId={user.id}
+        targetName={user.name}
+        targetAvatar={user.avatar_url}
+        isSignedIn={Boolean(viewerId)}
+        isOwnProfile={isOwn}
+      />
 
       {/* Trust / vouch section — different content for own vs other */}
       {isOwn ? (

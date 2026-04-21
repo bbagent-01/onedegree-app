@@ -2,13 +2,13 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
+import { NetworkEmptyState } from "@/components/trust/network-empty-state";
 import type { NetworkData, NetworkPerson, PendingInvite } from "@/lib/network-data";
 import { YEARS_KNOWN_BUCKETS } from "@/lib/vouch-constants";
 import {
   Shield,
   Star,
   UserPlus,
-  Users,
   Zap,
   Send,
   Clock,
@@ -39,7 +39,13 @@ function formatDate(iso: string): string {
   });
 }
 
-export function NetworkSection({ data }: { data: NetworkData }) {
+export function NetworkSection({
+  data,
+  currentUserId,
+}: {
+  data: NetworkData;
+  currentUserId: string;
+}) {
   const { vouchPower, avgGuestRatingOfVouchees } = data.stats;
   const hasRatingData = avgGuestRatingOfVouchees !== null;
 
@@ -153,19 +159,11 @@ export function NetworkSection({ data }: { data: NetworkData }) {
         </div>
       )}
 
-      {/* Empty state */}
+      {/* 0° empty state — no inbound, no outbound vouches, no pending invites. */}
       {data.vouchedFor.length === 0 &&
         data.vouchedBy.length === 0 &&
         data.pendingInvites.length === 0 && (
-          <div className="mt-6 rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
-            <Users className="mx-auto h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-3 text-sm font-medium text-foreground">
-              Your trust network is empty
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Start by vouching for people you know or inviting friends to join.
-            </p>
-          </div>
+          <NetworkEmptyState currentUserId={currentUserId} />
         )}
     </section>
   );

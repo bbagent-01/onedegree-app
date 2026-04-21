@@ -17,6 +17,12 @@ import { AvailabilityCalendar } from "./availability-calendar";
 import { TrustTag } from "@/components/trust/trust-tag";
 import type { ConnectorPathSummary } from "@/lib/trust-data";
 
+interface BookingApiResponse {
+  id?: string;
+  threadId?: string;
+  error?: string;
+}
+
 interface Props {
   listingId: string;
   pricePerNight: number;
@@ -70,6 +76,7 @@ export function BookingSidebar({
   const [range, setRange] = useState<DateRange | undefined>();
   const [guests, setGuests] = useState(1);
   const [guestsOpen, setGuestsOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Broadcast the selected range so the sticky anchor bar (sibling client
   // component) can display the dates next to its Reserve button. Using a
@@ -101,7 +108,12 @@ export function BookingSidebar({
 
   const canReserve = nights >= minNights && nights <= maxNights;
 
-  const reserve = () => {
+  // Thread-native request-to-stay (Booking v2 / Chunk 4.75). Posts
+  // directly to /api/bookings to create the contact_request + thread,
+  // then lands the guest inside the thread where the rest of the
+  // conversation happens. Replaces the old intermediate /reserve page
+  // whose ReserveForm only gated on an optional message field.
+  const reserve = async () => {
     if (!range?.from || !range?.to) return;
     if (!canReserve) {
       toast.error(
@@ -111,12 +123,46 @@ export function BookingSidebar({
       );
       return;
     }
-    const params = new URLSearchParams({
-      from: format(range.from, "yyyy-MM-dd"),
-      to: format(range.to, "yyyy-MM-dd"),
-      guests: String(guests),
-    });
-    router.push(`/listings/${listingId}/reserve?${params.toString()}`);
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId,
+          checkIn: format(range.from, "yyyy-MM-dd"),
+          checkOut: format(range.to, "yyyy-MM-dd"),
+          guests,
+          total: fees.total,
+          message: null,
+        }),
+      });
+      const data = (await res
+        .json()
+        .catch(() => ({}))) as BookingApiResponse;
+      if (!res.ok) {
+        toast.error(data.error || "Couldn't send request. Try again.");
+        return;
+      }
+      toast.success("Request sent to host");
+      if (data.threadId) {
+        const isDesktop =
+          typeof window !== "undefined" &&
+          window.matchMedia("(min-width: 768px)").matches;
+        router.push(
+          isDesktop
+            ? `/inbox?thread=${data.threadId}&sent=1`
+            : `/inbox/${data.threadId}?sent=1`
+        );
+      } else {
+        router.push("/inbox?sent=1");
+      }
+    } catch {
+      toast.error("Network error. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -226,9 +272,9 @@ export function BookingSidebar({
             id="booking-reserve"
             className="mt-4 h-12 w-full rounded-lg bg-brand text-base font-semibold hover:bg-brand-600"
             onClick={reserve}
-            disabled={!range?.from || !range?.to}
+            disabled={!range?.from || !range?.to || submitting}
           >
-            Request to stay
+            {submitting ? "Sending\u2026" : "Request to stay"}
           </Button>
           {trust && (
             <div className="mt-3 flex justify-center">
@@ -312,9 +358,9 @@ export function BookingSidebar({
           <Button
             className="h-11 rounded-lg bg-brand px-6 font-semibold hover:bg-brand-600"
             onClick={reserve}
-            disabled={!range?.from || !range?.to}
+            disabled={!range?.from || !range?.to || submitting}
           >
-            Request to stay
+            {submitting ? "Sending\u2026" : "Request to stay"}
           </Button>
         </div>
       </div>

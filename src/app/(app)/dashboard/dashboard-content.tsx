@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/messaging-data";
 import { getHostDashboardData } from "@/lib/hosting-data";
 import { getNetworkData } from "@/lib/network-data";
 import { getTripsForGuest } from "@/lib/trips-data";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { StatsCards } from "@/components/hosting/stats-cards";
 import { ReservationsSection } from "@/components/hosting/reservations-section";
 import { ListingsSection } from "@/components/hosting/listings-section";
@@ -12,6 +13,7 @@ import { NetworkSection } from "@/components/trust/network-section";
 import { TripsList } from "@/components/trips/trips-list";
 import { UnifiedDashboard } from "./unified-dashboard";
 import { SectionNav } from "@/components/layout/section-nav";
+import { DashboardWelcomeBanner } from "@/components/dashboard/dashboard-welcome-banner";
 import { Plus } from "lucide-react";
 import type { DashboardTab } from "@/components/dashboard/dashboard-tabs";
 
@@ -33,6 +35,26 @@ export async function DashboardContent({
 
   const firstName = hostData.user.name?.split(" ")[0] || "there";
   const hasListings = hostData.listings.length > 0;
+
+  // First-run welcome banner gate: the user joined in the last 7 days
+  // AND has neither given nor received any vouches. Fetched straight
+  // from the users row — no new columns, no derived state.
+  const supabase = getSupabaseAdmin();
+  const { data: newUserRow } = await supabase
+    .from("users")
+    .select("created_at, vouch_count_given, vouch_count_received")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+  const joinedAt = newUserRow?.created_at
+    ? new Date(newUserRow.created_at as string)
+    : null;
+  const withinFirstWeek =
+    joinedAt !== null &&
+    Date.now() - joinedAt.getTime() < 7 * 24 * 60 * 60 * 1000;
+  const isFirstRun =
+    withinFirstWeek &&
+    ((newUserRow?.vouch_count_given as number | null) ?? 0) === 0 &&
+    ((newUserRow?.vouch_count_received as number | null) ?? 0) === 0;
 
   const hostingContent = (
     <>
@@ -86,7 +108,7 @@ export async function DashboardContent({
 
   const networkContent = networkData ? (
     <div className="mt-8">
-      <NetworkSection data={networkData} />
+      <NetworkSection data={networkData} currentUserId={currentUser.id} />
     </div>
   ) : null;
 
@@ -102,6 +124,8 @@ export async function DashboardContent({
             Your dashboard for hosting, traveling, and your trust network.
           </p>
         </div>
+
+        {isFirstRun && <DashboardWelcomeBanner userId={currentUser.id} />}
 
         <UnifiedDashboard
           defaultTab={defaultTab}

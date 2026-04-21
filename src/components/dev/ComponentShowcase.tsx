@@ -141,7 +141,6 @@ function TrustSection() {
           "/listings/[id]",
           "/browse",
           "/inbox",
-          "/listings/[id]/reserve",
           "/dashboard/network",
         ]}
       >

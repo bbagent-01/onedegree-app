@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Map as MapIcon, LayoutGrid, X, UserPlus, Lock } from "lucide-react";
+import {
+  Map as MapIcon,
+  LayoutGrid,
+  X,
+  UserPlus,
+  Lock,
+  Eye,
+  Shield,
+  Check,
+} from "lucide-react";
 import { SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LiveListingCard } from "./live-listing-card";
@@ -54,6 +63,8 @@ interface Props {
   isSignedIn?: boolean;
   /** True if the viewer is signed in but has zero inbound vouches (cold-start). */
   isZeroVouches?: boolean;
+  /** Current user's internal id — needed to build a shareable vouch link. */
+  currentUserId?: string | null;
   /**
    * Compact Filters pill for the mobile header row. On desktop the
    * Filters button lives in the top nav cluster, so this slot is only
@@ -71,8 +82,23 @@ export function BrowseLayout({
   trustByListing = {},
   isSignedIn = false,
   isZeroVouches = false,
+  currentUserId = null,
   mobileFiltersSlot,
 }: Props) {
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const copyVouchLink = async () => {
+    if (!currentUserId) return;
+    const url = `${window.location.origin}/profile/${currentUserId}?vouch=1`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      window.prompt("Copy this link:", url);
+    }
+  };
+
   const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
   // Default to split on desktop so map is visible without toggling (Airbnb behavior).
   const [mode, setMode] = useState<ViewMode>(() => {
@@ -123,16 +149,25 @@ export function BrowseLayout({
     return (
       <div>
         {headerRow}
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <SearchX className="h-12 w-12 text-muted-foreground/50 mb-4" />
-          <h3 className="text-lg font-semibold text-foreground">
-            No listings match your search
-          </h3>
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            Try adjusting your location, dates, or filters. Clearing filters will
-            show every available stay.
-          </p>
-        </div>
+        {isZeroVouches ? (
+          <ZeroVouchesPanel
+            currentUserId={currentUserId}
+            shareCopied={shareCopied}
+            onCopyVouchLink={copyVouchLink}
+            isEmpty
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <SearchX className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-semibold text-foreground">
+              No listings match your search
+            </h3>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              Try adjusting your location, dates, or filters. Clearing filters
+              will show every available stay.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
@@ -154,29 +189,13 @@ export function BrowseLayout({
               clipping hover shadows against an overflow box and lets the
               footer be replaced by the map extending to viewport bottom. */}
           <div>
-            {/* Zero-vouches banner */}
+            {/* Zero-vouches banner — preview-only explainer + two CTAs. */}
             {isZeroVouches && (
-              <div className="mb-4 flex flex-col gap-3 rounded-xl border-2 border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-3">
-                  <UserPlus className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">
-                      You&apos;re not connected to anyone yet
-                    </div>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      Invite friends or ask someone to vouch for you to unlock more listings.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Link
-                    href="/invite"
-                    className="inline-flex h-9 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-600"
-                  >
-                    Invite Friends
-                  </Link>
-                </div>
-              </div>
+              <ZeroVouchesPanel
+                currentUserId={currentUserId}
+                shareCopied={shareCopied}
+                onCopyVouchLink={copyVouchLink}
+              />
             )}
 
             {/* Sign-in CTA for unauthenticated users */}
@@ -298,6 +317,83 @@ function MapFallback() {
   return (
     <div className="flex h-full w-full items-center justify-center bg-muted text-sm text-muted-foreground">
       Loading map…
+    </div>
+  );
+}
+
+/**
+ * Sparse-state panel for signed-in 0° users. When `isEmpty` is true,
+ * no host has opted into a public preview for this filter set — we
+ * render the panel by itself. Otherwise it sits above the preview-
+ * only grid as an explainer banner.
+ */
+function ZeroVouchesPanel({
+  currentUserId,
+  shareCopied,
+  onCopyVouchLink,
+  isEmpty = false,
+}: {
+  currentUserId: string | null;
+  shareCopied: boolean;
+  onCopyVouchLink: () => void;
+  isEmpty?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border-2 border-amber-200 bg-amber-50/60 p-5 md:p-6",
+        isEmpty ? "my-8" : "mb-4"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+          <Eye className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-semibold text-foreground md:text-lg">
+            You can preview listings outside your network.
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Get vouched or invite friends to unlock full listings. Hosts only
+            share the full details with people their network trusts.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/invite"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-600"
+            >
+              <UserPlus className="h-4 w-4" />
+              Invite a friend
+            </Link>
+            {currentUserId && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCopyVouchLink}
+                className="h-9 gap-1.5 rounded-lg border-border bg-white px-4 text-sm font-semibold hover:bg-muted"
+              >
+                {shareCopied ? (
+                  <>
+                    <Check className="h-4 w-4 text-emerald-600" />
+                    Link copied
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-4 w-4" />
+                    Request a vouch
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+          {isEmpty && (
+            <p className="mt-4 text-xs text-muted-foreground">
+              No hosts have opted into public previews for this search. Try
+              clearing filters or adjusting your location.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
