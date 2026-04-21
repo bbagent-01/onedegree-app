@@ -160,6 +160,55 @@ cancellation_policy JSONB = {
 - Cancel flow honors the policy — computes refund % from today's
   distance to check-in and shows it on the cancel dialog.
 
+## Chunk 4.5 — Two-way trip edits (deferred)
+
+Captured 2026-04-21. Today the host's "Review & send terms" card
+is the only way dates / total / cancellation get edited, and only
+while the request is still `pending`. Once accepted, neither side
+can propose a change without cancelling and re-requesting.
+
+Target model: either party can propose an amendment to a confirmed
+trip. Examples — guest asks to extend by a night, host bumps the
+price because a date fell into peak season, either side wants to
+switch the cancellation approach. Flow mirrors how reviews work:
+
+1. **Propose** — originator fills a form (dates, total breakdown,
+   cancellation approach/preset) and submits. UI renders an inline
+   "Proposed trip change" card in the thread plus a badge on the
+   other side's sidebar.
+2. **Accept** — other party clicks "Accept changes". The contact
+   request row updates; a system message posts
+   ("Hana accepted the updated terms on X").
+3. **Decline** — counter-propose (loops back to step 1) or refuse.
+   On refuse, the originator can cancel the trip; the active
+   cancellation policy decides how much (if any) refund is owed.
+
+Schema sketch:
+
+```
+trip_amendments table
+  id UUID pk
+  contact_request_id UUID fk
+  proposer_id UUID fk              -- host or guest
+  proposed_check_in DATE
+  proposed_check_out DATE
+  proposed_guest_count INT
+  proposed_total_estimate INT
+  proposed_cancellation_policy JSONB
+  status TEXT ('open','accepted','declined','superseded')
+  created_at TIMESTAMPTZ
+  resolved_at TIMESTAMPTZ
+  resolved_by_id UUID fk
+```
+
+One open amendment at a time per contact_request to keep the UX
+simple. New propose while one is open = counter (supersedes).
+
+Not tackled yet — current PATCH /api/contact-requests/[id] already
+accepts host-side date/guest edits at approval time, which covers
+the "counter-offer during pending" case. Accepted-trip edits need
+the new table + UI + state machine.
+
 ## Chunk 5 — Issue reporting + photo requests (Task 8 from earlier)
 
 Deferred to its own doc after Chunks 1–4 ship; relates to in-stay

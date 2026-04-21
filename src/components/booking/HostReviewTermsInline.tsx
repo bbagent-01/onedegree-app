@@ -6,11 +6,15 @@ import {
   CalendarClock,
   CalendarDays,
   Check,
+  ChevronDown,
+  ChevronUp,
   Loader2,
+  Minus,
   Pencil,
+  Plus,
   Receipt,
   RotateCcw,
-  Users,
+  ShieldCheck,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -28,22 +32,12 @@ import { CancellationPolicyCard } from "./CancellationPolicyCard";
 
 interface Props {
   bookingId: string;
-  /** Initial total from the original request. Editable by the host. */
   initialTotal: number | null;
-  /** Currently-resolved policy (listing override → host default) —
-   *  seeds both the read view and the editor so the host isn't
-   *  starting from scratch. */
   initialPolicy: CancellationPolicy;
-  /** Date range from the original request — read-only here; edits
-   *  happen via a separate message thread conversation. */
   checkIn: string | null;
   checkOut: string | null;
-  /** Guest count on the original request — read-only. */
   guestCount: number;
-  /** Listing nightly rate — read-only. Drives the breakdown line. */
   nightlyRate: number | null;
-  /** Flat cleaning fee the guest was charged (USD, whole dollars).
-   *  Null/0 hides the breakdown line. */
   cleaningFee: number | null;
   guestFirstName: string;
 }
@@ -62,17 +56,31 @@ function fmtDate(iso: string | null): string {
   });
 }
 
+function nightsBetween(from: string | null, to: string | null): number {
+  if (!from || !to) return 0;
+  const a = new Date(from).getTime();
+  const b = new Date(to).getTime();
+  return Math.max(0, Math.round((b - a) / 86_400_000));
+}
+
+type EditSection = "trip" | "total" | "cancellation" | null;
+
 /**
- * Inline "Review & send terms" card. Default view is a read-only
- * summary of the request (dates, guests, total, cancellation
- * policy) so the host can scan + approve without wading through
- * editor chrome. Clicking "Edit terms" reveals the total input +
- * approach toggle + preset pills in-place.
+ * Inline "Review & send terms" card with per-section editing. Each
+ * section — Trip (dates + guests), Total (nightly + cleaning), and
+ * Cancellation (approach + preset) — has its own Edit affordance
+ * and opens into its own editable form when clicked. Only one
+ * section is editable at a time to keep the card scannable.
  *
- * Dates + guests are NOT host-editable — those belong to the
- * guest's request and editing them feels like a different negotiation.
- * Total price and cancellation approach/preset are editable because
- * those are the host's judgment call per-reservation.
+ * The host's final PATCH packages the whole offer: possibly-edited
+ * dates/guest count, the computed total (nightly × nights +
+ * cleaning), and the chosen approach/preset.
+ *
+ * FUTURE: Loren has flagged that confirmed trips should be
+ * editable by either party via a propose/accept/deny flow similar
+ * to reviews. Today only the host can edit via this card, and only
+ * while the request is still pending. See
+ * docs/BOOKING_FLOW_V2_PLAN.md under "Two-way trip edits".
  */
 export function HostReviewTermsInline({
   bookingId,
@@ -89,10 +97,33 @@ export function HostReviewTermsInline({
   const [submitting, setSubmitting] = useState<"approve" | "decline" | null>(
     null
   );
-  const [editing, setEditing] = useState(false);
-  const [totalStr, setTotalStr] = useState<string>(
-    initialTotal && initialTotal > 0 ? String(initialTotal) : ""
+  const [editSection, setEditSection] = useState<EditSection>(null);
+
+  // Trip state
+  const [localCheckIn, setLocalCheckIn] = useState<string>(checkIn ?? "");
+  const [localCheckOut, setLocalCheckOut] = useState<string>(checkOut ?? "");
+  const [localGuests, setLocalGuests] = useState<number>(guestCount);
+
+  // Total state — stored as the two underlying line items so the
+  // breakdown stays editable. Total is derived, not stored separately.
+  const seedCleaning = Math.max(0, Math.round(cleaningFee ?? 0));
+  const derivedNightly =
+    nightlyRate && nightlyRate > 0
+      ? nightlyRate
+      : initialTotal && nightsBetween(checkIn, checkOut) > 0
+        ? Math.round(
+            ((initialTotal ?? 0) - seedCleaning) /
+              Math.max(1, nightsBetween(checkIn, checkOut))
+          )
+        : 0;
+  const [nightlyStr, setNightlyStr] = useState<string>(
+    derivedNightly > 0 ? String(derivedNightly) : ""
   );
+  const [cleaningStr, setCleaningStr] = useState<string>(
+    seedCleaning > 0 ? String(seedCleaning) : ""
+  );
+
+  // Cancellation state
   const [approach, setApproach] = useState<CancellationApproach>(
     initialPolicy.approach
   );
@@ -103,35 +134,32 @@ export function HostReviewTermsInline({
   const [preset, setPreset] =
     useState<Exclude<CancellationPreset, "custom">>(initialPreset);
 
-  // Policy that will be sent when the host approves. Always reflects
-  // the current approach + preset, whether the editor is open or not.
+  const nights = useMemo(
+    () => nightsBetween(localCheckIn || null, localCheckOut || null),
+    [localCheckIn, localCheckOut]
+  );
+  const numericNightly = Number(nightlyStr || 0) || 0;
+  const numericCleaning = Number(cleaningStr || 0) || 0;
+  const computedTotal =
+    Math.max(0, Math.round(numericNightly)) * nights +
+    Math.max(0, Math.round(numericCleaning));
+
   const effectivePolicy: CancellationPolicy = useMemo(
     () => buildPolicyFromPreset(approach, preset),
     [approach, preset]
   );
 
-  const numericTotal = totalStr.trim() ? Number(totalStr.trim()) : null;
-  const hasTotal = numericTotal !== null && Number.isFinite(numericTotal) && numericTotal > 0;
-  const nights = useMemo(() => {
-    if (!checkIn || !checkOut) return 0;
-    const a = new Date(checkIn).getTime();
-    const b = new Date(checkOut).getTime();
-    return Math.max(0, Math.round((b - a) / 86_400_000));
-  }, [checkIn, checkOut]);
   const approachLabel = approachMeta(approach).title;
   const presetName =
     CANCELLATION_PRESETS.find((p) => p.key === preset)?.label ?? preset;
 
+  const toggleSection = (section: Exclude<EditSection, null>) => {
+    setEditSection((prev) => (prev === section ? null : section));
+  };
+
   const send = async (decision: "accepted" | "declined") => {
     setSubmitting(decision === "accepted" ? "approve" : "decline");
     try {
-      if (
-        decision === "accepted" &&
-        totalStr.trim() &&
-        (!Number.isFinite(numericTotal) || (numericTotal as number) < 0)
-      ) {
-        throw new Error("Total price must be a non-negative number");
-      }
       const res = await fetch(`/api/contact-requests/${bookingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -139,9 +167,12 @@ export function HostReviewTermsInline({
           status: decision,
           ...(decision === "accepted"
             ? {
-                total_price: numericTotal ?? undefined,
+                total_price: computedTotal > 0 ? computedTotal : undefined,
                 cancellation_approach: approach,
                 cancellation_preset: preset,
+                check_in: localCheckIn || undefined,
+                check_out: localCheckOut || undefined,
+                guest_count: localGuests,
               }
             : {}),
         }),
@@ -162,133 +193,164 @@ export function HostReviewTermsInline({
 
   return (
     <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-amber-300 bg-white shadow-sm">
-      <div className="flex items-start justify-between gap-3 border-b border-amber-200 bg-amber-50 p-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
-            <Check className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-amber-900">
-              Review &amp; send terms to {guestFirstName}
-            </div>
-            <p className="mt-0.5 text-xs leading-relaxed text-amber-900/80">
-              These numbers lock when {guestFirstName} confirms. The
-              reservation isn&apos;t final until they accept.
-            </p>
-          </div>
+      <div className="flex items-start gap-3 border-b border-amber-200 bg-amber-50 p-4">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
+          <Check className="h-4 w-4" />
         </div>
-        <button
-          type="button"
-          onClick={() => setEditing((e) => !e)}
-          className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition",
-            editing
-              ? "border-amber-900 bg-amber-900 text-amber-50 hover:bg-amber-900"
-              : "border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
-          )}
-        >
-          <Pencil className="h-3 w-3" />
-          {editing ? "Done editing" : "Edit terms"}
-        </button>
-      </div>
-
-      {/* Trip summary — dates + guests always read-only. */}
-      <div className="grid grid-cols-1 divide-y divide-border border-b border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <CalendarDays className="h-3 w-3" />
-            Check-in
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-amber-900">
+            Review &amp; send terms to {guestFirstName}
           </div>
-          <div className="mt-0.5 text-sm font-semibold">{fmtDate(checkIn)}</div>
-        </div>
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <CalendarDays className="h-3 w-3" />
-            Checkout
-          </div>
-          <div className="mt-0.5 text-sm font-semibold">{fmtDate(checkOut)}</div>
-        </div>
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <Users className="h-3 w-3" />
-            Guests
-          </div>
-          <div className="mt-0.5 text-sm font-semibold">
-            {guestCount} guest{guestCount === 1 ? "" : "s"}
-          </div>
+          <p className="mt-0.5 text-xs leading-relaxed text-amber-900/80">
+            Each section has its own Edit. These numbers lock when{" "}
+            {guestFirstName} confirms — the reservation isn&apos;t final
+            until they accept.
+          </p>
         </div>
       </div>
 
-      {/* Total — read in summary mode, input in edit mode. */}
-      <div className="border-b border-border px-4 py-3">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <Receipt className="h-3 w-3" />
-          Total for this stay
-        </div>
-        {editing ? (
-          <div className="mt-1">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-                $
-              </span>
+      {/* Trip section */}
+      <Section
+        icon={CalendarDays}
+        title="Trip"
+        editing={editSection === "trip"}
+        onEditToggle={() => toggleSection("trip")}
+      >
+        {editSection === "trip" ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <FieldLabel label="Check-in">
               <input
-                type="number"
-                min="0"
-                step="1"
-                value={totalStr}
-                onChange={(e) => setTotalStr(e.target.value)}
-                placeholder="e.g. 450"
-                className="h-11 w-full rounded-lg border-2 border-border !bg-white pl-7 pr-3 text-sm font-medium shadow-sm focus:border-foreground focus:outline-none"
+                type="date"
+                value={localCheckIn}
+                onChange={(e) => setLocalCheckIn(e.target.value)}
+                className={INPUT_CLS}
               />
+            </FieldLabel>
+            <FieldLabel label="Checkout">
+              <input
+                type="date"
+                min={localCheckIn || undefined}
+                value={localCheckOut}
+                onChange={(e) => setLocalCheckOut(e.target.value)}
+                className={INPUT_CLS}
+              />
+            </FieldLabel>
+            <FieldLabel label="Guests">
+              <div className="flex h-11 items-center gap-2 rounded-lg border-2 border-border bg-white px-2 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setLocalGuests((g) => Math.max(1, g - 1))}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-muted"
+                  aria-label="Decrease guests"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <span className="flex-1 text-center text-sm font-semibold">
+                  {localGuests}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLocalGuests((g) => g + 1)}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-muted"
+                  aria-label="Increase guests"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </FieldLabel>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+            <RowKV k="Check-in" v={fmtDate(localCheckIn || null)} />
+            <RowKV k="Checkout" v={fmtDate(localCheckOut || null)} />
+            <RowKV
+              k="Guests"
+              v={`${localGuests} guest${localGuests === 1 ? "" : "s"}`}
+            />
+          </div>
+        )}
+      </Section>
+
+      {/* Total section */}
+      <Section
+        icon={Receipt}
+        title="Total for this stay"
+        editing={editSection === "total"}
+        onEditToggle={() => toggleSection("total")}
+      >
+        {editSection === "total" ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <FieldLabel label="Nightly rate">
+                <PriceInput value={nightlyStr} onChange={setNightlyStr} />
+              </FieldLabel>
+              <FieldLabel label="Cleaning fee">
+                <PriceInput value={cleaningStr} onChange={setCleaningStr} />
+              </FieldLabel>
             </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Leave blank to keep {guestFirstName}&apos;s submitted estimate.
+            <div className="space-y-1 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
+              <Breakdown
+                k={`$${numericNightly || 0} × ${nights} night${nights === 1 ? "" : "s"}`}
+                v={`$${(numericNightly * nights).toLocaleString()}`}
+              />
+              {numericCleaning > 0 && (
+                <Breakdown
+                  k="Cleaning fee"
+                  v={`$${numericCleaning.toLocaleString()}`}
+                />
+              )}
+              <div className="mt-1 flex items-center justify-between border-t border-border pt-1 text-sm font-semibold">
+                <span>Total</span>
+                <span>${computedTotal.toLocaleString()}</span>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Nights follow the dates above. Edit dates in the Trip
+              section to change the night count.
             </p>
           </div>
         ) : (
-          <>
-            <div className="mt-0.5 text-base font-semibold">
-              {hasTotal ? (
-                `$${Math.round(numericTotal as number).toLocaleString()}`
+          <div className="space-y-1">
+            <div className="text-base font-semibold">
+              {computedTotal > 0 ? (
+                `$${computedTotal.toLocaleString()}`
               ) : (
                 <span className="text-sm font-medium text-muted-foreground">
-                  No total yet — click &ldquo;Edit terms&rdquo; to add one.
+                  No total yet — click Edit to set one.
                 </span>
               )}
             </div>
-            {hasTotal && (nightlyRate || (cleaningFee ?? 0) > 0) && (
-              <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                {nightlyRate && nights > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span>
-                      ${nightlyRate} × {nights} night{nights === 1 ? "" : "s"}
-                    </span>
-                    <span>
-                      ${(nightlyRate * nights).toLocaleString()}
-                    </span>
-                  </div>
+            {computedTotal > 0 && (
+              <div className="space-y-0.5 text-xs text-muted-foreground">
+                {numericNightly > 0 && nights > 0 && (
+                  <Breakdown
+                    k={`$${numericNightly} × ${nights} night${nights === 1 ? "" : "s"}`}
+                    v={`$${(numericNightly * nights).toLocaleString()}`}
+                  />
                 )}
-                {cleaningFee && cleaningFee > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span>Cleaning fee</span>
-                    <span>${cleaningFee.toLocaleString()}</span>
-                  </div>
+                {numericCleaning > 0 && (
+                  <Breakdown
+                    k="Cleaning fee"
+                    v={`$${numericCleaning.toLocaleString()}`}
+                  />
                 )}
               </div>
             )}
-          </>
+          </div>
         )}
-      </div>
+      </Section>
 
-      {/* Cancellation approach + preset. Edit mode exposes the
-          selectors; summary mode shows the resulting policy card. */}
-      <div className="p-4">
-        {editing ? (
+      {/* Cancellation section */}
+      <Section
+        icon={ShieldCheck}
+        title="Cancellation & payment"
+        editing={editSection === "cancellation"}
+        onEditToggle={() => toggleSection("cancellation")}
+      >
+        {editSection === "cancellation" ? (
           <div className="space-y-4">
-            <section>
-              <div className="mb-1.5 text-sm font-semibold">
-                Cancellation approach
-              </div>
+            <div>
+              <div className="mb-1.5 text-sm font-semibold">Approach</div>
               <div className="grid gap-2 md:grid-cols-2">
                 {CANCELLATION_APPROACHES.map((a) => {
                   const Icon = APPROACH_ICONS[a.key];
@@ -316,9 +378,8 @@ export function HostReviewTermsInline({
                   );
                 })}
               </div>
-            </section>
-
-            <section>
+            </div>
+            <div>
               <div className="mb-1.5 text-sm font-semibold">Preset</div>
               <div className="flex flex-wrap gap-2">
                 {CANCELLATION_PRESETS.map((p) => {
@@ -341,13 +402,11 @@ export function HostReviewTermsInline({
                 })}
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Need a fully custom schedule? Set it on your listing edit
-                page under the Cancellation tab — your overrides apply
-                automatically to new requests.
+                Need a fully custom schedule? Set it on your listing
+                edit page under the Cancellation tab.
               </p>
-            </section>
-
-            <section>
+            </div>
+            <div>
               <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Preview
               </div>
@@ -355,14 +414,12 @@ export function HostReviewTermsInline({
                 policy={effectivePolicy}
                 scope="reservation"
               />
-            </section>
+            </div>
           </div>
         ) : (
           <div>
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Cancellation &amp; payment — {approachLabel}, {presetName}
-              </div>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {approachLabel} · {presetName}
             </div>
             <CancellationPolicyCard
               policy={effectivePolicy}
@@ -370,7 +427,7 @@ export function HostReviewTermsInline({
             />
           </div>
         )}
-      </div>
+      </Section>
 
       <div className="flex flex-col-reverse gap-2 border-t border-border bg-muted/30 p-4 sm:flex-row sm:justify-between">
         <button
@@ -401,6 +458,124 @@ export function HostReviewTermsInline({
           )}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── Local primitives ────────────────────────────────────────────
+
+const INPUT_CLS =
+  "h-11 w-full rounded-lg border-2 border-border !bg-white px-3 text-sm font-medium shadow-sm focus:border-foreground focus:outline-none";
+
+function Section({
+  icon: Icon,
+  title,
+  editing,
+  onEditToggle,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  editing: boolean;
+  onEditToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="border-b border-border px-4 py-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <Icon className="h-3 w-3" />
+          {title}
+        </div>
+        <button
+          type="button"
+          onClick={onEditToggle}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition",
+            editing
+              ? "border-foreground bg-foreground text-background"
+              : "border-border bg-white text-foreground hover:bg-muted"
+          )}
+        >
+          {editing ? (
+            <>
+              <ChevronUp className="h-3 w-3" />
+              Done
+            </>
+          ) : (
+            <>
+              <Pencil className="h-3 w-3" />
+              Edit
+            </>
+          )}
+        </button>
+      </div>
+      {children}
+      {editing && (
+        <div className="mt-2 hidden" aria-hidden>
+          {/* anchor for future scroll-into-view */}
+          <ChevronDown className="h-3 w-3" />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FieldLabel({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function PriceInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+        $
+      </span>
+      <input
+        type="number"
+        min="0"
+        step="1"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${INPUT_CLS} pl-7`}
+      />
+    </div>
+  );
+}
+
+function RowKV({ k, v }: { k: string; v: string }) {
+  return (
+    <div>
+      <div className="text-[11px] text-muted-foreground">{k}</div>
+      <div className="mt-0.5 text-sm font-semibold">{v}</div>
+    </div>
+  );
+}
+
+function Breakdown({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span>{k}</span>
+      <span>{v}</span>
     </div>
   );
 }

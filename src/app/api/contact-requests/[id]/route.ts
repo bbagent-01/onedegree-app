@@ -64,6 +64,13 @@ export async function PATCH(
      *  via buildPolicyFromPreset instead of resolving from
      *  defaults. */
     cancellation_preset?: Exclude<CancellationPreset, "custom">;
+    /** Host-edited trip dates. Treated as a counter-offer — the
+     *  original request's dates get overwritten on the same row.
+     *  Only applied on accept. */
+    check_in?: string;
+    check_out?: string;
+    /** Host-edited guest count. */
+    guest_count?: number;
   };
   const { status, hostResponseMessage } = body;
 
@@ -125,6 +132,30 @@ export async function PATCH(
       ? Math.round(body.total_price)
       : null;
 
+  // Host can counter-offer on dates + guest count during Review &
+  // send. Only applied on accept. Basic validation: dates must be
+  // YYYY-MM-DD strings and check_out must be after check_in.
+  const isDateStr = (s: unknown): s is string =>
+    typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  let checkInEdit: string | null = null;
+  let checkOutEdit: string | null = null;
+  if (
+    status === "accepted" &&
+    isDateStr(body.check_in) &&
+    isDateStr(body.check_out) &&
+    body.check_out > body.check_in
+  ) {
+    checkInEdit = body.check_in;
+    checkOutEdit = body.check_out;
+  }
+  const guestCountEdit =
+    status === "accepted" &&
+    typeof body.guest_count === "number" &&
+    Number.isFinite(body.guest_count) &&
+    body.guest_count >= 1
+      ? Math.floor(body.guest_count)
+      : null;
+
   const { error } = await supabase
     .from("contact_requests")
     .update({
@@ -135,6 +166,10 @@ export async function PATCH(
         ? { cancellation_policy: cancellationSnapshot }
         : {}),
       ...(totalPriceEdit !== null ? { total_estimate: totalPriceEdit } : {}),
+      ...(checkInEdit && checkOutEdit
+        ? { check_in: checkInEdit, check_out: checkOutEdit }
+        : {}),
+      ...(guestCountEdit !== null ? { guest_count: guestCountEdit } : {}),
     })
     .eq("id", id);
 

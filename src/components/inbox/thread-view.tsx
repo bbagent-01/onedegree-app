@@ -215,7 +215,7 @@ export function ThreadView({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* Thread header */}
       <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
         <ConnectionPopover

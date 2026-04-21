@@ -83,13 +83,13 @@ export function InboxShell({
           onSelectThread={handleSelect}
         />
       </div>
-      <div className="relative hidden md:flex md:flex-col">
+      <div className="relative hidden min-h-0 overflow-hidden md:flex md:flex-col">
         {selected ? (
           <div
             className={
               loadingId
-                ? "flex h-full min-h-0 flex-col opacity-60 transition-opacity"
-                : "flex h-full min-h-0 flex-col transition-opacity"
+                ? "flex min-h-0 flex-1 flex-col overflow-hidden opacity-60 transition-opacity"
+                : "flex min-h-0 flex-1 flex-col overflow-hidden transition-opacity"
             }
           >
             <ThreadView
