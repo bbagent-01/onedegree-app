@@ -9,6 +9,7 @@
 
 import { getSupabaseAdmin } from "./supabase";
 import { emailCheckinReminder, emailReviewReminder } from "./email";
+import { REVIEW_PROMPT_PREFIX } from "./structured-messages";
 
 interface AcceptedBooking {
   id: string;
@@ -276,10 +277,14 @@ async function fireReviewPrompt(b: AcceptedBooking) {
     .eq("id", b.id);
 
   if (thread) {
+    // Structured review_prompt message — the thread renderer turns
+    // this into an inline card with "Leave a review" buttons for
+    // both host and guest viewers. Plain-text fallback via
+    // structuredMessageLabel so legacy surfaces still read OK.
     await supabase.from("messages").insert({
       thread_id: thread.id,
       sender_id: null,
-      content: `${guestName.split(" ")[0]}'s stay just wrapped up. Leaving a review helps everyone in the network.`,
+      content: REVIEW_PROMPT_PREFIX,
       is_system: true,
     });
   }

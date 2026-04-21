@@ -20,6 +20,8 @@ import {
   friendlyMessagePreview,
   parsePaymentEventId,
 } from "@/components/booking/ThreadTermsCards";
+import { REVIEW_PROMPT_PREFIX } from "@/lib/structured-messages";
+import { ReviewPromptCard } from "@/components/booking/ReviewPromptCard";
 import { HostReviewTermsInline } from "@/components/booking/HostReviewTermsInline";
 
 interface Props {
@@ -489,6 +491,40 @@ export function ThreadView({
                 // marker but doesn't render anything in the feed.
                 if (m.content.startsWith(TERMS_ACCEPTED_PREFIX)) {
                   return null;
+                }
+
+                // Review prompt — inline card with "Leave a review"
+                // button that opens ReviewFlowDialog right here so
+                // the reviewer never has to navigate to /trips.
+                if (
+                  m.content.startsWith(REVIEW_PROMPT_PREFIX) &&
+                  thread.booking?.id
+                ) {
+                  return (
+                    <div key={m.id} className="py-1">
+                      <ReviewPromptCard
+                        viewerRole={thread.role}
+                        bookingId={thread.booking.id}
+                        stayConfirmationId={
+                          thread.reservation_sidebar
+                            ?.stay_confirmation_id ?? null
+                        }
+                        reviewedByMe={
+                          thread.reservation_sidebar
+                            ?.stay_reviewed_by_me ?? false
+                        }
+                        otherUser={{
+                          id: thread.other_user.id,
+                          name: thread.other_user.name,
+                        }}
+                        listingTitle={thread.listing?.title ?? "your stay"}
+                        alreadyVouched={
+                          thread.reservation_sidebar?.viewer_has_vouched ??
+                          false
+                        }
+                      />
+                    </div>
+                  );
                 }
                 return (
                   <div

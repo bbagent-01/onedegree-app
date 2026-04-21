@@ -19,6 +19,10 @@
 
 export const TERMS_OFFERED_PREFIX = "__type:terms_offered__";
 export const TERMS_ACCEPTED_PREFIX = "__type:terms_accepted__";
+/** Posted when the stay ends — the thread card prompts both sides
+ *  to leave a review. One prefix, two viewers; the renderer branches
+ *  on role. */
+export const REVIEW_PROMPT_PREFIX = "__type:review_prompt__";
 
 /** Payment prefixes embed the event id so the renderer can find
  *  the corresponding payment_events row without scanning the
@@ -68,6 +72,7 @@ export function isStructuredMessage(content: string): boolean {
   return (
     content.startsWith(TERMS_OFFERED_PREFIX) ||
     content.startsWith(TERMS_ACCEPTED_PREFIX) ||
+    content.startsWith(REVIEW_PROMPT_PREFIX) ||
     content.startsWith(PAYMENT_DUE_PREFIX) ||
     content.startsWith(PAYMENT_CLAIMED_PREFIX) ||
     content.startsWith(PAYMENT_CONFIRMED_PREFIX)
@@ -85,6 +90,7 @@ export function isStructuredMessage(content: string): boolean {
 export function structuredMessageLabel(content: string): string | null {
   if (content.startsWith(TERMS_OFFERED_PREFIX)) return "Terms sent";
   if (content.startsWith(TERMS_ACCEPTED_PREFIX)) return "Terms accepted";
+  if (content.startsWith(REVIEW_PROMPT_PREFIX)) return "Leave a review";
   if (content.startsWith(PAYMENT_DUE_PREFIX)) return "Payment due";
   if (content.startsWith(PAYMENT_CLAIMED_PREFIX)) return "Payment sent";
   if (content.startsWith(PAYMENT_CONFIRMED_PREFIX)) return "Payment confirmed";

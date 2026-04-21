@@ -211,9 +211,12 @@ export interface TripDetail extends TripCard {
   payment_events: import("./payment-events").PaymentEvent[];
 }
 
-/** Fetch a single trip with extra detail for the trip detail page. */
+/** Fetch a single trip with extra detail for the trip detail page.
+ *  Accepts the viewer as either the guest or the host so /trips/[id]
+ *  doesn't 404 when a host clicks through from their inbox. The
+ *  viewer's role is inferred from whichever ID matches. */
 export async function getTripDetail(
-  guestId: string,
+  viewerUserId: string,
   bookingId: string
 ): Promise<TripDetail | null> {
   const supabase = getSupabaseAdmin();
@@ -222,7 +225,7 @@ export async function getTripDetail(
     .from("contact_requests")
     .select("*")
     .eq("id", bookingId)
-    .eq("guest_id", guestId)
+    .or(`guest_id.eq.${viewerUserId},host_id.eq.${viewerUserId}`)
     .maybeSingle();
   if (!request) return null;
 
@@ -256,7 +259,7 @@ export async function getTripDetail(
       .from("message_threads")
       .select("id")
       .eq("listing_id", request.listing_id)
-      .eq("guest_id", guestId)
+      .eq("guest_id", request.guest_id)
       .maybeSingle(),
     supabase
       .from("stay_confirmations")
@@ -284,7 +287,7 @@ export async function getTripDetail(
     null;
 
   const trust = host?.id
-    ? (await computeIncomingTrustPaths([host.id], guestId))[host.id]
+    ? (await computeIncomingTrustPaths([host.id], request.guest_id))[host.id]
     : null;
 
   return {

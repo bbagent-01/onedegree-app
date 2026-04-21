@@ -112,6 +112,9 @@ export interface ThreadDetail extends InboxThread {
     other_user_location: string | null;
     stay_confirmation_id: string | null;
     stay_reviewed_by_me: boolean;
+    /** Has the viewer already vouched for the other participant?
+     *  Drives the post-review vouch step in the thread card. */
+    viewer_has_vouched: boolean;
     /** Effective cancellation policy for this reservation: snapshot
      *  on the contact_request if accepted, otherwise listing
      *  override → host default → platform default. */
@@ -395,6 +398,17 @@ export async function getThreadDetail(
     .limit(1);
   const otherUserIsHost = (otherHostedListings || []).length > 0;
 
+  // Has the current viewer already vouched for the other user?
+  // Drives the post-review vouch-step UX — if they've already
+  // vouched we skip the vouch step in ReviewFlowDialog.
+  const { data: existingVouch } = await supabase
+    .from("vouches")
+    .select("id")
+    .eq("voucher_id", currentUserId)
+    .eq("vouchee_id", otherId)
+    .maybeSingle();
+  const viewerHasVouched = Boolean(existingVouch?.id);
+
   // Fetch per-payment events for the reservation. Only relevant
   // on accepted requests that have materialized a ledger via
   // accept-terms; for pending/declined/cancelled we skip the
@@ -553,6 +567,7 @@ export async function getThreadDetail(
         (otherUser as { location?: string | null } | null)?.location ?? null,
       stay_confirmation_id: stayConfirmationId,
       stay_reviewed_by_me: stayReviewedByMe,
+      viewer_has_vouched: viewerHasVouched,
       cancellation_policy: resolveEffectivePolicy({
         hostDefault: hostCancellationPolicy,
         listingOverride:
