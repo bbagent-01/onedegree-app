@@ -381,6 +381,88 @@ export function refundCutoffLabel(w: RefundWindow): string {
   return `Up to ${d} days before check-in`;
 }
 
+/**
+ * Days between today (local midnight) and a YYYY-MM-DD check-in
+ * date. Positive means check-in is in the future. Used by the cancel
+ * flow to pick the right refund window.
+ */
+function daysUntilCheckin(checkInIso: string): number {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(checkInIso);
+  const targetMidnight = new Date(
+    target.getFullYear(),
+    target.getMonth(),
+    target.getDate()
+  );
+  return Math.round(
+    (targetMidnight.getTime() - today.getTime()) / 86_400_000
+  );
+}
+
+export interface CancellationRefundEstimate {
+  /** The approach governs the copy: "refund %" vs "nonrefundable". */
+  approach: CancellationApproach;
+  /**
+   * Refund percentage the guest should expect under the `refunds`
+   * approach. Null when approach = installments (no refund schedule
+   * to consult).
+   */
+  refund_pct: number | null;
+  /** Days until check-in at the moment of calculation. */
+  days_until_checkin: number;
+  /**
+   * The refund window the calc fell into, if any. Exposed so the
+   * dialog can echo back "Up to 5 days before check-in" etc.
+   */
+  matched_window: RefundWindow | null;
+}
+
+/**
+ * Compute what the guest should expect if they cancel today under a
+ * given policy. Pure function; no I/O. Returns null when there's no
+ * meaningful estimate to show (policy missing or no check-in date).
+ */
+export function estimateRefundForCancel(
+  policy: CancellationPolicy,
+  checkInIso: string | null
+): CancellationRefundEstimate | null {
+  if (!checkInIso) return null;
+  const days = daysUntilCheckin(checkInIso);
+
+  if (policy.approach === "installments") {
+    return {
+      approach: "installments",
+      refund_pct: null,
+      days_until_checkin: days,
+      matched_window: null,
+    };
+  }
+
+  // refunds: pick the most generous window whose cutoff is still in
+  // the future relative to today. Windows are sorted descending by
+  // cutoff in parsePolicy.
+  const sorted = [...policy.refund_schedule].sort(
+    (a, b) => b.cutoff_days_before_checkin - a.cutoff_days_before_checkin
+  );
+  let matched: RefundWindow | null = null;
+  for (const w of sorted) {
+    if (days >= w.cutoff_days_before_checkin) {
+      matched = w;
+      break;
+    }
+  }
+  // Past all cutoffs → 0% (we already picked the last window, which
+  // is the most restrictive; if nothing matched even that, we're too
+  // close to check-in for any refund).
+  return {
+    approach: "refunds",
+    refund_pct: matched?.refund_pct ?? 0,
+    days_until_checkin: days,
+    matched_window: matched,
+  };
+}
+
 /** Platform disclaimers. Used in one or more places everywhere
  *  the policy surfaces, so copy stays consistent. */
 export const PLATFORM_NEUTRALITY_NOTE =
