@@ -252,14 +252,24 @@ export function TermsOfferedCard({
 
       {viewerRole === "guest" &&
         (acceptedAt ? (
-          <div className="flex items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
-            <Check className="h-4 w-4" />
-            You accepted these terms on{" "}
-            {new Date(acceptedAt).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
+          <div className="flex items-center gap-3 border-t border-emerald-200 bg-emerald-50 px-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+              <Check className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-emerald-900">
+                Reservation confirmed
+              </div>
+              <div className="text-xs text-emerald-800/80">
+                You accepted these terms on{" "}
+                {new Date(acceptedAt).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+                .
+              </div>
+            </div>
           </div>
         ) : (
           <div className="space-y-2 border-t border-border bg-muted/30 p-4">
@@ -296,14 +306,24 @@ export function TermsOfferedCard({
         </div>
       )}
       {viewerRole === "host" && acceptedAt && (
-        <div className="flex items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-900">
-          <Check className="h-3.5 w-3.5" />
-          {guestFirstName} accepted these terms on{" "}
-          {new Date(acceptedAt).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
+        <div className="flex items-center gap-3 border-t border-emerald-200 bg-emerald-50 px-4 py-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+            <Check className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-emerald-900">
+              Reservation confirmed
+            </div>
+            <div className="text-xs text-emerald-800/80">
+              {guestFirstName} accepted these terms on{" "}
+              {new Date(acceptedAt).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+              .
+            </div>
+          </div>
         </div>
       )}
     </div>

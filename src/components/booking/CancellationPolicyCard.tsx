@@ -1,4 +1,10 @@
-import { CalendarClock, RotateCcw, Info, type LucideIcon } from "lucide-react";
+import {
+  CalendarClock,
+  ChevronDown,
+  RotateCcw,
+  Info,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   OFF_PLATFORM_PAYMENT_NOTE,
@@ -13,6 +19,16 @@ import {
   type PaymentScheduleEntry,
   type RefundWindow,
 } from "@/lib/cancellation";
+
+/**
+ * Short, scannable headline for the approach. Shown in the
+ * collapsed-state toggle so a guest can read the key commitment
+ * without expanding the full details.
+ */
+const APPROACH_SHORT_HEADLINE: Record<CancellationApproach, string> = {
+  installments: "Pay in installments — each nonrefundable",
+  refunds: "Pay upfront — refund schedule below",
+};
 
 interface Props {
   policy: CancellationPolicy;
@@ -47,84 +63,117 @@ export function CancellationPolicyCard({
   const showRefunds =
     policy.approach === "refunds" && policy.refund_schedule.length > 0;
 
-  return (
-    <div
-      className={cn(
-        "rounded-xl border border-border bg-white",
-        compact ? "p-3" : "p-4"
-      )}
-    >
-      {compact ? (
-        // Sidebar variant: one tight header line. The approach box
-        // would swallow too much vertical space in the inbox.
+  // Compact variant (inbox sidebar) stays as a dense always-visible
+  // block. Full variant collapses to a single summary row so the
+  // terms_offered / terms_accepted cards don't dominate the thread.
+  if (compact) {
+    return (
+      <div className="rounded-xl border border-border bg-white p-3">
         <div className="mb-3 flex items-center gap-2">
           <Icon className="h-3.5 w-3.5 text-muted-foreground" />
           <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             {meta.title}
           </div>
         </div>
-      ) : (
-        // Full variant: approach callout matches the selector cards
-        // on /settings/hosting so the preview feels continuous with
-        // the picker.
-        <div className="rounded-xl border-2 border-border bg-muted/30 p-4">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-foreground shadow-sm">
-              <Icon className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold">{meta.title}</div>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {meta.description}
-              </p>
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                {scope === "reservation"
-                  ? "Terms locked when the host approved."
-                  : "Applied to every request on this listing."}
-              </p>
-            </div>
+        <PaymentTable
+          heading={`${preset} · Payment schedule`}
+          rows={policy.payment_schedule}
+          emptyHint="No schedule set."
+          compact
+        />
+        {showRefunds && (
+          <RefundTable
+            heading={`${preset} · Refund schedule`}
+            rows={policy.refund_schedule}
+            compact
+            className="mt-3"
+          />
+        )}
+        {hasDeposit && (
+          <PaymentTable
+            heading="Security deposit"
+            rows={policy.security_deposit}
+            compact
+            className="mt-3"
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Full variant — native <details> toggle. Collapsed-by-default so
+  // the terms card stays scannable; guest clicks the summary row to
+  // reveal the full approach description + schedule + deposit +
+  // disclaimers.
+  return (
+    <details className="group rounded-xl border border-border bg-white">
+      <summary
+        className={cn(
+          "flex cursor-pointer list-none items-center gap-3 rounded-xl p-4",
+          "hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        )}
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold">
+            {APPROACH_SHORT_HEADLINE[policy.approach]}
+          </div>
+          <div className="mt-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+            {preset} · tap for details
           </div>
         </div>
-      )}
-
-      <PaymentTable
-        heading={`${preset} · Payment schedule`}
-        rows={policy.payment_schedule}
-        emptyHint="No schedule set."
-        compact={compact}
-        className={compact ? undefined : "mt-4"}
-      />
-
-      {showRefunds && (
-        <RefundTable
-          heading={`${preset} · Refund schedule`}
-          rows={policy.refund_schedule}
-          compact={compact}
-          className={compact ? "mt-3" : "mt-4"}
-        />
-      )}
-
-      {hasDeposit && (
-        <PaymentTable
-          heading="Security deposit"
-          rows={policy.security_deposit}
-          compact={compact}
-          className={compact ? "mt-3" : "mt-4"}
-        />
-      )}
-
-      {policy.custom_note && (
-        <p
+        <ChevronDown
           className={cn(
-            "mt-3 text-xs leading-relaxed text-muted-foreground",
-            compact && "text-[11px]"
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            "group-open:rotate-180"
           )}
-        >
-          {policy.custom_note}
-        </p>
-      )}
+        />
+      </summary>
 
-      {!compact && (
+      <div className="border-t border-border p-4">
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {meta.description}
+        </p>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {scope === "reservation"
+            ? "Terms locked when the host approved."
+            : "Applied to every request on this listing."}
+        </p>
+
+        <PaymentTable
+          heading={`${preset} · Payment schedule`}
+          rows={policy.payment_schedule}
+          emptyHint="No schedule set."
+          compact={false}
+          className="mt-4"
+        />
+
+        {showRefunds && (
+          <RefundTable
+            heading={`${preset} · Refund schedule`}
+            rows={policy.refund_schedule}
+            compact={false}
+            className="mt-4"
+          />
+        )}
+
+        {hasDeposit && (
+          <PaymentTable
+            heading="Security deposit"
+            rows={policy.security_deposit}
+            compact={false}
+            className="mt-4"
+          />
+        )}
+
+        {policy.custom_note && (
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            {policy.custom_note}
+          </p>
+        )}
+
         <div className="mt-4 space-y-1 border-t border-border pt-3">
           <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
             <Info className="mt-0.5 h-3 w-3 shrink-0" />
@@ -136,8 +185,8 @@ export function CancellationPolicyCard({
             </p>
           )}
         </div>
-      )}
-    </div>
+      </div>
+    </details>
   );
 }
 

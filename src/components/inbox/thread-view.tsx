@@ -16,7 +16,6 @@ import {
   PaymentDueCard,
   TERMS_ACCEPTED_PREFIX,
   TERMS_OFFERED_PREFIX,
-  TermsAcceptedCard,
   TermsOfferedCard,
   friendlyMessagePreview,
   parsePaymentEventId,
@@ -167,6 +166,19 @@ export function ThreadView({
       supabase.removeChannel(channel);
     };
   }, [thread.id]);
+
+  // Pick the "current" payment event — the next outstanding one
+  // if any, otherwise the last event in the schedule. Only cards
+  // for this event render; older confirmed / future scheduled
+  // cards stay hidden so the thread shows one payment block at a
+  // time. Computed once per event list update.
+  const currentPaymentEventId = useMemo(() => {
+    const events = thread.payment_events ?? [];
+    if (events.length === 0) return null;
+    const terminal = new Set(["confirmed", "waived", "refunded"]);
+    const nextOutstanding = events.find((e) => !terminal.has(e.status));
+    return (nextOutstanding ?? events[events.length - 1]).id;
+  }, [thread.payment_events]);
 
   // Group consecutive messages into day buckets
   const grouped = useMemo(() => {
@@ -398,106 +410,96 @@ export function ThreadView({
                     </div>
                   );
                 }
-                // Payment event cards — read the live event from
-                // thread.payment_events (by id baked into the
-                // prefix) so status transitions are reflected on
-                // older cards, not just the latest one.
+                // Payment event cards. Only ONE card renders at a
+                // time — for the currently-outstanding event (or
+                // the last one if all are confirmed), and only for
+                // the message whose `kind` matches that event's
+                // live status. Older/future events stay hidden
+                // completely so the feed doesn't stack cards.
                 const paymentParse = parsePaymentEventId(m.content);
                 if (paymentParse) {
                   const ev = (thread.payment_events ?? []).find(
                     (e) => e.id === paymentParse.eventId
                   );
-                  if (ev) {
-                    const total = (thread.payment_events ?? []).length;
-                    const hostFirst = (
-                      thread.role === "host" ? "you" : thread.other_user.name
-                    ).split(" ")[0];
-                    const guestFirst = (
-                      thread.role === "guest" ? "you" : thread.other_user.name
-                    ).split(" ")[0];
-                    if (paymentParse.kind === "due") {
-                      return (
-                        <div key={m.id} className="py-1">
-                          <PaymentDueCard
-                            event={ev}
-                            totalEvents={total}
-                            viewerRole={thread.role}
-                            paymentMethods={
-                              thread.reservation_sidebar
-                                ?.host_payment_methods ?? []
-                            }
-                            hostFirstName={hostFirst}
-                            guestFirstName={guestFirst}
-                          />
-                        </div>
-                      );
-                    }
-                    if (paymentParse.kind === "claimed") {
-                      return (
-                        <div key={m.id} className="py-1">
-                          <PaymentClaimedCard
-                            event={ev}
-                            totalEvents={total}
-                            viewerRole={thread.role}
-                            hostFirstName={hostFirst}
-                            guestFirstName={guestFirst}
-                          />
-                        </div>
-                      );
-                    }
-                    if (paymentParse.kind === "confirmed") {
-                      return (
-                        <div key={m.id} className="py-1">
-                          <PaymentConfirmedCard
-                            event={ev}
-                            totalEvents={total}
-                            viewerRole={thread.role}
-                            hostFirstName={hostFirst}
-                            guestFirstName={guestFirst}
-                          />
-                        </div>
-                      );
-                    }
+                  // Not the current event → hide the message row.
+                  if (!ev || ev.id !== currentPaymentEventId) {
+                    return null;
+                  }
+                  // Map the event's current status to the expected
+                  // card kind so we only render the message whose
+                  // prefix matches the live state. Example: a
+                  // claimed event has BOTH a payment_due and a
+                  // payment_claimed message in the thread; we show
+                  // only the claimed one.
+                  const expectedKind =
+                    ev.status === "scheduled"
+                      ? "due"
+                      : ev.status === "claimed"
+                        ? "claimed"
+                        : ev.status === "confirmed"
+                          ? "confirmed"
+                          : null;
+                  if (paymentParse.kind !== expectedKind) {
+                    return null;
+                  }
+                  const total = (thread.payment_events ?? []).length;
+                  const hostFirst = (
+                    thread.role === "host" ? "you" : thread.other_user.name
+                  ).split(" ")[0];
+                  const guestFirst = (
+                    thread.role === "guest" ? "you" : thread.other_user.name
+                  ).split(" ")[0];
+                  if (paymentParse.kind === "due") {
+                    return (
+                      <div key={m.id} className="py-1">
+                        <PaymentDueCard
+                          event={ev}
+                          totalEvents={total}
+                          viewerRole={thread.role}
+                          paymentMethods={
+                            thread.reservation_sidebar
+                              ?.host_payment_methods ?? []
+                          }
+                          hostFirstName={hostFirst}
+                          guestFirstName={guestFirst}
+                        />
+                      </div>
+                    );
+                  }
+                  if (paymentParse.kind === "claimed") {
+                    return (
+                      <div key={m.id} className="py-1">
+                        <PaymentClaimedCard
+                          event={ev}
+                          totalEvents={total}
+                          viewerRole={thread.role}
+                          hostFirstName={hostFirst}
+                          guestFirstName={guestFirst}
+                        />
+                      </div>
+                    );
+                  }
+                  if (paymentParse.kind === "confirmed") {
+                    return (
+                      <div key={m.id} className="py-1">
+                        <PaymentConfirmedCard
+                          event={ev}
+                          totalEvents={total}
+                          viewerRole={thread.role}
+                          hostFirstName={hostFirst}
+                          guestFirstName={guestFirst}
+                        />
+                      </div>
+                    );
                   }
                 }
-                if (
-                  m.content.startsWith(TERMS_ACCEPTED_PREFIX) &&
-                  thread.reservation_sidebar?.cancellation_policy &&
-                  thread.booking?.terms_accepted_at
-                ) {
-                  return (
-                    <div key={m.id} className="py-1">
-                      <TermsAcceptedCard
-                        checkIn={thread.booking.check_in}
-                        checkOut={thread.booking.check_out}
-                        totalEstimate={thread.booking.total_estimate}
-                        policy={thread.reservation_sidebar.cancellation_policy}
-                        paymentMethods={
-                          thread.reservation_sidebar.host_payment_methods
-                        }
-                        nightlyRate={
-                          thread.reservation_sidebar.listing_price_min
-                        }
-                        cleaningFee={
-                          thread.reservation_sidebar.listing_cleaning_fee
-                        }
-                        viewerRole={thread.role}
-                        acceptedAt={thread.booking.terms_accepted_at}
-                        hostFirstName={
-                          (thread.role === "host"
-                            ? "you"
-                            : thread.other_user.name
-                          ).split(" ")[0]
-                        }
-                        guestFirstName={
-                          (thread.role === "guest"
-                            ? "you"
-                            : thread.other_user.name
-                          ).split(" ")[0]
-                        }
-                      />
-                    </div>
-                  );
+                // Suppress the standalone terms_accepted card —
+                // the acceptance footer on the preceding
+                // terms_offered card already confirms the guest
+                // accepted. Row stays in the DB as a historical
+                // marker but doesn't render anything in the feed.
+                if (m.content.startsWith(TERMS_ACCEPTED_PREFIX)) {
+                  return null;
                 }
                 return (
                   <div
