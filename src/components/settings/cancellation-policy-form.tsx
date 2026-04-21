@@ -1,19 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  Check,
+  Loader2,
+  Plus,
+  Trash2,
+  CalendarClock,
+  RotateCcw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   CANCELLATION_PRESETS,
   OFF_PLATFORM_PAYMENT_NOTE,
+  PLATFORM_NEUTRALITY_NOTE,
   buildPolicyFromPreset,
   type AmountType,
+  type CancellationApproach,
   type CancellationPolicy,
   type CancellationPreset,
   type DueAt,
   type PaymentScheduleEntry,
+  type RefundWindow,
 } from "@/lib/cancellation";
 
 interface Props {
@@ -26,7 +36,7 @@ const DUE_AT_OPTIONS: { value: DueAt; label: string }[] = [
   { value: "check_in", label: "At check-in" },
 ];
 
-function defaultEntry(): PaymentScheduleEntry {
+function defaultPaymentEntry(): PaymentScheduleEntry {
   return {
     due_at: "days_before_checkin",
     days_before_checkin: 3,
@@ -35,21 +45,28 @@ function defaultEntry(): PaymentScheduleEntry {
   };
 }
 
+function defaultRefundWindow(): RefundWindow {
+  return { cutoff_days_before_checkin: 3, refund_pct: 50 };
+}
+
 /**
- * Host-level cancellation + payment schedule editor.
- *
- * Picking a preset populates the payment_schedule fields as a
- * template — hosts then edit the rows directly. Any edit pushes
- * the preset label to "Custom" so the Save action records the
- * host's actual intent rather than the starting template.
+ * Host-level cancellation + payment editor with the two-approach
+ * toggle at the top. Changing the approach re-applies the preset
+ * template for that approach so the rows stay coherent. Any row-
+ * level edit flips `preset` to "custom" so save-time intent is
+ * preserved.
  */
 export function CancellationPolicyForm({ initial }: Props) {
   const seed =
-    initial ?? buildPolicyFromPreset("moderate", { securityDeposit: [] });
+    initial ?? buildPolicyFromPreset("installments", "moderate");
 
+  const [approach, setApproach] = useState<CancellationApproach>(seed.approach);
   const [preset, setPreset] = useState<CancellationPreset>(seed.preset);
-  const [schedule, setSchedule] = useState<PaymentScheduleEntry[]>(
+  const [payment, setPayment] = useState<PaymentScheduleEntry[]>(
     seed.payment_schedule.map((e) => ({ ...e }))
+  );
+  const [refunds, setRefunds] = useState<RefundWindow[]>(
+    seed.refund_schedule.map((e) => ({ ...e }))
   );
   const [deposit, setDeposit] = useState<PaymentScheduleEntry[]>(
     seed.security_deposit.map((e) => ({ ...e }))
@@ -59,13 +76,30 @@ export function CancellationPolicyForm({ initial }: Props) {
   );
   const [saving, setSaving] = useState(false);
 
+  const switchApproach = (next: CancellationApproach) => {
+    if (next === approach) return;
+    // Apply the same preset under the new approach so the rows
+    // update coherently. Host can edit from there.
+    const effectivePreset =
+      preset === "custom" ? "moderate" : (preset as Exclude<CancellationPreset, "custom">);
+    const tpl = buildPolicyFromPreset(next, effectivePreset, {
+      securityDeposit: deposit,
+      customNote,
+    });
+    setApproach(next);
+    setPreset(effectivePreset);
+    setPayment(tpl.payment_schedule);
+    setRefunds(tpl.refund_schedule);
+  };
+
   const applyPreset = (key: Exclude<CancellationPreset, "custom">) => {
-    const template = buildPolicyFromPreset(key, {
+    const tpl = buildPolicyFromPreset(approach, key, {
       securityDeposit: deposit,
       customNote,
     });
     setPreset(key);
-    setSchedule(template.payment_schedule);
+    setPayment(tpl.payment_schedule);
+    setRefunds(tpl.refund_schedule);
   };
 
   const markCustom = () => {
@@ -79,8 +113,10 @@ export function CancellationPolicyForm({ initial }: Props) {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          approach,
           preset,
-          payment_schedule: schedule,
+          payment_schedule: payment,
+          refund_schedule: refunds,
           security_deposit: deposit,
           custom_note: customNote.trim() || null,
         }),
@@ -99,12 +135,49 @@ export function CancellationPolicyForm({ initial }: Props) {
 
   return (
     <div className="space-y-8">
-      {/* Preset picker — templates */}
+      {/* Platform-neutrality banner — most prominent element on the page */}
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <p className="text-sm font-semibold text-amber-900">
+          1° B&amp;B doesn&apos;t process payments or manage refunds.
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
+          This is guidance hosts and guests share to set expectations.
+          Every payment and refund happens directly between you — no
+          money ever touches the platform.
+        </p>
+      </div>
+
+      {/* Approach toggle — large, obvious choice */}
+      <section>
+        <h3 className="text-sm font-semibold">Choose your approach</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Two common ways hosts handle payment + cancellation. Pick
+          the one that matches how you actually collect money.
+        </p>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <ApproachCard
+            active={approach === "installments"}
+            onClick={() => switchApproach("installments")}
+            icon={CalendarClock}
+            title="Collect in installments"
+            description="Collect payment on a schedule. Each installment is nonrefundable once collected. No refund schedule to manage."
+          />
+          <ApproachCard
+            active={approach === "refunds"}
+            onClick={() => switchApproach("refunds")}
+            icon={RotateCcw}
+            title="Collect up front, refund on cancellation"
+            description="Collect the full amount at booking, then refund on a schedule if the guest cancels. Matches Airbnb's model."
+          />
+        </div>
+      </section>
+
+      {/* Preset picker */}
       <section>
         <h3 className="text-sm font-semibold">Start from a template</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Pick one and then edit the schedule below. Anything you change
-          saves under the &ldquo;Custom&rdquo; label.
+          Picks a preset for your approach. Edit the rows below to
+          customize — any change saves under the &ldquo;Custom&rdquo; label.
         </p>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           {CANCELLATION_PRESETS.map((p) => {
@@ -130,7 +203,7 @@ export function CancellationPolicyForm({ initial }: Props) {
                   )}
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  {p.summary}
+                  {p.summary[approach]}
                 </p>
               </button>
             );
@@ -138,7 +211,7 @@ export function CancellationPolicyForm({ initial }: Props) {
         </div>
       </section>
 
-      {/* Payment schedule editor */}
+      {/* Payment schedule editor (always shown) */}
       <section>
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Payment schedule</h3>
@@ -149,33 +222,53 @@ export function CancellationPolicyForm({ initial }: Props) {
           )}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Each row is a payment step. Guests see this schedule on the
-          listing and again when the request is approved.
+          {approach === "installments"
+            ? "Each row is an installment. Collect when each step is reached."
+            : "Under the refunds approach, the entire balance is typically collected at time of booking."}
         </p>
-        <ScheduleRows
-          rows={schedule}
+        <PaymentRows
+          rows={payment}
           onChange={(next) => {
-            setSchedule(next);
+            setPayment(next);
             markCustom();
           }}
           addLabel="Add payment step"
         />
       </section>
 
+      {/* Refund schedule editor (only when approach = refunds) */}
+      {approach === "refunds" && (
+        <section>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold">Refund schedule</h3>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            If the guest cancels, how much of the money you already
+            collected gets refunded. Read top-down: first row is the
+            most generous window, last row is the latest cutoff.
+          </p>
+          <RefundRows
+            rows={refunds}
+            onChange={(next) => {
+              setRefunds(next);
+              markCustom();
+            }}
+          />
+        </section>
+      )}
+
       {/* Security deposit editor */}
       <section>
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">
-            Security deposit{" "}
-            <span className="text-xs font-normal text-muted-foreground">
-              optional
-            </span>
-          </h3>
-        </div>
+        <h3 className="text-sm font-semibold">
+          Security deposit{" "}
+          <span className="text-xs font-normal text-muted-foreground">
+            optional
+          </span>
+        </h3>
         <p className="mt-1 text-xs text-muted-foreground">
           A refundable hold collected alongside payment. Leave empty to skip.
         </p>
-        <ScheduleRows
+        <PaymentRows
           rows={deposit}
           onChange={(next) => {
             setDeposit(next);
@@ -188,10 +281,7 @@ export function CancellationPolicyForm({ initial }: Props) {
 
       {/* Custom note */}
       <section>
-        <label
-          htmlFor="policy-note"
-          className="text-sm font-semibold"
-        >
+        <label htmlFor="policy-note" className="text-sm font-semibold">
           Note to guests{" "}
           <span className="text-xs font-normal text-muted-foreground">
             optional
@@ -200,11 +290,7 @@ export function CancellationPolicyForm({ initial }: Props) {
         <textarea
           id="policy-note"
           value={customNote}
-          onChange={(e) => {
-            setCustomNote(e.target.value);
-            // Note edits don't flip to custom — the schedule is the
-            // canonical "custom" signal.
-          }}
+          onChange={(e) => setCustomNote(e.target.value)}
           placeholder="e.g. Venmo preferred. Deposit returned within 48h of checkout."
           rows={3}
           className="mt-2 w-full rounded-xl border-2 border-border !bg-white px-4 py-3 text-sm font-medium shadow-sm focus-visible:border-brand focus-visible:outline-none"
@@ -223,29 +309,85 @@ export function CancellationPolicyForm({ initial }: Props) {
               Saving…
             </>
           ) : (
-            "Save schedule"
+            "Save policy"
           )}
         </Button>
       </div>
+
+      {/* Footer note, mirrors the top banner so it lives near the Save */}
+      <p className="text-[11px] text-muted-foreground">
+        {PLATFORM_NEUTRALITY_NOTE}
+      </p>
     </div>
   );
 }
 
-// ── Row editor ──────────────────────────────────────────────
+// ── Approach card ──
 
-interface ScheduleRowsProps {
+function ApproachCard({
+  active,
+  onClick,
+  icon: Icon,
+  title,
+  description,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-start gap-3 rounded-xl border-2 p-4 text-left transition",
+        active
+          ? "border-brand bg-brand/5"
+          : "border-border bg-white hover:border-foreground/30"
+      )}
+    >
+      <div
+        className={cn(
+          "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+          active ? "bg-brand text-white" : "bg-muted text-foreground"
+        )}
+      >
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-semibold">{title}</div>
+          {active && (
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white">
+              <Check className="h-3 w-3" />
+            </div>
+          )}
+        </div>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+// ── Payment row editor ──
+
+interface PaymentRowsProps {
   rows: PaymentScheduleEntry[];
   onChange: (next: PaymentScheduleEntry[]) => void;
   addLabel: string;
   emptyHint?: string;
 }
 
-function ScheduleRows({
+function PaymentRows({
   rows,
   onChange,
   addLabel,
   emptyHint = "No steps yet.",
-}: ScheduleRowsProps) {
+}: PaymentRowsProps) {
   const updateRow = (i: number, next: PaymentScheduleEntry) => {
     onChange(rows.map((r, idx) => (idx === i ? next : r)));
   };
@@ -253,7 +395,7 @@ function ScheduleRows({
     onChange(rows.filter((_, idx) => idx !== i));
   };
   const addRow = () => {
-    onChange([...rows, defaultEntry()]);
+    onChange([...rows, defaultPaymentEntry()]);
   };
 
   return (
@@ -264,7 +406,7 @@ function ScheduleRows({
         </div>
       )}
       {rows.map((row, i) => (
-        <Row
+        <PaymentRow
           key={i}
           row={row}
           onChange={(next) => updateRow(i, next)}
@@ -283,7 +425,7 @@ function ScheduleRows({
   );
 }
 
-function Row({
+function PaymentRow({
   row,
   onChange,
   onRemove,
@@ -294,7 +436,6 @@ function Row({
 }) {
   return (
     <div className="grid grid-cols-12 items-center gap-2 rounded-xl border border-border bg-white p-3">
-      {/* Due at */}
       <div className="col-span-12 md:col-span-5">
         <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           Due
@@ -322,7 +463,6 @@ function Row({
         </select>
       </div>
 
-      {/* Days before (conditional) */}
       {row.due_at === "days_before_checkin" && (
         <div className="col-span-6 md:col-span-2">
           <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -343,7 +483,6 @@ function Row({
         </div>
       )}
 
-      {/* Amount type */}
       <div
         className={cn(
           "col-span-6",
@@ -365,7 +504,6 @@ function Row({
         </select>
       </div>
 
-      {/* Amount */}
       <div className="col-span-9 md:col-span-2">
         <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           Amount
@@ -385,7 +523,6 @@ function Row({
         />
       </div>
 
-      {/* Remove */}
       <div className="col-span-3 flex items-end justify-end md:col-span-1">
         <button
           type="button"
@@ -396,6 +533,102 @@ function Row({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── Refund row editor ──
+
+function RefundRows({
+  rows,
+  onChange,
+}: {
+  rows: RefundWindow[];
+  onChange: (next: RefundWindow[]) => void;
+}) {
+  const updateRow = (i: number, next: RefundWindow) => {
+    onChange(rows.map((r, idx) => (idx === i ? next : r)));
+  };
+  const removeRow = (i: number) => {
+    onChange(rows.filter((_, idx) => idx !== i));
+  };
+  const addRow = () => {
+    onChange([...rows, defaultRefundWindow()]);
+  };
+
+  return (
+    <div className="mt-3 space-y-3">
+      {rows.length === 0 && (
+        <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-xs text-muted-foreground">
+          No windows yet.
+        </div>
+      )}
+      {rows.map((row, i) => (
+        <div
+          key={i}
+          className="grid grid-cols-12 items-center gap-2 rounded-xl border border-border bg-white p-3"
+        >
+          <div className="col-span-7 md:col-span-6">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Cancel up to (days before check-in)
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={row.cutoff_days_before_checkin}
+              onChange={(e) =>
+                updateRow(i, {
+                  ...row,
+                  cutoff_days_before_checkin: Math.max(
+                    0,
+                    Number(e.target.value) || 0
+                  ),
+                })
+              }
+              className="mt-1 h-10 w-full rounded-lg border border-border bg-white px-2 text-sm focus:border-foreground focus:outline-none"
+            />
+          </div>
+          <div className="col-span-4 md:col-span-5">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Refund %
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={row.refund_pct}
+              onChange={(e) =>
+                updateRow(i, {
+                  ...row,
+                  refund_pct: Math.max(
+                    0,
+                    Math.min(100, Number(e.target.value) || 0)
+                  ),
+                })
+              }
+              className="mt-1 h-10 w-full rounded-lg border border-border bg-white px-2 text-sm focus:border-foreground focus:outline-none"
+            />
+          </div>
+          <div className="col-span-1 flex items-end justify-end">
+            <button
+              type="button"
+              onClick={() => removeRow(i)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Remove row"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addRow}
+        className="inline-flex items-center gap-1 rounded-lg border border-dashed border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Add refund window
+      </button>
     </div>
   );
 }

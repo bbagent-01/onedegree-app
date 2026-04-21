@@ -1,32 +1,43 @@
 /**
- * Cancellation + payment schedule.
+ * Cancellation & payment policy.
  *
- * 1° B&B doesn't hold or refund money — every payment moves host↔
- * guest off-platform. "Cancellation policy" is therefore expressed
- * as a PAYMENT SCHEDULE: when the host collects money from the
- * guest. The implicit contract is that money already collected is
- * nonrefundable unless the host chooses otherwise. Hosts pick a
- * preset as a template, then edit rows directly.
+ * 1° B&B never custodies, processes, or refunds money — every
+ * transaction moves host↔guest off-platform. This module encodes
+ * the two mental models hosts actually use, and treats the policy
+ * as expectation-setting guidance rather than an enforceable
+ * contract the app can execute.
  *
- * Three-level inheritance: host default → per-listing override →
- * per-reservation snapshot at accept time. Resolver returns the
- * first non-null layer, falling back to the Moderate template as
- * the platform default.
+ * The two approaches:
  *
- * Storage shape (JSONB):
+ *   A. installments
+ *      Host collects in installments on a schedule. Once a
+ *      payment is collected, it's implicitly nonrefundable.
+ *      "Cancellation policy" = collection timing.
+ *
+ *   B. refunds
+ *      Host collects the full amount up front, then refunds
+ *      on a schedule if the guest cancels. Matches the Airbnb
+ *      mental model.
+ *
+ * Both approaches share the same preset labels (Flexible /
+ * Moderate / Strict / Custom). Picking a preset applies a
+ * template appropriate to the chosen approach.
+ *
+ * Storage (JSONB):
  *   {
+ *     approach: 'installments' | 'refunds',
  *     preset: 'flexible' | 'moderate' | 'strict' | 'custom',
- *     payment_schedule: PaymentScheduleEntry[],
- *     security_deposit: PaymentScheduleEntry[],  // optional, usually []
+ *     payment_schedule: PaymentScheduleEntry[],   // used by installments
+ *     refund_schedule: RefundWindow[],            // used by refunds
+ *     security_deposit: PaymentScheduleEntry[],
  *     custom_note: string | null
  *   }
  *
- * A PaymentScheduleEntry has:
- *   - due_at: "booking" | "days_before_checkin" | "check_in"
- *   - days_before_checkin?: number (only when due_at = 'days_before_checkin')
- *   - amount_type: "percentage" | "fixed"
- *   - amount: number (0-100 if percentage, dollars if fixed)
+ * Unused fields stay as empty arrays so every parsed policy is
+ * self-describing regardless of approach.
  */
+
+export type CancellationApproach = "installments" | "refunds";
 
 export type CancellationPreset = "flexible" | "moderate" | "strict" | "custom";
 
@@ -42,93 +53,168 @@ export interface PaymentScheduleEntry {
   amount: number;
 }
 
+export interface RefundWindow {
+  cutoff_days_before_checkin: number;
+  refund_pct: number;
+}
+
 export interface CancellationPolicy {
+  approach: CancellationApproach;
   preset: CancellationPreset;
   payment_schedule: PaymentScheduleEntry[];
+  refund_schedule: RefundWindow[];
   security_deposit: PaymentScheduleEntry[];
   custom_note: string | null;
 }
 
-export interface CancellationPresetMeta {
-  key: Exclude<CancellationPreset, "custom">;
-  label: string;
-  summary: string;
+interface PresetTemplate {
   payment_schedule: PaymentScheduleEntry[];
+  refund_schedule: RefundWindow[];
 }
 
 /**
- * Preset library. Each preset is a template — hosts can edit the
- * rows after applying it, which is why the UI treats the preset
- * name as a label rather than the source of truth.
+ * Preset templates, nested by approach. Each cell is what the
+ * settings form should drop in when the host picks a preset.
  *
- * The thesis: since payment moves off-platform, "cancellation
- * terms" are really a collection schedule. Collect early = strict,
- * late = flexible.
+ * Installments collects over time and says "once paid, done."
+ * Refunds collects 100% up front and issues refunds off a
+ * cancellation schedule.
  */
+const PRESET_TEMPLATES: Record<
+  CancellationApproach,
+  Record<Exclude<CancellationPreset, "custom">, PresetTemplate>
+> = {
+  installments: {
+    flexible: {
+      payment_schedule: [
+        { due_at: "check_in", amount_type: "percentage", amount: 100 },
+      ],
+      refund_schedule: [],
+    },
+    moderate: {
+      payment_schedule: [
+        {
+          due_at: "days_before_checkin",
+          days_before_checkin: 5,
+          amount_type: "percentage",
+          amount: 50,
+        },
+        { due_at: "check_in", amount_type: "percentage", amount: 50 },
+      ],
+      refund_schedule: [],
+    },
+    strict: {
+      payment_schedule: [
+        { due_at: "booking", amount_type: "percentage", amount: 100 },
+      ],
+      refund_schedule: [],
+    },
+  },
+  refunds: {
+    flexible: {
+      payment_schedule: [
+        { due_at: "booking", amount_type: "percentage", amount: 100 },
+      ],
+      refund_schedule: [
+        { cutoff_days_before_checkin: 1, refund_pct: 100 },
+        { cutoff_days_before_checkin: 0, refund_pct: 0 },
+      ],
+    },
+    moderate: {
+      payment_schedule: [
+        { due_at: "booking", amount_type: "percentage", amount: 100 },
+      ],
+      refund_schedule: [
+        { cutoff_days_before_checkin: 5, refund_pct: 100 },
+        { cutoff_days_before_checkin: 1, refund_pct: 50 },
+        { cutoff_days_before_checkin: 0, refund_pct: 0 },
+      ],
+    },
+    strict: {
+      payment_schedule: [
+        { due_at: "booking", amount_type: "percentage", amount: 100 },
+      ],
+      refund_schedule: [
+        { cutoff_days_before_checkin: 14, refund_pct: 100 },
+        { cutoff_days_before_checkin: 7, refund_pct: 50 },
+        { cutoff_days_before_checkin: 0, refund_pct: 0 },
+      ],
+    },
+  },
+};
+
+export interface CancellationPresetMeta {
+  key: Exclude<CancellationPreset, "custom">;
+  label: string;
+  /** Approach-specific summary — the same preset name means
+   *  different collection timing under installments vs refunds. */
+  summary: Record<CancellationApproach, string>;
+}
+
 export const CANCELLATION_PRESETS: CancellationPresetMeta[] = [
   {
     key: "flexible",
     label: "Flexible",
-    summary:
-      "Collect the full amount at check-in. Guests aren't on the hook for anything until they arrive.",
-    payment_schedule: [
-      { due_at: "check_in", amount_type: "percentage", amount: 100 },
-    ],
+    summary: {
+      installments:
+        "Collect the full amount at check-in. Nothing is due before the guest arrives.",
+      refunds:
+        "Collect full payment up front. Full refund up to 24 hours before check-in.",
+    },
   },
   {
     key: "moderate",
     label: "Moderate",
-    summary:
-      "Half up front a few days before check-in, the rest at arrival.",
-    payment_schedule: [
-      {
-        due_at: "days_before_checkin",
-        days_before_checkin: 5,
-        amount_type: "percentage",
-        amount: 50,
-      },
-      { due_at: "check_in", amount_type: "percentage", amount: 50 },
-    ],
+    summary: {
+      installments:
+        "Half a few days before check-in, the rest on arrival.",
+      refunds:
+        "Collect full payment up front. Full refund up to 5 days before; 50% up to 24 hours before.",
+    },
   },
   {
     key: "strict",
     label: "Strict",
-    summary:
-      "Full amount at time of booking. Nothing is refundable once collected.",
-    payment_schedule: [
-      { due_at: "booking", amount_type: "percentage", amount: 100 },
-    ],
+    summary: {
+      installments:
+        "Full payment at time of booking. Treat each payment as nonrefundable once collected.",
+      refunds:
+        "Collect full payment up front. Full refund up to 14 days before; 50% up to 7 days before.",
+    },
   },
 ];
 
+export const DEFAULT_CANCELLATION_APPROACH: CancellationApproach =
+  "installments";
 export const DEFAULT_CANCELLATION_PRESET: Exclude<
   CancellationPreset,
   "custom"
 > = "moderate";
 
-/** Factory: build a full policy from a preset key. */
+/** Factory: build a full policy from an approach + preset. */
 export function buildPolicyFromPreset(
+  approach: CancellationApproach,
   preset: Exclude<CancellationPreset, "custom">,
   opts: {
     customNote?: string | null;
     securityDeposit?: PaymentScheduleEntry[];
   } = {}
 ): CancellationPolicy {
-  const meta = CANCELLATION_PRESETS.find((p) => p.key === preset);
-  const scheduleRef = meta?.payment_schedule ?? [];
-  // Clone so downstream mutations don't leak back into the const.
+  const tpl = PRESET_TEMPLATES[approach][preset];
   return {
+    approach,
     preset,
-    payment_schedule: scheduleRef.map((e) => ({ ...e })),
+    payment_schedule: tpl.payment_schedule.map((e) => ({ ...e })),
+    refund_schedule: tpl.refund_schedule.map((e) => ({ ...e })),
     security_deposit: (opts.securityDeposit ?? []).map((e) => ({ ...e })),
     custom_note:
       typeof opts.customNote === "string" ? opts.customNote : null,
   };
 }
 
-/** Validate + normalize a single schedule row. Returns null if the
- *  row is unusable (unknown due_at, NaN amount, etc.). */
-function parseEntry(raw: unknown): PaymentScheduleEntry | null {
+// ── Parsers ──
+
+function parsePaymentEntry(raw: unknown): PaymentScheduleEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const dueAt = o.due_at;
@@ -160,46 +246,74 @@ function parseEntry(raw: unknown): PaymentScheduleEntry | null {
   return entry;
 }
 
-/** Parse a stored JSONB policy into a strongly-typed shape.
- *  Returns null if the shape is unrecognizable. */
+function parseRefundWindow(raw: unknown): RefundWindow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const cutoff = Number(o.cutoff_days_before_checkin);
+  const refund = Number(o.refund_pct);
+  if (!Number.isFinite(cutoff) || !Number.isFinite(refund)) return null;
+  return {
+    cutoff_days_before_checkin: Math.max(0, Math.floor(cutoff)),
+    refund_pct: Math.max(0, Math.min(100, Math.floor(refund))),
+  };
+}
+
+/** Parse a stored JSONB policy into a strongly-typed shape. */
 export function parsePolicy(raw: unknown): CancellationPolicy | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
-  const preset = obj.preset;
-  if (
-    preset !== "flexible" &&
-    preset !== "moderate" &&
-    preset !== "strict" &&
-    preset !== "custom"
-  ) {
-    return null;
-  }
 
-  const scheduleRaw = Array.isArray(obj.payment_schedule)
+  const approach =
+    obj.approach === "installments" || obj.approach === "refunds"
+      ? (obj.approach as CancellationApproach)
+      : DEFAULT_CANCELLATION_APPROACH;
+
+  const preset =
+    obj.preset === "flexible" ||
+    obj.preset === "moderate" ||
+    obj.preset === "strict" ||
+    obj.preset === "custom"
+      ? (obj.preset as CancellationPreset)
+      : DEFAULT_CANCELLATION_PRESET;
+
+  let payment_schedule = Array.isArray(obj.payment_schedule)
     ? (obj.payment_schedule as unknown[])
-    : [];
-  const depositRaw = Array.isArray(obj.security_deposit)
-    ? (obj.security_deposit as unknown[])
+        .map(parsePaymentEntry)
+        .filter((x): x is PaymentScheduleEntry => x !== null)
     : [];
 
-  let payment_schedule = scheduleRaw
-    .map(parseEntry)
-    .filter((x): x is PaymentScheduleEntry => x !== null);
+  let refund_schedule = Array.isArray(obj.refund_schedule)
+    ? (obj.refund_schedule as unknown[])
+        .map(parseRefundWindow)
+        .filter((x): x is RefundWindow => x !== null)
+        .sort(
+          (a, b) => b.cutoff_days_before_checkin - a.cutoff_days_before_checkin
+        )
+    : [];
 
-  // Preset row with no valid schedule — expand from the template
-  // library so downstream rendering always has something to show.
-  if (payment_schedule.length === 0 && preset !== "custom") {
-    const meta = CANCELLATION_PRESETS.find((p) => p.key === preset);
-    if (meta) payment_schedule = meta.payment_schedule.map((e) => ({ ...e }));
+  // Expand an empty non-custom preset from the template library so
+  // downstream rendering always has something to show.
+  if (
+    preset !== "custom" &&
+    payment_schedule.length === 0 &&
+    refund_schedule.length === 0
+  ) {
+    const tpl = PRESET_TEMPLATES[approach][preset];
+    payment_schedule = tpl.payment_schedule.map((e) => ({ ...e }));
+    refund_schedule = tpl.refund_schedule.map((e) => ({ ...e }));
   }
 
-  const security_deposit = depositRaw
-    .map(parseEntry)
-    .filter((x): x is PaymentScheduleEntry => x !== null);
+  const security_deposit = Array.isArray(obj.security_deposit)
+    ? (obj.security_deposit as unknown[])
+        .map(parsePaymentEntry)
+        .filter((x): x is PaymentScheduleEntry => x !== null)
+    : [];
 
   return {
-    preset: preset as CancellationPreset,
+    approach,
+    preset,
     payment_schedule,
+    refund_schedule,
     security_deposit,
     custom_note:
       typeof obj.custom_note === "string" ? (obj.custom_note as string) : null,
@@ -209,7 +323,7 @@ export function parsePolicy(raw: unknown): CancellationPolicy | null {
 /**
  * Pick the effective policy for a reservation. Most specific wins:
  * reservation snapshot > listing override > host default >
- * platform default (Moderate).
+ * platform default (installments / Moderate).
  */
 export function resolveEffectivePolicy(args: {
   hostDefault: unknown;
@@ -220,7 +334,10 @@ export function resolveEffectivePolicy(args: {
     parsePolicy(args.reservationSnapshot) ??
     parsePolicy(args.listingOverride) ??
     parsePolicy(args.hostDefault) ??
-    buildPolicyFromPreset(DEFAULT_CANCELLATION_PRESET)
+    buildPolicyFromPreset(
+      DEFAULT_CANCELLATION_APPROACH,
+      DEFAULT_CANCELLATION_PRESET
+    )
   );
 }
 
@@ -232,7 +349,13 @@ export function presetLabel(preset: CancellationPreset): string {
   return meta?.label ?? preset;
 }
 
-/** Human phrase for the due_at column on a schedule row. */
+export function approachLabel(approach: CancellationApproach): string {
+  return approach === "installments"
+    ? "Collect in installments"
+    : "Collect up front, refund on cancellation";
+}
+
+/** Human phrase for the due_at column on a payment schedule row. */
 export function dueAtLabel(entry: PaymentScheduleEntry): string {
   if (entry.due_at === "booking") return "At time of booking";
   if (entry.due_at === "check_in") return "At check-in";
@@ -250,7 +373,18 @@ export function amountLabel(entry: PaymentScheduleEntry): string {
   return `$${Math.round(entry.amount).toLocaleString()}`;
 }
 
-/** Platform disclaimer, kept in one place so every surface that
- *  renders a policy uses the same language. */
+/** Human phrase for a refund-window cutoff. */
+export function refundCutoffLabel(w: RefundWindow): string {
+  const d = w.cutoff_days_before_checkin;
+  if (d === 0) return "Day of check-in onward";
+  if (d === 1) return "Up to 24 hours before check-in";
+  return `Up to ${d} days before check-in`;
+}
+
+/** Platform disclaimers. Used in one or more places everywhere
+ *  the policy surfaces, so copy stays consistent. */
+export const PLATFORM_NEUTRALITY_NOTE =
+  "1° B&B doesn't process payments or manage refunds. This is guidance to help you and your counterpart set expectations.";
+
 export const OFF_PLATFORM_PAYMENT_NOTE =
   "Because payment is handled off-platform, we recommend collecting money whenever it should be nonrefundable.";

@@ -1,17 +1,21 @@
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   OFF_PLATFORM_PAYMENT_NOTE,
+  PLATFORM_NEUTRALITY_NOTE,
   amountLabel,
+  approachLabel,
   dueAtLabel,
   presetLabel,
+  refundCutoffLabel,
   type CancellationPolicy,
   type PaymentScheduleEntry,
+  type RefundWindow,
 } from "@/lib/cancellation";
 
 interface Props {
   policy: CancellationPolicy;
-  /** Compact variant drops the header icon + disclaimer so the
+  /** Compact variant strips the header icon + disclaimers so the
    *  card fits in the inbox sidebar. */
   compact?: boolean;
   /** Listing vs reservation context — drives the subtext wording. */
@@ -19,12 +23,11 @@ interface Props {
 }
 
 /**
- * Read-only cancellation + payment-schedule renderer. Replaces the
- * old refund-window view — since 1° B&B doesn't process payments,
- * we show WHEN money is due rather than inventing a refund model.
- *
- * Rendered on the listing detail page (full), inbox sidebar
- * (compact), and trip detail (full).
+ * Read-only cancellation + payment renderer. The approach flag on
+ * the policy drives which tables render:
+ *   - installments → Payment schedule only
+ *   - refunds      → Payment schedule + Refund schedule
+ * Security deposit + custom note show for either approach.
  */
 export function CancellationPolicyCard({
   policy,
@@ -32,6 +35,8 @@ export function CancellationPolicyCard({
   scope = "listing",
 }: Props) {
   const hasDeposit = policy.security_deposit.length > 0;
+  const showRefunds =
+    policy.approach === "refunds" && policy.refund_schedule.length > 0;
 
   return (
     <div
@@ -45,14 +50,18 @@ export function CancellationPolicyCard({
           <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
             <ShieldCheck className="h-4 w-4" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold">
               Cancellation &amp; payment schedule — {presetLabel(policy.preset)}
             </div>
             <div className="mt-0.5 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {approachLabel(policy.approach)}
+              </span>
+              {" · "}
               {scope === "reservation"
-                ? "Terms locked in when the host approved this request."
-                : "Applied to every request on this listing unless overridden."}
+                ? "Terms locked when the host approved."
+                : "Applied to every request on this listing."}
             </div>
           </div>
         </div>
@@ -60,20 +69,31 @@ export function CancellationPolicyCard({
       {compact && (
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Cancellation &amp; payment — {presetLabel(policy.preset)}
+          <span className="ml-1 font-normal normal-case text-muted-foreground">
+            ({policy.approach === "installments"
+              ? "installments"
+              : "refundable"})
+          </span>
         </div>
       )}
 
-      {/* Payment schedule */}
-      <ScheduleTable
+      <PaymentTable
         heading="Payment schedule"
         rows={policy.payment_schedule}
         emptyHint="No schedule set."
         compact={compact}
       />
 
-      {/* Security deposit (optional) */}
+      {showRefunds && (
+        <RefundTable
+          rows={policy.refund_schedule}
+          compact={compact}
+          className={compact ? "mt-3" : "mt-4"}
+        />
+      )}
+
       {hasDeposit && (
-        <ScheduleTable
+        <PaymentTable
           heading="Security deposit"
           rows={policy.security_deposit}
           compact={compact}
@@ -81,23 +101,35 @@ export function CancellationPolicyCard({
         />
       )}
 
-      {/* Custom note from host */}
       {policy.custom_note && (
-        <p className={cn("mt-3 text-xs leading-relaxed text-muted-foreground", compact && "text-[11px]")}>
+        <p
+          className={cn(
+            "mt-3 text-xs leading-relaxed text-muted-foreground",
+            compact && "text-[11px]"
+          )}
+        >
           {policy.custom_note}
         </p>
       )}
 
       {!compact && (
-        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-          {OFF_PLATFORM_PAYMENT_NOTE}
-        </p>
+        <div className="mt-4 space-y-1 border-t border-border pt-3">
+          <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
+            <Info className="mt-0.5 h-3 w-3 shrink-0" />
+            {PLATFORM_NEUTRALITY_NOTE}
+          </p>
+          {policy.approach === "installments" && (
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {OFF_PLATFORM_PAYMENT_NOTE}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-function ScheduleTable({
+function PaymentTable({
   heading,
   rows,
   compact,
@@ -145,6 +177,56 @@ function ScheduleTable({
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function RefundTable({
+  rows,
+  compact,
+  className,
+}: {
+  rows: RefundWindow[];
+  compact: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={cn(className)}>
+      <div
+        className={cn(
+          "mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
+          !compact && "mt-3"
+        )}
+      >
+        Refund schedule
+      </div>
+      <ul className="divide-y divide-border rounded-lg border border-border">
+        {rows.map((r, i) => (
+          <li
+            key={i}
+            className={cn(
+              "flex items-center justify-between gap-3 px-3",
+              compact ? "py-1.5 text-xs" : "py-2 text-sm"
+            )}
+          >
+            <span className="min-w-0 truncate text-foreground">
+              {refundCutoffLabel(r)}
+            </span>
+            <span
+              className={cn(
+                "shrink-0 font-semibold",
+                r.refund_pct >= 100
+                  ? "text-emerald-700"
+                  : r.refund_pct > 0
+                    ? "text-amber-700"
+                    : "text-muted-foreground"
+              )}
+            >
+              {r.refund_pct}% refund
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

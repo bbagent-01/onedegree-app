@@ -5,24 +5,22 @@ import { effectiveAuth } from "@/lib/impersonation/session";
 import {
   buildPolicyFromPreset,
   parsePolicy,
+  type CancellationApproach,
   type CancellationPolicy,
   type CancellationPreset,
   type PaymentScheduleEntry,
+  type RefundWindow,
 } from "@/lib/cancellation";
 
 /**
- * GET  — fetch the current user's default cancellation + payment
- *        schedule.
- * PUT  — replace it. Accepts two payload shapes:
- *        A) `{ preset }` — legacy / settings-form quick-swap.
- *           Writes the preset's template verbatim.
- *        B) `{ preset, payment_schedule, security_deposit?,
- *           custom_note? }` — full editor payload. `preset` should
- *           be "custom" when the rows diverge from the template.
- *
- * All persisted values run through parsePolicy on the way out so
- * the stored JSON is normalized regardless of which payload shape
- * the client sent.
+ * GET  — fetch the current user's default policy.
+ * PUT  — replace it. Accepts two shapes:
+ *   A) { approach, preset } — template shortcut (writes the
+ *      preset template for the given approach).
+ *   B) { approach, preset, payment_schedule, refund_schedule?,
+ *        security_deposit?, custom_note? } — full editor payload.
+ * Both run through parsePolicy on the way out so the stored JSON
+ * is normalized.
  */
 export async function GET() {
   const { userId } = await effectiveAuth();
@@ -40,8 +38,10 @@ export async function GET() {
 }
 
 interface PutBody {
+  approach?: CancellationApproach;
   preset?: CancellationPreset;
   payment_schedule?: PaymentScheduleEntry[];
+  refund_schedule?: RefundWindow[];
   security_deposit?: PaymentScheduleEntry[];
   custom_note?: string | null;
 }
@@ -57,6 +57,13 @@ export async function PUT(req: Request) {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  if (body.approach !== "installments" && body.approach !== "refunds") {
+    return Response.json(
+      { error: "approach must be installments | refunds" },
+      { status: 400 }
+    );
+  }
+
   if (
     body.preset !== "flexible" &&
     body.preset !== "moderate" &&
@@ -70,13 +77,17 @@ export async function PUT(req: Request) {
   }
 
   let policy: CancellationPolicy;
-  if (body.payment_schedule || body.security_deposit) {
-    // Full editor payload. Push through parsePolicy so the shape
-    // matches the stored normalization regardless of what the
-    // client sent.
+  const hasEditorPayload =
+    body.payment_schedule !== undefined ||
+    body.refund_schedule !== undefined ||
+    body.security_deposit !== undefined;
+
+  if (hasEditorPayload) {
     const candidate = {
+      approach: body.approach,
       preset: body.preset,
       payment_schedule: body.payment_schedule ?? [],
+      refund_schedule: body.refund_schedule ?? [],
       security_deposit: body.security_deposit ?? [],
       custom_note:
         typeof body.custom_note === "string" ? body.custom_note : null,
@@ -88,11 +99,11 @@ export async function PUT(req: Request) {
     policy = parsed;
   } else if (body.preset === "custom") {
     return Response.json(
-      { error: "Custom preset requires payment_schedule" },
+      { error: "Custom preset requires schedule payload" },
       { status: 400 }
     );
   } else {
-    policy = buildPolicyFromPreset(body.preset, {
+    policy = buildPolicyFromPreset(body.approach, body.preset, {
       customNote:
         typeof body.custom_note === "string" ? body.custom_note : null,
     });
