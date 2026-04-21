@@ -1,13 +1,14 @@
-import { ShieldCheck, Info } from "lucide-react";
+import { CalendarClock, RotateCcw, Info, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   OFF_PLATFORM_PAYMENT_NOTE,
   PLATFORM_NEUTRALITY_NOTE,
   amountLabel,
-  approachLabel,
+  approachMeta,
   dueAtLabel,
   presetLabel,
   refundCutoffLabel,
+  type CancellationApproach,
   type CancellationPolicy,
   type PaymentScheduleEntry,
   type RefundWindow,
@@ -15,25 +16,33 @@ import {
 
 interface Props {
   policy: CancellationPolicy;
-  /** Compact variant strips the header icon + disclaimers so the
+  /** Compact variant strips the approach box + disclaimers so the
    *  card fits in the inbox sidebar. */
   compact?: boolean;
   /** Listing vs reservation context — drives the subtext wording. */
   scope?: "listing" | "reservation";
 }
 
+const APPROACH_ICON: Record<CancellationApproach, LucideIcon> = {
+  installments: CalendarClock,
+  refunds: RotateCcw,
+};
+
 /**
- * Read-only cancellation + payment renderer. The approach flag on
- * the policy drives which tables render:
- *   - installments → Payment schedule only
- *   - refunds      → Payment schedule + Refund schedule
- * Security deposit + custom note show for either approach.
+ * Read-only cancellation + payment policy renderer. Layout mirrors
+ * the editor: an approach callout up top (icon + description that
+ * matches the selector cards in the settings form), then a preset-
+ * prefixed schedule heading ("Moderate · Payment schedule") and the
+ * table rows. Security deposit, custom note, and disclaimers follow.
  */
 export function CancellationPolicyCard({
   policy,
   compact = false,
   scope = "listing",
 }: Props) {
+  const meta = approachMeta(policy.approach);
+  const Icon = APPROACH_ICON[policy.approach];
+  const preset = presetLabel(policy.preset);
   const hasDeposit = policy.security_deposit.length > 0;
   const showRefunds =
     policy.approach === "refunds" && policy.refund_schedule.length > 0;
@@ -45,47 +54,50 @@ export function CancellationPolicyCard({
         compact ? "p-3" : "p-4"
       )}
     >
-      {!compact && (
-        <div className="flex items-start gap-2.5">
-          <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-            <ShieldCheck className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold">
-              Cancellation &amp; payment schedule — {presetLabel(policy.preset)}
-            </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">
-                {approachLabel(policy.approach)}
-              </span>
-              {" · "}
-              {scope === "reservation"
-                ? "Terms locked when the host approved."
-                : "Applied to every request on this listing."}
-            </div>
+      {compact ? (
+        // Sidebar variant: one tight header line. The approach box
+        // would swallow too much vertical space in the inbox.
+        <div className="mb-3 flex items-center gap-2">
+          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {meta.title}
           </div>
         </div>
-      )}
-      {compact && (
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Cancellation &amp; payment — {presetLabel(policy.preset)}
-          <span className="ml-1 font-normal normal-case text-muted-foreground">
-            ({policy.approach === "installments"
-              ? "installments"
-              : "refundable"})
-          </span>
+      ) : (
+        // Full variant: approach callout matches the selector cards
+        // on /settings/hosting so the preview feels continuous with
+        // the picker.
+        <div className="rounded-xl border-2 border-border bg-muted/30 p-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-foreground shadow-sm">
+              <Icon className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold">{meta.title}</div>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {meta.description}
+              </p>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {scope === "reservation"
+                  ? "Terms locked when the host approved."
+                  : "Applied to every request on this listing."}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
       <PaymentTable
-        heading="Payment schedule"
+        heading={`${preset} · Payment schedule`}
         rows={policy.payment_schedule}
         emptyHint="No schedule set."
         compact={compact}
+        className={compact ? undefined : "mt-4"}
       />
 
       {showRefunds && (
         <RefundTable
+          heading={`${preset} · Refund schedule`}
           rows={policy.refund_schedule}
           compact={compact}
           className={compact ? "mt-3" : "mt-4"}
@@ -145,12 +157,7 @@ function PaymentTable({
   if (rows.length === 0 && !emptyHint) return null;
   return (
     <div className={cn(className)}>
-      <div
-        className={cn(
-          "mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
-          !compact && "mt-3"
-        )}
-      >
+      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         {heading}
       </div>
       {rows.length === 0 ? (
@@ -182,23 +189,20 @@ function PaymentTable({
 }
 
 function RefundTable({
+  heading,
   rows,
   compact,
   className,
 }: {
+  heading: string;
   rows: RefundWindow[];
   compact: boolean;
   className?: string;
 }) {
   return (
     <div className={cn(className)}>
-      <div
-        className={cn(
-          "mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
-          !compact && "mt-3"
-        )}
-      >
-        Refund schedule
+      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {heading}
       </div>
       <ul className="divide-y divide-border rounded-lg border border-border">
         {rows.map((r, i) => (

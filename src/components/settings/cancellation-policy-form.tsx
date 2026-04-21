@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
   Loader2,
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
+  CANCELLATION_APPROACHES,
   CANCELLATION_PRESETS,
   OFF_PLATFORM_PAYMENT_NOTE,
   PLATFORM_NEUTRALITY_NOTE,
@@ -43,6 +44,12 @@ interface Props {
   suppressPlatformBanner?: boolean;
   /** Optional callback once a save succeeds. */
   onSaved?: (policy: CancellationPolicy) => void;
+  /**
+   * Fires on every state change so a parent can render a live
+   * preview. The payload matches the value that would be saved if
+   * the host clicked Save right now.
+   */
+  onChange?: (policy: CancellationPolicy) => void;
 }
 
 const DUE_AT_OPTIONS: { value: DueAt; label: string }[] = [
@@ -76,6 +83,7 @@ export function CancellationPolicyForm({
   endpoint = "/api/users/cancellation-policy",
   suppressPlatformBanner = false,
   onSaved,
+  onChange,
 }: Props) {
   const seed =
     initial ?? buildPolicyFromPreset("installments", "moderate");
@@ -95,6 +103,24 @@ export function CancellationPolicyForm({
     seed.custom_note ?? ""
   );
   const [saving, setSaving] = useState(false);
+
+  // Emit live state so a parent (e.g. listing-override wrapper) can
+  // render a CancellationPolicyCard preview that updates as the
+  // host edits. Fires on mount too so the first preview matches
+  // the seeded state.
+  useEffect(() => {
+    onChange?.({
+      approach,
+      preset,
+      payment_schedule: payment,
+      refund_schedule: refunds,
+      security_deposit: deposit,
+      custom_note: customNote.trim() || null,
+    });
+    // onChange identity isn't part of the data dependency — re-
+    // emitting when the handler changes would double-fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approach, preset, payment, refunds, deposit, customNote]);
 
   const switchApproach = (next: CancellationApproach) => {
     if (next === approach) return;
@@ -187,20 +213,16 @@ export function CancellationPolicyForm({
           the one that matches how you actually collect money.
         </p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <ApproachCard
-            active={approach === "installments"}
-            onClick={() => switchApproach("installments")}
-            icon={CalendarClock}
-            title="Collect in installments"
-            description="Collect payment on a schedule. Each installment is nonrefundable once collected. No refund schedule to manage."
-          />
-          <ApproachCard
-            active={approach === "refunds"}
-            onClick={() => switchApproach("refunds")}
-            icon={RotateCcw}
-            title="Collect up front, refund on cancellation"
-            description="Collect the full amount at booking, then refund on a schedule if the guest cancels. Matches Airbnb's model."
-          />
+          {CANCELLATION_APPROACHES.map((a) => (
+            <ApproachCard
+              key={a.key}
+              active={approach === a.key}
+              onClick={() => switchApproach(a.key)}
+              icon={a.key === "installments" ? CalendarClock : RotateCcw}
+              title={a.title}
+              description={a.description}
+            />
+          ))}
         </div>
       </section>
 

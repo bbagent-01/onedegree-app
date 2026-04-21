@@ -104,7 +104,7 @@ export function AcceptTermsCheckbox({
           compact ? "text-[11px]" : "text-xs"
         )}
       >
-        Review the cancellation &amp; payment schedule above, then
+        Review the cancellation &amp; payment policy above, then
         check the box to confirm you&apos;ve read and accept the terms.
         They&apos;re locked to this reservation — later edits to the
         host&apos;s defaults won&apos;t change what applies here.

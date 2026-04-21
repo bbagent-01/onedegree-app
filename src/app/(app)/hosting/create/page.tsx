@@ -2244,10 +2244,10 @@ function ListingDetailMock({
                 </div>
                 <div>
                   <h3 className="mb-3 font-semibold">
-                    Cancellation &amp; payment schedule
+                    Cancellation &amp; payment policy
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Your saved schedule from Settings → Hosting policies
+                    Your saved policy from Settings → Hosting policies
                     will apply to this listing. You can override it per
                     listing later.
                   </p>

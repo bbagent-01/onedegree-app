@@ -131,38 +131,80 @@ export function ListingCancellationOverride({
           <CancellationPolicyCard policy={hostDefault} scope="listing" />
         </div>
       ) : (
-        <div>
-          {override && (
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">
-                This listing currently has its own override. Revert to
-                fall back on your host default.
-              </p>
-              <Button
-                variant="outline"
-                onClick={clearOverride}
-                disabled={clearing}
-                className="h-9 shrink-0 rounded-lg text-xs font-semibold"
-              >
-                {clearing ? (
-                  <>
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    Reverting…
-                  </>
-                ) : (
-                  "Revert to host default"
-                )}
-              </Button>
-            </div>
-          )}
-          <CancellationPolicyForm
-            initial={seed}
-            endpoint={`/api/listings/${listingId}/cancellation-policy`}
-            suppressPlatformBanner
-            onSaved={(saved) => setOverride(saved)}
-          />
+        <OverrideEditor
+          listingId={listingId}
+          seed={seed}
+          override={override}
+          clearing={clearing}
+          onClear={clearOverride}
+          onSaved={setOverride}
+        />
+      )}
+    </div>
+  );
+}
+
+function OverrideEditor({
+  listingId,
+  seed,
+  override,
+  clearing,
+  onClear,
+  onSaved,
+}: {
+  listingId: string;
+  seed: CancellationPolicy;
+  override: CancellationPolicy | null;
+  clearing: boolean;
+  onClear: () => void;
+  onSaved: (policy: CancellationPolicy) => void;
+}) {
+  // Mirror the form's live state so the preview below the controls
+  // updates as the host edits — without waiting for a save.
+  const [livePolicy, setLivePolicy] = useState<CancellationPolicy>(seed);
+
+  return (
+    <div>
+      {override && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
+          <p className="text-xs text-muted-foreground">
+            This listing currently has its own override. Revert to
+            fall back on your host default.
+          </p>
+          <Button
+            variant="outline"
+            onClick={onClear}
+            disabled={clearing}
+            className="h-9 shrink-0 rounded-lg text-xs font-semibold"
+          >
+            {clearing ? (
+              <>
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                Reverting…
+              </>
+            ) : (
+              "Revert to host default"
+            )}
+          </Button>
         </div>
       )}
+      <CancellationPolicyForm
+        initial={seed}
+        endpoint={`/api/listings/${listingId}/cancellation-policy`}
+        suppressPlatformBanner
+        onSaved={onSaved}
+        onChange={setLivePolicy}
+      />
+
+      {/* Live preview. Mirrors the inherit-mode preview but reflects
+          the current editor state so the host can see guest-facing
+          output before they hit Save. */}
+      <div className="mt-8">
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Preview — how guests will see this
+        </div>
+        <CancellationPolicyCard policy={livePolicy} scope="listing" />
+      </div>
     </div>
   );
 }

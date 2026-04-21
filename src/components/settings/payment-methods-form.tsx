@@ -57,29 +57,46 @@ export function PaymentMethodsForm({ initial }: Props) {
     setMethods((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // A row "counts" once it has a handle (or, for offline_other, a
+  // handle OR a note). Anything else is an in-progress draft — we
+  // keep those visible after save so the host doesn't lose their
+  // work, but we don't send them to the API.
+  const rowIsComplete = (m: PaymentMethod) =>
+    m.handle.trim().length > 0 ||
+    (m.type === "offline_other" && (m.note ?? "").trim().length > 0);
+
   const save = async () => {
+    const completed = methods.filter(rowIsComplete);
+    if (methods.length > 0 && completed.length === 0) {
+      toast.error(
+        "Add a handle to at least one method, or remove empty rows."
+      );
+      return;
+    }
     setSaving(true);
     try {
-      // Strip rows that have no handle AND no note. The API
-      // normalizes the same way, but pruning here keeps the
-      // toast message honest.
-      const payload = methods.filter(
-        (m) =>
-          m.handle.trim().length > 0 ||
-          (m.type === "offline_other" && (m.note ?? "").trim().length > 0)
-      );
       const res = await fetch("/api/users/payment-methods", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ methods: payload }),
+        body: JSON.stringify({ methods: completed }),
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(err.error ?? `Save failed (${res.status})`);
       }
       const data = (await res.json()) as { methods: PaymentMethod[] };
-      setMethods(data.methods);
-      toast.success("Payment methods saved");
+      // Merge saved rows back in, but preserve any unsaved drafts
+      // (rows the user added but hasn't filled in yet) so they stay
+      // visible after the save round-trip.
+      setMethods((prev) => {
+        const drafts = prev.filter((m) => !rowIsComplete(m));
+        return [...data.methods, ...drafts];
+      });
+      toast.success(
+        completed.length === 1
+          ? "Payment method saved"
+          : `${completed.length} payment methods saved`
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {

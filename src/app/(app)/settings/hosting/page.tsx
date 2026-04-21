@@ -45,7 +45,7 @@ export default async function HostingSettingsPage() {
 
       <section className="mt-8">
         <h2 className="text-base font-semibold">
-          Cancellation &amp; payment schedule
+          Cancellation &amp; payment policy
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           When guests pay you and how much at each step. Guests see

@@ -151,6 +151,42 @@ export interface CancellationPresetMeta {
   summary: Record<CancellationApproach, string>;
 }
 
+export interface CancellationApproachMeta {
+  key: CancellationApproach;
+  title: string;
+  description: string;
+}
+
+/**
+ * Approach descriptions shared between the settings editor (as
+ * selector cards) and the read-only CancellationPolicyCard (as an
+ * explanatory callout). Keeping copy in one place means the guest-
+ * facing preview matches the host's selection exactly.
+ */
+export const CANCELLATION_APPROACHES: CancellationApproachMeta[] = [
+  {
+    key: "installments",
+    title: "Collect in installments",
+    description:
+      "Host collects payment on a schedule. Each installment is nonrefundable once collected. No refund schedule to manage.",
+  },
+  {
+    key: "refunds",
+    title: "Collect up front, refund on cancellation",
+    description:
+      "Host collects the full amount at booking, then refunds on a schedule if the guest cancels. Matches Airbnb's model.",
+  },
+];
+
+export function approachMeta(
+  key: CancellationApproach
+): CancellationApproachMeta {
+  return (
+    CANCELLATION_APPROACHES.find((a) => a.key === key) ??
+    CANCELLATION_APPROACHES[0]
+  );
+}
+
 export const CANCELLATION_PRESETS: CancellationPresetMeta[] = [
   {
     key: "flexible",

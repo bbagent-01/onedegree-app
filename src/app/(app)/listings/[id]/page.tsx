@@ -390,7 +390,7 @@ export default async function ListingPage({
           </div>
           <div className="md:col-span-2">
             <h3 className="mb-3 font-semibold">
-              Cancellation &amp; payment schedule
+              Cancellation &amp; payment policy
             </h3>
             <CancellationPolicyCard
               policy={listing.cancellation_policy}

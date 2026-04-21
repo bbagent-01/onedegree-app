@@ -192,11 +192,11 @@ export default async function TripDetailPage({ params }: PageProps) {
         />
       )}
 
-      {/* Cancellation & payment schedule — snapshot on accepted
+      {/* Cancellation & payment policy — snapshot on accepted
           reservations, resolved live before that. */}
       <section className="mt-6">
         <h2 className="mb-3 text-base font-semibold">
-          Cancellation &amp; payment schedule
+          Cancellation &amp; payment policy
         </h2>
         <CancellationPolicyCard
           policy={trip.cancellation_policy}
