@@ -40,6 +40,11 @@ interface Props {
   checkOut: string | null;
   /** Guest count on the original request — read-only. */
   guestCount: number;
+  /** Listing nightly rate — read-only. Drives the breakdown line. */
+  nightlyRate: number | null;
+  /** Flat cleaning fee the guest was charged (USD, whole dollars).
+   *  Null/0 hides the breakdown line. */
+  cleaningFee: number | null;
   guestFirstName: string;
 }
 
@@ -76,6 +81,8 @@ export function HostReviewTermsInline({
   checkIn,
   checkOut,
   guestCount,
+  nightlyRate,
+  cleaningFee,
   guestFirstName,
 }: Props) {
   const router = useRouter();
@@ -105,6 +112,12 @@ export function HostReviewTermsInline({
 
   const numericTotal = totalStr.trim() ? Number(totalStr.trim()) : null;
   const hasTotal = numericTotal !== null && Number.isFinite(numericTotal) && numericTotal > 0;
+  const nights = useMemo(() => {
+    if (!checkIn || !checkOut) return 0;
+    const a = new Date(checkIn).getTime();
+    const b = new Date(checkOut).getTime();
+    return Math.max(0, Math.round((b - a) / 86_400_000));
+  }, [checkIn, checkOut]);
   const approachLabel = approachMeta(approach).title;
   const presetName =
     CANCELLATION_PRESETS.find((p) => p.key === preset)?.label ?? preset;
@@ -233,15 +246,37 @@ export function HostReviewTermsInline({
             </p>
           </div>
         ) : (
-          <div className="mt-0.5 text-base font-semibold">
-            {hasTotal ? (
-              `$${Math.round(numericTotal as number).toLocaleString()}`
-            ) : (
-              <span className="text-sm font-medium text-muted-foreground">
-                No total yet — click &ldquo;Edit terms&rdquo; to add one.
-              </span>
+          <>
+            <div className="mt-0.5 text-base font-semibold">
+              {hasTotal ? (
+                `$${Math.round(numericTotal as number).toLocaleString()}`
+              ) : (
+                <span className="text-sm font-medium text-muted-foreground">
+                  No total yet — click &ldquo;Edit terms&rdquo; to add one.
+                </span>
+              )}
+            </div>
+            {hasTotal && (nightlyRate || (cleaningFee ?? 0) > 0) && (
+              <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                {nightlyRate && nights > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span>
+                      ${nightlyRate} × {nights} night{nights === 1 ? "" : "s"}
+                    </span>
+                    <span>
+                      ${(nightlyRate * nights).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                {cleaningFee && cleaningFee > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span>Cleaning fee</span>
+                    <span>${cleaningFee.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
 

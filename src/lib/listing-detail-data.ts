@@ -39,6 +39,9 @@ export interface ListingDetail {
   property_type: string;
   price_min: number | null;
   price_max: number | null;
+  /** Flat cleaning fee charged once per reservation, in whole USD.
+   *  0 / null means no fee. */
+  cleaning_fee: number | null;
   amenities: string[];
   house_rules: string | null;
   checkin_time: string | null;
@@ -214,6 +217,8 @@ export async function getListingDetail(
     property_type: row.property_type,
     price_min: row.price_min,
     price_max: row.price_max,
+    cleaning_fee:
+      (row as { cleaning_fee?: number | null }).cleaning_fee ?? null,
     amenities: row.amenities || [],
     house_rules: row.house_rules,
     checkin_time: row.checkin_time,

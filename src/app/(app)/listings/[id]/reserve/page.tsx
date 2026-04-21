@@ -72,17 +72,15 @@ export default async function ReservePage({ params, searchParams }: PageProps) {
     redirect(`/listings/${id}`);
   }
 
-  // Alpha: no platform-charged fees. Kept as constants + hidden in
-  // the UI so we can re-enable per-host fees alongside the payment
-  // flow (see BOOKING_FLOW_V2_PLAN.md).
-  const CLEANING_FEE_PCT = 0;
+  // 1° B&B still doesn't charge a service fee. Cleaning fee is a
+  // flat per-listing amount the host sets (mig 028) — display the
+  // row only when the host has a fee configured.
   const SERVICE_FEE_PCT = 0;
-  const SHOW_FEE_ROWS = false;
 
   const price = listing.price_min ?? listing.price_max ?? 0;
   const nights = nightsBetween(checkIn, checkOut);
   const subtotal = price * nights;
-  const cleaning = Math.round(subtotal * CLEANING_FEE_PCT);
+  const cleaning = Math.max(0, Math.round(listing.cleaning_fee ?? 0));
   const service = Math.round(subtotal * SERVICE_FEE_PCT);
   const total = subtotal + cleaning + service;
 
@@ -232,17 +230,17 @@ export default async function ReservePage({ params, searchParams }: PageProps) {
                 </span>
                 <span>${subtotal.toLocaleString()}</span>
               </div>
-              {SHOW_FEE_ROWS && (
-                <>
-                  <div className="flex justify-between">
-                    <span className="underline">Cleaning fee</span>
-                    <span>${cleaning.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="underline">Service fee</span>
-                    <span>${service.toLocaleString()}</span>
-                  </div>
-                </>
+              {cleaning > 0 && (
+                <div className="flex justify-between">
+                  <span className="underline">Cleaning fee</span>
+                  <span>${cleaning.toLocaleString()}</span>
+                </div>
+              )}
+              {service > 0 && (
+                <div className="flex justify-between">
+                  <span className="underline">Service fee</span>
+                  <span>${service.toLocaleString()}</span>
+                </div>
               )}
               <div className="my-3 h-px bg-border" />
               <div className="flex justify-between text-base font-semibold">

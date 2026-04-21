@@ -20,6 +20,8 @@ import type { ConnectorPathSummary } from "@/lib/trust-data";
 interface Props {
   listingId: string;
   pricePerNight: number;
+  /** Flat cleaning fee (USD, whole dollars). 0/null → hide the row. */
+  cleaningFee: number | null;
   minNights: number;
   maxNights: number;
   avgRating: number | null;
@@ -35,18 +37,19 @@ interface Props {
   } | null;
 }
 
-// 1° B&B doesn't process payments or charge a service fee during
-// alpha — hosts collect directly off-platform. The cleaning fee +
-// service fee code is preserved but zeroed so we can flip them back
-// on when the payment flow (see BOOKING_FLOW_V2_PLAN.md) is ready
-// to support per-host configuration.
-const CLEANING_FEE_PCT = 0;
+// 1° B&B still doesn't charge a service fee — hosts collect directly
+// off-platform. Cleaning fee is now a flat per-listing amount the
+// host sets (mig 028) instead of a percentage, which matches how
+// hosts actually think about cleaning costs.
 const SERVICE_FEE_PCT = 0;
-const SHOW_FEE_ROWS = false;
 
-function calcFees(pricePerNight: number, nights: number) {
+function calcFees(
+  pricePerNight: number,
+  nights: number,
+  cleaningFee: number | null
+) {
   const subtotal = pricePerNight * nights;
-  const cleaning = Math.round(subtotal * CLEANING_FEE_PCT);
+  const cleaning = Math.max(0, Math.round(cleaningFee ?? 0));
   const service = Math.round(subtotal * SERVICE_FEE_PCT);
   const total = subtotal + cleaning + service;
   return { subtotal, cleaning, service, total };
@@ -55,6 +58,7 @@ function calcFees(pricePerNight: number, nights: number) {
 export function BookingSidebar({
   listingId,
   pricePerNight,
+  cleaningFee,
   minNights,
   maxNights,
   avgRating,
@@ -91,8 +95,8 @@ export function BookingSidebar({
   );
 
   const fees = useMemo(
-    () => calcFees(pricePerNight, nights),
-    [pricePerNight, nights]
+    () => calcFees(pricePerNight, nights, cleaningFee),
+    [pricePerNight, nights, cleaningFee]
   );
 
   const canReserve = nights >= minNights && nights <= maxNights;
@@ -250,17 +254,17 @@ export function BookingSidebar({
                 </span>
                 <span>${fees.subtotal.toLocaleString()}</span>
               </div>
-              {SHOW_FEE_ROWS && (
-                <>
-                  <div className="flex justify-between">
-                    <span className="underline">Cleaning fee</span>
-                    <span>${fees.cleaning.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="underline">Service fee</span>
-                    <span>${fees.service.toLocaleString()}</span>
-                  </div>
-                </>
+              {fees.cleaning > 0 && (
+                <div className="flex justify-between">
+                  <span className="underline">Cleaning fee</span>
+                  <span>${fees.cleaning.toLocaleString()}</span>
+                </div>
+              )}
+              {fees.service > 0 && (
+                <div className="flex justify-between">
+                  <span className="underline">Service fee</span>
+                  <span>${fees.service.toLocaleString()}</span>
+                </div>
               )}
               <Separator />
               <div className="flex justify-between text-base font-semibold">
@@ -362,17 +366,17 @@ export function BookingSidebar({
                 </span>
                 <span>${fees.subtotal.toLocaleString()}</span>
               </div>
-              {SHOW_FEE_ROWS && (
-                <>
-                  <div className="flex justify-between">
-                    <span>Cleaning fee</span>
-                    <span>${fees.cleaning.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Service fee</span>
-                    <span>${fees.service.toLocaleString()}</span>
-                  </div>
-                </>
+              {fees.cleaning > 0 && (
+                <div className="flex justify-between">
+                  <span>Cleaning fee</span>
+                  <span>${fees.cleaning.toLocaleString()}</span>
+                </div>
+              )}
+              {fees.service > 0 && (
+                <div className="flex justify-between">
+                  <span>Service fee</span>
+                  <span>${fees.service.toLocaleString()}</span>
+                </div>
               )}
               <Separator />
               <div className="flex justify-between font-semibold">

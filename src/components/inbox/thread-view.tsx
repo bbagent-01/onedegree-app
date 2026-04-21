@@ -434,6 +434,8 @@ export function ThreadView({
                 checkIn={thread.booking.check_in}
                 checkOut={thread.booking.check_out}
                 guestCount={thread.booking.guest_count}
+                nightlyRate={thread.reservation_sidebar.listing_price_min}
+                cleaningFee={thread.reservation_sidebar.listing_cleaning_fee}
                 guestFirstName={thread.other_user.name.split(" ")[0]}
               />
             </div>

@@ -86,6 +86,9 @@ export interface ThreadDetail extends InboxThread {
   reservation_sidebar?: {
     listing_price_min: number | null;
     listing_price_max: number | null;
+    /** Flat cleaning fee the host charges once per reservation
+     *  (USD, whole dollars). 0/null = no fee. */
+    listing_cleaning_fee: number | null;
     listing_rating_avg: number | null;
     listing_review_count: number;
     other_user_host_rating: number | null;
@@ -320,7 +323,7 @@ export async function getThreadDetail(
     supabase
       .from("listings")
       .select(
-        "id, title, area_name, price_min, price_max, avg_listing_rating, listing_review_count, host_id, cancellation_policy_override"
+        "id, title, area_name, price_min, price_max, cleaning_fee, avg_listing_rating, listing_review_count, host_id, cancellation_policy_override"
       )
       .eq("id", thread.listing_id)
       .single(),
@@ -470,6 +473,9 @@ export async function getThreadDetail(
         (listing as { price_min?: number | null } | null)?.price_min ?? null,
       listing_price_max:
         (listing as { price_max?: number | null } | null)?.price_max ?? null,
+      listing_cleaning_fee:
+        (listing as { cleaning_fee?: number | null } | null)?.cleaning_fee ??
+        null,
       listing_rating_avg:
         (listing as { avg_listing_rating?: number | null } | null)
           ?.avg_listing_rating ?? null,
@@ -516,6 +522,15 @@ export async function getThreadDetail(
 /**
  * Get-or-create a thread for (listing, guest). Used both by the booking flow
  * and the host "Message guest" button. Returns the thread id.
+ *
+ * When a real reservation is attached (`contactRequestId` present) to a
+ * thread that was previously just an intro request, we PROMOTE it —
+ * set `intro_promoted_at` and drop `sender_anonymous` — so the inbox
+ * surfaces it in the main Messages tab instead of Intros. Without
+ * this, a guest who first sent an anonymous intro and then submitted
+ * a real reservation request would find their booking stuck in the
+ * host's Intros tab with the host wondering why the message is
+ * invisible in their normal inbox.
  */
 export async function getOrCreateThread(opts: {
   listingId: string;
@@ -526,17 +541,34 @@ export async function getOrCreateThread(opts: {
   const supabase = getSupabaseAdmin();
   const { data: existing } = await supabase
     .from("message_threads")
-    .select("id, contact_request_id")
+    .select(
+      "id, contact_request_id, is_intro_request, intro_promoted_at, sender_anonymous"
+    )
     .eq("listing_id", opts.listingId)
     .eq("guest_id", opts.guestId)
     .maybeSingle();
 
   if (existing) {
-    if (opts.contactRequestId && !existing.contact_request_id) {
-      await supabase
-        .from("message_threads")
-        .update({ contact_request_id: opts.contactRequestId })
-        .eq("id", existing.id);
+    if (opts.contactRequestId) {
+      const patch: Record<string, unknown> = {};
+      if (!existing.contact_request_id) {
+        patch.contact_request_id = opts.contactRequestId;
+      }
+      // Promote a stuck intro into a normal conversation. The
+      // is_intro_request flag stays so historical context is
+      // preserved; the renderer keys off `intro_promoted_at`.
+      if (existing.is_intro_request && !existing.intro_promoted_at) {
+        patch.intro_promoted_at = new Date().toISOString();
+      }
+      if (existing.sender_anonymous) {
+        patch.sender_anonymous = false;
+      }
+      if (Object.keys(patch).length > 0) {
+        await supabase
+          .from("message_threads")
+          .update(patch)
+          .eq("id", existing.id);
+      }
     }
     return existing.id;
   }

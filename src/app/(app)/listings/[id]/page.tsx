@@ -303,6 +303,7 @@ export default async function ListingPage({
           <BookingSidebar
             listingId={listing.id}
             pricePerNight={price}
+            cleaningFee={listing.cleaning_fee}
             minNights={listing.min_nights}
             maxNights={listing.max_nights}
             avgRating={listing.avg_rating}
