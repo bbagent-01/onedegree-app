@@ -20,9 +20,17 @@ import {
   friendlyMessagePreview,
   parsePaymentEventId,
 } from "@/components/booking/ThreadTermsCards";
-import { REVIEW_PROMPT_PREFIX } from "@/lib/structured-messages";
+import {
+  REVIEW_PROMPT_PREFIX,
+  INTRO_REQUEST_PREFIX,
+  INTRO_MADE_PREFIX,
+  parseIntroMadeConnectorId,
+} from "@/lib/structured-messages";
 import { ReviewPromptCard } from "@/components/booking/ReviewPromptCard";
 import { HostReviewTermsInline } from "@/components/booking/HostReviewTermsInline";
+import { MessageReportMenu } from "@/components/safety/message-report-menu";
+import { IntroRequestCard } from "@/components/trust/IntroRequestCard";
+import { IntroMadeCard } from "@/components/trust/IntroMadeCard";
 
 interface Props {
   thread: ThreadDetail;
@@ -493,6 +501,59 @@ export function ThreadView({
                   return null;
                 }
 
+                // Intro-request structured card — posted to the
+                // connector's thread when a guest routes an intro
+                // through them. Connector sees "Introduce them"
+                // action; guest sees "Waiting for the connector".
+                if (m.content.startsWith(INTRO_REQUEST_PREFIX)) {
+                  const ctx = thread.intro_context;
+                  const viewerIsConnector =
+                    Boolean(ctx) && ctx!.connector_id === currentUserId;
+                  const introMade = Boolean(thread.intro_promoted_at);
+                  return (
+                    <div key={m.id} className="py-1">
+                      <IntroRequestCard
+                        introMade={introMade}
+                        canIntroduce={viewerIsConnector && !introMade}
+                        connectorThreadId={thread.id}
+                        guestFirstName={
+                          (ctx?.guest_name || "the guest").split(" ")[0]
+                        }
+                        hostFirstName={
+                          (ctx?.host_name || "the host").split(" ")[0]
+                        }
+                        listingTitle={thread.listing?.title ?? "the listing"}
+                      />
+                    </div>
+                  );
+                }
+
+                // Intro-made notification card — posted to the
+                // guest ↔ host thread when the connector forwarded
+                // the intro. Both sides see a notification naming
+                // the connector.
+                if (m.content.startsWith(INTRO_MADE_PREFIX)) {
+                  const connectorId = parseIntroMadeConnectorId(m.content);
+                  const ctx = thread.intro_context;
+                  const resolvedId = connectorId ?? ctx?.connector_id ?? "";
+                  const connectorName =
+                    ctx && ctx.connector_id === resolvedId
+                      ? ctx.connector_name
+                      : "A mutual connection";
+                  return (
+                    <div key={m.id} className="py-1">
+                      <IntroMadeCard
+                        viewerRole={thread.role}
+                        connectorId={resolvedId}
+                        connectorName={connectorName}
+                        otherFirstName={
+                          thread.other_user.name.split(" ")[0] || "them"
+                        }
+                      />
+                    </div>
+                  );
+                }
+
                 // Review prompt — inline card with "Leave a review"
                 // button that opens ReviewFlowDialog right here so
                 // the reviewer never has to navigate to /trips.
@@ -539,10 +600,17 @@ export function ThreadView({
                 );
               }
               const isMe = m.sender_id === currentUserId;
+              // Report menu only on incoming messages from the other
+              // party — not system messages (sender_id == null) and
+              // not the viewer's own outgoing bubbles.
+              const canReport = !isMe && Boolean(m.sender_id);
               return (
                 <div
                   key={m.id}
-                  className={cn("flex", isMe ? "justify-end" : "justify-start")}
+                  className={cn(
+                    "group flex items-end gap-1",
+                    isMe ? "justify-end" : "justify-start"
+                  )}
                 >
                   <div
                     className={cn(
@@ -564,6 +632,14 @@ export function ThreadView({
                       {timeLabel(m.created_at)}
                     </div>
                   </div>
+                  {canReport && (
+                    <MessageReportMenu
+                      threadId={thread.id}
+                      messageId={m.id}
+                      senderId={m.sender_id!}
+                      senderName={thread.other_user.name}
+                    />
+                  )}
                 </div>
               );
             })}

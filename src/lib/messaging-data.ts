@@ -52,6 +52,19 @@ export interface InboxThread {
   intro_promoted_at: string | null;
   /** When true, hide sender identity until host replies. */
   sender_anonymous: boolean;
+  /** Connector on an intro-routed thread. Null for direct threads. */
+  intro_connector_id: string | null;
+  /** Resolved names for the intro cards — connector, requesting
+   *  guest, actual listing host. Populated whenever
+   *  intro_connector_id is set OR the thread carries an intro_made
+   *  card. Null when neither applies. */
+  intro_context: {
+    connector_id: string;
+    connector_name: string;
+    guest_name: string;
+    host_name: string;
+    listing_host_id: string;
+  } | null;
 }
 
 export interface ThreadMessage {
@@ -167,7 +180,7 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
   const { data: threads } = await supabase
     .from("message_threads")
     .select(
-      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_promoted_at, sender_anonymous"
+      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_promoted_at, sender_anonymous, intro_connector_id"
     )
     .or(`guest_id.eq.${currentUserId},host_id.eq.${currentUserId}`)
     .order("last_message_at", { ascending: false });
@@ -288,6 +301,11 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
       is_intro_request: isIntro,
       intro_promoted_at: t.intro_promoted_at ?? null,
       sender_anonymous: Boolean(t.sender_anonymous),
+      // Inbox list doesn't need the resolved intro context; the
+      // detail view fetches + populates it. Keep these fields here
+      // to satisfy the shared InboxThread shape.
+      intro_connector_id: t.intro_connector_id ?? null,
+      intro_context: null,
     } satisfies InboxThread;
   });
 }
@@ -305,7 +323,7 @@ export async function getThreadDetail(
   const { data: thread } = await supabase
     .from("message_threads")
     .select(
-      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_promoted_at, sender_anonymous"
+      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_promoted_at, sender_anonymous, intro_connector_id"
     )
     .eq("id", threadId)
     .single();
@@ -456,6 +474,63 @@ export async function getThreadDetail(
     )
     .eq("id", threadId);
 
+  // Resolve the intro context used by IntroRequestCard /
+  // IntroMadeCard. We need up to three names: the connector, the
+  // requesting guest, and the actual listing host. The viewer is
+  // always one of these three, but the cards render all three
+  // regardless of role.
+  let introContext: ThreadDetail["intro_context"] = null;
+  const listingHostId = (listing as { host_id?: string } | null)?.host_id ?? null;
+  const connectorIdRaw = (thread as { intro_connector_id?: string | null })
+    .intro_connector_id ?? null;
+  const threadMentionsIntroMade = (messages || []).some(
+    (m) => m.content?.startsWith("__type:intro_made:") ?? false
+  );
+  if (connectorIdRaw && listingHostId) {
+    const missingIds = Array.from(
+      new Set([connectorIdRaw, thread.guest_id, listingHostId])
+    );
+    const { data: introUsers } = await supabase
+      .from("users")
+      .select("id, name")
+      .in("id", missingIds);
+    const nameMap = new Map(
+      (introUsers || []).map((u) => [u.id as string, (u.name as string) || "User"])
+    );
+    introContext = {
+      connector_id: connectorIdRaw,
+      connector_name: nameMap.get(connectorIdRaw) || "A mutual connection",
+      guest_name: nameMap.get(thread.guest_id) || "Someone",
+      host_name: nameMap.get(listingHostId) || "the host",
+      listing_host_id: listingHostId,
+    };
+  } else if (threadMentionsIntroMade && listingHostId) {
+    // Historic intro-made card but no intro_connector_id on thread
+    // (e.g. hand-inserted). Pull the connector id out of the card.
+    const introMsg = (messages || []).find((m) =>
+      m.content?.startsWith("__type:intro_made:")
+    );
+    const cid = introMsg
+      ? introMsg.content.slice("__type:intro_made:".length).split("__")[0]
+      : null;
+    if (cid) {
+      const { data: introUsers } = await supabase
+        .from("users")
+        .select("id, name")
+        .in("id", [cid, thread.guest_id, listingHostId]);
+      const nameMap = new Map(
+        (introUsers || []).map((u) => [u.id as string, (u.name as string) || "User"])
+      );
+      introContext = {
+        connector_id: cid,
+        connector_name: nameMap.get(cid) || "A mutual connection",
+        guest_name: nameMap.get(thread.guest_id) || "Someone",
+        host_name: nameMap.get(listingHostId) || "the host",
+        listing_host_id: listingHostId,
+      };
+    }
+  }
+
   // Thread detail follows the same direction rule as the inbox list:
   // guest side sees host→me (incoming), host side sees me→guest
   // (outgoing / current direction).
@@ -496,6 +571,8 @@ export async function getThreadDetail(
     is_intro_request: isIntro,
     intro_promoted_at: thread.intro_promoted_at ?? null,
     sender_anonymous: Boolean(thread.sender_anonymous),
+    intro_connector_id: connectorIdRaw,
+    intro_context: introContext,
     messages: (messages || []) as ThreadMessage[],
     booking: booking
       ? {

@@ -1,12 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MessageCircle, UserPlus } from "lucide-react";
+import { Clock, MessageCircle, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { RequestIntroDialog } from "@/components/trust/request-intro-dialog";
 import type { TrustPathUser } from "@/lib/trust-data";
+
+export interface PendingIntroSummary {
+  threadId: string;
+  routedVia: "connector" | "anonymous";
+  connectorName: string | null;
+}
 
 interface Props {
   listingId: string;
@@ -18,6 +25,9 @@ interface Props {
   /** Host's allow_intro_requests toggle. */
   canRequestIntro: boolean;
   mutualConnections: TrustPathUser[];
+  /** Existing open intro request — flips CTA into an in-progress
+   *  state instead of re-prompting. */
+  pendingIntro?: PendingIntroSummary | null;
 }
 
 /**
@@ -40,6 +50,7 @@ export function GatedListingCTA({
   canMessage,
   canRequestIntro,
   mutualConnections,
+  pendingIntro,
 }: Props) {
   const router = useRouter();
   const [introOpen, setIntroOpen] = useState(false);
@@ -49,6 +60,46 @@ export function GatedListingCTA({
 
   if (!isSignedIn) {
     return null;
+  }
+
+  // Open intro already in flight — show status + link to the thread
+  // instead of re-prompting. Takes priority over the "Request intro"
+  // surface so the viewer can't accidentally spam requests.
+  if (pendingIntro) {
+    const via =
+      pendingIntro.routedVia === "connector" && pendingIntro.connectorName
+        ? ` via ${pendingIntro.connectorName.split(" ")[0]}`
+        : "";
+    const label =
+      pendingIntro.routedVia === "connector"
+        ? `Intro in progress${via}`
+        : `Intro message sent to ${hostFirst}`;
+    const sub =
+      pendingIntro.routedVia === "connector"
+        ? "Your connector decides whether to introduce you. We'll update this when they do."
+        : `${hostFirst} sees your full profile and decides whether to reply.`;
+    return (
+      <>
+        <div className="mt-3 rounded-lg border-2 border-violet-200 bg-violet-50/60 p-3">
+          <div className="flex items-start gap-2">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-violet-700" />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">
+                {label}
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>
+            </div>
+          </div>
+        </div>
+        <Link
+          href={`/inbox/${pendingIntro.threadId}`}
+          className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg border-2 border-border bg-white font-semibold text-foreground transition hover:bg-muted"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Open conversation
+        </Link>
+      </>
+    );
   }
 
   const messageHost = async () => {

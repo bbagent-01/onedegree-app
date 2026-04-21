@@ -6,6 +6,8 @@ import { computeIncomingTrustPath } from "@/lib/trust-data";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
 import { checkListingAccess } from "@/lib/trust/check-access";
 import type { AccessSettings } from "@/lib/trust/types";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import type { PendingIntroSummary } from "@/components/listing/gated-listing-cta";
 import { Separator } from "@/components/ui/separator";
 import { PhotoGallery } from "@/components/listing/photo-gallery";
 import { DescriptionSection } from "@/components/listing/description-section";
@@ -108,6 +110,45 @@ export default async function ListingPage({
 
   const canSeeFull = isHost || access.can_see_full;
 
+  // Detect an open intro request so the preview CTA can flip from
+  // "Request intro" to "Intro in progress" without re-prompting.
+  // Only relevant for gated viewers who have actually pressed the
+  // button; we do the cheap lookup up-front so both paths share it.
+  let pendingIntro: PendingIntroSummary | null = null;
+  if (viewerId && !canSeeFull) {
+    const supabase = getSupabaseAdmin();
+    const { data: pending } = await supabase
+      .from("message_threads")
+      .select(
+        "id, host_id, sender_anonymous, intro_connector_id, last_message_at"
+      )
+      .eq("listing_id", id)
+      .eq("guest_id", viewerId)
+      .eq("is_intro_request", true)
+      .is("intro_promoted_at", null)
+      .order("last_message_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (pending) {
+      let connectorName: string | null = null;
+      const cid = (pending as { intro_connector_id?: string | null })
+        .intro_connector_id;
+      if (cid) {
+        const { data: connector } = await supabase
+          .from("users")
+          .select("name")
+          .eq("id", cid)
+          .maybeSingle();
+        connectorName = connector?.name ?? null;
+      }
+      pendingIntro = {
+        threadId: pending.id as string,
+        routedVia: cid ? "connector" : "anonymous",
+        connectorName,
+      };
+    }
+  }
+
   if (!canSeeFull) {
     return (
       <GatedListingView
@@ -115,6 +156,7 @@ export default async function ListingPage({
         trust={trust}
         access={access}
         isSignedIn={Boolean(viewerId)}
+        pendingIntro={pendingIntro}
       />
     );
   }

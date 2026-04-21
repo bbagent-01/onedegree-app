@@ -6,7 +6,10 @@ import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { AmenitiesSection } from "./amenities-section";
 import { LocationMapClient } from "./location-map-client";
 import { PhotoGallery } from "./photo-gallery";
-import { GatedListingCTA } from "./gated-listing-cta";
+import {
+  GatedListingCTA,
+  type PendingIntroSummary,
+} from "./gated-listing-cta";
 import type { ListingDetail } from "@/lib/listing-detail-data";
 import type { TrustResult } from "@/lib/trust-data";
 import type { ListingAccessResult } from "@/lib/trust/types";
@@ -16,6 +19,9 @@ interface Props {
   trust: TrustResult | null;
   access?: ListingAccessResult;
   isSignedIn: boolean;
+  /** Open intro request for this viewer on this listing, if any.
+   *  Flips the CTA into an in-progress state. */
+  pendingIntro?: PendingIntroSummary | null;
 }
 
 /**
@@ -23,7 +29,13 @@ interface Props {
  * preview but not the full listing. Provides a premium, intentional
  * experience — not a loading state or broken page.
  */
-export function GatedListingView({ listing, trust, access, isSignedIn }: Props) {
+export function GatedListingView({
+  listing,
+  trust,
+  access,
+  isSignedIn,
+  pendingIntro,
+}: Props) {
   const propertyLabel =
     listing.property_type === "room"
       ? "Private room"
@@ -333,6 +345,7 @@ export function GatedListingView({ listing, trust, access, isSignedIn }: Props) 
               canMessage={access?.can_message ?? false}
               canRequestIntro={access?.can_request_intro ?? false}
               mutualConnections={mutuals}
+              pendingIntro={pendingIntro ?? null}
             />
           </div>
         </aside>

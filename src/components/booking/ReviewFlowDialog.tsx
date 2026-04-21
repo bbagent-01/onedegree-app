@@ -349,11 +349,11 @@ export function ReviewFlowDialog({
           <>
             <DialogHeader>
               <DialogTitle>
-                Want to vouch for {otherFirst} too?
+                Would you like to vouch for {otherFirst}?
               </DialogTitle>
               <DialogDescription>
-                Vouching adds {otherFirst} to your trust graph so people
-                connected to you see them too.
+                A vouch helps {otherFirst} access more of the network for
+                future stays.
               </DialogDescription>
             </DialogHeader>
             <div className="mt-2 space-y-5">
@@ -364,7 +364,7 @@ export function ReviewFlowDialog({
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">
-                      Met on Trustead
+                      Met through 1° B&amp;B
                     </div>
                     <div className="text-xs text-muted-foreground">
                       A light vouch — you only know {otherFirst} from this

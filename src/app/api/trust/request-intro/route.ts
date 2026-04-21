@@ -1,9 +1,9 @@
 export const runtime = "edge";
 
-import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailNewMessage } from "@/lib/email";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { INTRO_REQUEST_PREFIX } from "@/lib/structured-messages";
 
 /**
  * POST /api/trust/request-intro
@@ -106,30 +106,75 @@ export async function POST(req: Request) {
     threadId = created.id;
   }
 
-  const hostName = body.hostName || "the host";
   const title = body.listingTitle || listing.title;
-  const content =
-    body.message?.trim() ||
-    (isAnonymous
-      ? `Hi! I saw your listing "${title}" on 1° B&B and would love to connect. This is an introduction request — my identity stays private until you reply.`
-      : `Hi! I'd like to be introduced to ${hostName} about their listing "${title}" on 1° B&B. Since you know them, could you pass this along?`);
+  const customNote = body.message?.trim() || null;
 
-  const { error: msgErr } = await supabase.from("messages").insert({
-    thread_id: threadId,
-    sender_id: viewer.id,
-    content,
-    is_system: false,
-  });
-  if (msgErr) {
-    console.error("request-intro message insert error", msgErr);
-    return Response.json({ error: "Couldn't send message" }, { status: 500 });
+  // Two message shapes:
+  //
+  //   Connector route: post a STRUCTURED system message with the
+  //   INTRO_REQUEST_PREFIX. The connector's thread renderer turns
+  //   that into an "Introduce them / Decline" card so the connector
+  //   has a clear action surface instead of a plain-text ask. Any
+  //   custom note from the guest rides along as a follow-up user
+  //   message immediately after.
+  //
+  //   Anonymous route: plain-text intro message directly to host —
+  //   host sees it as a normal (anonymized) message and replies.
+  let previewText: string;
+  if (isAnonymous) {
+    const content =
+      customNote ||
+      `Hi! I saw your listing "${title}" on 1° B&B and would love to connect. This is an introduction request — my identity stays private until you reply.`;
+    const { error: msgErr } = await supabase.from("messages").insert({
+      thread_id: threadId,
+      sender_id: viewer.id,
+      content,
+      is_system: false,
+    });
+    if (msgErr) {
+      console.error("request-intro message insert error", msgErr);
+      return Response.json(
+        { error: "Couldn't send message" },
+        { status: 500 }
+      );
+    }
+    previewText = content.slice(0, 240);
+  } else {
+    // Structured intro-request card.
+    const { error: cardErr } = await supabase.from("messages").insert({
+      thread_id: threadId,
+      sender_id: null,
+      content: INTRO_REQUEST_PREFIX,
+      is_system: true,
+    });
+    if (cardErr) {
+      console.error("request-intro card insert error", cardErr);
+      return Response.json(
+        { error: "Couldn't send request" },
+        { status: 500 }
+      );
+    }
+    if (customNote) {
+      // The guest's free-text note appears as a normal user message
+      // right after the system card, so the connector sees both the
+      // structured ask and the personal context.
+      await supabase.from("messages").insert({
+        thread_id: threadId,
+        sender_id: viewer.id,
+        content: customNote,
+        is_system: false,
+      });
+    }
+    previewText = customNote
+      ? customNote.slice(0, 240)
+      : `Intro request · ${title}`;
   }
 
   await supabase
     .from("message_threads")
     .update({
       last_message_at: new Date().toISOString(),
-      last_message_preview: content.slice(0, 240),
+      last_message_preview: previewText,
       host_unread_count: 1,
     })
     .eq("id", threadId);
@@ -138,7 +183,7 @@ export async function POST(req: Request) {
     recipientId: otherPartyId,
     senderName: isAnonymous ? "Someone on 1° B&B" : viewer.name || "Someone",
     threadId,
-    preview: content.slice(0, 240),
+    preview: previewText,
     listingTitle: `Introduction request · ${title}`,
   });
 
