@@ -89,37 +89,14 @@ export default async function TripDetailPage({ params }: PageProps) {
         Back to trips
       </Link>
 
-      {/* Trip timeline — full-detail vertical stepper. Renders
-          above all other cards so the current stage is the first
-          thing the user sees on the page. */}
-      <div className="mt-4 rounded-2xl border border-border bg-white p-4 md:p-6">
-        <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Trip timeline
-        </div>
-        <TripTimeline
-          stages={resolveStages({
-            status: trip.status,
-            check_in: trip.check_in,
-            check_out: trip.check_out,
-            created_at: trip.created_at,
-            responded_at: trip.responded_at,
-            terms_accepted_at: trip.terms_accepted_at,
-            viewer_role: "guest",
-            stay_confirmation: {
-              guest_rating: trip.stay_guest_rating,
-              host_rating: trip.stay_host_rating,
-            },
-            payment_events: trip.payment_events,
-          })}
-        />
-      </div>
-
       {/* Post-stay vouch banner retired — vouching now lives
           inside ReviewFlowDialog (triggered from the thread's
           review_prompt card), so a separate prompt here is
           redundant. */}
 
-      {/* Header card */}
+      {/* Header card — listing photo + title + dates always
+          at the top of the page. Timeline moved below this so
+          the main visual anchor is the stay itself. */}
       <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-white">
         <div className="aspect-[16/8] w-full bg-muted">
           {trip.listing?.thumbnail_url && (
@@ -188,6 +165,65 @@ export default async function TripDetailPage({ params }: PageProps) {
           <TripDetailActions trip={trip} canReview={!!isPostCheckout} />
         </div>
       </div>
+
+      {/* Trip timeline — collapsed to current stage by default,
+          tap to expand the full vertical stepper. Moved below the
+          listing card so the stay identity comes first. */}
+      <details className="group mt-6 rounded-2xl border border-border bg-white">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 md:p-6 focus-visible:outline-none">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Trip timeline
+            </div>
+            <div className="mt-0.5 text-sm font-semibold">
+              {(() => {
+                const stages = resolveStages({
+                  status: trip.status,
+                  check_in: trip.check_in,
+                  check_out: trip.check_out,
+                  created_at: trip.created_at,
+                  responded_at: trip.responded_at,
+                  terms_accepted_at: trip.terms_accepted_at,
+                  viewer_role: "guest",
+                  stay_confirmation: {
+                    guest_rating: trip.stay_guest_rating,
+                    host_rating: trip.stay_host_rating,
+                  },
+                  payment_events: trip.payment_events,
+                });
+                const current =
+                  stages.find((s) => s.status === "current") ??
+                  stages.find((s) => s.status === "upcoming");
+                return current?.label ?? "All done";
+              })()}
+            </div>
+          </div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground group-open:hidden">
+            Show all
+          </span>
+          <span className="hidden text-xs font-semibold uppercase tracking-wide text-muted-foreground group-open:inline">
+            Hide
+          </span>
+        </summary>
+        <div className="border-t border-border p-4 md:p-6">
+          <TripTimeline
+            stages={resolveStages({
+              status: trip.status,
+              check_in: trip.check_in,
+              check_out: trip.check_out,
+              created_at: trip.created_at,
+              responded_at: trip.responded_at,
+              terms_accepted_at: trip.terms_accepted_at,
+              viewer_role: "guest",
+              stay_confirmation: {
+                guest_rating: trip.stay_guest_rating,
+                host_rating: trip.stay_host_rating,
+              },
+              payment_events: trip.payment_events,
+            })}
+          />
+        </div>
+      </details>
 
       {/* Payment arrangement — only after host accepts */}
       {isConfirmed && trip.host && (

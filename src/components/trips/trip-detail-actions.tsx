@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { MessageCircle, Star, X, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ReviewModal } from "./review-modal";
+import { ReviewFlowDialog } from "@/components/booking/ReviewFlowDialog";
 import { CancelTripDialog } from "./cancel-trip-dialog";
 import { categorizeTrip, type TripDetail } from "@/lib/trips-data";
 
@@ -70,14 +70,18 @@ export function TripDetailActions({ trip, canReview }: Props) {
         )}
       </div>
 
-      <ReviewModal
-        open={reviewOpen}
-        onOpenChange={setReviewOpen}
-        bookingId={trip.id}
-        stayConfirmationId={trip.stay_confirmation_id}
-        listingTitle={trip.listing?.title || "this place"}
-        hostName={trip.host?.name || "your host"}
-      />
+      {trip.host && (
+        <ReviewFlowDialog
+          open={reviewOpen}
+          onOpenChange={setReviewOpen}
+          viewerRole="guest"
+          bookingId={trip.id}
+          stayConfirmationId={trip.stay_confirmation_id}
+          otherUser={{ id: trip.host.id, name: trip.host.name ?? "your host" }}
+          listingTitle={trip.listing?.title || "this place"}
+          alreadyVouched={trip.trust_is_direct}
+        />
+      )}
 
       <CancelTripDialog
         open={cancelOpen}

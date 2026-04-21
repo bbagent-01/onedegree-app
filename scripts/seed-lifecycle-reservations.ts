@@ -34,6 +34,7 @@ import {
 
 const TERMS_OFFERED_PREFIX = "__type:terms_offered__";
 const TERMS_ACCEPTED_PREFIX = "__type:terms_accepted__";
+const REVIEW_PROMPT_PREFIX = "__type:review_prompt__";
 const PAYMENT_DUE_PREFIX = "__type:payment_due:";
 const PAYMENT_CLAIMED_PREFIX = "__type:payment_claimed:";
 const PAYMENT_CONFIRMED_PREFIX = "__type:payment_confirmed:";
@@ -365,7 +366,7 @@ async function main() {
     }
     if (s.postReviewPrompt) {
       msgs.push({
-        content: `${loren.name!.split(" ")[0]}'s stay just wrapped up. Leaving a review helps everyone in the network.`,
+        content: REVIEW_PROMPT_PREFIX,
         is_system: true,
         sender_id: null,
         offsetMs: (t += 60_000),

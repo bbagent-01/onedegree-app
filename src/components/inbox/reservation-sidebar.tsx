@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import {
   Calendar as CalendarIcon,
   Users as UsersIcon,
@@ -28,6 +29,7 @@ import {
 import { resolveStages } from "@/lib/booking-stage";
 import { TripTimeline } from "@/components/booking/TripTimeline";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
+import { ReviewFlowDialog } from "@/components/booking/ReviewFlowDialog";
 
 interface Props {
   thread: ThreadDetail;
@@ -83,16 +85,18 @@ export function ReservationSidebar({ thread, onClose }: Props) {
   const { booking, listing, other_user, role, reservation_sidebar } = thread;
   const isHostViewer = role === "host";
   const status = statusLabel(booking?.status);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const otherRating = reservation_sidebar?.other_user_is_host
     ? reservation_sidebar.other_user_host_rating
     : reservation_sidebar?.other_user_guest_rating ?? null;
 
-  const reviewHref =
-    reservation_sidebar?.stay_confirmation_id &&
-    !reservation_sidebar.stay_reviewed_by_me
-      ? `/trips/${booking?.id}`
-      : null;
+  // Show the inline review CTA whenever the viewer hasn't reviewed
+  // yet AND a stay_confirmation exists. Clicking opens the unified
+  // ReviewFlowDialog right here — no more navigation to /trips.
+  const canReview =
+    Boolean(reservation_sidebar?.stay_confirmation_id) &&
+    !reservation_sidebar?.stay_reviewed_by_me;
 
   return (
     <aside className="flex h-full w-full flex-col overflow-y-auto border-l border-border bg-white">
@@ -282,10 +286,12 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           </div>
         )}
 
-        {/* Review CTA */}
-        {reviewHref && (
-          <Link
-            href={reviewHref}
+        {/* Review CTA — opens ReviewFlowDialog inline so the
+            reviewer never leaves the inbox. */}
+        {canReview && booking?.id && (
+          <button
+            type="button"
+            onClick={() => setReviewOpen(true)}
             className={buttonVariants({
               variant: "default",
               className: "h-10 w-full text-sm font-semibold",
@@ -293,7 +299,23 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           >
             <Star className="mr-1.5 h-4 w-4" />
             Leave a review
-          </Link>
+          </button>
+        )}
+        {canReview && booking?.id && (
+          <ReviewFlowDialog
+            open={reviewOpen}
+            onOpenChange={setReviewOpen}
+            viewerRole={role}
+            bookingId={booking.id}
+            stayConfirmationId={
+              reservation_sidebar?.stay_confirmation_id ?? null
+            }
+            otherUser={{ id: other_user.id, name: other_user.name }}
+            listingTitle={listing?.title ?? "your stay"}
+            alreadyVouched={
+              reservation_sidebar?.viewer_has_vouched ?? false
+            }
+          />
         )}
 
         {/* Request message + host response deliberately live in the

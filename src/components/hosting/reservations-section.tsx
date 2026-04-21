@@ -10,7 +10,7 @@ import type { HostingReservation } from "@/lib/hosting-data";
 import { toast } from "sonner";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
-import { HostReviewModal } from "./host-review-modal";
+import { ReviewFlowDialog } from "@/components/booking/ReviewFlowDialog";
 import Link from "next/link";
 
 function formatDateRange(checkIn: string | null, checkOut: string | null) {
@@ -198,11 +198,18 @@ function ReservationCard({
         </div>
       </div>
       {canHostReview && reservation.stay_confirmation_id && (
-        <HostReviewModal
+        <ReviewFlowDialog
           open={reviewOpen}
           onOpenChange={setReviewOpen}
+          viewerRole="host"
+          bookingId={reservation.id}
           stayConfirmationId={reservation.stay_confirmation_id}
-          guestName={reservation.guest_name}
+          otherUser={{
+            id: reservation.guest_id,
+            name: reservation.guest_name,
+          }}
+          listingTitle={reservation.listing_title}
+          alreadyVouched={reservation.trust_is_direct}
         />
       )}
     </div>
