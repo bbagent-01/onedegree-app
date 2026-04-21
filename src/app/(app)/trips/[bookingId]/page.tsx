@@ -104,6 +104,7 @@ export default async function TripDetailPage({ params }: PageProps) {
             check_out: trip.check_out,
             created_at: trip.created_at,
             responded_at: trip.responded_at,
+            terms_accepted_at: trip.terms_accepted_at,
             viewer_role: "guest",
             stay_confirmation: {
               guest_rating: trip.stay_guest_rating,

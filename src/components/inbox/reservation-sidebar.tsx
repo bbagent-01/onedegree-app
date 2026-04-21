@@ -141,6 +141,7 @@ export function ReservationSidebar({ thread, onClose }: Props) {
                   (booking as { created_at?: string | null }).created_at ??
                   null,
                 responded_at: booking.responded_at,
+                terms_accepted_at: booking.terms_accepted_at,
                 viewer_role: role,
                 stay_confirmation: reservation_sidebar?.stay_confirmation_id
                   ? {

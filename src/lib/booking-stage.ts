@@ -21,7 +21,8 @@ export type StageStatus =
 
 export type StageKey =
   | "requested"
-  | "approved"
+  | "terms_sent"
+  | "terms_accepted"
   | "declined"
   | "cancelled"
   | "payment"
@@ -49,6 +50,10 @@ export interface ResolveInput {
   check_out: string | null;
   created_at: string | null;
   responded_at: string | null;
+  /** When the guest clicked "Accept terms" after the host sent the
+   *  offer. Null = offer has not been confirmed yet. Drives the
+   *  "Terms accepted" stage. */
+  terms_accepted_at?: string | null;
   /** Viewer's perspective — drives the "reviewed" stage completion. */
   viewer_role: "guest" | "host";
   stay_confirmation: {
@@ -87,6 +92,7 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
     check_out,
     created_at,
     responded_at,
+    terms_accepted_at,
     viewer_role,
     stay_confirmation,
   } = input;
@@ -96,6 +102,7 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
   const isDeclined = status === "declined";
   const isCancelled = status === "cancelled";
   const isPending = !status || status === "pending";
+  const termsAccepted = Boolean(terms_accepted_at);
 
   // Date-derived flags. Guarded with isAccepted — only accepted
   // requests move through the stay-in-progress stages.
@@ -136,7 +143,8 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
     detail: isPending ? "Waiting on host response" : null,
   };
 
-  // Stage 2: Approved (or terminal decline / cancel).
+  // Stage 2: Terms sent (was "Approved" — renamed to match the
+  // flow where host approval IS the terms offer to the guest).
   let s2: TimelineStage;
   if (isDeclined) {
     s2 = {
@@ -156,18 +164,22 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
     };
   } else if (isAccepted) {
     s2 = {
-      key: "approved",
-      label: "Approved",
+      key: "terms_sent",
+      label: "Terms sent",
       status: "done",
       at: responded_at,
-      detail: "Host approved — nice.",
+      detail: termsAccepted
+        ? "Host sent their offer"
+        : viewer_role === "guest"
+          ? "Review and accept to confirm your stay"
+          : "Waiting on guest to accept",
     };
   } else {
     s2 = {
-      key: "approved",
-      label: "Awaiting approval",
+      key: "terms_sent",
+      label: "Awaiting host",
       status: "current",
-      detail: "Host hasn't responded yet",
+      detail: "Host hasn't sent terms yet",
     };
   }
 
@@ -176,16 +188,37 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
     return [s1, s2];
   }
 
-  // Stage 3: Payment arrangements (placeholder until Chunk 3).
+  // Stage 3: Terms accepted — guest confirms the host's offer.
   const s3: TimelineStage = {
+    key: "terms_accepted",
+    label: "Terms accepted",
+    status: termsAccepted
+      ? "done"
+      : isAccepted
+        ? "current"
+        : "upcoming",
+    at: terms_accepted_at ?? null,
+    detail: termsAccepted
+      ? "Reservation confirmed"
+      : isAccepted
+        ? viewer_role === "guest"
+          ? "Your turn — accept the offered terms"
+          : "Waiting on guest confirmation"
+        : null,
+  };
+
+  // Stage 4: Payment — placeholder for per-payment stages that ship
+  // with Chunk 4.75 (BOOKING_FLOW_V2_PLAN.md). Once payment_events
+  // exists, expand this into one stage per scheduled payment.
+  const s4: TimelineStage = {
     key: "payment",
     label: "Payment",
     status: "future-feature",
-    detail: "Terms + schedule — ships with the payment flow",
+    detail: "Each scheduled payment will appear here",
   };
 
-  // Stage 4: Upcoming (between approval and check-in).
-  const s4: TimelineStage = {
+  // Stage 5: Upcoming (between terms acceptance and check-in).
+  const s5: TimelineStage = {
     key: "upcoming",
     label: "Upcoming",
     status: !isAccepted
@@ -205,8 +238,8 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
       : null,
   };
 
-  // Stage 5: Checked in (stay in progress).
-  const s5: TimelineStage = {
+  // Stage 6: Checked in (stay in progress).
+  const s6: TimelineStage = {
     key: "checked_in",
     label: "During stay",
     status: !isAccepted
@@ -225,8 +258,8 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
           : null,
   };
 
-  // Stage 6: Checked out (pre-review gap).
-  const s6: TimelineStage = {
+  // Stage 7: Checked out (pre-review gap).
+  const s7: TimelineStage = {
     key: "checked_out",
     label: "Checked out",
     status: !isAccepted
@@ -241,8 +274,8 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
       postStay && myRating === null ? "Time to leave a review" : null,
   };
 
-  // Stage 7: Reviewed.
-  const s7: TimelineStage = {
+  // Stage 8: Reviewed.
+  const s8: TimelineStage = {
     key: "reviewed",
     label: "Reviewed",
     status:
@@ -261,5 +294,5 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
           : null,
   };
 
-  return [s1, s2, s3, s4, s5, s6, s7];
+  return [s1, s2, s3, s4, s5, s6, s7, s8];
 }
