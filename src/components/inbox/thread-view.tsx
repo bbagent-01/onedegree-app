@@ -109,16 +109,25 @@ export function ThreadView({
   // this sync, newly-inserted system messages (like terms_offered)
   // stay invisible until the user hard-reloads.
   //
+  // Dep is a stable fingerprint of the incoming id list, not the
+  // array reference itself — defends against parent re-renders
+  // that would otherwise re-fire this effect on every pass.
+  //
   // Merge strategy: take the server's list, but keep any local
   // optimistic rows (id starts with "temp-") that haven't been
   // reconciled yet — those will be replaced by their real rows on
   // the next send() round-trip.
+  const serverMessageFingerprint = useMemo(
+    () => thread.messages.map((m) => m.id).join("|"),
+    [thread.messages]
+  );
   useEffect(() => {
     setMessages((prev) => {
       const optimistic = prev.filter((m) => m.id.startsWith("temp-"));
       return [...thread.messages, ...optimistic];
     });
-  }, [thread.messages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverMessageFingerprint]);
 
   const isHost = thread.role === "host";
   const pendingBookingId =
