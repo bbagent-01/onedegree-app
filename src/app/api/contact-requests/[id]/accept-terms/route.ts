@@ -2,7 +2,7 @@ export const runtime = "edge";
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveAuth } from "@/lib/impersonation/session";
-import { TERMS_ACCEPTED_PREFIX } from "@/components/booking/ThreadTermsCards";
+import { TERMS_ACCEPTED_PREFIX } from "@/lib/structured-messages";
 import { createPaymentEventsForRequest } from "@/lib/payment-events";
 
 /**

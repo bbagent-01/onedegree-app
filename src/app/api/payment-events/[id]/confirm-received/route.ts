@@ -2,7 +2,7 @@ export const runtime = "edge";
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveAuth } from "@/lib/impersonation/session";
-import { paymentConfirmedMessage } from "@/components/booking/ThreadTermsCards";
+import { paymentConfirmedMessage } from "@/lib/structured-messages";
 
 /**
  * POST /api/payment-events/[id]/confirm-received

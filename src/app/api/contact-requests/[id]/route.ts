@@ -12,7 +12,7 @@ import {
   type CancellationPolicy,
   type CancellationPreset,
 } from "@/lib/cancellation";
-import { TERMS_OFFERED_PREFIX } from "@/components/booking/ThreadTermsCards";
+import { TERMS_OFFERED_PREFIX } from "@/lib/structured-messages";
 
 // PATCH: host responds to a contact request (accept/decline)
 export async function PATCH(

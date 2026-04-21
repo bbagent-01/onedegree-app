@@ -12,7 +12,7 @@
  */
 
 import { getSupabaseAdmin } from "./supabase";
-import { PAYMENT_DUE_PREFIX, paymentDueMessage } from "@/components/booking/ThreadTermsCards";
+import { PAYMENT_DUE_PREFIX, paymentDueMessage } from "@/lib/structured-messages";
 
 const WINDOW_OPEN_LEAD_DAYS = 2;
 
