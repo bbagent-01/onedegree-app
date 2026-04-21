@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { InboxThread } from "@/lib/messaging-data";
+import { friendlyMessagePreview } from "@/components/booking/ThreadTermsCards";
 
 interface Props {
   threads: InboxThread[];
@@ -110,7 +111,7 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
     return source.filter((t) => {
       if (query.trim()) {
         const q = query.toLowerCase();
-        const hay = `${t.other_user.name} ${t.listing?.title || ""} ${t.last_message_preview || ""}`.toLowerCase();
+        const hay = `${t.other_user.name} ${t.listing?.title || ""} ${friendlyMessagePreview(t.last_message_preview)}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -355,7 +356,8 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                             : "text-muted-foreground"
                         )}
                       >
-                        {t.last_message_preview || "No messages yet"}
+                        {friendlyMessagePreview(t.last_message_preview) ||
+                          "No messages yet"}
                       </div>
                     </div>
                     {isUnread && (

@@ -160,6 +160,77 @@ cancellation_policy JSONB = {
 - Cancel flow honors the policy — computes refund % from today's
   distance to check-in and shows it on the cancel dialog.
 
+## Chunk 4.75 — Thread as reservation timeline (deferred)
+
+Captured 2026-04-21. The thread already renders structured cards
+for `terms_offered` and `terms_accepted` (prefix convention in
+`messages.content`, detected by `thread-view`). Loren wants to
+extend that pattern so **every major reservation milestone** shows
+up as an inline interactive block in the conversation, not just a
+sidebar/timeline widget.
+
+Target event types (each one a structured message prefix):
+
+- `__type:terms_offered__`    ✅ shipped
+- `__type:terms_accepted__`   ✅ shipped
+- `__type:payment_due__`      — "$X due [date]" + "Mark as paid"
+                                 button for the guest. Posted when
+                                 a `payment_schedule` entry's
+                                 `due_at` window opens.
+- `__type:payment_claimed__`  — "[Guest] says they paid you $X on
+                                 [date] via [method]" + "Confirm
+                                 received" / "Dispute" for the host.
+                                 Posted when the guest marks a due
+                                 payment as paid.
+- `__type:payment_confirmed__` — "Payment of $X confirmed" —
+                                 acknowledgement block for both
+                                 sides; advances the schedule.
+- `__type:checkin_soon__`     — posted 48h before check-in with
+                                 the host's payment handles,
+                                 house manual link, check-in time.
+- `__type:stay_started__`     — posted on check-in day.
+- `__type:stay_ended__`       — posted at checkout, prompting
+                                 reviews on both sides.
+- `__type:review_left__`      — posted when either side submits
+                                 a review. Surfaces the star count.
+
+### Schema sketch
+
+`payment_events` table — one row per scheduled payment:
+
+```
+id UUID pk
+contact_request_id UUID fk
+schedule_index INTEGER            -- which row in the snapshot
+amount_cents INTEGER              -- resolved from % or fixed
+due_at DATE
+status TEXT  ('scheduled','claimed','confirmed','waived','refunded')
+method TEXT                       -- set when guest marks paid
+claimed_at TIMESTAMPTZ
+confirmed_at TIMESTAMPTZ
+note TEXT
+```
+
+A scheduled cron posts the `payment_due` message when `due_at`
+arrives and the payment is still `scheduled`. Guest clicks "Mark
+as paid" → status becomes `claimed`, posts `payment_claimed`.
+Host clicks "Confirm received" → status `confirmed`, posts
+`payment_confirmed`.
+
+The existing `TripTimeline` component (sidebar + trip detail)
+can read the same `payment_events` rows to drive the vertical
+progress bar — the thread cards become the interactive surface,
+the timeline becomes the summary view.
+
+### Why deferred
+
+Requires the cron infrastructure (already have review-reminder
+cron to model after), plus event-posting idempotency (don't
+double-post if the cron re-runs). Shipping `terms_offered` first
+let us validate the structured-message approach with one path;
+extending to N event types is straight-line work once the
+pattern is proven.
+
 ## Chunk 4.5 — Two-way trip edits (deferred)
 
 Captured 2026-04-21. Today the host's "Review & send terms" card

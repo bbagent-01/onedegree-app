@@ -44,6 +44,31 @@ export function isStructuredMessage(content: string): boolean {
   );
 }
 
+/**
+ * Friendly label for a structured message — used anywhere the raw
+ * content would leak (inbox list preview, thread-view fallback,
+ * any legacy surface that sees the text). The DB trigger on
+ * `messages` writes the raw content into
+ * message_threads.last_message_preview, so without this translator
+ * users see "__type:terms_offered__" in their inbox.
+ */
+export function structuredMessageLabel(content: string): string | null {
+  if (content.startsWith(TERMS_OFFERED_PREFIX)) return "Terms sent";
+  if (content.startsWith(TERMS_ACCEPTED_PREFIX)) return "Terms accepted";
+  return null;
+}
+
+/**
+ * Render-ready preview — use anywhere you'd show a raw message
+ * content but want the friendly version for structured prefixes.
+ */
+export function friendlyMessagePreview(
+  content: string | null | undefined
+): string {
+  if (!content) return "";
+  return structuredMessageLabel(content) ?? content;
+}
+
 interface TermsOfferedProps {
   bookingId: string;
   checkIn: string | null;

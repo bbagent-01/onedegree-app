@@ -15,6 +15,7 @@ import {
   TERMS_OFFERED_PREFIX,
   TermsAcceptedCard,
   TermsOfferedCard,
+  friendlyMessagePreview,
 } from "@/components/booking/ThreadTermsCards";
 import { HostReviewTermsInline } from "@/components/booking/HostReviewTermsInline";
 
@@ -403,7 +404,7 @@ export function ThreadView({
                     key={m.id}
                     className="mx-auto max-w-md rounded-full bg-muted px-4 py-1.5 text-center text-xs text-muted-foreground"
                   >
-                    {m.content}
+                    {friendlyMessagePreview(m.content)}
                   </div>
                 );
               }
