@@ -187,6 +187,7 @@ export default async function TripDetailPage({ params }: PageProps) {
         <PaymentArrangementCard
           bookingId={bookingId}
           hostFirstName={trip.host.name?.split(" ")[0] ?? "your host"}
+          methods={trip.host_payment_methods}
         />
       )}
 

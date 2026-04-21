@@ -6,6 +6,11 @@ import {
   type ConnectorPathSummary,
 } from "./trust-data";
 import { resolveEffectivePolicy } from "./cancellation";
+import {
+  enabledMethods,
+  parsePaymentMethods,
+  type PaymentMethod,
+} from "./payment-methods";
 
 export type ThreadRole = "guest" | "host";
 
@@ -93,6 +98,14 @@ export interface ThreadDetail extends InboxThread {
      *  on the contact_request if accepted, otherwise listing
      *  override → host default → platform default. */
     cancellation_policy: import("./cancellation").CancellationPolicy;
+    /**
+     * Host's enabled payment methods (with handles). Populated only
+     * when the viewer is the guest AND the request is accepted —
+     * before approval the guest sees only method *types* on the
+     * listing page. The host side of this thread already knows their
+     * own handles, so we leave this empty for hosts.
+     */
+    host_payment_methods: PaymentMethod[];
   };
 }
 
@@ -326,20 +339,24 @@ export async function getThreadDetail(
       : Promise.resolve({ data: null }),
   ]);
 
-  // Look up the listing's host cancellation policy as the fallback
-  // for the resolver. Single targeted query — keeps the parallel
-  // bundle above tidy.
+  // Look up the listing's host cancellation policy + payment
+  // methods as the fallback for the resolver. Single targeted
+  // query — keeps the parallel bundle above tidy.
   const hostId = (listing as { host_id?: string } | null)?.host_id ?? null;
   let hostCancellationPolicy: unknown = null;
+  let hostPaymentMethodsRaw: unknown = null;
   if (hostId) {
     const { data: hostRow } = await supabase
       .from("users")
-      .select("cancellation_policy")
+      .select("cancellation_policy, payment_methods")
       .eq("id", hostId)
       .maybeSingle();
     hostCancellationPolicy =
       (hostRow as { cancellation_policy?: unknown } | null)
         ?.cancellation_policy ?? null;
+    hostPaymentMethodsRaw =
+      (hostRow as { payment_methods?: unknown } | null)
+        ?.payment_methods ?? null;
   }
 
   // Sidebar-only: check if the other user owns any listings (→
@@ -483,6 +500,10 @@ export async function getThreadDetail(
           (booking as { cancellation_policy?: unknown } | null)
             ?.cancellation_policy ?? null,
       }),
+      host_payment_methods:
+        isGuest && booking?.status === "accepted"
+          ? enabledMethods(parsePaymentMethods(hostPaymentMethodsRaw))
+          : [],
     },
   };
 }

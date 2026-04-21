@@ -19,6 +19,7 @@ import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
 import { GatedListingView } from "@/components/listing/gated-listing-view";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
+import { PAYMENT_METHOD_META } from "@/lib/payment-methods";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -396,6 +397,30 @@ export default async function ListingPage({
               scope="listing"
             />
           </div>
+          {listing.host_payment_method_types.length > 0 && (
+            <div className="md:col-span-2">
+              <h3 className="mb-3 font-semibold">
+                How this host collects payment
+              </h3>
+              <div className="rounded-xl border border-border p-4">
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Once your stay is approved, you&apos;ll see the host&apos;s
+                  handle to pay directly. 1° B&amp;B doesn&apos;t process
+                  payments.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {listing.host_payment_method_types.map((t) => (
+                    <span
+                      key={t}
+                      className="inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-800"
+                    >
+                      {PAYMENT_METHOD_META.find((m) => m.key === t)?.label ?? t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

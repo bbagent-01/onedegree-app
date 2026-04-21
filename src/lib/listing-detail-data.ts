@@ -3,6 +3,11 @@ import { resolveEffectivePolicy } from "./cancellation";
 import type { ListingPhoto, ListingRow } from "./listing-data";
 import { derivedExtras } from "./listing-derived";
 import { parseListingMeta } from "./listing-meta";
+import {
+  enabledMethods,
+  parsePaymentMethods,
+  type PaymentMethodType,
+} from "./payment-methods";
 
 export interface ListingHost {
   id: string;
@@ -70,6 +75,13 @@ export interface ListingDetail {
    * (falls back to the platform Moderate preset as a last resort).
    */
   cancellation_policy: import("./cancellation").CancellationPolicy;
+  /**
+   * Payment method *types* the host has enabled (venmo, zelle, …).
+   * Handles are intentionally omitted — the public listing page
+   * only reveals which rails exist. Specific handles are shown to
+   * the guest after a request is approved (inbox sidebar / trip).
+   */
+  host_payment_method_types: PaymentMethodType[];
 }
 
 export async function getListingDetail(
@@ -104,7 +116,7 @@ export async function getListingDetail(
     supabase
       .from("users")
       .select(
-        "id, name, avatar_url, bio, created_at, host_rating, host_review_count, cancellation_policy"
+        "id, name, avatar_url, bio, created_at, host_rating, host_review_count, cancellation_policy, payment_methods"
       )
       .eq("id", row.host_id)
       .maybeSingle(),
@@ -136,8 +148,18 @@ export async function getListingDetail(
     return (a.sort_order ?? 0) - (b.sort_order ?? 0);
   });
   const host = hostRes.data as
-    | (ListingHost & { cancellation_policy: unknown })
+    | (ListingHost & {
+        cancellation_policy: unknown;
+        payment_methods: unknown;
+      })
     | null;
+  const hostPaymentMethodTypes: PaymentMethodType[] = Array.from(
+    new Set(
+      enabledMethods(parsePaymentMethods(host?.payment_methods)).map(
+        (m) => m.type
+      )
+    )
+  );
   const reviewRows = (reviewsRes.data || []) as Array<{
     id: string;
     guest_id: string;
@@ -219,6 +241,7 @@ export async function getListingDetail(
       listingOverride: row.cancellation_policy_override,
       reservationSnapshot: null,
     }),
+    host_payment_method_types: hostPaymentMethodTypes,
     ...derived,
   };
 }

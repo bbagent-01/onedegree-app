@@ -4,6 +4,11 @@ import {
   type ConnectorPathSummary,
 } from "./trust-data";
 import { resolveEffectivePolicy } from "./cancellation";
+import {
+  enabledMethods,
+  parsePaymentMethods,
+  type PaymentMethod,
+} from "./payment-methods";
 
 export type TripTab = "upcoming" | "completed" | "cancelled";
 
@@ -188,6 +193,12 @@ export interface TripDetail extends TripCard {
    *  accepted) → listing override → host default → platform
    *  default. Always populated. */
   cancellation_policy: import("./cancellation").CancellationPolicy;
+  /**
+   * Host's enabled payment methods (with handles). Only populated
+   * when the reservation status is "accepted" — before that the
+   * guest only sees the types list, not the specific handles.
+   */
+  host_payment_methods: PaymentMethod[];
 }
 
 /** Fetch a single trip with extra detail for the trip detail page. */
@@ -226,7 +237,9 @@ export async function getTripDetail(
       .limit(4),
     supabase
       .from("users")
-      .select("id, name, avatar_url, email, phone_number, cancellation_policy")
+      .select(
+        "id, name, avatar_url, email, phone_number, cancellation_policy, payment_methods"
+      )
       .eq("id", request.host_id)
       .maybeSingle(),
     supabase
@@ -302,5 +315,16 @@ export async function getTripDetail(
       reservationSnapshot: (request as { cancellation_policy?: unknown })
         .cancellation_policy,
     }),
+    // Guest only sees specific payment handles once the request
+    // is approved. Before that, the listing detail page shows only
+    // the method *types* (Venmo / Zelle / …) without handles.
+    host_payment_methods:
+      request.status === "accepted"
+        ? enabledMethods(
+            parsePaymentMethods(
+              (host as { payment_methods?: unknown } | null)?.payment_methods
+            )
+          )
+        : [],
   };
 }

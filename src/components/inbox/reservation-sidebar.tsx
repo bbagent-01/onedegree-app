@@ -13,12 +13,19 @@ import {
   X,
   ChevronRight,
   Home,
+  Copy,
+  Wallet,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ThreadDetail } from "@/lib/messaging-data";
+import {
+  displayHandle,
+  paymentMethodMeta,
+  type PaymentMethod,
+} from "@/lib/payment-methods";
 import { resolveStages } from "@/lib/booking-stage";
 import { TripTimeline } from "@/components/booking/TripTimeline";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
@@ -337,6 +344,29 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           />
         )}
 
+        {/* Payment handles — guest-only, once the host has approved.
+            Hosts know their own handles already; no need to echo
+            them back. */}
+        {reservation_sidebar?.host_payment_methods &&
+          reservation_sidebar.host_payment_methods.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <Wallet className="h-3 w-3" />
+                How to pay {other_user.name.split(" ")[0]}
+              </div>
+              <div className="space-y-1.5">
+                {reservation_sidebar.host_payment_methods.map((m, i) => (
+                  <PaymentMethodRow key={`${m.type}-${i}`} method={m} />
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                Payment happens directly between you and{" "}
+                {other_user.name.split(" ")[0]}. 1° B&amp;B doesn&apos;t
+                process payments.
+              </p>
+            </div>
+          )}
+
         {/* About the other person */}
         <div>
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -404,5 +434,44 @@ export function ReservationSidebar({ thread, onClose }: Props) {
 
       </div>
     </aside>
+  );
+}
+
+function PaymentMethodRow({ method }: { method: PaymentMethod }) {
+  const meta = paymentMethodMeta(method.type);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(displayHandle(method));
+      toast.success(`${meta.label} handle copied`);
+    } catch {
+      toast.error("Couldn't copy");
+    }
+  };
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 p-2.5">
+      <div className="min-w-0">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {meta.label}
+        </div>
+        <div className="truncate text-xs font-medium">
+          {displayHandle(method)}
+        </div>
+        {method.note && (
+          <div className="mt-0.5 whitespace-pre-wrap text-[11px] text-muted-foreground">
+            {method.note}
+          </div>
+        )}
+      </div>
+      {method.handle && (
+        <button
+          type="button"
+          onClick={copy}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label={`Copy ${meta.label} handle`}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
   );
 }
