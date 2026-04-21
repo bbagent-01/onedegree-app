@@ -11,6 +11,7 @@ import {
   parsePaymentMethods,
   type PaymentMethod,
 } from "./payment-methods";
+import type { PaymentEvent } from "./payment-events";
 
 export type ThreadRole = "guest" | "host";
 
@@ -119,6 +120,12 @@ export interface ThreadDetail extends InboxThread {
      */
     host_payment_methods: PaymentMethod[];
   };
+  /**
+   * Per-payment ledger rows for this reservation (Chunk 4.75).
+   * Empty array when terms haven't been accepted yet, or when the
+   * policy has no payment_schedule. Ordered by schedule_index.
+   */
+  payment_events?: PaymentEvent[];
 }
 
 /** Resolves the current Clerk user to a Track B users row.
@@ -383,6 +390,22 @@ export async function getThreadDetail(
     .limit(1);
   const otherUserIsHost = (otherHostedListings || []).length > 0;
 
+  // Fetch per-payment events for the reservation. Only relevant
+  // on accepted requests that have materialized a ledger via
+  // accept-terms; for pending/declined/cancelled we skip the
+  // query entirely.
+  let paymentEvents: PaymentEvent[] = [];
+  if (thread.contact_request_id && booking && (booking as { status?: string }).status === "accepted") {
+    const { data: events } = await supabase
+      .from("payment_events")
+      .select(
+        "id, contact_request_id, schedule_index, amount_cents, due_at, status, method, claimed_at, confirmed_at, note"
+      )
+      .eq("contact_request_id", thread.contact_request_id)
+      .order("schedule_index", { ascending: true });
+    paymentEvents = (events || []) as PaymentEvent[];
+  }
+
   let stayConfirmationId: string | null = null;
   let stayReviewedByMe = false;
   if (thread.contact_request_id) {
@@ -535,6 +558,7 @@ export async function getThreadDetail(
           ? enabledMethods(parsePaymentMethods(hostPaymentMethodsRaw))
           : [],
     },
+    payment_events: paymentEvents,
   };
 }
 

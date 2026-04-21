@@ -1,14 +1,21 @@
 /**
- * One Degree BNB — hourly reminder cron worker.
+ * One Degree BNB — hourly cron worker.
  *
  * Cloudflare Pages doesn't natively support cron triggers, so this tiny
  * standalone Worker is the only piece of cron infrastructure. Every hour
- * (minute :07) it POSTs to the Pages app's /api/cron/check-reminders
- * endpoint with a shared secret header. All business logic lives in the
- * Pages app — this worker is just the trigger.
+ * (minute :07) it POSTs to one or more cron endpoints on the Pages app
+ * with a shared secret header. All business logic lives in the Pages app
+ * — this worker is just the trigger.
+ *
+ * Currently fans out to:
+ *   /api/cron/check-reminders   — hourly check-in + review sweep
+ *   /api/cron/payment-due       — daily payment_due window opener
+ *
+ * Both are safe to fire hourly; the payment-due endpoint is idempotent
+ * against already-posted `payment_due` messages.
  *
  * Bound vars (set in wrangler.toml [vars]):
- *   - TARGET_URL: full URL of the cron endpoint
+ *   - TARGET_URL: base URL of the Pages app (e.g. https://alpha-b.onedegreebnb.com)
  *
  * Bound secrets (set with `wrangler secret put`):
  *   - CRON_SECRET: shared with the Pages app's CRON_SECRET env var
@@ -19,13 +26,18 @@ export interface Env {
   CRON_SECRET: string;
 }
 
+const CRON_PATHS = [
+  "/api/cron/check-reminders",
+  "/api/cron/payment-due",
+];
+
 export default {
   async scheduled(
     _controller: ScheduledController,
     env: Env,
     ctx: ExecutionContext
   ): Promise<void> {
-    ctx.waitUntil(fire(env));
+    ctx.waitUntil(fireAll(env));
   },
 
   // Manual trigger via fetch (handy for one-off testing from a browser
@@ -34,15 +46,33 @@ export default {
     if (req.headers.get("x-cron-secret") !== env.CRON_SECRET) {
       return new Response("Unauthorized", { status: 401 });
     }
-    const result = await fire(env);
+    const result = await fireAll(env);
     return Response.json(result);
   },
 } satisfies ExportedHandler<Env>;
 
-async function fire(env: Env) {
+async function fireAll(env: Env) {
   const startedAt = new Date().toISOString();
+  // Legacy TARGET_URL: if it already points at a specific path (old
+  // deploys set it to the full check-reminders URL), use its origin
+  // as the base so we don't double-suffix.
+  const base = (() => {
+    try {
+      return new URL(env.TARGET_URL).origin;
+    } catch {
+      return env.TARGET_URL.replace(/\/$/, "");
+    }
+  })();
+  const results: Record<string, unknown> = {};
+  for (const path of CRON_PATHS) {
+    results[path] = await fireOne(env, `${base}${path}`, startedAt);
+  }
+  return { at: startedAt, results };
+}
+
+async function fireOne(env: Env, url: string, startedAt: string) {
   try {
-    const res = await fetch(env.TARGET_URL, {
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "x-cron-secret": env.CRON_SECRET,
@@ -52,7 +82,7 @@ async function fire(env: Env) {
     });
     const text = await res.text();
     console.log(
-      `[cron-worker] ${startedAt} POST ${env.TARGET_URL} → ${res.status}\n${text.slice(0, 1000)}`
+      `[cron-worker] ${startedAt} POST ${url} → ${res.status}\n${text.slice(0, 1000)}`
     );
     return { ok: res.ok, status: res.status, body: text.slice(0, 2000) };
   } catch (e) {

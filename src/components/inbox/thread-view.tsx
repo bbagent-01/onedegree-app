@@ -11,11 +11,15 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ThreadDetail, ThreadMessage } from "@/lib/messaging-data";
 import {
+  PaymentClaimedCard,
+  PaymentConfirmedCard,
+  PaymentDueCard,
   TERMS_ACCEPTED_PREFIX,
   TERMS_OFFERED_PREFIX,
   TermsAcceptedCard,
   TermsOfferedCard,
   friendlyMessagePreview,
+  parsePaymentEventId,
 } from "@/components/booking/ThreadTermsCards";
 import { HostReviewTermsInline } from "@/components/booking/HostReviewTermsInline";
 
@@ -367,6 +371,68 @@ export function ThreadView({
                       />
                     </div>
                   );
+                }
+                // Payment event cards — read the live event from
+                // thread.payment_events (by id baked into the
+                // prefix) so status transitions are reflected on
+                // older cards, not just the latest one.
+                const paymentParse = parsePaymentEventId(m.content);
+                if (paymentParse) {
+                  const ev = (thread.payment_events ?? []).find(
+                    (e) => e.id === paymentParse.eventId
+                  );
+                  if (ev) {
+                    const total = (thread.payment_events ?? []).length;
+                    const hostFirst = (
+                      thread.role === "host" ? "you" : thread.other_user.name
+                    ).split(" ")[0];
+                    const guestFirst = (
+                      thread.role === "guest" ? "you" : thread.other_user.name
+                    ).split(" ")[0];
+                    if (paymentParse.kind === "due") {
+                      return (
+                        <div key={m.id} className="py-1">
+                          <PaymentDueCard
+                            event={ev}
+                            totalEvents={total}
+                            viewerRole={thread.role}
+                            paymentMethods={
+                              thread.reservation_sidebar
+                                ?.host_payment_methods ?? []
+                            }
+                            hostFirstName={hostFirst}
+                            guestFirstName={guestFirst}
+                          />
+                        </div>
+                      );
+                    }
+                    if (paymentParse.kind === "claimed") {
+                      return (
+                        <div key={m.id} className="py-1">
+                          <PaymentClaimedCard
+                            event={ev}
+                            totalEvents={total}
+                            viewerRole={thread.role}
+                            hostFirstName={hostFirst}
+                            guestFirstName={guestFirst}
+                          />
+                        </div>
+                      );
+                    }
+                    if (paymentParse.kind === "confirmed") {
+                      return (
+                        <div key={m.id} className="py-1">
+                          <PaymentConfirmedCard
+                            event={ev}
+                            totalEvents={total}
+                            viewerRole={thread.role}
+                            hostFirstName={hostFirst}
+                            guestFirstName={guestFirst}
+                          />
+                        </div>
+                      );
+                    }
+                  }
                 }
                 if (
                   m.content.startsWith(TERMS_ACCEPTED_PREFIX) &&

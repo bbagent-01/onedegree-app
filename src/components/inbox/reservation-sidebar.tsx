@@ -163,6 +163,7 @@ export function ReservationSidebar({ thread, onClose }: Props) {
                           : null,
                     }
                   : null,
+                payment_events: thread.payment_events ?? null,
               })}
               compact
             />

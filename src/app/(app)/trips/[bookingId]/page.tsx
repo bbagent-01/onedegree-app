@@ -110,6 +110,7 @@ export default async function TripDetailPage({ params }: PageProps) {
               guest_rating: trip.stay_guest_rating,
               host_rating: trip.stay_host_rating,
             },
+            payment_events: trip.payment_events,
           })}
         />
       </div>

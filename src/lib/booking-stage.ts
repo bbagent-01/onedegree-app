@@ -31,6 +31,18 @@ export type StageKey =
   | "checked_out"
   | "reviewed";
 
+/**
+ * Minimal payment_events shape the resolver needs. Matches the
+ * subset selected by ThreadDetail / TripTimeline callers.
+ */
+export interface PaymentEventForStage {
+  id: string;
+  schedule_index: number;
+  amount_cents: number;
+  due_at: string;
+  status: "scheduled" | "claimed" | "confirmed" | "waived" | "refunded";
+}
+
 export interface TimelineStage {
   key: StageKey;
   label: string;
@@ -60,6 +72,9 @@ export interface ResolveInput {
     guest_rating: number | null;
     host_rating: number | null;
   } | null;
+  /** Per-payment rows — when present, the single "Payment" stage
+   *  expands into one stage per event. Ordered by schedule_index. */
+  payment_events?: PaymentEventForStage[] | null;
 }
 
 /** Today in YYYY-MM-DD (UTC — matches how the DB stores dates). */
@@ -207,15 +222,63 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
         : null,
   };
 
-  // Stage 4: Payment — placeholder for per-payment stages that ship
-  // with Chunk 4.75 (BOOKING_FLOW_V2_PLAN.md). Once payment_events
-  // exists, expand this into one stage per scheduled payment.
-  const s4: TimelineStage = {
-    key: "payment",
-    label: "Payment",
-    status: "future-feature",
-    detail: "Each scheduled payment will appear here",
-  };
+  // Stage 4: Payment — expands into one stage per event when the
+  // reservation has materialized payment_events (after guest
+  // accepts terms). Falls back to the original "future feature"
+  // placeholder for legacy rows that were accepted before Chunk
+  // 4.75 landed, and for reservations whose policy has no
+  // payment_schedule (refunds-only or "handle myself").
+  const events = input.payment_events ?? [];
+  const s4List: TimelineStage[] = [];
+  if (events.length > 0) {
+    const total = events.length;
+    for (const ev of events) {
+      const dollars = (ev.amount_cents / 100).toLocaleString(undefined, {
+        minimumFractionDigits: Number.isInteger(ev.amount_cents / 100) ? 0 : 2,
+        maximumFractionDigits: 2,
+      });
+      const label =
+        total > 1
+          ? `Payment ${ev.schedule_index + 1} of ${total} — $${dollars}`
+          : `Payment — $${dollars}`;
+      let status: StageStatus;
+      let detail: string | null;
+      if (ev.status === "confirmed") {
+        status = "done";
+        detail = "Confirmed";
+      } else if (ev.status === "waived") {
+        status = "done";
+        detail = "Waived";
+      } else if (ev.status === "refunded") {
+        status = "done";
+        detail = "Refunded";
+      } else if (ev.status === "claimed") {
+        status = "current";
+        detail = "Awaiting host confirmation";
+      } else {
+        // scheduled
+        const dueOpen = today >= ev.due_at;
+        status = dueOpen ? "current" : "upcoming";
+        detail = dueOpen
+          ? `Due ${fmtDate(ev.due_at)}`
+          : `Due ${fmtDate(ev.due_at)}`;
+      }
+      s4List.push({
+        key: "payment",
+        label,
+        status,
+        at: ev.due_at,
+        detail,
+      });
+    }
+  } else {
+    s4List.push({
+      key: "payment",
+      label: "Payment",
+      status: "future-feature",
+      detail: "Each scheduled payment will appear here",
+    });
+  }
 
   // Stage 5: Upcoming (between terms acceptance and check-in).
   const s5: TimelineStage = {
@@ -294,5 +357,5 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
           : null,
   };
 
-  return [s1, s2, s3, s4, s5, s6, s7, s8];
+  return [s1, s2, s3, ...s4List, s5, s6, s7, s8];
 }

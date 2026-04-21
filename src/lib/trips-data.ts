@@ -204,6 +204,11 @@ export interface TripDetail extends TripCard {
   /** Final/estimated total for the stay. Editable by the host at
    *  approval time. Null when there's no number to show. */
   total_estimate: number | null;
+  /** Per-payment ledger rows for this reservation. Ordered by
+   *  schedule_index. Empty when the reservation hasn't
+   *  materialized a ledger (pending/declined/cancelled, or the
+   *  policy has no payment_schedule). */
+  payment_events: import("./payment-events").PaymentEvent[];
 }
 
 /** Fetch a single trip with extra detail for the trip detail page. */
@@ -264,6 +269,14 @@ export async function getTripDetail(
       .eq("listing_id", request.listing_id)
       .maybeSingle(),
   ]);
+
+  const { data: paymentEvents } = await supabase
+    .from("payment_events")
+    .select(
+      "id, contact_request_id, schedule_index, amount_cents, due_at, status, method, claimed_at, confirmed_at, note"
+    )
+    .eq("contact_request_id", bookingId)
+    .order("schedule_index", { ascending: true });
 
   const thumbnail =
     (photos || []).find((p) => p.is_preview)?.public_url ||
@@ -336,5 +349,7 @@ export async function getTripDetail(
       null,
     total_estimate:
       (request as { total_estimate?: number | null }).total_estimate ?? null,
+    payment_events:
+      (paymentEvents || []) as import("./payment-events").PaymentEvent[],
   };
 }

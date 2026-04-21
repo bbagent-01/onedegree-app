@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveAuth } from "@/lib/impersonation/session";
 import { TERMS_ACCEPTED_PREFIX } from "@/components/booking/ThreadTermsCards";
+import { createPaymentEventsForRequest } from "@/lib/payment-events";
 
 /**
  * POST /api/contact-requests/[id]/accept-terms
@@ -87,6 +88,16 @@ export async function POST(
       content: TERMS_ACCEPTED_PREFIX,
       is_system: true,
     });
+  }
+
+  // Materialize per-payment rows from the snapshotted schedule.
+  // Idempotent: a retry on an already-accepted request no-ops.
+  // Don't block the response on failure — event creation is a
+  // ledger-setup side effect, not part of the acceptance itself.
+  try {
+    await createPaymentEventsForRequest(id);
+  } catch (e) {
+    console.error("[accept-terms] createPaymentEventsForRequest failed:", e);
   }
 
   return Response.json({ ok: true, terms_accepted_at: now });
