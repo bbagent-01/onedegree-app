@@ -558,6 +558,3 @@ export function policiesEqual(
  *  the policy surfaces, so copy stays consistent. */
 export const PLATFORM_NEUTRALITY_NOTE =
   "1° B&B doesn't process payments or manage refunds. This is guidance to help you and your counterpart set expectations.";
-
-export const OFF_PLATFORM_PAYMENT_NOTE =
-  "Because payment is handled off-platform, we recommend collecting money whenever it should be nonrefundable.";

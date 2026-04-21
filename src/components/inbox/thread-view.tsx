@@ -176,19 +176,6 @@ export function ThreadView({
     };
   }, [thread.id]);
 
-  // Pick the "current" payment event — the next outstanding one
-  // if any, otherwise the last event in the schedule. Only cards
-  // for this event render; older confirmed / future scheduled
-  // cards stay hidden so the thread shows one payment block at a
-  // time. Computed once per event list update.
-  const currentPaymentEventId = useMemo(() => {
-    const events = thread.payment_events ?? [];
-    if (events.length === 0) return null;
-    const terminal = new Set(["confirmed", "waived", "refunded"]);
-    const nextOutstanding = events.find((e) => !terminal.has(e.status));
-    return (nextOutstanding ?? events[events.length - 1]).id;
-  }, [thread.payment_events]);
-
   // Group consecutive messages into day buckets
   const grouped = useMemo(() => {
     const groups: { dayKey: string; label: string; items: ThreadMessage[] }[] = [];
@@ -419,27 +406,20 @@ export function ThreadView({
                     </div>
                   );
                 }
-                // Payment event cards. Only ONE card renders at a
-                // time — for the currently-outstanding event (or
-                // the last one if all are confirmed), and only for
-                // the message whose `kind` matches that event's
-                // live status. Older/future events stay hidden
-                // completely so the feed doesn't stack cards.
+                // Payment event cards. The thread is a timeline of
+                // record — every event contributes one visible card
+                // showing its CURRENT state (due / claimed /
+                // confirmed). An event may have multiple history
+                // messages in the DB (payment_due, payment_claimed,
+                // payment_confirmed); render only the one whose
+                // kind matches the event's live status so a claimed
+                // event shows its claimed card, not its old due one.
                 const paymentParse = parsePaymentEventId(m.content);
                 if (paymentParse) {
                   const ev = (thread.payment_events ?? []).find(
                     (e) => e.id === paymentParse.eventId
                   );
-                  // Not the current event → hide the message row.
-                  if (!ev || ev.id !== currentPaymentEventId) {
-                    return null;
-                  }
-                  // Map the event's current status to the expected
-                  // card kind so we only render the message whose
-                  // prefix matches the live state. Example: a
-                  // claimed event has BOTH a payment_due and a
-                  // payment_claimed message in the thread; we show
-                  // only the claimed one.
+                  if (!ev) return null;
                   const expectedKind =
                     ev.status === "scheduled"
                       ? "due"

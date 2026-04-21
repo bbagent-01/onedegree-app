@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import {
   CANCELLATION_APPROACHES,
   CANCELLATION_PRESETS,
-  OFF_PLATFORM_PAYMENT_NOTE,
   PLATFORM_NEUTRALITY_NOTE,
   buildPolicyFromPreset,
   type CancellationApproach,
@@ -332,11 +331,8 @@ export function CancellationPolicyForm({
         />
       </section>
 
-      {/* Save row + disclaimer */}
-      <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 p-4 md:flex-row md:items-center md:justify-between">
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {OFF_PLATFORM_PAYMENT_NOTE}
-        </p>
+      {/* Save row */}
+      <div className="flex justify-end rounded-xl border border-border bg-muted/30 p-4">
         <Button onClick={save} disabled={saving} className="shrink-0">
           {saving ? (
             <>

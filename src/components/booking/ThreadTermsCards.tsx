@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   Check,
+  ChevronDown as ChevronDownIcon,
   Copy,
   DollarSign,
   Loader2,
@@ -710,6 +711,12 @@ export function PaymentDueCard({
       ? "due today"
       : "past due";
 
+  // Upcoming payments collapse by default so the thread timeline
+  // isn't swamped with payment option lists. Due-now (and past-due)
+  // payments open by default — the ask is current so the action
+  // should be one click away.
+  const [open, setOpen] = useState(!isUpcoming);
+
   const markPaid = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -736,16 +743,21 @@ export function PaymentDueCard({
     }
   };
 
-  // Visual tone also flips with the state — muted slate for upcoming,
+  // Visual tone flips with the state — muted slate for upcoming,
   // amber for due/past-due so the thread hierarchy matches urgency.
   const iconBg =
     isUpcoming && !pastScheduled
       ? "bg-slate-100 text-slate-600"
       : "bg-amber-100 text-amber-700";
 
+  const canPayNow =
+    viewerRole === "guest" && !pastScheduled;
+
   return (
     <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-border bg-white shadow-sm">
-      <div className="flex items-start gap-3 border-b border-border p-4">
+      {/* Summary row — always visible. Stays the "timeline of record"
+          entry so past payments remain readable after confirmation. */}
+      <div className="flex items-start gap-3 p-4">
         <div
           className={cn(
             "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
@@ -769,34 +781,53 @@ export function PaymentDueCard({
             {formatCentsDisplay(event.amount_cents)} {dueCopy} ·{" "}
             {fmtDueDate(event.due_at)}
           </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            {viewerRole === "guest"
-              ? isUpcoming && !pastScheduled
-                ? `Payment isn't due yet — you can pay early if you'd like.`
-                : `Send to ${hostFirstName} off-platform, then mark it paid here.`
-              : isUpcoming && !pastScheduled
+          {viewerRole === "host" && (
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {isUpcoming
                 ? `${guestFirstName} will see this in their thread.`
                 : `Waiting on ${guestFirstName} to send this payment.`}
-          </div>
+            </div>
+          )}
         </div>
+        {canPayNow && isUpcoming && (
+          // Upcoming → single top-line "Pay early" toggle. Expanded
+          // state shows the methods + actual mark-as-paid commit.
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm transition hover:bg-muted/50"
+            )}
+          >
+            {open ? "Close" : "Pay early"}
+            <ChevronDownIcon
+              className={cn(
+                "h-3.5 w-3.5 transition-transform",
+                open && "rotate-180"
+              )}
+            />
+          </button>
+        )}
       </div>
 
-      {viewerRole === "guest" && paymentMethods.length > 0 && (
-        <div className="border-b border-border px-4 py-3">
-          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <Wallet className="h-3 w-3" />
-            How to pay {hostFirstName}
-          </div>
-          <div className="space-y-1.5">
-            {paymentMethods.map((m, i) => (
-              <TermsPaymentMethodRow key={`${m.type}-${i}`} method={m} />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Expanded body — payment method links + mark-as-paid commit.
+          Default-open for due/past-due, default-closed for upcoming. */}
+      {canPayNow && open && (
+        <div className="space-y-3 border-t border-border bg-muted/30 p-4">
+          {paymentMethods.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <Wallet className="h-3 w-3" />
+                How to pay {hostFirstName}
+              </div>
+              <div className="space-y-1.5">
+                {paymentMethods.map((m, i) => (
+                  <TermsPaymentMethodRow key={`${m.type}-${i}`} method={m} />
+                ))}
+              </div>
+            </div>
+          )}
 
-      {viewerRole === "guest" && !pastScheduled && (
-        <div className="space-y-2 border-t border-border bg-muted/30 p-4">
           {paymentMethods.length > 1 && (
             <div>
               <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -815,6 +846,7 @@ export function PaymentDueCard({
               </select>
             </div>
           )}
+
           <button
             type="button"
             onClick={markPaid}
@@ -827,22 +859,17 @@ export function PaymentDueCard({
               <>
                 <Loader2 className="h-4 w-4 animate-spin" /> Marking paid…
               </>
-            ) : isUpcoming ? (
-              <>
-                <Check className="h-4 w-4" />
-                Pay early — {formatCentsDisplay(event.amount_cents)}
-              </>
             ) : (
               <>
                 <Check className="h-4 w-4" />
-                I&apos;ve paid {formatCentsDisplay(event.amount_cents)}
+                Mark as paid — {formatCentsDisplay(event.amount_cents)}
               </>
             )}
           </button>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             {isUpcoming
               ? `No rush — this isn't due yet. Only mark it paid once you've actually sent ${hostFirstName} the money.`
-              : `Marking paid sends ${hostFirstName} a confirmation message so they can confirm they received it. 1° B&B doesn't move money.`}
+              : `Send ${hostFirstName} the money using one of the methods above, then mark it paid so they can confirm receipt.`}
           </p>
         </div>
       )}
@@ -886,6 +913,7 @@ export function PaymentClaimedCard({
 }: PaymentClaimedCardProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [unmarking, setUnmarking] = useState(false);
   const confirmed = event.status === "confirmed";
   const methodLabel = event.method
     ? paymentMethodMeta(
@@ -912,6 +940,28 @@ export function PaymentClaimedCard({
       toast.error(e instanceof Error ? e.message : "Couldn't confirm");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const unmarkPaid = async () => {
+    if (unmarking) return;
+    setUnmarking(true);
+    try {
+      const res = await fetch(
+        `/api/payment-events/${event.id}/unmark-paid`,
+        { method: "POST" }
+      );
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`);
+      toast.success("Unmarked — payment is scheduled again");
+      router.refresh();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't unmark");
+    } finally {
+      setUnmarking(false);
     }
   };
 
@@ -966,8 +1016,26 @@ export function PaymentClaimedCard({
       )}
 
       {viewerRole === "guest" && !confirmed && (
-        <div className="border-t border-sky-200 bg-white/40 px-4 py-3 text-xs text-sky-900/80">
-          {hostFirstName} will confirm once it lands.
+        <div className="flex items-center justify-between gap-2 border-t border-sky-200 bg-white/40 px-4 py-3">
+          <div className="text-xs text-sky-900/80">
+            {hostFirstName} will confirm once it lands.
+          </div>
+          <button
+            type="button"
+            onClick={unmarkPaid}
+            disabled={unmarking}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-sky-900 shadow-sm transition hover:bg-sky-50 disabled:opacity-60"
+            )}
+          >
+            {unmarking ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" /> Unmarking…
+              </>
+            ) : (
+              "Unmark as paid"
+            )}
+          </button>
         </div>
       )}
 
@@ -998,8 +1066,11 @@ interface PaymentConfirmedCardProps {
 }
 
 /**
- * Acknowledgement block. Both sides see the same friendly receipt
- * so the thread has a permanent record of the confirmed payment.
+ * Receipt card for a confirmed payment — the thread's permanent
+ * record. Top row mirrors the PaymentDueCard layout (ordinal + amount
+ * + date) so the timeline reads as a single payment block that just
+ * transitioned to confirmed. Bottom row is the big blue check
+ * equivalent of the reservation_confirmed moment on the terms card.
  */
 export function PaymentConfirmedCard({
   event,
@@ -1022,20 +1093,36 @@ export function PaymentConfirmedCard({
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-emerald-200 bg-emerald-50 shadow-sm">
+    <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-border bg-white shadow-sm">
       <div className="flex items-start gap-3 p-4">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-          <Check className="h-4 w-4" />
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+          <DollarSign className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold uppercase tracking-wide text-emerald-900/70">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {paymentOrdinal(event.schedule_index, totalEvents)}
           </div>
-          <div className="mt-0.5 text-sm font-semibold text-emerald-900">
-            {formatCentsDisplay(event.amount_cents)} confirmed
+          <div className="mt-0.5 text-sm font-semibold">
+            {formatCentsDisplay(event.amount_cents)}
             {methodLabel ? ` · ${methodLabel}` : ""}
           </div>
-          <div className="mt-0.5 text-xs text-emerald-800/80">
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {fmtDueDate(event.due_at)}
+          </div>
+        </div>
+      </div>
+
+      {/* Big blue check moment — mirrors the green Reservation
+          confirmed block on the terms_offered card. */}
+      <div className="flex items-center gap-3 border-t border-sky-200 bg-sky-50 px-4 py-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 text-white shadow-sm">
+          <Check className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-sky-900">
+            Payment completed
+          </div>
+          <div className="text-xs text-sky-800/80">
             {viewerRole === "host"
               ? `You confirmed ${guestFirstName}'s payment${confirmedOn ? ` on ${confirmedOn}` : ""}.`
               : `${hostFirstName} confirmed your payment${confirmedOn ? ` on ${confirmedOn}` : ""}.`}
