@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { TERMS_ACCEPTED_PREFIX } from "@/components/booking/ThreadTermsCards";
 
 /**
  * POST /api/contact-requests/[id]/accept-terms
@@ -35,7 +36,7 @@ export async function POST(
 
   const { data: request } = await supabase
     .from("contact_requests")
-    .select("id, guest_id, status, terms_accepted_at")
+    .select("id, guest_id, listing_id, status, terms_accepted_at")
     .eq("id", id)
     .maybeSingle();
   if (!request) {
@@ -68,6 +69,24 @@ export async function POST(
       { error: "Failed to save", detail: error.message },
       { status: 500 }
     );
+  }
+
+  // Post a structured terms_accepted system message so the thread
+  // has a permanent record of the confirmation — and the renderer
+  // can show the locked terms spelled out inline.
+  const { data: thread } = await supabase
+    .from("message_threads")
+    .select("id")
+    .eq("listing_id", request.listing_id)
+    .eq("guest_id", request.guest_id)
+    .maybeSingle();
+  if (thread) {
+    await supabase.from("messages").insert({
+      thread_id: thread.id,
+      sender_id: null,
+      content: TERMS_ACCEPTED_PREFIX,
+      is_system: true,
+    });
   }
 
   return Response.json({ ok: true, terms_accepted_at: now });

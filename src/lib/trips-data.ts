@@ -201,6 +201,9 @@ export interface TripDetail extends TripCard {
   host_payment_methods: PaymentMethod[];
   /** When the guest acknowledged the snapshot terms. Null = pending. */
   terms_accepted_at: string | null;
+  /** Final/estimated total for the stay. Editable by the host at
+   *  approval time. Null when there's no number to show. */
+  total_estimate: number | null;
 }
 
 /** Fetch a single trip with extra detail for the trip detail page. */
@@ -331,5 +334,7 @@ export async function getTripDetail(
     terms_accepted_at:
       (request as { terms_accepted_at?: string | null }).terms_accepted_at ??
       null,
+    total_estimate:
+      (request as { total_estimate?: number | null }).total_estimate ?? null,
   };
 }

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Calendar as CalendarIcon,
   Users as UsersIcon,
@@ -15,6 +14,8 @@ import {
   Home,
   Copy,
   Wallet,
+  Receipt,
+  ArrowRight,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -29,7 +30,7 @@ import {
 import { resolveStages } from "@/lib/booking-stage";
 import { TripTimeline } from "@/components/booking/TripTimeline";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
-import { AcceptTermsCheckbox } from "@/components/booking/AcceptTermsCheckbox";
+import { HostReviewTermsModal } from "@/components/booking/HostReviewTermsModal";
 
 interface Props {
   thread: ThreadDetail;
@@ -82,10 +83,7 @@ function statusLabel(s: string | null | undefined): {
  * payment/cancellation slots (Chunks 3–4) — those layer in later.
  */
 export function ReservationSidebar({ thread, onClose }: Props) {
-  const router = useRouter();
-  const [responding, setResponding] = useState<"accept" | "decline" | null>(
-    null
-  );
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const { booking, listing, other_user, role, reservation_sidebar } = thread;
   const isHostViewer = role === "host";
@@ -94,32 +92,6 @@ export function ReservationSidebar({ thread, onClose }: Props) {
   const otherRating = reservation_sidebar?.other_user_is_host
     ? reservation_sidebar.other_user_host_rating
     : reservation_sidebar?.other_user_guest_rating ?? null;
-
-  const respond = async (decision: "accepted" | "declined") => {
-    if (!booking) return;
-    setResponding(decision === "accepted" ? "accept" : "decline");
-    try {
-      const res = await fetch(`/api/contact-requests/${booking.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: decision }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Failed (${res.status})`);
-      }
-      toast.success(
-        decision === "accepted"
-          ? "Request accepted"
-          : "Request declined"
-      );
-      router.refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setResponding(null);
-    }
-  };
 
   const reviewHref =
     reservation_sidebar?.stay_confirmation_id &&
@@ -284,37 +256,53 @@ export function ReservationSidebar({ thread, onClose }: Props) {
                 {booking.guest_count === 1 ? "guest" : "guests"}
               </div>
             </div>
+            {typeof booking.total_estimate === "number" &&
+              booking.total_estimate > 0 && (
+                <div className="rounded-xl border border-border p-3">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Receipt className="h-3.5 w-3.5" />
+                    {booking.status === "accepted" ? "Total" : "Estimated total"}
+                  </div>
+                  <div className="mt-0.5 text-sm font-semibold">
+                    ${booking.total_estimate.toLocaleString()}
+                  </div>
+                </div>
+              )}
           </div>
         )}
 
-        {/* Host action buttons. Brand purple + "Approve" matches the
-            in-thread banner CTA so host sees one consistent action
-            label across both surfaces. */}
-        {isHostViewer && booking?.status === "pending" && (
+        {/* Host action. Opens the Review & send terms modal so the
+            host can confirm (or edit) the total + cancellation policy
+            before the offer lands in the guest's thread. */}
+        {isHostViewer && booking?.status === "pending" && booking?.id && (
           <div className="space-y-2">
             <Button
-              onClick={() => respond("accepted")}
-              disabled={responding !== null}
+              onClick={() => setReviewOpen(true)}
               className="h-10 w-full rounded-lg bg-brand text-sm font-semibold text-white hover:bg-brand-600"
             >
               <Check className="mr-1.5 h-4 w-4" />
-              {responding === "accept" ? "Approving…" : "Approve"}
-            </Button>
-            <Button
-              onClick={() => respond("declined")}
-              disabled={responding !== null}
-              variant="outline"
-              className="h-10 w-full rounded-lg text-sm font-semibold"
-            >
-              <X className="mr-1.5 h-4 w-4" />
-              {responding === "decline" ? "Declining…" : "Decline"}
+              Review &amp; send terms
             </Button>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Payment happens directly between you and the guest. 1° B&B
-              doesn&apos;t process payments.
+              Approving sends {other_user.name.split(" ")[0]} the final
+              price + cancellation terms. They confirm to lock in the
+              reservation.
             </p>
           </div>
         )}
+        {isHostViewer &&
+          booking?.status === "pending" &&
+          booking?.id &&
+          reservation_sidebar?.cancellation_policy && (
+            <HostReviewTermsModal
+              open={reviewOpen}
+              onOpenChange={setReviewOpen}
+              bookingId={booking.id}
+              initialTotal={booking.total_estimate}
+              initialPolicy={reservation_sidebar.cancellation_policy}
+              guestFirstName={other_user.name.split(" ")[0]}
+            />
+          )}
 
         {/* Review CTA */}
         {reviewHref && (
@@ -345,18 +333,10 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           />
         )}
 
-        {/* Guest acceptance — only after the host accepts, and only
-            on the guest side. Acknowledging the snapshot makes the
-            reservation feel "real" without being a legal contract. */}
-        {!isHostViewer &&
-          booking?.status === "accepted" &&
-          booking?.id && (
-            <AcceptTermsCheckbox
-              bookingId={booking.id}
-              initialAcceptedAt={booking.terms_accepted_at}
-              compact
-            />
-          )}
+        {/* Guest acceptance deliberately lives in the thread now (as
+            an inline interactive message card), not in the sidebar.
+            Sidebar stays a scannable summary; the accept action is
+            the hero of the thread when it's time. */}
 
         {/* Payment handles — guest-only, once the host has approved.
             Hosts know their own handles already; no need to echo
@@ -381,70 +361,57 @@ export function ReservationSidebar({ thread, onClose }: Props) {
             </div>
           )}
 
-        {/* About the other person */}
-        <div>
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            About {other_user.name.split(" ")[0]}
-          </div>
-          <div className="rounded-xl border border-border p-3">
-            <Link
-              href={`/profile/${other_user.id}`}
-              className="flex items-center gap-3 group"
-            >
-              <Avatar className="h-12 w-12">
-                {other_user.avatar_url && (
-                  <AvatarImage
-                    src={other_user.avatar_url}
-                    alt={other_user.name}
-                  />
-                )}
-                <AvatarFallback>{initials(other_user.name)}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1 text-sm font-semibold group-hover:underline">
-                  {other_user.name}
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                {otherRating !== null && (
-                  <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                    <Star className="h-3 w-3 fill-foreground text-foreground" />
-                    <span className="font-medium text-foreground">
-                      {otherRating.toFixed(1)}
-                    </span>
-                    <span>
-                      · {reservation_sidebar?.other_user_review_count ?? 0}{" "}
-                      {reservation_sidebar?.other_user_review_count === 1
-                        ? "review"
-                        : "reviews"}
-                    </span>
-                  </div>
-                )}
+        {/* About the other person — condensed. Rating + profile link
+            only. The deep bio ("joined year", "lives in", "also a
+            host") moved to the full trip detail page to keep the
+            sidebar scannable. */}
+        <Link
+          href={`/profile/${other_user.id}`}
+          className="group flex items-center gap-3 rounded-xl border border-border p-3 transition hover:border-foreground/40"
+        >
+          <Avatar className="h-10 w-10">
+            {other_user.avatar_url && (
+              <AvatarImage
+                src={other_user.avatar_url}
+                alt={other_user.name}
+              />
+            )}
+            <AvatarFallback>{initials(other_user.name)}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1 text-sm font-semibold group-hover:underline">
+              {other_user.name}
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+            {otherRating !== null && (
+              <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                <Star className="h-3 w-3 fill-foreground text-foreground" />
+                <span className="font-medium text-foreground">
+                  {otherRating.toFixed(1)}
+                </span>
+                <span>
+                  · {reservation_sidebar?.other_user_review_count ?? 0}{" "}
+                  {reservation_sidebar?.other_user_review_count === 1
+                    ? "review"
+                    : "reviews"}
+                </span>
               </div>
-            </Link>
-            <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">
-              {reservation_sidebar?.other_user_is_host && (
-                <li className="flex items-center gap-2">
-                  <Home className="h-3 w-3 shrink-0" />
-                  Also a host
-                </li>
-              )}
-              {reservation_sidebar?.other_user_joined_year !== null &&
-                reservation_sidebar?.other_user_joined_year !== undefined && (
-                  <li className="flex items-center gap-2">
-                    <CalendarIcon className="h-3 w-3 shrink-0" />
-                    Joined 1° B&B in{" "}
-                    {reservation_sidebar.other_user_joined_year}
-                  </li>
-                )}
-              {reservation_sidebar?.other_user_location && (
-                <li className="flex items-center gap-2">
-                  <MapPin className="h-3 w-3 shrink-0" />
-                  Lives in {reservation_sidebar.other_user_location}
-                </li>
-              )}
-            </ul>
+            )}
           </div>
-        </div>
+        </Link>
+
+        {/* Deep link to the full trip detail page. Everything the
+            sidebar condenses (timeline, terms details, payment
+            instructions, house manual, etc.) lives on that page. */}
+        {booking?.id && (
+          <Link
+            href={`/trips/${booking.id}`}
+            className="group flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-semibold transition hover:border-foreground/40 hover:bg-muted"
+          >
+            <span>View full trip details</span>
+            <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:text-foreground" />
+          </Link>
+        )}
 
       </div>
     </aside>

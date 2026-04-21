@@ -4,7 +4,13 @@ import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailBookingConfirmed, emailBookingDeclined } from "@/lib/email";
 import { effectiveAuth } from "@/lib/impersonation/session";
-import { resolveEffectivePolicy } from "@/lib/cancellation";
+import {
+  buildPolicyFromPreset,
+  resolveEffectivePolicy,
+  type CancellationApproach,
+  type CancellationPreset,
+} from "@/lib/cancellation";
+import { TERMS_OFFERED_PREFIX } from "@/components/booking/ThreadTermsCards";
 
 // PATCH: host responds to a contact request (accept/decline)
 export async function PATCH(
@@ -26,7 +32,9 @@ export async function PATCH(
   // Verify this request belongs to the current user as host
   const { data: request } = await supabase
     .from("contact_requests")
-    .select("id, host_id, guest_id, listing_id, check_in, check_out, status")
+    .select(
+      "id, host_id, guest_id, listing_id, check_in, check_out, status, total_estimate"
+    )
     .eq("id", id)
     .single();
 
@@ -42,7 +50,21 @@ export async function PATCH(
     return Response.json({ error: "Request already responded to" }, { status: 400 });
   }
 
-  const body = await req.json();
+  const body = (await req.json()) as {
+    status?: string;
+    hostResponseMessage?: string;
+    /** Host's final price. Overrides the original total_estimate
+     *  snapshot. Only applied on accept. */
+    total_price?: number;
+    /** Host's edited approach (installments | refunds). Optional
+     *  — defaults to the listing→host inheritance chain. */
+    cancellation_approach?: CancellationApproach;
+    /** Host's edited preset (flexible | moderate | strict). When
+     *  present with cancellation_approach, builds a fresh policy
+     *  via buildPolicyFromPreset instead of resolving from
+     *  defaults. */
+    cancellation_preset?: Exclude<CancellationPreset, "custom">;
+  };
   const { status, hostResponseMessage } = body;
 
   if (!status || !["accepted", "declined"].includes(status)) {
@@ -53,25 +75,55 @@ export async function PATCH(
   // contact_request so the terms are locked in at approval time.
   // Future edits to the host default or listing override won't move
   // the goalposts on an already-approved reservation.
+  //
+  // Host can also edit the approach + preset in the Review & send
+  // modal; when those are provided, we build a fresh policy from the
+  // preset template instead of walking the inheritance chain.
   let cancellationSnapshot: ReturnType<typeof resolveEffectivePolicy> | null =
     null;
   if (status === "accepted") {
-    const { data: hostRow } = await supabase
-      .from("users")
-      .select("cancellation_policy")
-      .eq("id", request.host_id)
-      .maybeSingle();
-    const { data: listingRow } = await supabase
-      .from("listings")
-      .select("cancellation_policy_override")
-      .eq("id", request.listing_id)
-      .maybeSingle();
-    cancellationSnapshot = resolveEffectivePolicy({
-      hostDefault: hostRow?.cancellation_policy,
-      listingOverride: listingRow?.cancellation_policy_override,
-      reservationSnapshot: null,
-    });
+    const hostEditedPolicy =
+      body.cancellation_approach &&
+      body.cancellation_preset &&
+      (body.cancellation_approach === "installments" ||
+        body.cancellation_approach === "refunds") &&
+      (body.cancellation_preset === "flexible" ||
+        body.cancellation_preset === "moderate" ||
+        body.cancellation_preset === "strict");
+
+    if (hostEditedPolicy) {
+      cancellationSnapshot = buildPolicyFromPreset(
+        body.cancellation_approach!,
+        body.cancellation_preset!
+      );
+    } else {
+      const { data: hostRow } = await supabase
+        .from("users")
+        .select("cancellation_policy")
+        .eq("id", request.host_id)
+        .maybeSingle();
+      const { data: listingRow } = await supabase
+        .from("listings")
+        .select("cancellation_policy_override")
+        .eq("id", request.listing_id)
+        .maybeSingle();
+      cancellationSnapshot = resolveEffectivePolicy({
+        hostDefault: hostRow?.cancellation_policy,
+        listingOverride: listingRow?.cancellation_policy_override,
+        reservationSnapshot: null,
+      });
+    }
   }
+
+  // Host's final price replaces the original total_estimate. This
+  // is the value the guest will confirm when they accept terms.
+  const totalPriceEdit =
+    status === "accepted" &&
+    typeof body.total_price === "number" &&
+    Number.isFinite(body.total_price) &&
+    body.total_price >= 0
+      ? Math.round(body.total_price)
+      : null;
 
   const { error } = await supabase
     .from("contact_requests")
@@ -82,6 +134,7 @@ export async function PATCH(
       ...(cancellationSnapshot
         ? { cancellation_policy: cancellationSnapshot }
         : {}),
+      ...(totalPriceEdit !== null ? { total_estimate: totalPriceEdit } : {}),
     })
     .eq("id", id);
 
@@ -100,7 +153,6 @@ export async function PATCH(
     .maybeSingle();
 
   if (thread) {
-    const verb = status === "accepted" ? "accepted" : "declined";
     const { data: hostRow } = await supabase
       .from("users")
       .select("name")
@@ -108,25 +160,21 @@ export async function PATCH(
       .maybeSingle();
     const hostFirst = (hostRow?.name ?? "Host").split(" ")[0];
 
-    await supabase.from("messages").insert({
-      thread_id: thread.id,
-      sender_id: null,
-      content:
-        status === "accepted"
-          ? `Great news! ${hostFirst} accepted your request${request.check_in && request.check_out ? ` for ${request.check_in} to ${request.check_out}` : ""}.`
-          : `${hostFirst} declined the reservation request.`,
-      is_system: true,
-    });
-
     if (status === "accepted") {
-      // Off-platform payment follow-up. Purely informational — 1DB
-      // never handles money, so the reminder lives in the thread
-      // where the two parties are already coordinating.
+      // Structured terms_offered message — the thread renderer
+      // reads live policy + price from thread.booking and draws a
+      // rich card with an Accept button for the guest.
       await supabase.from("messages").insert({
         thread_id: thread.id,
         sender_id: null,
-        content:
-          "💳 Arrange payment directly with your host. Most members use Venmo or Zelle. 1° B&B doesn't process payments.",
+        content: TERMS_OFFERED_PREFIX,
+        is_system: true,
+      });
+    } else {
+      await supabase.from("messages").insert({
+        thread_id: thread.id,
+        sender_id: null,
+        content: `${hostFirst} declined the reservation request.`,
         is_system: true,
       });
     }

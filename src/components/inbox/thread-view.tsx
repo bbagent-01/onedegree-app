@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, Check, X } from "lucide-react";
+import { Send, Check } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
@@ -11,6 +10,13 @@ import { getSupabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ThreadDetail, ThreadMessage } from "@/lib/messaging-data";
+import {
+  TERMS_ACCEPTED_PREFIX,
+  TERMS_OFFERED_PREFIX,
+  TermsAcceptedCard,
+  TermsOfferedCard,
+} from "@/components/booking/ThreadTermsCards";
+import { HostReviewTermsModal } from "@/components/booking/HostReviewTermsModal";
 
 interface Props {
   thread: ThreadDetail;
@@ -88,11 +94,10 @@ export function ThreadView({
   thread,
   currentUserId,
 }: Props) {
-  const router = useRouter();
   const [messages, setMessages] = useState<ThreadMessage[]>(thread.messages);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [actingOn, setActingOn] = useState<null | "accepted" | "declined">(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   const isHost = thread.role === "host";
@@ -100,31 +105,6 @@ export function ThreadView({
     thread.booking && thread.booking.status === "pending"
       ? thread.booking.id
       : null;
-
-  const respondToBooking = async (action: "accepted" | "declined") => {
-    if (!pendingBookingId || actingOn) return;
-    setActingOn(action);
-    try {
-      const res = await fetch(`/api/contact-requests/${pendingBookingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: action }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        toast.error(data.error || "Couldn't update reservation");
-        return;
-      }
-      toast.success(
-        action === "accepted" ? "Reservation approved" : "Reservation declined"
-      );
-      router.refresh();
-    } catch {
-      toast.error("Network error");
-    } finally {
-      setActingOn(null);
-    }
-  };
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -280,29 +260,31 @@ export function ThreadView({
                   )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={actingOn !== null}
-                onClick={() => respondToBooking("declined")}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-60"
-              >
-                <X className="h-3.5 w-3.5" />
-                {actingOn === "declined" ? "Declining…" : "Decline"}
-              </button>
-              <button
-                type="button"
-                disabled={actingOn !== null}
-                onClick={() => respondToBooking("accepted")}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
-              >
-                <Check className="h-3.5 w-3.5" />
-                {actingOn === "accepted" ? "Approving…" : "Approve"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setReviewOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600"
+            >
+              <Check className="h-3.5 w-3.5" />
+              Review &amp; send terms
+            </button>
           </div>
         </div>
       )}
+
+      {isHost &&
+        pendingBookingId &&
+        thread.booking &&
+        thread.reservation_sidebar?.cancellation_policy && (
+          <HostReviewTermsModal
+            open={reviewOpen}
+            onOpenChange={setReviewOpen}
+            bookingId={pendingBookingId}
+            initialTotal={thread.booking.total_estimate}
+            initialPolicy={thread.reservation_sidebar.cancellation_policy}
+            guestFirstName={thread.other_user.name.split(" ")[0]}
+          />
+        )}
 
       {/* Listing context card */}
       {thread.listing && (
@@ -356,6 +338,60 @@ export function ThreadView({
             </div>
             {g.items.map((m) => {
               if (m.is_system) {
+                // Structured system messages — rich inline cards for
+                // major milestones (host approves, guest accepts).
+                // Read live data from the thread's booking so the
+                // card always reflects the current snapshot.
+                if (
+                  m.content.startsWith(TERMS_OFFERED_PREFIX) &&
+                  thread.booking?.id &&
+                  thread.reservation_sidebar?.cancellation_policy
+                ) {
+                  return (
+                    <div key={m.id} className="py-1">
+                      <TermsOfferedCard
+                        bookingId={thread.booking.id}
+                        totalEstimate={thread.booking.total_estimate}
+                        policy={thread.reservation_sidebar.cancellation_policy}
+                        viewerRole={thread.role}
+                        termsAcceptedAt={thread.booking.terms_accepted_at}
+                        hostFirstName={
+                          (thread.role === "host"
+                            ? "you"
+                            : thread.other_user.name
+                          ).split(" ")[0]
+                        }
+                        guestFirstName={
+                          (thread.role === "guest"
+                            ? "you"
+                            : thread.other_user.name
+                          ).split(" ")[0]
+                        }
+                      />
+                    </div>
+                  );
+                }
+                if (
+                  m.content.startsWith(TERMS_ACCEPTED_PREFIX) &&
+                  thread.reservation_sidebar?.cancellation_policy &&
+                  thread.booking?.terms_accepted_at
+                ) {
+                  return (
+                    <div key={m.id} className="py-1">
+                      <TermsAcceptedCard
+                        totalEstimate={thread.booking.total_estimate}
+                        policy={thread.reservation_sidebar.cancellation_policy}
+                        acceptedAt={thread.booking.terms_accepted_at}
+                        guestFirstName={
+                          (thread.role === "guest"
+                            ? "you"
+                            : thread.other_user.name
+                          ).split(" ")[0]
+                        }
+                      />
+                    </div>
+                  );
+                }
                 return (
                   <div
                     key={m.id}

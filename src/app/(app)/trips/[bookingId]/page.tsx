@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   Users,
   BookOpen,
+  Receipt,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/messaging-data";
 import { getTripDetail } from "@/lib/trips-data";
@@ -153,7 +154,7 @@ export default async function TripDetailPage({ params }: PageProps) {
             {statusBadge(trip.status)}
           </div>
 
-          <dl className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <dl className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border border-border bg-muted/30 p-4">
               <dt className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <CalendarDays className="h-3.5 w-3.5" />
@@ -177,6 +178,18 @@ export default async function TripDetailPage({ params }: PageProps) {
                 {trip.guest_count} guest{trip.guest_count === 1 ? "" : "s"}
               </dd>
             </div>
+            {typeof trip.total_estimate === "number" &&
+              trip.total_estimate > 0 && (
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  <dt className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <Receipt className="h-3.5 w-3.5" />
+                    {isConfirmed ? "Total" : "Estimated total"}
+                  </dt>
+                  <dd className="mt-1 text-sm font-semibold">
+                    ${trip.total_estimate.toLocaleString()}
+                  </dd>
+                </div>
+              )}
           </dl>
 
           <TripDetailActions trip={trip} canReview={!!isPostCheckout} />
