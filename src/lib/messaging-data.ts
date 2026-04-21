@@ -603,7 +603,11 @@ export async function getOrCreateThread(opts: {
   if (existing) {
     if (opts.contactRequestId) {
       const patch: Record<string, unknown> = {};
-      if (!existing.contact_request_id) {
+      // Always re-point to the latest contact_request. One
+      // reservation per thread is the invariant — after a guest
+      // cancels and re-requests, the sidebar + terms card need to
+      // reflect the new request, not the stale cancelled one.
+      if (existing.contact_request_id !== opts.contactRequestId) {
         patch.contact_request_id = opts.contactRequestId;
       }
       // Promote a stuck intro into a normal conversation. The
