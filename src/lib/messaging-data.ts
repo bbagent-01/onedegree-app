@@ -75,6 +75,8 @@ export interface ThreadDetail extends InboxThread {
     responded_at: string | null;
     host_response_message: string | null;
     created_at: string | null;
+    /** When the guest acknowledged the snapshot terms. Null = pending. */
+    terms_accepted_at: string | null;
   } | null;
   /**
    * Extra fields the reservation sidebar renders. Optional so legacy
@@ -332,7 +334,7 @@ export async function getThreadDetail(
       ? supabase
           .from("contact_requests")
           .select(
-            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy"
+            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at"
           )
           .eq("id", thread.contact_request_id)
           .single()
@@ -458,6 +460,9 @@ export async function getThreadDetail(
               .host_response_message ?? null,
           created_at:
             (booking as { created_at?: string | null }).created_at ?? null,
+          terms_accepted_at:
+            (booking as { terms_accepted_at?: string | null })
+              .terms_accepted_at ?? null,
         }
       : null,
     reservation_sidebar: {

@@ -19,6 +19,7 @@ import { PaymentArrangementCard } from "@/components/trips/payment-arrangement-c
 import { TripTimeline } from "@/components/booking/TripTimeline";
 import { resolveStages } from "@/lib/booking-stage";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
+import { AcceptTermsCheckbox } from "@/components/booking/AcceptTermsCheckbox";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -201,6 +202,14 @@ export default async function TripDetailPage({ params }: PageProps) {
           policy={trip.cancellation_policy}
           scope={isConfirmed ? "reservation" : "listing"}
         />
+        {isConfirmed && (
+          <div className="mt-3">
+            <AcceptTermsCheckbox
+              bookingId={bookingId}
+              initialAcceptedAt={trip.terms_accepted_at}
+            />
+          </div>
+        )}
       </section>
 
       {/* Host section */}

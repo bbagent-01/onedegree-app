@@ -29,6 +29,7 @@ import {
 import { resolveStages } from "@/lib/booking-stage";
 import { TripTimeline } from "@/components/booking/TripTimeline";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
+import { AcceptTermsCheckbox } from "@/components/booking/AcceptTermsCheckbox";
 
 interface Props {
   thread: ThreadDetail;
@@ -343,6 +344,19 @@ export function ReservationSidebar({ thread, onClose }: Props) {
             compact
           />
         )}
+
+        {/* Guest acceptance — only after the host accepts, and only
+            on the guest side. Acknowledging the snapshot makes the
+            reservation feel "real" without being a legal contract. */}
+        {!isHostViewer &&
+          booking?.status === "accepted" &&
+          booking?.id && (
+            <AcceptTermsCheckbox
+              bookingId={booking.id}
+              initialAcceptedAt={booking.terms_accepted_at}
+              compact
+            />
+          )}
 
         {/* Payment handles — guest-only, once the host has approved.
             Hosts know their own handles already; no need to echo

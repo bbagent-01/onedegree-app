@@ -199,6 +199,8 @@ export interface TripDetail extends TripCard {
    * guest only sees the types list, not the specific handles.
    */
   host_payment_methods: PaymentMethod[];
+  /** When the guest acknowledged the snapshot terms. Null = pending. */
+  terms_accepted_at: string | null;
 }
 
 /** Fetch a single trip with extra detail for the trip detail page. */
@@ -326,5 +328,8 @@ export async function getTripDetail(
             )
           )
         : [],
+    terms_accepted_at:
+      (request as { terms_accepted_at?: string | null }).terms_accepted_at ??
+      null,
   };
 }
