@@ -35,11 +35,9 @@ function dateIso(offsetDays: number): string {
 }
 
 type StageKey =
-  | "in-stay"
-  | "checked-out"
-  | "reviewed-by-guest"
-  | "reviewed-by-host"
-  | "fully-reviewed";
+  | "review-ready"
+  | "guest-reviewing-second"
+  | "host-reviewing-second";
 
 interface Scenario {
   label: StageKey;
@@ -56,21 +54,15 @@ interface Scenario {
   hostReviewed?: boolean; // seeds a host review
 }
 
+// Three focused scenarios for testing the review flow. Each runs
+// on a distinct host so threads don't collide. Loren is always
+// the guest.
 const SCENARIOS: Record<StageKey, Scenario> = {
-  "in-stay": {
-    label: "in-stay",
-    hostName: "Maya Chen",
-    checkInOffset: -3,
-    checkOutOffset: +3,
-    nightlyRate: 140,
-    cleaningFee: 60,
-    guestCount: 2,
-    introMessage:
-      "Hi Maya — excited for the stay! I'll text when I'm heading over.",
-    postCheckinMessage: true,
-  },
-  "checked-out": {
-    label: "checked-out",
+  // Both sides need to review. Loren tests the guest review
+  // flow from his account, then impersonates the host to test
+  // the host side on the SAME thread.
+  "review-ready": {
+    label: "review-ready",
     hostName: "Rosa Delgado",
     checkInOffset: -14,
     checkOutOffset: -4,
@@ -81,20 +73,11 @@ const SCENARIOS: Record<StageKey, Scenario> = {
       "Hi Rosa — looking forward to Mexico City, we'll be in touch!",
     postReviewPrompt: true,
   },
-  "reviewed-by-guest": {
-    label: "reviewed-by-guest",
-    hostName: "Kai Stephens",
-    checkInOffset: -20,
-    checkOutOffset: -10,
-    nightlyRate: 180,
-    cleaningFee: 70,
-    guestCount: 2,
-    introMessage: "Hi Kai — thanks for hosting us, see you soon!",
-    postReviewPrompt: true,
-    guestReviewed: true,
-  },
-  "reviewed-by-host": {
-    label: "reviewed-by-host",
+  // Host has already reviewed the guest. Loren (guest) tests
+  // what it feels like to review second — should see "they've
+  // reviewed you" state via the ReviewPromptCard + modal.
+  "guest-reviewing-second": {
+    label: "guest-reviewing-second",
     hostName: "Priya Reddy",
     checkInOffset: -25,
     checkOutOffset: -15,
@@ -105,18 +88,19 @@ const SCENARIOS: Record<StageKey, Scenario> = {
     postReviewPrompt: true,
     hostReviewed: true,
   },
-  "fully-reviewed": {
-    label: "fully-reviewed",
-    hostName: "Diego Ferrer",
-    checkInOffset: -30,
-    checkOutOffset: -20,
-    nightlyRate: 150,
-    cleaningFee: 55,
+  // Guest has already reviewed the host. Loren impersonates
+  // the host to test the host-reviewing-second flow.
+  "host-reviewing-second": {
+    label: "host-reviewing-second",
+    hostName: "Kai Stephens",
+    checkInOffset: -20,
+    checkOutOffset: -10,
+    nightlyRate: 180,
+    cleaningFee: 70,
     guestCount: 2,
-    introMessage: "Hi Diego — really looking forward to it!",
+    introMessage: "Hi Kai — thanks for hosting us, see you soon!",
     postReviewPrompt: true,
     guestReviewed: true,
-    hostReviewed: true,
   },
 };
 

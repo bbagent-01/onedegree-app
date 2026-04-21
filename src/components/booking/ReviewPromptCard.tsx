@@ -73,12 +73,15 @@ export function ReviewPromptCard({
     </div>
   );
 
-  // Completed state — auto-collapsed shell: summary + green-check
-  // footer always visible, optional expand reveals a thank-you
-  // body (currently just repeats the confirmation).
-  if (reviewedByMe) {
-    return (
-      <>
+  // Single top-level tree so the ReviewFlowDialog stays mounted
+  // across reviewedByMe transitions. Previously the card had two
+  // separate return branches, each rendering its own dialog —
+  // React unmounted the dialog during the transition and the
+  // post-review vouch step never appeared. The card itself
+  // branches inline; the dialog is a stable sibling.
+  return (
+    <>
+      {reviewedByMe ? (
         <details className="group mx-auto w-full max-w-xl overflow-hidden rounded-2xl border-2 border-border bg-white shadow-sm">
           <summary className="cursor-pointer list-none focus-visible:outline-none">
             {summary}
@@ -91,37 +94,22 @@ export function ReviewPromptCard({
             Review submitted
           </div>
         </details>
-        <ReviewFlowDialog
-          open={open}
-          onOpenChange={setOpen}
-          viewerRole={viewerRole}
-          bookingId={bookingId}
-          stayConfirmationId={stayConfirmationId}
-          otherUser={otherUser}
-          listingTitle={listingTitle}
-          alreadyVouched={alreadyVouched}
-        />
-      </>
-    );
-  }
-
-  // Pending state — expanded, button visible.
-  return (
-    <>
-      <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-border bg-white shadow-sm">
-        {summary}
-        <div className="border-t border-border bg-muted/30 p-4">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className={cn(
-              "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
-            )}
-          >
-            Leave a review
-          </button>
+      ) : (
+        <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-border bg-white shadow-sm">
+          {summary}
+          <div className="border-t border-border bg-muted/30 p-4">
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className={cn(
+                "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
+              )}
+            >
+              Leave a review
+            </button>
+          </div>
         </div>
-      </div>
+      )}
       <ReviewFlowDialog
         open={open}
         onOpenChange={setOpen}
