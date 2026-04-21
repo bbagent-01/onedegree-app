@@ -77,6 +77,13 @@ export interface ThreadDetail extends InboxThread {
     created_at: string | null;
     /** When the guest acknowledged the snapshot terms. Null = pending. */
     terms_accepted_at: string | null;
+    /** Original-request snapshot — what the guest actually submitted
+     *  before any host-side counter-offer. Drives "Changed from X"
+     *  badges on the terms_offered card. */
+    original_check_in: string | null;
+    original_check_out: string | null;
+    original_guest_count: number | null;
+    original_total_estimate: number | null;
   } | null;
   /**
    * Extra fields the reservation sidebar renders. Optional so legacy
@@ -337,7 +344,7 @@ export async function getThreadDetail(
       ? supabase
           .from("contact_requests")
           .select(
-            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at"
+            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at, original_check_in, original_check_out, original_guest_count, original_total_estimate"
           )
           .eq("id", thread.contact_request_id)
           .single()
@@ -466,6 +473,18 @@ export async function getThreadDetail(
           terms_accepted_at:
             (booking as { terms_accepted_at?: string | null })
               .terms_accepted_at ?? null,
+          original_check_in:
+            (booking as { original_check_in?: string | null })
+              .original_check_in ?? null,
+          original_check_out:
+            (booking as { original_check_out?: string | null })
+              .original_check_out ?? null,
+          original_guest_count:
+            (booking as { original_guest_count?: number | null })
+              .original_guest_count ?? null,
+          original_total_estimate:
+            (booking as { original_total_estimate?: number | null })
+              .original_total_estimate ?? null,
         }
       : null,
     reservation_sidebar: {

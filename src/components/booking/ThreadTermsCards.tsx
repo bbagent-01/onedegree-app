@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ShieldCheck, Loader2, Receipt } from "lucide-react";
+import {
+  Check,
+  ShieldCheck,
+  Loader2,
+  Receipt,
+  CalendarDays,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CancellationPolicyCard } from "./CancellationPolicyCard";
@@ -32,12 +39,30 @@ export function isStructuredMessage(content: string): boolean {
 
 interface TermsOfferedProps {
   bookingId: string;
+  checkIn: string | null;
+  checkOut: string | null;
+  guestCount: number | null;
   totalEstimate: number | null;
+  /** Original-request values — used to highlight what the host
+   *  counter-offered on. When null, treat as "unchanged". */
+  originalCheckIn: string | null;
+  originalCheckOut: string | null;
+  originalGuestCount: number | null;
+  originalTotalEstimate: number | null;
   policy: CancellationPolicy;
   viewerRole: "guest" | "host";
   termsAcceptedAt: string | null;
   hostFirstName: string;
   guestFirstName: string;
+}
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 /**
@@ -48,13 +73,32 @@ interface TermsOfferedProps {
  */
 export function TermsOfferedCard({
   bookingId,
+  checkIn,
+  checkOut,
+  guestCount,
   totalEstimate,
+  originalCheckIn,
+  originalCheckOut,
+  originalGuestCount,
+  originalTotalEstimate,
   policy,
   viewerRole,
   termsAcceptedAt,
   hostFirstName,
   guestFirstName,
 }: TermsOfferedProps) {
+  // Diff flags — only surface a "Changed from X" hint when the
+  // original value actually differs (and was captured).
+  const datesChanged =
+    (originalCheckIn && originalCheckIn !== checkIn) ||
+    (originalCheckOut && originalCheckOut !== checkOut);
+  const guestsChanged =
+    originalGuestCount !== null && originalGuestCount !== guestCount;
+  const totalChanged =
+    originalTotalEstimate !== null &&
+    totalEstimate !== null &&
+    originalTotalEstimate !== totalEstimate;
+  const anyChanged = datesChanged || guestsChanged || totalChanged;
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [acceptedAt, setAcceptedAt] = useState<string | null>(termsAcceptedAt);
@@ -97,18 +141,85 @@ export function TermsOfferedCard({
           <div className="text-sm font-semibold">{title}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">
             Here are the full terms for this reservation.
+            {anyChanged && viewerRole === "guest" && (
+              <>
+                {" "}
+                <span className="font-medium text-amber-800">
+                  Some fields have been changed from your original
+                  request — look for the amber highlights.
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Dates + guests row — with diff highlighting when the host
+          counter-offered. */}
+      <div className="grid grid-cols-1 divide-y divide-border border-b border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <FieldTile
+          icon={CalendarDays}
+          label="Check-in"
+          value={fmtDate(checkIn)}
+          changed={Boolean(
+            originalCheckIn && originalCheckIn !== checkIn
+          )}
+          originalLabel={
+            originalCheckIn && originalCheckIn !== checkIn
+              ? `was ${fmtDate(originalCheckIn)}`
+              : null
+          }
+        />
+        <FieldTile
+          icon={CalendarDays}
+          label="Checkout"
+          value={fmtDate(checkOut)}
+          changed={Boolean(
+            originalCheckOut && originalCheckOut !== checkOut
+          )}
+          originalLabel={
+            originalCheckOut && originalCheckOut !== checkOut
+              ? `was ${fmtDate(originalCheckOut)}`
+              : null
+          }
+        />
+        <FieldTile
+          icon={Users}
+          label="Guests"
+          value={
+            guestCount !== null
+              ? `${guestCount} guest${guestCount === 1 ? "" : "s"}`
+              : "—"
+          }
+          changed={guestsChanged}
+          originalLabel={
+            guestsChanged && originalGuestCount !== null
+              ? `was ${originalGuestCount}`
+              : null
+          }
+        />
+      </div>
+
       {typeof totalEstimate === "number" && totalEstimate > 0 && (
-        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div
+          className={cn(
+            "flex items-center justify-between gap-3 border-b border-border px-4 py-3",
+            totalChanged && "bg-amber-50"
+          )}
+        >
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Receipt className="h-3.5 w-3.5" />
             Total
           </div>
-          <div className="text-base font-bold">
-            ${totalEstimate.toLocaleString()}
+          <div className="text-right">
+            <div className="text-base font-bold">
+              ${totalEstimate.toLocaleString()}
+            </div>
+            {totalChanged && originalTotalEstimate !== null && (
+              <div className="text-[11px] font-medium text-amber-800">
+                was ${originalTotalEstimate.toLocaleString()}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -232,6 +343,35 @@ export function TermsAcceptedCard({
       <div className="p-4">
         <CancellationPolicyCard policy={policy} scope="reservation" />
       </div>
+    </div>
+  );
+}
+
+function FieldTile({
+  icon: Icon,
+  label,
+  value,
+  changed,
+  originalLabel,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  changed: boolean;
+  originalLabel: string | null;
+}) {
+  return (
+    <div className={cn("px-4 py-3", changed && "bg-amber-50")}>
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-3 w-3" />
+        {label}
+      </div>
+      <div className="mt-0.5 text-sm font-semibold">{value}</div>
+      {changed && originalLabel && (
+        <div className="mt-0.5 text-[11px] font-medium text-amber-800">
+          {originalLabel}
+        </div>
+      )}
     </div>
   );
 }

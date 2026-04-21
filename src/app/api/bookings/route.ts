@@ -106,6 +106,13 @@ export async function POST(req: Request) {
         check_out: body.checkOut,
         guest_count: body.guests ?? 1,
         total_estimate: totalEstimate,
+        // Snapshot the original request so the guest's
+        // terms_offered card can diff against it when the host
+        // counter-offers. Immutable after insert.
+        original_check_in: body.checkIn,
+        original_check_out: body.checkOut,
+        original_guest_count: body.guests ?? 1,
+        original_total_estimate: totalEstimate,
         status: "pending",
       })
       .select("id")

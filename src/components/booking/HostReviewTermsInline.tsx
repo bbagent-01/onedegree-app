@@ -27,8 +27,11 @@ import {
   type CancellationApproach,
   type CancellationPolicy,
   type CancellationPreset,
+  type PaymentScheduleEntry,
+  type RefundWindow,
 } from "@/lib/cancellation";
 import { CancellationPolicyCard } from "./CancellationPolicyCard";
+import { PaymentRows, RefundRows } from "./cancellation-row-editors";
 
 interface Props {
   bookingId: string;
@@ -123,16 +126,46 @@ export function HostReviewTermsInline({
     seedCleaning > 0 ? String(seedCleaning) : ""
   );
 
-  // Cancellation state
+  // Cancellation state — approach + preset drive the template, but
+  // row-level edits keep their own state and flip preset to "custom"
+  // so the server-side build-from-preset path is skipped.
   const [approach, setApproach] = useState<CancellationApproach>(
     initialPolicy.approach
   );
-  const initialPreset =
-    initialPolicy.preset === "custom"
-      ? "moderate"
-      : (initialPolicy.preset as Exclude<CancellationPreset, "custom">);
-  const [preset, setPreset] =
-    useState<Exclude<CancellationPreset, "custom">>(initialPreset);
+  const [preset, setPreset] = useState<CancellationPreset>(initialPolicy.preset);
+  const [paymentSchedule, setPaymentSchedule] = useState<
+    PaymentScheduleEntry[]
+  >(initialPolicy.payment_schedule.map((e) => ({ ...e })));
+  const [refundSchedule, setRefundSchedule] = useState<RefundWindow[]>(
+    initialPolicy.refund_schedule.map((e) => ({ ...e }))
+  );
+  const [securityDeposit, setSecurityDeposit] = useState<
+    PaymentScheduleEntry[]
+  >(initialPolicy.security_deposit.map((e) => ({ ...e })));
+
+  const switchApproach = (next: CancellationApproach) => {
+    if (next === approach) return;
+    const effectivePreset =
+      preset === "custom"
+        ? "moderate"
+        : (preset as Exclude<CancellationPreset, "custom">);
+    const tpl = buildPolicyFromPreset(next, effectivePreset);
+    setApproach(next);
+    setPreset(effectivePreset);
+    setPaymentSchedule(tpl.payment_schedule);
+    setRefundSchedule(tpl.refund_schedule);
+  };
+
+  const applyPreset = (key: Exclude<CancellationPreset, "custom">) => {
+    const tpl = buildPolicyFromPreset(approach, key);
+    setPreset(key);
+    setPaymentSchedule(tpl.payment_schedule);
+    setRefundSchedule(tpl.refund_schedule);
+  };
+
+  const markCustom = () => {
+    if (preset !== "custom") setPreset("custom");
+  };
 
   const nights = useMemo(
     () => nightsBetween(localCheckIn || null, localCheckOut || null),
@@ -144,9 +177,18 @@ export function HostReviewTermsInline({
     Math.max(0, Math.round(numericNightly)) * nights +
     Math.max(0, Math.round(numericCleaning));
 
+  // Effective policy always reflects the live state, whether the
+  // host stayed on a preset or started editing rows directly.
   const effectivePolicy: CancellationPolicy = useMemo(
-    () => buildPolicyFromPreset(approach, preset),
-    [approach, preset]
+    () => ({
+      approach,
+      preset,
+      payment_schedule: paymentSchedule,
+      refund_schedule: refundSchedule,
+      security_deposit: securityDeposit,
+      custom_note: null,
+    }),
+    [approach, preset, paymentSchedule, refundSchedule, securityDeposit]
   );
 
   const approachLabel = approachMeta(approach).title;
@@ -160,6 +202,29 @@ export function HostReviewTermsInline({
   const send = async (decision: "accepted" | "declined") => {
     setSubmitting(decision === "accepted" ? "approve" : "decline");
     try {
+      // When preset is a named template (flexible/moderate/strict),
+      // send just approach + preset — server rebuilds from the
+      // template. When preset is "custom" (row-level edits), send
+      // the full schedule payload so the host's rows are preserved.
+      const policyPayload =
+        preset === "custom"
+          ? {
+              cancellation_approach: approach,
+              cancellation_preset: "custom" as const,
+              cancellation_policy: {
+                approach,
+                preset: "custom" as const,
+                payment_schedule: paymentSchedule,
+                refund_schedule: refundSchedule,
+                security_deposit: securityDeposit,
+                custom_note: null,
+              },
+            }
+          : {
+              cancellation_approach: approach,
+              cancellation_preset: preset,
+            };
+
       const res = await fetch(`/api/contact-requests/${bookingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -168,8 +233,7 @@ export function HostReviewTermsInline({
           ...(decision === "accepted"
             ? {
                 total_price: computedTotal > 0 ? computedTotal : undefined,
-                cancellation_approach: approach,
-                cancellation_preset: preset,
+                ...policyPayload,
                 check_in: localCheckIn || undefined,
                 check_out: localCheckOut || undefined,
                 guest_count: localGuests,
@@ -359,7 +423,7 @@ export function HostReviewTermsInline({
                     <button
                       key={a.key}
                       type="button"
-                      onClick={() => setApproach(a.key)}
+                      onClick={() => switchApproach(a.key)}
                       className={cn(
                         "rounded-xl border-2 p-3 text-left transition",
                         active
@@ -380,7 +444,14 @@ export function HostReviewTermsInline({
               </div>
             </div>
             <div>
-              <div className="mb-1.5 text-sm font-semibold">Preset</div>
+              <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
+                Preset
+                {preset === "custom" && (
+                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-700">
+                    Custom
+                  </span>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2">
                 {CANCELLATION_PRESETS.map((p) => {
                   const active = preset === p.key;
@@ -388,7 +459,7 @@ export function HostReviewTermsInline({
                     <button
                       key={p.key}
                       type="button"
-                      onClick={() => setPreset(p.key)}
+                      onClick={() => applyPreset(p.key)}
                       className={cn(
                         "rounded-full border px-4 py-1.5 text-sm font-semibold transition",
                         active
@@ -402,10 +473,70 @@ export function HostReviewTermsInline({
                 })}
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Need a fully custom schedule? Set it on your listing
-                edit page under the Cancellation tab.
+                Edit rows below to customize — any change flips the
+                preset to Custom.
               </p>
             </div>
+
+            {/* Payment schedule editor — always shown */}
+            <div>
+              <div className="text-sm font-semibold">Payment schedule</div>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {approach === "installments"
+                  ? "Each row is an installment. Collect when each step is reached."
+                  : "Under the refunds approach, the whole balance is typically collected at booking."}
+              </p>
+              <PaymentRows
+                rows={paymentSchedule}
+                onChange={(next) => {
+                  setPaymentSchedule(next);
+                  markCustom();
+                }}
+                addLabel="Add payment step"
+              />
+            </div>
+
+            {/* Refund schedule editor — only when approach = refunds */}
+            {approach === "refunds" && (
+              <div>
+                <div className="text-sm font-semibold">Refund schedule</div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  How much of the already-collected money is refunded
+                  if the guest cancels. First row is the most generous
+                  window.
+                </p>
+                <RefundRows
+                  rows={refundSchedule}
+                  onChange={(next) => {
+                    setRefundSchedule(next);
+                    markCustom();
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Security deposit — optional */}
+            <div>
+              <div className="text-sm font-semibold">
+                Security deposit{" "}
+                <span className="text-[11px] font-normal text-muted-foreground">
+                  optional
+                </span>
+              </div>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                A refundable hold collected alongside payment. Leave empty to skip.
+              </p>
+              <PaymentRows
+                rows={securityDeposit}
+                onChange={(next) => {
+                  setSecurityDeposit(next);
+                  markCustom();
+                }}
+                addLabel="Add deposit step"
+                emptyHint="No deposit."
+              />
+            </div>
+
             <div>
               <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Preview

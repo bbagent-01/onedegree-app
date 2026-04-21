@@ -335,7 +335,16 @@ export function ThreadView({
                     <div key={m.id} className="py-1">
                       <TermsOfferedCard
                         bookingId={thread.booking.id}
+                        checkIn={thread.booking.check_in}
+                        checkOut={thread.booking.check_out}
+                        guestCount={thread.booking.guest_count}
                         totalEstimate={thread.booking.total_estimate}
+                        originalCheckIn={thread.booking.original_check_in}
+                        originalCheckOut={thread.booking.original_check_out}
+                        originalGuestCount={thread.booking.original_guest_count}
+                        originalTotalEstimate={
+                          thread.booking.original_total_estimate
+                        }
                         policy={thread.reservation_sidebar.cancellation_policy}
                         viewerRole={thread.role}
                         termsAcceptedAt={thread.booking.terms_accepted_at}

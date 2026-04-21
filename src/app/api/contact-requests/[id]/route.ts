@@ -6,8 +6,10 @@ import { emailBookingConfirmed, emailBookingDeclined } from "@/lib/email";
 import { effectiveAuth } from "@/lib/impersonation/session";
 import {
   buildPolicyFromPreset,
+  parsePolicy,
   resolveEffectivePolicy,
   type CancellationApproach,
+  type CancellationPolicy,
   type CancellationPreset,
 } from "@/lib/cancellation";
 import { TERMS_OFFERED_PREFIX } from "@/components/booking/ThreadTermsCards";
@@ -59,11 +61,15 @@ export async function PATCH(
     /** Host's edited approach (installments | refunds). Optional
      *  — defaults to the listing→host inheritance chain. */
     cancellation_approach?: CancellationApproach;
-    /** Host's edited preset (flexible | moderate | strict). When
-     *  present with cancellation_approach, builds a fresh policy
-     *  via buildPolicyFromPreset instead of resolving from
-     *  defaults. */
-    cancellation_preset?: Exclude<CancellationPreset, "custom">;
+    /** Host's edited preset (flexible | moderate | strict | custom).
+     *  For named presets the server rebuilds from the template.
+     *  For "custom" the host must also send `cancellation_policy`
+     *  with the full schedule. */
+    cancellation_preset?: CancellationPreset;
+    /** Full policy payload — required when preset === "custom",
+     *  ignored otherwise. Lets the host send arbitrary row edits
+     *  without the server second-guessing them. */
+    cancellation_policy?: unknown;
     /** Host-edited trip dates. Treated as a counter-offer — the
      *  original request's dates get overwritten on the same row.
      *  Only applied on accept. */
@@ -86,10 +92,11 @@ export async function PATCH(
   // Host can also edit the approach + preset in the Review & send
   // modal; when those are provided, we build a fresh policy from the
   // preset template instead of walking the inheritance chain.
-  let cancellationSnapshot: ReturnType<typeof resolveEffectivePolicy> | null =
-    null;
+  let cancellationSnapshot: CancellationPolicy | null = null;
   if (status === "accepted") {
-    const hostEditedPolicy =
+    const isCustomPayload =
+      body.cancellation_preset === "custom" && body.cancellation_policy;
+    const isNamedPreset =
       body.cancellation_approach &&
       body.cancellation_preset &&
       (body.cancellation_approach === "installments" ||
@@ -98,10 +105,14 @@ export async function PATCH(
         body.cancellation_preset === "moderate" ||
         body.cancellation_preset === "strict");
 
-    if (hostEditedPolicy) {
+    if (isCustomPayload) {
+      // Host edited rows directly — trust their payload, normalize
+      // it via parsePolicy so the stored JSON is clean.
+      cancellationSnapshot = parsePolicy(body.cancellation_policy);
+    } else if (isNamedPreset) {
       cancellationSnapshot = buildPolicyFromPreset(
         body.cancellation_approach!,
-        body.cancellation_preset!
+        body.cancellation_preset as Exclude<CancellationPreset, "custom">
       );
     } else {
       const { data: hostRow } = await supabase
