@@ -1,52 +1,38 @@
 import { ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  OFF_PLATFORM_PAYMENT_NOTE,
+  amountLabel,
+  dueAtLabel,
   presetLabel,
   type CancellationPolicy,
-  type CancellationWindow,
+  type PaymentScheduleEntry,
 } from "@/lib/cancellation";
 
 interface Props {
   policy: CancellationPolicy;
-  /** Optional refund-right-now callout. Pass the RefundQuote from
-   *  computeRefund to surface "Cancel now = X% refund" above the
-   *  schedule. Typically rendered on the guest-side trip detail
-   *  view, not on the host listing page. */
-  refundNow?: {
-    refund_pct: number;
-    days_until_checkin: number;
-    past_checkin: boolean;
-  } | null;
-  /** Compact variant drops the header icon + preset label line so
-   *  the card fits the inbox sidebar. */
+  /** Compact variant drops the header icon + disclaimer so the
+   *  card fits in the inbox sidebar. */
   compact?: boolean;
-  /** Listing-level vs reservation-level context. Drives the heading
-   *  wording; the schedule body is identical either way. */
+  /** Listing vs reservation context — drives the subtext wording. */
   scope?: "listing" | "reservation";
 }
 
-function windowLine(w: CancellationWindow): string {
-  if (w.cutoff_days_before_checkin === 0) {
-    return "After check-in";
-  }
-  if (w.cutoff_days_before_checkin === 1) {
-    return "Up to 24 hours before";
-  }
-  return `Up to ${w.cutoff_days_before_checkin} days before`;
-}
-
 /**
- * Read-only rendering of a cancellation policy. Used wherever a
- * policy needs to be shown to either side of a reservation — the
- * listing detail page, the inbox reservation sidebar, and the trip
- * detail page.
+ * Read-only cancellation + payment-schedule renderer. Replaces the
+ * old refund-window view — since 1° B&B doesn't process payments,
+ * we show WHEN money is due rather than inventing a refund model.
+ *
+ * Rendered on the listing detail page (full), inbox sidebar
+ * (compact), and trip detail (full).
  */
 export function CancellationPolicyCard({
   policy,
-  refundNow = null,
   compact = false,
   scope = "listing",
 }: Props) {
+  const hasDeposit = policy.security_deposit.length > 0;
+
   return (
     <div
       className={cn(
@@ -61,7 +47,7 @@ export function CancellationPolicyCard({
           </div>
           <div>
             <div className="text-sm font-semibold">
-              Cancellation policy — {presetLabel(policy.preset)}
+              Cancellation &amp; payment schedule — {presetLabel(policy.preset)}
             </div>
             <div className="mt-0.5 text-xs text-muted-foreground">
               {scope === "reservation"
@@ -73,89 +59,91 @@ export function CancellationPolicyCard({
       )}
       {compact && (
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Cancellation — {presetLabel(policy.preset)}
+          Cancellation &amp; payment — {presetLabel(policy.preset)}
         </div>
       )}
 
-      {/* Refund-right-now callout */}
-      {refundNow && !refundNow.past_checkin && (
-        <div
-          className={cn(
-            "mt-3 rounded-lg px-3 py-2 text-xs",
-            refundNow.refund_pct >= 100
-              ? "bg-emerald-50 text-emerald-900"
-              : refundNow.refund_pct > 0
-                ? "bg-amber-50 text-amber-900"
-                : "bg-zinc-100 text-zinc-700"
-          )}
-        >
-          Cancel today →{" "}
-          <span className="font-semibold">
-            {refundNow.refund_pct}% refund
-          </span>
-          {refundNow.days_until_checkin > 0 && (
-            <span className="text-muted-foreground">
-              {" "}
-              · {refundNow.days_until_checkin} day
-              {refundNow.days_until_checkin === 1 ? "" : "s"} until check-in
-            </span>
-          )}
-        </div>
-      )}
-      {refundNow?.past_checkin && (
-        <div className="mt-3 rounded-lg bg-zinc-100 px-3 py-2 text-xs text-zinc-700">
-          Check-in has passed — no refund applies.
-        </div>
+      {/* Payment schedule */}
+      <ScheduleTable
+        heading="Payment schedule"
+        rows={policy.payment_schedule}
+        emptyHint="No schedule set."
+        compact={compact}
+      />
+
+      {/* Security deposit (optional) */}
+      {hasDeposit && (
+        <ScheduleTable
+          heading="Security deposit"
+          rows={policy.security_deposit}
+          compact={compact}
+          className={compact ? "mt-3" : "mt-4"}
+        />
       )}
 
-      {/* Schedule */}
-      <ul
-        className={cn(
-          "divide-y divide-border border-t border-border",
-          compact ? "mt-2" : "mt-3"
-        )}
-      >
-        {policy.windows.map((w, i) => (
-          <li
-            key={i}
-            className="flex items-center justify-between py-2 text-sm"
-          >
-            <span
-              className={cn(
-                "text-foreground",
-                compact ? "text-xs" : "text-sm"
-              )}
-            >
-              {windowLine(w)}
-            </span>
-            <span
-              className={cn(
-                "font-semibold",
-                w.refund_pct >= 100
-                  ? "text-emerald-700"
-                  : w.refund_pct > 0
-                    ? "text-amber-700"
-                    : "text-muted-foreground",
-                compact ? "text-xs" : "text-sm"
-              )}
-            >
-              {w.refund_pct}% refund
-            </span>
-          </li>
-        ))}
-      </ul>
-
+      {/* Custom note from host */}
       {policy.custom_note && (
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+        <p className={cn("mt-3 text-xs leading-relaxed text-muted-foreground", compact && "text-[11px]")}>
           {policy.custom_note}
         </p>
       )}
 
       {!compact && (
         <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-          1° B&B doesn&apos;t process payments. Use this schedule to settle
-          up directly with your {scope === "reservation" ? "counterpart" : "host"}.
+          {OFF_PLATFORM_PAYMENT_NOTE}
         </p>
+      )}
+    </div>
+  );
+}
+
+function ScheduleTable({
+  heading,
+  rows,
+  compact,
+  emptyHint,
+  className,
+}: {
+  heading: string;
+  rows: PaymentScheduleEntry[];
+  compact: boolean;
+  emptyHint?: string;
+  className?: string;
+}) {
+  if (rows.length === 0 && !emptyHint) return null;
+  return (
+    <div className={cn(className)}>
+      <div
+        className={cn(
+          "mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
+          !compact && "mt-3"
+        )}
+      >
+        {heading}
+      </div>
+      {rows.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          {emptyHint}
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {rows.map((r, i) => (
+            <li
+              key={i}
+              className={cn(
+                "flex items-center justify-between gap-3 px-3",
+                compact ? "py-1.5 text-xs" : "py-2 text-sm"
+              )}
+            >
+              <span className="min-w-0 truncate text-foreground">
+                {dueAtLabel(r)}
+              </span>
+              <span className="shrink-0 font-semibold text-foreground">
+                {amountLabel(r)}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

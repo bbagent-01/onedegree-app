@@ -2243,10 +2243,13 @@ function ListingDetailMock({
                   </ul>
                 </div>
                 <div>
-                  <h3 className="mb-3 font-semibold">Cancellation policy</h3>
+                  <h3 className="mb-3 font-semibold">
+                    Cancellation &amp; payment schedule
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Free cancellation before 48 hours of check-in. Review the
-                    full policy at the time of booking.
+                    Your saved schedule from Settings → Hosting policies
+                    will apply to this listing. You can override it per
+                    listing later.
                   </p>
                 </div>
               </div>

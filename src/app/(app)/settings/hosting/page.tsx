@@ -41,10 +41,12 @@ export default async function HostingSettingsPage() {
       </header>
 
       <section className="mt-8">
-        <h2 className="text-base font-semibold">Cancellation policy</h2>
+        <h2 className="text-base font-semibold">
+          Cancellation &amp; payment schedule
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          How much of the agreed price a guest gets back if they cancel,
-          depending on how close to check-in they cancel.
+          When guests pay you and how much at each step. Guests see
+          this on the listing and again when the request is approved.
         </p>
         <div className="mt-5">
           <CancellationPolicyForm initial={policy} />

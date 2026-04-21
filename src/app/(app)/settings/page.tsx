@@ -68,7 +68,7 @@ export default async function SettingsPage() {
             href="/settings/hosting"
             icon={Home}
             title="Hosting policies"
-            description="Cancellation terms that apply to all your listings."
+            description="Cancellation & payment schedule for your listings."
           />
           {data?.id && (
             <SettingsLink
