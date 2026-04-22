@@ -2,7 +2,6 @@ import Link from "next/link";
 import { CalendarDays, MapPin, Users, BadgePercent, ArrowLeftRight, Gift } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrustTag } from "@/components/trust/trust-tag";
-import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import type { HydratedProposal } from "@/lib/proposals-data";
 import { MessageAuthorButton } from "./message-author-button";
 
@@ -75,18 +74,12 @@ export function ProposalCard({ proposal, viewerId }: Props) {
           </div>
           <div className="mt-1">
             {!isOwn ? (
-              <ConnectionPopover
-                targetUserId={proposal.audienceHostId}
-                isSelf={false}
-                disabled={proposal.trustDegree === 1 || proposal.hasDirectVouch}
-              >
-                <TrustTag
-                  size="micro"
-                  score={proposal.trustScore}
-                  degree={proposal.trustDegree}
-                  direct={proposal.hasDirectVouch}
-                />
-              </ConnectionPopover>
+              <TrustTag
+                size="micro"
+                score={proposal.trustScore}
+                degree={proposal.trustDegree}
+                direct={proposal.hasDirectVouch}
+              />
             ) : (
               <span className="text-xs text-muted-foreground">Your post</span>
             )}

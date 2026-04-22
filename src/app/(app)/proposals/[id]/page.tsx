@@ -16,7 +16,6 @@ import { getEffectiveUserId } from "@/lib/impersonation/session";
 import { fetchProposalById } from "@/lib/proposals-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrustTag } from "@/components/trust/trust-tag";
-import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { MessageAuthorButton } from "@/components/proposals/message-author-button";
 import { AuthorActions } from "@/components/proposals/author-actions";
 
@@ -120,20 +119,12 @@ export default async function ProposalDetailPage({
             </div>
             {!isAuthor && (
               <div className="mt-1">
-                <ConnectionPopover
-                  targetUserId={proposal.audienceHostId}
-                  isSelf={false}
-                  disabled={
-                    proposal.trustDegree === 1 || proposal.hasDirectVouch
-                  }
-                >
-                  <TrustTag
-                    size="micro"
-                    score={proposal.trustScore}
-                    degree={proposal.trustDegree}
-                    direct={proposal.hasDirectVouch}
-                  />
-                </ConnectionPopover>
+                <TrustTag
+                  size="micro"
+                  score={proposal.trustScore}
+                  degree={proposal.trustDegree}
+                  direct={proposal.hasDirectVouch}
+                />
               </div>
             )}
           </div>
