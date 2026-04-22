@@ -6,9 +6,11 @@
  *
  * The recipient is always the gatekeeper. They see the sender's full
  * profile, how they're connected, and the sender's listings as
- * previews, and then decide: Accept / Reply / Decline / Ignore. On
- * Accept, the app issues a bidirectional listing_access_grants pair
- * and the sender's listings flip to full view on refresh.
+ * previews, and then decide: Accept / Reply / Decline. On Accept, the
+ * app issues a bidirectional listing_access_grants pair and the
+ * sender's listings flip to full view on refresh. On Decline the
+ * thread stays in the recipient's Intros tab (they can Reopen) and
+ * the sender is blocked from posting new messages in the thread.
  *
  * The sender sees a read-only pending / accepted / declined state
  * on this same card. Only the recipient sees actions.
@@ -16,7 +18,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   ChevronDown,
@@ -24,7 +26,7 @@ import {
   Loader2,
   MessageCircle,
   MoreHorizontal,
-  Shield,
+  RefreshCw,
   UserMinus,
   UserPlus,
   XCircle,
@@ -83,8 +85,9 @@ interface Props {
    *  detail page where listing-level gating applies — the intro card
    *  itself never unlocks listings. */
   senderListings: IntroSenderListing[];
-  /** Direct connectors bridging recipient → sender, sorted strongest
-   *  first. */
+  /** Direct connectors bridging recipient → sender (2° paths), sorted
+   *  strongest first. Lives on thread for backwards compat; chains
+   *  beyond 2° are fetched on-demand. */
   connectorPaths: ConnectorPathSummary[];
   trustDegree: 1 | 2 | 3 | 4 | null;
 }
@@ -111,6 +114,48 @@ function formatDateRange(start: string | null, end: string | null) {
   return s || e;
 }
 
+// ── Connection chain fetch ────────────────────────────────────────
+// Reuses /api/trust/connection — the same endpoint ConnectionPopover
+// uses to render the full trust breakdown. Direction=incoming gives
+// "sender's trust of me" (viewer = recipient); we render all chains
+// plus a deduped list of 1° people the recipient can DM.
+
+interface ChainNode {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+}
+interface ChainEntry {
+  nodes: ChainNode[];
+  linkStrengths: number[];
+  composite?: number;
+  degree: number;
+}
+interface PathInfoResponse {
+  connector: { id: string; name: string; avatar_url: string | null };
+  link_a: number;
+  link_b: number;
+  path_strength: number;
+  rank: number;
+}
+interface ConnectionApiResponse {
+  type:
+    | "self"
+    | "not_connected"
+    | "connected"
+    | "direct_forward"
+    | "direct_reverse"
+    | "multi_hop";
+  direction?: "outgoing" | "incoming";
+  targetName?: string;
+  targetAvatar?: string | null;
+  viewerAvatar?: string | null;
+  paths?: PathInfoResponse[];
+  connection_count?: number;
+  chains?: ChainEntry[];
+  degree?: 1 | 2 | 3 | 4;
+}
+
 export function IntroRequestCard({
   threadId,
   intro,
@@ -129,10 +174,33 @@ export function IntroRequestCard({
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [revokeReason, setRevokeReason] = useState("");
 
+  // Connection chain data — fetched once the recipient opens the
+  // "How you're connected" section. Serves two renders: the chain
+  // list (with each intermediary) AND the deduped "people you can
+  // DM" list underneath.
+  const [conn, setConn] = useState<ConnectionApiResponse | null>(null);
+  const [connLoading, setConnLoading] = useState(false);
+
+  useEffect(() => {
+    if (!connectionsOpen || conn || connLoading) return;
+    setConnLoading(true);
+    fetch(
+      `/api/trust/connection?targetId=${encodeURIComponent(intro.sender_id)}&direction=incoming`
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setConn(data as ConnectionApiResponse);
+      })
+      .catch(() => {
+        // Fail silently — section just shows the fallback empty state.
+      })
+      .finally(() => setConnLoading(false));
+  }, [connectionsOpen, intro.sender_id, conn, connLoading]);
+
   const senderFirst = sender.name.split(" ")[0];
   const dateRange = formatDateRange(intro.start_date, intro.end_date);
 
-  const call = async (action: "accept" | "decline" | "ignore") => {
+  const call = async (action: "accept" | "decline" | "reopen") => {
     if (pendingAction) return;
     setPendingAction(action);
     try {
@@ -145,13 +213,9 @@ export function IntroRequestCard({
         toast.error(data.error || "Couldn't complete action");
         return;
       }
-      if (action === "accept") {
-        toast.success("Intro accepted");
-      } else if (action === "decline") {
-        toast.success("Intro declined");
-      } else {
-        toast.success("Moved to ignored");
-      }
+      if (action === "accept") toast.success("Intro accepted");
+      else if (action === "decline") toast.success("Intro declined");
+      else if (action === "reopen") toast.success("Intro reopened");
       router.refresh();
     } catch {
       toast.error("Network error");
@@ -188,11 +252,98 @@ export function IntroRequestCard({
     }
   };
 
+  // ── Build chain + DM lists ──
+  // Chains: render all paths from recipient → sender as an ordered
+  // sequence of nodes. For 2° (connector paths) we shape into a
+  // 3-node chain; for 3°/4° we use the `chains` array the API
+  // returns directly.
+  //
+  // DM list: unique 1° contacts the recipient could reach — the
+  // first hop in each chain (index 1, since index 0 is "you").
+  type RenderChain = {
+    key: string;
+    nodes: ChainNode[];
+    linkStrengths: number[];
+    degree: number;
+  };
+  const chainEntries: RenderChain[] = [];
+  const dmMap = new Map<string, ChainNode>();
+
+  if (conn) {
+    const targetNode: ChainNode = {
+      id: intro.sender_id,
+      name: sender.name,
+      avatar_url: sender.avatar_url,
+    };
+    const viewerNode: ChainNode = {
+      id: "you",
+      name: "You",
+      avatar_url: null,
+    };
+    if (conn.type === "connected" && Array.isArray(conn.paths)) {
+      for (const p of conn.paths) {
+        chainEntries.push({
+          key: `2-${p.connector.id}-${p.rank}`,
+          nodes: [viewerNode, p.connector, targetNode],
+          linkStrengths: [p.link_b, p.link_a],
+          degree: 2,
+        });
+        dmMap.set(p.connector.id, p.connector);
+      }
+    } else if (conn.type === "multi_hop" && Array.isArray(conn.chains)) {
+      for (let i = 0; i < conn.chains.length; i++) {
+        const c = conn.chains[i];
+        // Incoming chains arrive target-first; flip to viewer-first
+        // so the render reads "You → Connector → … → Sender".
+        const viewerFirstNodes = [...c.nodes].reverse();
+        const viewerFirstLinks = [...c.linkStrengths].reverse();
+        chainEntries.push({
+          key: `chain-${i}`,
+          nodes: viewerFirstNodes,
+          linkStrengths: viewerFirstLinks,
+          degree: c.degree,
+        });
+        // First hop after viewer is the recipient's 1° contact.
+        const firstHop = viewerFirstNodes[1];
+        if (firstHop && firstHop.id && firstHop.id !== "you") {
+          dmMap.set(firstHop.id, firstHop);
+        }
+      }
+    }
+  } else {
+    // Before the async fetch settles, fall back to the 2° connector
+    // paths shipped with the thread so recipients see something
+    // immediately on expand.
+    const targetNode: ChainNode = {
+      id: intro.sender_id,
+      name: sender.name,
+      avatar_url: sender.avatar_url,
+    };
+    for (const p of connectorPaths) {
+      chainEntries.push({
+        key: `fallback-${p.id}`,
+        nodes: [
+          { id: "you", name: "You", avatar_url: null },
+          { id: p.id, name: p.name, avatar_url: p.avatar_url },
+          targetNode,
+        ],
+        linkStrengths: [],
+        degree: 2,
+      });
+      dmMap.set(p.id, {
+        id: p.id,
+        name: p.name,
+        avatar_url: p.avatar_url,
+      });
+    }
+  }
+
+  const dmPeople = Array.from(dmMap.values());
+
   const headerLine = (() => {
     if (intro.status === "accepted") {
       if (isRecipient) return `You accepted the intro from ${senderFirst}`;
-      if (isSender) return `${senderFirst.includes(" ") ? senderFirst : sender.name.split(" ")[0]} — intro accepted`;
-      return "Intro accepted";
+      return `Intro accepted`;
     }
     if (intro.status === "declined") {
       if (isRecipient) return `You declined this intro from ${senderFirst}`;
@@ -202,12 +353,10 @@ export function IntroRequestCard({
       if (isRecipient) return `You marked this intro as ignored`;
       return "Waiting for a reply";
     }
-    // pending
     if (isRecipient) return `Intro request from ${sender.name}`;
-    return `Waiting for ${intro.recipient_id === viewerId ? "you" : "their"} decision`;
+    return `Waiting for their decision`;
   })();
 
-  // Status strip along the top — color follows semantic state.
   const statusAccent =
     intro.status === "accepted"
       ? "border-emerald-200 bg-emerald-50"
@@ -225,6 +374,12 @@ export function IntroRequestCard({
       <UserPlus className="h-4 w-4 text-violet-700" />
     );
 
+  // Card stays visible across all statuses now that Decline keeps the
+  // thread in the Intros tab and the recipient can Reopen.
+  const showExpandables = intro.status === "pending";
+  const showRecipientActions =
+    isRecipient && (intro.status === "pending" || intro.status === "declined");
+
   return (
     <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border-2 border-border bg-white shadow-sm">
       {/* Status header */}
@@ -237,7 +392,7 @@ export function IntroRequestCard({
             {intro.status === "accepted"
               ? "Intro accepted"
               : intro.status === "declined"
-                ? "Not available"
+                ? "Intro declined"
                 : intro.status === "ignored"
                   ? "Ignored"
                   : "Intro request"}
@@ -265,9 +420,7 @@ export function IntroRequestCard({
 
       {/* Body */}
       <div className="p-4">
-        {/* Sender identity row — avatar links to profile per global
-            rule. Always full identity for the recipient (they need
-            context). Sender also sees themselves here for symmetry. */}
+        {/* Sender identity row */}
         <div className="flex items-start gap-3">
           <Link
             href={`/profile/${sender.id}`}
@@ -285,7 +438,7 @@ export function IntroRequestCard({
             <div className="text-sm font-semibold text-foreground">
               {headerLine}
             </div>
-            {dateRange && intro.status === "pending" && (
+            {dateRange && intro.status !== "accepted" && (
               <div className="mt-1 text-xs text-muted-foreground">
                 Exploring: <span className="font-medium text-foreground">{dateRange}</span>
               </div>
@@ -300,8 +453,9 @@ export function IntroRequestCard({
           </div>
         </div>
 
-        {/* Message body — quoted, always visible. */}
-        {intro.message && intro.status === "pending" && (
+        {/* Message body — quoted, visible in pending & declined so the
+            recipient still has context after declining. */}
+        {intro.message && (intro.status === "pending" || intro.status === "declined") && (
           <div className="mt-4 rounded-xl border border-border bg-muted/30 p-3 text-sm leading-relaxed text-foreground">
             <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {senderFirst} wrote
@@ -312,8 +466,8 @@ export function IntroRequestCard({
           </div>
         )}
 
-        {/* Expandable: sender's profile */}
-        {intro.status === "pending" && (
+        {/* Expandable: sender's profile (pending only) */}
+        {showExpandables && (
           <div className="mt-3 rounded-xl border border-border bg-white">
             <button
               type="button"
@@ -385,10 +539,6 @@ export function IntroRequestCard({
                   )}
                 </div>
 
-                {/* Sender's listings as previews — clicking opens the
-                    listing detail page where listing-level gating
-                    still applies. The intro card never unlocks
-                    listings on its own. */}
                 {senderListings.length > 0 && (
                   <div>
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -438,11 +588,10 @@ export function IntroRequestCard({
         )}
 
         {/* Expandable: how you're connected */}
-        {intro.status === "pending" && (
+        {showExpandables && (
           <div className="mt-2 rounded-xl border border-border bg-white">
             <button
               type="button"
-              id="intro-chain-expand"
               onClick={() => setConnectionsOpen((v) => !v)}
               className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-semibold hover:bg-muted/30"
             >
@@ -454,51 +603,124 @@ export function IntroRequestCard({
               )}
             </button>
             {connectionsOpen && (
-              <div className="space-y-2 border-t border-border p-3 text-sm">
-                {connectorPaths.length === 0 ? (
+              <div className="space-y-4 border-t border-border p-3 text-sm">
+                {connLoading && chainEntries.length === 0 ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Loading chain…
+                  </div>
+                ) : chainEntries.length === 0 ? (
                   <div className="text-xs text-muted-foreground">
                     No mutual connections — this is a cold intro.
                   </div>
                 ) : (
-                  connectorPaths.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2"
-                    >
-                      <Link
-                        href={`/profile/${p.id}`}
-                        className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
-                      >
-                        <Avatar className="h-8 w-8">
-                          {p.avatar_url && (
-                            <AvatarImage src={p.avatar_url} alt={p.name} />
-                          )}
-                          <AvatarFallback>{initials(p.name)}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold">
-                            {p.name}
+                  <>
+                    {/* All chains, rendered with each intermediary
+                        shown as an avatar node. Chain reads:
+                        You → Connector[s] → Sender. */}
+                    <div>
+                      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {chainEntries.length === 1
+                          ? "Chain"
+                          : `${chainEntries.length} chains`}
+                      </div>
+                      <div className="space-y-2">
+                        {chainEntries.map((c) => (
+                          <div
+                            key={c.key}
+                            className="flex items-center gap-1.5 rounded-lg bg-muted/30 px-3 py-2 text-xs"
+                          >
+                            {c.nodes.map((n, idx) => (
+                              <div key={`${c.key}-${idx}`} className="flex items-center gap-1.5">
+                                {idx > 0 && (
+                                  <span className="text-muted-foreground">
+                                    →
+                                  </span>
+                                )}
+                                {n.id === "you" ? (
+                                  <span className="flex items-center gap-1">
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarFallback className="text-[10px]">
+                                        Me
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium">You</span>
+                                  </span>
+                                ) : (
+                                  <Link
+                                    href={`/profile/${n.id}`}
+                                    className="flex items-center gap-1 hover:underline"
+                                  >
+                                    <Avatar className="h-6 w-6">
+                                      {n.avatar_url && (
+                                        <AvatarImage
+                                          src={n.avatar_url}
+                                          alt={n.name}
+                                        />
+                                      )}
+                                      <AvatarFallback className="text-[10px]">
+                                        {initials(n.name)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium">
+                                      {n.name.split(" ")[0]}
+                                    </span>
+                                  </Link>
+                                )}
+                              </div>
+                            ))}
+                            <span className="ml-auto text-[10px] text-muted-foreground">
+                              {c.degree}°
+                            </span>
                           </div>
-                          <div className="text-[11px] text-muted-foreground">
-                            Path strength: {Math.round(p.strength)}
-                          </div>
-                        </div>
-                      </Link>
-                      <Link
-                        href={`/profile/${p.id}`}
-                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-2.5 py-1 text-xs font-semibold hover:bg-muted"
-                      >
-                        <MessageCircle className="h-3 w-3" />
-                        DM
-                      </Link>
+                        ))}
+                      </div>
                     </div>
-                  ))
-                )}
-                {trustDegree && trustDegree > 2 && (
-                  <div className="text-[11px] text-muted-foreground">
-                    Some paths are {trustDegree}° — indirect through a
-                    chain. Open a profile above to see the full chain.
-                  </div>
+
+                    {/* Deduped 1° contacts the recipient could DM. */}
+                    {dmPeople.length > 0 && (
+                      <div>
+                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          People you can DM
+                        </div>
+                        <div className="space-y-1.5">
+                          {dmPeople.map((p) => (
+                            <div
+                              key={`dm-${p.id}`}
+                              className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-border"
+                            >
+                              <Link
+                                href={`/profile/${p.id}`}
+                                className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
+                              >
+                                <Avatar className="h-8 w-8">
+                                  {p.avatar_url && (
+                                    <AvatarImage
+                                      src={p.avatar_url}
+                                      alt={p.name}
+                                    />
+                                  )}
+                                  <AvatarFallback>
+                                    {initials(p.name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="truncate text-sm font-semibold">
+                                  {p.name}
+                                </div>
+                              </Link>
+                              <Link
+                                href={`/profile/${p.id}`}
+                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-2.5 py-1 text-xs font-semibold hover:bg-muted"
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                                DM
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -508,11 +730,10 @@ export function IntroRequestCard({
         {/* Terminal-state messaging for the sender side */}
         {isSender && intro.status === "declined" && (
           <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-foreground">
-            {senderFirst.length > 0
-              ? `${senderFirst.replace(/^./, (c) => c.toUpperCase())} isn't able to engage right now.`
-              : "Not available right now."}
+            {senderFirst} isn&rsquo;t able to engage right now.
             <div className="mt-1 text-xs text-muted-foreground">
-              You can try again in 30 days.
+              You can&rsquo;t send more messages in this thread. Try again in
+              30 days.
             </div>
           </div>
         )}
@@ -530,76 +751,77 @@ export function IntroRequestCard({
         )}
       </div>
 
-      {/* Actions (recipient, pending) */}
-      {isRecipient && intro.status === "pending" && (
+      {/* Actions — pending or declined, recipient only. */}
+      {showRecipientActions && (
         <div className="border-t border-border bg-muted/20 p-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <button
-              type="button"
-              onClick={() => call("accept")}
-              disabled={!!pendingAction}
-              className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-60 sm:col-span-1"
-            >
-              {pendingAction === "accept" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-3.5 w-3.5" />
-              )}
-              Accept
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                // Inline reply — scroll to the thread's message
-                // composer at the bottom of the page. Does NOT change
-                // intro_status; the card stays visible.
-                const composer = document.querySelector("textarea[placeholder^='Type']") as HTMLTextAreaElement | null;
-                composer?.focus();
-                composer?.scrollIntoView({ behavior: "smooth", block: "center" });
-              }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              Reply
-            </button>
-            <button
-              type="button"
-              onClick={() => call("decline")}
-              disabled={!!pendingAction}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted disabled:opacity-60"
-            >
-              {pendingAction === "decline" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <XCircle className="h-3.5 w-3.5" />
-              )}
-              Decline
-            </button>
-          </div>
-          <div className="mt-2 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => call("ignore")}
-              disabled={!!pendingAction}
-              className="text-xs font-semibold text-muted-foreground underline hover:text-foreground disabled:opacity-60"
-            >
-              {pendingAction === "ignore" ? "Ignoring…" : "Ignore"}
-            </button>
-            {connectorPaths.length > 0 && (
+          {intro.status === "pending" ? (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => call("accept")}
+                disabled={!!pendingAction}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-60"
+              >
+                {pendingAction === "accept" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                )}
+                Accept
+              </button>
               <button
                 type="button"
                 onClick={() => {
-                  setConnectionsOpen(true);
-                  const el = document.getElementById("intro-chain-expand");
-                  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  const composer = document.querySelector(
+                    "textarea[placeholder^='Type']"
+                  ) as HTMLTextAreaElement | null;
+                  composer?.focus();
+                  composer?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  });
                 }}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
               >
-                <Shield className="h-3 w-3" />
-                Ask someone you&rsquo;re both connected to
+                <MessageCircle className="h-3.5 w-3.5" />
+                Reply
               </button>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={() => call("decline")}
+                disabled={!!pendingAction}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted disabled:opacity-60"
+              >
+                {pendingAction === "decline" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <XCircle className="h-3.5 w-3.5" />
+                )}
+                Decline
+              </button>
+            </div>
+          ) : (
+            // Declined — only the recipient can reopen the intro.
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs text-muted-foreground">
+                Changed your mind? Reopening lets {senderFirst} post
+                messages again.
+              </div>
+              <button
+                type="button"
+                onClick={() => call("reopen")}
+                disabled={!!pendingAction}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted disabled:opacity-60"
+              >
+                {pendingAction === "reopen" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                Reopen intro
+              </button>
+            </div>
+          )}
         </div>
       )}
 

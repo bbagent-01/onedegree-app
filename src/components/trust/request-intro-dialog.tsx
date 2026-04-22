@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +11,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Loader2, UserPlus } from "lucide-react";
+import { AvailabilityCalendar } from "@/components/listing/availability-calendar";
+import { CalendarDays, Loader2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -43,13 +51,26 @@ export function RequestIntroDialog({
 }: Props) {
   const router = useRouter();
   const [message, setMessage] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [range, setRange] = useState<DateRange | undefined>();
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const trimmed = message.trim();
   const charCount = trimmed.length;
   const tooShort = charCount < 20;
+
+  const startIso = range?.from
+    ? format(range.from, "yyyy-MM-dd")
+    : undefined;
+  const endIso = range?.to ? format(range.to, "yyyy-MM-dd") : undefined;
+
+  const dateLabel = (() => {
+    if (!range?.from) return "Add dates (optional)";
+    if (range.to) {
+      return `${format(range.from, "MMM d")} – ${format(range.to, "MMM d")}`;
+    }
+    return `${format(range.from, "MMM d")} – pick end date`;
+  })();
 
   const submit = async () => {
     if (submitting || tooShort) return;
@@ -61,8 +82,8 @@ export function RequestIntroDialog({
         body: JSON.stringify({
           listingId,
           message: trimmed,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
+          startDate: startIso,
+          endDate: endIso,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as {
@@ -127,29 +148,50 @@ export function RequestIntroDialog({
             </div>
           </div>
 
-          {/* Optional non-binding date range. Helps the recipient judge
-              timing without any commitment — the intro doesn't book
-              anything. */}
+          {/* Optional non-binding date range. Uses the same range
+              calendar as the booking sidebar so the picker feels
+              consistent with the rest of the app. Not a booking —
+              just context for the recipient. */}
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Dates you&apos;re exploring (optional)
             </label>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-14 flex-1 rounded-xl border-2 border-border !bg-white px-4 text-sm font-medium shadow-sm focus:border-foreground/60 focus:outline-none"
-                aria-label="Start date"
-              />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                min={startDate || undefined}
-                className="h-14 flex-1 rounded-xl border-2 border-border !bg-white px-4 text-sm font-medium shadow-sm focus:border-foreground/60 focus:outline-none"
-                aria-label="End date"
-              />
+            <div className="flex items-center gap-2">
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger className="flex h-14 flex-1 items-center gap-2 rounded-xl border-2 border-border !bg-white px-4 text-left text-sm font-medium shadow-sm hover:bg-muted/30 focus:border-foreground/60 focus:outline-none">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  <span
+                    className={range?.from ? "" : "text-muted-foreground"}
+                  >
+                    {dateLabel}
+                  </span>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto p-3"
+                  align="start"
+                  side="bottom"
+                >
+                  <AvailabilityCalendar
+                    value={range}
+                    onChange={(r) => {
+                      setRange(r);
+                      if (r?.from && r?.to) setCalendarOpen(false);
+                    }}
+                    blockedRanges={[]}
+                    numberOfMonths={1}
+                  />
+                </PopoverContent>
+              </Popover>
+              {range?.from && (
+                <button
+                  type="button"
+                  aria-label="Clear dates"
+                  onClick={() => setRange(undefined)}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               Not a booking — just context for {recipientFirstName}.

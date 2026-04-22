@@ -29,7 +29,9 @@ export async function POST(
 
   const { data: thread } = await supabase
     .from("message_threads")
-    .select("id, guest_id, host_id, listing_id")
+    .select(
+      "id, guest_id, host_id, listing_id, intro_sender_id, intro_status"
+    )
     .eq("id", threadId)
     .single();
   if (!thread) {
@@ -37,6 +39,23 @@ export async function POST(
   }
   if (thread.guest_id !== currentUser.id && thread.host_id !== currentUser.id) {
     return Response.json({ error: "Not authorized" }, { status: 403 });
+  }
+
+  // Sender-side message gate: once an intro has been declined, the
+  // sender can't keep posting. Only the recipient can keep the
+  // conversation going (or reopen the intro from the card). This
+  // stops a sender from lobbying through the thread after a no.
+  if (
+    thread.intro_status === "declined" &&
+    thread.intro_sender_id === currentUser.id
+  ) {
+    return Response.json(
+      {
+        error:
+          "This intro was declined. Only the recipient can continue the conversation.",
+      },
+      { status: 403 }
+    );
   }
 
   const body = (await req.json().catch(() => null)) as {

@@ -54,16 +54,16 @@ export async function POST(
   }
 
   const now = new Date().toISOString();
+  // Keep is_intro_request=true so the thread stays in the recipient's
+  // Intros tab — declines aren't permanent. The recipient can reopen
+  // the intro from the same card, and in the meantime the sender is
+  // blocked from posting new messages (enforced in the messages POST
+  // route by intro_status).
   await supabase
     .from("message_threads")
     .update({
       intro_status: "declined",
       intro_decided_at: now,
-      // Drop out of the recipient's Intros tab — declined threads
-      // archive. Sender's side still surfaces a terminal "Not
-      // available right now" pill via intro_status on the listing
-      // page lookup.
-      is_intro_request: false,
     })
     .eq("id", threadId);
 

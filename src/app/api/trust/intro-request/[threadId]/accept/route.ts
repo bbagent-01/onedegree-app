@@ -75,9 +75,18 @@ export async function POST(
   // row state. The grants table has a UNIQUE (grantor, grantee)
   // WHERE revoked_at IS NULL constraint; upsert-ish via insert-on-
   // conflict-do-nothing keeps re-clicks safe.
+  //
+  // Accept also moves the thread OUT of the Intros tab into the main
+  // inbox — once both sides have an active grant the thread is a
+  // normal conversation for day-to-day messaging. The recipient can
+  // still revoke access from the (persistent) IntroRequestCard.
   await supabase
     .from("message_threads")
-    .update({ intro_status: "accepted", intro_decided_at: now })
+    .update({
+      intro_status: "accepted",
+      intro_decided_at: now,
+      is_intro_request: false,
+    })
     .eq("id", threadId);
 
   const grantRows = [

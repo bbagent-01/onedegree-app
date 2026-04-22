@@ -667,38 +667,56 @@ export function ThreadView({
           )}
       </div>
 
-      {/* Input */}
-      <div className="shrink-0 border-t border-border bg-white p-3">
-        <div className="flex items-end gap-2">
-          <textarea
-            rows={1}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder="Type a message…"
-            className="max-h-32 min-h-[40px] flex-1 resize-none rounded-2xl border border-border bg-muted/40 px-4 py-2 text-sm focus:border-foreground focus:bg-white focus:outline-none"
-          />
-          <button
-            type="button"
-            onClick={send}
-            disabled={!draft.trim() || sending}
-            className={cn(
-              "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors",
-              draft.trim() && !sending
-                ? "bg-brand text-white hover:bg-brand-600"
-                : "bg-muted text-muted-foreground"
-            )}
-            aria-label="Send message"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
+      {/* Input — hidden entirely for the intro sender after decline.
+          The API would 403 them anyway; surfacing a dead composer
+          just invites frustration. Recipient always keeps the
+          composer (they drive the reopen flow). */}
+      {(() => {
+        const introSenderBlocked =
+          thread.intro_detail?.status === "declined" &&
+          thread.intro_detail.sender_id === currentUserId;
+        if (introSenderBlocked) {
+          return (
+            <div className="shrink-0 border-t border-border bg-zinc-50 p-4 text-center text-xs text-muted-foreground">
+              Messaging is paused in this thread. You can send a new
+              intro request after 30 days.
+            </div>
+          );
+        }
+        return (
+          <div className="shrink-0 border-t border-border bg-white p-3">
+            <div className="flex items-end gap-2">
+              <textarea
+                rows={1}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                placeholder="Type a message…"
+                className="max-h-32 min-h-[40px] flex-1 resize-none rounded-2xl border border-border bg-muted/40 px-4 py-2 text-sm focus:border-foreground focus:bg-white focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={send}
+                disabled={!draft.trim() || sending}
+                className={cn(
+                  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors",
+                  draft.trim() && !sending
+                    ? "bg-brand text-white hover:bg-brand-600"
+                    : "bg-muted text-muted-foreground"
+                )}
+                aria-label="Send message"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

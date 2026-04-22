@@ -22,9 +22,13 @@ export default async function InboxPage({ searchParams }: PageProps) {
   const threads = await getInboxForUser(currentUser.id);
 
   // Desktop split-view: optional ?thread=<id> selects a thread on the right.
-  // If none specified, default to the first thread. Initial render still
-  // happens server-side so deep links stay fast and bookmarkable.
-  const selectedId = sp.thread || threads[0]?.id || null;
+  // If the caller didn't specify, prefer the first non-intro thread so the
+  // main /inbox landing doesn't default-select an intro (intros should be
+  // opened deliberately from the Intros tab or by deep link). If the user
+  // literally has nothing but intro threads, fall through to no selection —
+  // the right panel shows the "Select a conversation" empty state.
+  const firstNonIntro = threads.find((t) => !t.is_intro_request);
+  const selectedId = sp.thread || firstNonIntro?.id || null;
   const selected = selectedId
     ? await getThreadDetail(currentUser.id, selectedId)
     : null;

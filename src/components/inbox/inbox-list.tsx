@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, ChevronDown, Check } from "lucide-react";
@@ -67,6 +67,21 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
   const [mailbox, setMailbox] = useState<MailboxFilter>("all");
   const [tab, setTab] = useState<"mailbox" | "intros">("mailbox");
   const [query, setQuery] = useState("");
+
+  // If the user landed on /inbox/<id> with an intro thread selected
+  // (or deep-linked to one from a listing page), auto-switch to the
+  // Intros tab so the list + right panel agree. Without this the
+  // left list can show "no conversations match" while the right
+  // shows a fully-rendered intro thread.
+  useEffect(() => {
+    if (!selectedId) return;
+    const selectedThread = threads.find((t) => t.id === selectedId);
+    if (selectedThread?.is_intro_request) {
+      setTab("intros");
+    }
+    // Only on initial selection change — manual tab clicks must win.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   // Filter buckets.
   //   Hosting     — role === "host" and not an intro
