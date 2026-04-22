@@ -185,18 +185,45 @@ export function RequestIntroDialog({
             </div>
             {/* Inline expandable calendar — dodges the Popover/Dialog
                 stacking-context collision where the popover portaled
-                behind the z-70 dialog overlay. */}
+                behind the z-70 dialog overlay.
+                Auto-close fires only after a TRUE range is picked
+                (from < to). React-day-picker in range mode sets
+                to = from on the first click, which used to trip the
+                naive `r.from && r.to` check and slam the calendar
+                shut before the user could pick an end date. */}
             {calendarOpen && (
               <div className="mt-2 overflow-hidden rounded-xl border-2 border-border bg-white p-2 shadow-sm">
                 <AvailabilityCalendar
                   value={range}
                   onChange={(r) => {
                     setRange(r);
-                    if (r?.from && r?.to) setCalendarOpen(false);
+                    if (
+                      r?.from &&
+                      r?.to &&
+                      r.from.getTime() !== r.to.getTime()
+                    ) {
+                      setCalendarOpen(false);
+                    }
                   }}
                   blockedRanges={[]}
                   numberOfMonths={1}
                 />
+                <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setRange(undefined)}
+                    className="font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalendarOpen(false)}
+                    className="font-semibold text-brand hover:underline"
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
             )}
             <p className="mt-1 text-xs text-muted-foreground">
