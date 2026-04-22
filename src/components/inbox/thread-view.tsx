@@ -279,7 +279,7 @@ export function ThreadView({
       <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
         <Link
           href={`/profile/${thread.other_user.id}`}
-          className="shrink-0 rounded-full transition-shadow hover:shadow-md"
+          className="shrink-0 rounded-full transition-shadow hover:shadow-lg"
           aria-label={`Open ${thread.other_user.name}'s profile`}
         >
           <Avatar className="h-10 w-10">
@@ -711,17 +711,20 @@ export function ThreadView({
                       });
                     }
                   }
+                  const roleHint =
+                    thread.role === "host"
+                      ? "Share check-in instructions, Wi-Fi, parking, and anything else your guest will need."
+                      : "Confirm check-in instructions, Wi-Fi, parking, and anything else you need before arrival.";
+                  const arrivalLine = arrival
+                    ? `Arriving ${arrival}. `
+                    : "";
                   return (
                     <div key={m.id} className="py-1">
                       <SystemMilestoneCard
                         icon={CalendarClock}
                         tone="amber"
                         title="Heads up — check-in is tomorrow"
-                        subtitle={
-                          arrival
-                            ? `Arriving ${arrival}. Coordinate any last-minute details here.`
-                            : "Coordinate any last-minute details here."
-                        }
+                        subtitle={`${arrivalLine}${roleHint}`}
                       />
                     </div>
                   );

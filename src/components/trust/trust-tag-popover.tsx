@@ -42,13 +42,18 @@ export function TrustTagPopover({
   if (disabled) {
     return <TrustTag {...tagProps} />;
   }
+  // Hover affordance — a subtle white rounded container with a soft
+  // drop shadow appears on hover so viewers see the pill is
+  // interactive without cluttering the tag's default rendering. The
+  // inline-flex + negative padding compensation keeps the pill's
+  // layout identical to the plain <TrustTag> when not hovered.
   return (
     <ConnectionPopover
       targetUserId={targetUserId}
       direction={direction}
       disabled={tagProps.degree === 1 || tagProps.direct === true}
     >
-      <span className="cursor-pointer">
+      <span className="-mx-1 -my-0.5 inline-flex cursor-pointer rounded-lg px-1 py-0.5 transition-all hover:bg-white hover:shadow-sm hover:ring-1 hover:ring-black/5">
         <TrustTag {...tagProps} />
       </span>
     </ConnectionPopover>

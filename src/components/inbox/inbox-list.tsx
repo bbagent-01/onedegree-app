@@ -298,7 +298,11 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                       }
                     }}
                     className={cn(
-                      "group flex w-full cursor-pointer items-start gap-3 border-b border-border px-3 py-3 text-left transition-colors hover:bg-muted/60",
+                      // Row hover lifts the card off the list with
+                      // a strong drop-shadow so viewers feel the
+                      // whole row is a target. z-10 keeps the
+                      // shadow on top of neighboring rows.
+                      "group relative flex w-full cursor-pointer items-start gap-3 border-b border-border px-3 py-3 text-left transition-all hover:z-10 hover:bg-white hover:shadow-lg hover:ring-1 hover:ring-black/5",
                       isSelected && "bg-muted",
                       t.is_intro_request && "bg-amber-50/40"
                     )}
@@ -309,7 +313,7 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                     <Link
                       href={`/profile/${t.other_user.id}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="shrink-0 rounded-full transition-shadow hover:shadow-md"
+                      className="shrink-0 rounded-full transition-shadow hover:shadow-lg"
                       aria-label={`Open ${t.other_user.name}'s profile`}
                     >
                       <Avatar className="h-12 w-12">

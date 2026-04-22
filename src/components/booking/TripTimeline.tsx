@@ -48,8 +48,18 @@ export function TripTimeline({ stages, compact = false }: Props) {
       {stages.map((stage, idx) => {
         const isLast = idx === stages.length - 1;
         const isTerminal = stage.key === "declined" || stage.key === "cancelled";
+        // Keys include the index because a booking with multiple
+        // payment_events produces multiple `key="payment"` stages.
+        // Without the index suffix React reuses the first `li` for
+        // every subsequent payment and duplicates the DOM content
+        // when the parent re-renders — e.g. each collapse/expand
+        // cycle of CollapsibleTripTimeline would pile more copies
+        // of the first payment onto the top of the list.
         return (
-          <li key={stage.key} className="relative flex gap-3">
+          <li
+            key={`${stage.key}-${idx}`}
+            className="relative flex gap-3"
+          >
             {/* Connector line */}
             {!isLast && (
               <span

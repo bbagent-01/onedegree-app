@@ -136,11 +136,11 @@ export function CancellationPolicyCard({
           <p className="text-xs leading-relaxed text-muted-foreground">
             {meta.description}
           </p>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            {scope === "reservation"
-              ? "Terms locked when the host approved."
-              : "Applied to every request on this listing."}
-          </p>
+          {scope === "reservation" && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Terms locked when the host approved.
+            </p>
+          )}
         </div>
       </details>
 
