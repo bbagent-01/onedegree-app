@@ -5,6 +5,8 @@
  * and invite tokens — just clears the reservation graph.
  *
  * Deletes (FK order):
+ *   listing_access_grants   (S2a — intro-accept grants)
+ *   incidents               (safety reports)
  *   payment_events
  *   messages
  *   message_threads
@@ -35,8 +37,9 @@ async function main() {
     return n ?? 0;
   };
 
-  console.log("=== before ===");
-  for (const t of [
+  const tables = [
+    "listing_access_grants",
+    "incidents",
     "payment_events",
     "messages",
     "message_threads",
@@ -45,12 +48,24 @@ async function main() {
     "rental_agreements",
     "security_deposits",
     "vouches",
-  ]) {
+  ];
+
+  console.log("=== before ===");
+  for (const t of tables) {
     console.log(`  ${t}: ${await count(t)}`);
   }
 
   // FK-safe delete order. Most will cascade, but we delete
   // explicitly so the output shows each table's count.
+
+  // S2a intro-accept grants — FK to message_threads, cascade-delete,
+  // but wipe first so the intro-pair grants don't linger if a thread
+  // cascade-deletes without triggering the grant row's cascade.
+  await sb.from("listing_access_grants").delete().not("id", "is", null);
+
+  // Incidents — both post-stay severity reports and S2 abuse reports.
+  // Clear so the safety surfaces reset to empty.
+  await sb.from("incidents").delete().not("id", "is", null);
 
   // payment_events → cascades from contact_requests, but wipe
   // first so we can verify the row count dropped.
@@ -105,16 +120,7 @@ async function main() {
     .not("id", "is", null);
 
   console.log("=== after ===");
-  for (const t of [
-    "payment_events",
-    "messages",
-    "message_threads",
-    "stay_confirmations",
-    "contact_requests",
-    "rental_agreements",
-    "security_deposits",
-    "vouches",
-  ]) {
+  for (const t of tables) {
     console.log(`  ${t}: ${await count(t)}`);
   }
 
