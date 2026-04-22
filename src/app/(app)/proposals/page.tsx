@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
+import { Plus, BellRing } from "lucide-react";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
 import { fetchVisibleProposals } from "@/lib/proposals-data";
 import { ProposalCard } from "@/components/proposals/proposal-card";
@@ -54,15 +55,17 @@ export default async function ProposalsFeedPage({
         <div className="flex items-center gap-2">
           <Link
             href="/alerts"
-            className="inline-flex h-10 items-center rounded-lg border border-border bg-white px-4 text-sm font-semibold hover:bg-muted"
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-white px-4 text-sm font-semibold hover:bg-muted"
           >
+            <BellRing className="h-4 w-4" />
             Alerts
           </Link>
           <Link
             href="/proposals/new"
-            className="inline-flex h-10 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background hover:bg-foreground/90"
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-foreground px-4 text-sm font-semibold text-background hover:bg-foreground/90"
           >
-            + Create
+            <Plus className="h-4 w-4" />
+            Create
           </Link>
         </div>
       </div>

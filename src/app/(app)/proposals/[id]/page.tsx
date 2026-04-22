@@ -1,10 +1,22 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
+import {
+  ArrowLeft,
+  BellRing,
+  CalendarDays,
+  MapPin,
+  Users,
+  BadgePercent,
+  ArrowLeftRight,
+  Gift,
+  ShieldCheck,
+} from "lucide-react";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
 import { fetchProposalById } from "@/lib/proposals-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrustTag } from "@/components/trust/trust-tag";
+import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { MessageAuthorButton } from "@/components/proposals/message-author-button";
 import { AuthorActions } from "@/components/proposals/author-actions";
 
@@ -64,7 +76,7 @@ export default async function ProposalDetailPage({
         href="/proposals"
         className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
-        ←
+        <ArrowLeft className="h-4 w-4" />
         Back to proposals
       </Link>
 
@@ -108,12 +120,20 @@ export default async function ProposalDetailPage({
             </div>
             {!isAuthor && (
               <div className="mt-1">
-                <TrustTag
-                  size="micro"
-                  score={proposal.trustScore}
-                  degree={proposal.trustDegree}
-                  direct={proposal.hasDirectVouch}
-                />
+                <ConnectionPopover
+                  targetUserId={proposal.audienceHostId}
+                  isSelf={false}
+                  disabled={
+                    proposal.trustDegree === 1 || proposal.hasDirectVouch
+                  }
+                >
+                  <TrustTag
+                    size="micro"
+                    score={proposal.trustScore}
+                    degree={proposal.trustDegree}
+                    direct={proposal.hasDirectVouch}
+                  />
+                </ConnectionPopover>
               </div>
             )}
           </div>
@@ -136,25 +156,29 @@ export default async function ProposalDetailPage({
         <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
           {row.destinations.length > 0 && (
             <div className="inline-flex items-center gap-2">
-              
+              <MapPin className="h-4 w-4" />
               <span>{row.destinations.join(" · ")}</span>
             </div>
           )}
           <div className="inline-flex items-center gap-2">
-            
+            <CalendarDays className="h-4 w-4" />
             {dateLine}
           </div>
           {isTrip && row.guest_count && (
             <div className="inline-flex items-center gap-2">
-              
+              <Users className="h-4 w-4" />
               {row.guest_count} guest{row.guest_count === 1 ? "" : "s"}
             </div>
           )}
           {row.hook_type !== "none" && (
             <div className="inline-flex items-center gap-2">
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
-                {row.hook_type}
-              </span>
+              {row.hook_type === "discount" ? (
+                <BadgePercent className="h-4 w-4" />
+              ) : row.hook_type === "trade" ? (
+                <ArrowLeftRight className="h-4 w-4" />
+              ) : (
+                <Gift className="h-4 w-4" />
+              )}
               {row.hook_details}
             </div>
           )}
@@ -195,7 +219,7 @@ export default async function ProposalDetailPage({
 
         {/* Visibility hint */}
         <div className="mt-6 flex items-start gap-2 rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
-          
+          <ShieldCheck className="mt-0.5 h-3.5 w-3.5" />
           <span>
             {row.visibility_mode === "inherit"
               ? isTrip
@@ -214,7 +238,7 @@ export default async function ProposalDetailPage({
               href={`/alerts?prefill_kind=${row.kind}&prefill_dest=${encodeURIComponent(row.destinations.join(","))}`}
               className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-white px-4 text-sm font-semibold hover:bg-muted"
             >
-              
+              <BellRing className="h-4 w-4" />
               Save as alert
             </Link>
           )}

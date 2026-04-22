@@ -2,7 +2,19 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
+import {
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  MapPin,
+  Plus,
+  X,
+} from "lucide-react";
+import { AvailabilityCalendar } from "@/components/listing/availability-calendar";
 import type { AccessRule, AccessSettings } from "@/lib/trust/types";
 
 export interface MyListingOption {
@@ -44,8 +56,8 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
   const [destinationInput, setDestinationInput] = useState("");
 
   const [dateMode, setDateMode] = useState<DateMode>("range");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [range, setRange] = useState<DateRange | undefined>();
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [flexibleMonth, setFlexibleMonth] = useState("");
 
   const [guestCount, setGuestCount] = useState<string>("");
@@ -98,12 +110,8 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
     if (descTooShort) return false;
     if (kind === "host_offer") {
       if (!listingId) return false;
-      if (!startDate || !endDate) return false;
-      if (startDate > endDate) return false;
+      if (dateMode !== "range" || !range?.from || !range?.to) return false;
       if (hookType !== "none" && hookDetails.trim().length < 3) return false;
-    }
-    if (dateMode === "range" && startDate && endDate && startDate > endDate) {
-      return false;
     }
     if (dateMode === "flexible_month" && flexibleMonth.trim().length === 0 && kind === "trip_wish") {
       return false;
@@ -115,8 +123,8 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const startIso = dateMode === "range" && startDate ? startDate : null;
-      const endIso = dateMode === "range" && endDate ? endDate : null;
+      const startIso = range?.from ? format(range.from, "yyyy-MM-dd") : null;
+      const endIso = range?.to ? format(range.to, "yyyy-MM-dd") : null;
 
       const accessSettings: AccessSettings | null =
         visibilityMode === "custom"
@@ -173,6 +181,14 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
       setSubmitting(false);
     }
   };
+
+  const dateLabel = (() => {
+    if (!range?.from) return "Add dates";
+    if (range.to) {
+      return `${format(range.from, "MMM d")} – ${format(range.to, "MMM d")}`;
+    }
+    return `${format(range.from, "MMM d")} – pick end date`;
+  })();
 
   return (
     <div className="mt-8 space-y-6">
@@ -244,6 +260,7 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
       >
         <div className="space-y-2">
           <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
             <input
               className={`${fieldCls} flex-1 text-sm`}
               value={destinationInput}
@@ -264,9 +281,10 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
               type="button"
               onClick={() => addDestination(destinationInput)}
               disabled={!destinationInput.trim() || destinations.length >= 10}
-              className="inline-flex h-14 items-center rounded-xl border-2 border-border bg-white px-4 text-sm font-semibold hover:bg-muted disabled:opacity-50"
+              className="inline-flex h-14 items-center gap-1 rounded-xl border-2 border-border bg-white px-4 text-sm font-semibold hover:bg-muted disabled:opacity-50"
             >
-              + Add
+              <Plus className="h-4 w-4" />
+              Add
             </button>
           </div>
           {destinations.length > 0 && (
@@ -283,7 +301,7 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
                     className="text-muted-foreground hover:text-foreground"
                     aria-label={`Remove ${d}`}
                   >
-                    ×
+                    <X className="h-3 w-3" />
                   </button>
                 </li>
               ))}
@@ -311,21 +329,71 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
           )}
 
           {(kind === "host_offer" || dateMode === "range") && (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className={`${fieldCls} text-sm`}
-                placeholder="Start"
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCalendarOpen((v) => !v)}
+                className={`${fieldCls} flex flex-1 items-center gap-2 text-left text-sm`}
+                aria-expanded={calendarOpen}
+              >
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <span className={range?.from ? "" : "text-muted-foreground"}>
+                  {dateLabel}
+                </span>
+                <span className="ml-auto text-muted-foreground">
+                  {calendarOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </span>
+              </button>
+              {range?.from && (
+                <button
+                  type="button"
+                  aria-label="Clear dates"
+                  onClick={() => setRange(undefined)}
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {calendarOpen && (dateMode === "range" || kind === "host_offer") && (
+            <div className="overflow-hidden rounded-xl border-2 border-border bg-white p-2 shadow-sm">
+              <AvailabilityCalendar
+                value={range}
+                onChange={(r) => {
+                  setRange(r);
+                  if (
+                    r?.from &&
+                    r?.to &&
+                    r.from.getTime() !== r.to.getTime()
+                  ) {
+                    setCalendarOpen(false);
+                  }
+                }}
+                blockedRanges={[]}
+                numberOfMonths={1}
               />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className={`${fieldCls} text-sm`}
-                placeholder="End"
-              />
+              <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setRange(undefined)}
+                  className="font-semibold text-muted-foreground hover:text-foreground"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCalendarOpen(false)}
+                  className="font-semibold text-brand hover:underline"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           )}
 
@@ -495,6 +563,7 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
           disabled={!canSubmit}
           className="inline-flex h-12 items-center gap-2 rounded-lg bg-foreground px-6 text-sm font-semibold text-background shadow-md hover:bg-foreground/90 disabled:opacity-60"
         >
+          {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
           {submitting ? "Posting…" : "Post proposal"}
         </button>
       </div>

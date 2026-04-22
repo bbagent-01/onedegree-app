@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { CalendarDays, MapPin, Users, BadgePercent, ArrowLeftRight, Gift } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrustTag } from "@/components/trust/trust-tag";
+import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import type { HydratedProposal } from "@/lib/proposals-data";
 import { MessageAuthorButton } from "./message-author-button";
 
@@ -73,12 +75,18 @@ export function ProposalCard({ proposal, viewerId }: Props) {
           </div>
           <div className="mt-1">
             {!isOwn ? (
-              <TrustTag
-                size="micro"
-                score={proposal.trustScore}
-                degree={proposal.trustDegree}
-                direct={proposal.hasDirectVouch}
-              />
+              <ConnectionPopover
+                targetUserId={proposal.audienceHostId}
+                isSelf={false}
+                disabled={proposal.trustDegree === 1 || proposal.hasDirectVouch}
+              >
+                <TrustTag
+                  size="micro"
+                  score={proposal.trustScore}
+                  degree={proposal.trustDegree}
+                  direct={proposal.hasDirectVouch}
+                />
+              </ConnectionPopover>
             ) : (
               <span className="text-xs text-muted-foreground">Your post</span>
             )}
@@ -99,7 +107,7 @@ export function ProposalCard({ proposal, viewerId }: Props) {
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
           {row.destinations.length > 0 && (
             <span className="inline-flex items-center gap-1.5">
-              📍
+              <MapPin className="h-3.5 w-3.5" />
               <span className="line-clamp-1">
                 {row.destinations.slice(0, 3).join(" · ")}
                 {row.destinations.length > 3
@@ -109,12 +117,12 @@ export function ProposalCard({ proposal, viewerId }: Props) {
             </span>
           )}
           <span className="inline-flex items-center gap-1.5">
-            📅
+            <CalendarDays className="h-3.5 w-3.5" />
             {formatDateRange(proposal)}
           </span>
           {isTrip && row.guest_count && (
             <span className="inline-flex items-center gap-1.5">
-              👥
+              <Users className="h-3.5 w-3.5" />
               {row.guest_count} guest{row.guest_count === 1 ? "" : "s"}
             </span>
           )}
@@ -197,11 +205,14 @@ function HookBadge({
   hookDetails: string | null;
 }) {
   if (hookType === "none") return null;
+  const Icon =
+    hookType === "discount" ? BadgePercent : hookType === "trade" ? ArrowLeftRight : Gift;
   return (
     <span
       className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900"
       title={hookDetails ?? undefined}
     >
+      <Icon className="h-3 w-3" />
       {hookDetails ? hookDetails.slice(0, 22) : hookType}
     </span>
   );

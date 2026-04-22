@@ -18,6 +18,8 @@ import {
   HelpCircle,
   Shield,
   UserPlus,
+  BellRing,
+  Compass,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -131,7 +133,7 @@ export function AccountMenu() {
     {
       items: [
         { href: "/browse", label: "Explore", icon: Search },
-        { href: "/proposals", label: "Proposals", icon: MessageCircle },
+        { href: "/proposals", label: "Proposals", icon: Compass },
         { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
         { href: "/inbox", label: "Messages", icon: MessageCircle },
         { href: "/wishlists", label: "Wishlists", icon: Heart },
@@ -142,7 +144,7 @@ export function AccountMenu() {
       items: [
         { href: "/hosting/create", label: "Create a listing", icon: Plus },
         { href: "/proposals/new", label: "Post a proposal", icon: Plus },
-        { href: "/alerts", label: "Proposal alerts", icon: MessageCircle },
+        { href: "/alerts", label: "Proposal alerts", icon: BellRing },
         { href: "/dashboard?tab=traveling", label: "Trips", icon: CalendarDays },
         { href: "/vouch", label: "Vouch for a member", icon: Shield },
         { href: "/invite", label: "Invite someone", icon: UserPlus },

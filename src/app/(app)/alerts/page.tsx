@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -51,7 +52,8 @@ export default async function AlertsPage({
         href="/proposals"
         className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
-        ← Back to proposals
+        <ArrowLeft className="h-4 w-4" />
+        Back to proposals
       </Link>
       <h1 className="mt-4 text-2xl font-semibold md:text-3xl">
         Proposal alerts

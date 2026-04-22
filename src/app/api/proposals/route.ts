@@ -13,6 +13,7 @@ import {
   normalizeAccessSettings,
   type AccessSettings,
 } from "@/lib/trust/types";
+import { fanOutAlerts } from "@/lib/proposal-alerts";
 
 const ACTIVE_CAP_PER_KIND = 5;
 
@@ -185,16 +186,15 @@ export async function POST(req: Request) {
     );
   }
 
-  // Alert fan-out is intentionally NOT wired into the POST path on
-  // alpha-c — importing `proposal-alerts` (Resend + Twilio + the
-  // hydrated-proposal fetch) pushed the Cloudflare Worker bundle over
-  // the 3 MiB compressed cap. The code still lives in
-  // src/lib/proposal-alerts.ts; hooking it into a future cron (or
-  // paid-tier direct call) is a one-line change once we have the
-  // bundle headroom.
-  console.log(
-    `[proposals] created ${created.id} — alert fan-out skipped on alpha-c`
-  );
+  // Fire-and-forget alert fan-out. We intentionally await inside a
+  // try/catch so a Twilio/Resend hiccup doesn't leak into the POST
+  // response, but still runs synchronously on the edge runtime where
+  // waitUntil isn't available.
+  try {
+    await fanOutAlerts(created.id);
+  } catch (e) {
+    console.error("[proposals] fanOutAlerts failed:", e);
+  }
 
   return Response.json({ id: created.id });
 }

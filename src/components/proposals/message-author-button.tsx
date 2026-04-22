@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -94,7 +95,12 @@ export function MessageAuthorButton({
       disabled={busy}
       className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-semibold text-background hover:bg-foreground/90 disabled:opacity-60"
     >
-      {busy ? "Opening…" : `Message ${authorFirstName}`}
+      {busy ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <MessageCircle className="h-3.5 w-3.5" />
+      )}
+      Message {authorFirstName}
     </button>
   );
 }
