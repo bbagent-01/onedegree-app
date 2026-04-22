@@ -30,6 +30,7 @@ export interface CronResult {
   ranAt: string;
   checkinReminders: { fired: number; ids: string[] };
   reviewPrompts: { fired: number; ids: string[] };
+  proposalsExpired: number;
   errors: string[];
 }
 
@@ -38,6 +39,7 @@ export async function runReminderSweep(): Promise<CronResult> {
     ranAt: new Date().toISOString(),
     checkinReminders: { fired: 0, ids: [] },
     reviewPrompts: { fired: 0, ids: [] },
+    proposalsExpired: 0,
     errors: [],
   };
 
@@ -143,6 +145,22 @@ export async function runReminderSweep(): Promise<CronResult> {
     }
   } catch (e) {
     result.errors.push(`review sweep failed: ${stringifyError(e)}`);
+  }
+
+  // Proposals expiration sweep (CC-C9). Flipping status to 'expired' is
+  // cheap — one bulk UPDATE. Folded in here instead of a standalone cron
+  // route to save the edge-function bundle overhead.
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data: expired } = await supabase
+      .from("proposals")
+      .update({ status: "expired" })
+      .eq("status", "active")
+      .lt("expires_at", new Date().toISOString())
+      .select("id");
+    result.proposalsExpired = (expired ?? []).length;
+  } catch (e) {
+    result.errors.push(`expire proposals: ${stringifyError(e)}`);
   }
 
   return result;

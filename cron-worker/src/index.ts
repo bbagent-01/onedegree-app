@@ -29,7 +29,6 @@ export interface Env {
 const CRON_PATHS = [
   "/api/cron/check-reminders",
   "/api/cron/payment-due",
-  "/api/cron/expire-proposals",
 ];
 
 export default {
