@@ -213,7 +213,10 @@ export function BookingSidebar({
                   {guests} guest{guests === 1 ? "" : "s"}
                 </div>
               </PopoverTrigger>
-              <PopoverContent className="w-72 p-4" align="end">
+              <PopoverContent
+                className="w-[min(18rem,calc(100vw-2rem))] p-4"
+                align="end"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-semibold">Guests</div>

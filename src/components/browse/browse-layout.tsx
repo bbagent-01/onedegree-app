@@ -122,13 +122,55 @@ export function BrowseLayout({
     else cardRefs.current.delete(id);
   };
 
-  const gridCols = useMemo(
+  // Sparse-state grid sizing. With only a handful of listings, the
+  // default 4-column grid leaves visually broken half-empty rows
+  // — instead, scale the card count per row to the result count so
+  // the row always fills. Caps out at the standard 4-up grid in
+  // grid-only mode and 2-up in split mode (where the map takes the
+  // other half).
+  const gridCols = useMemo(() => {
+    const count = listings.length;
+    if (mode === "split") {
+      // Split mode: cap at 2 columns. Below 3 listings drop to 1 col
+      // so each card gets the full width on the left half.
+      if (count <= 2) return "grid-cols-1";
+      return "grid-cols-1 sm:grid-cols-2";
+    }
+    // Grid-only mode — scale columns to result count.
+    if (count <= 2) return "grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 xl:grid-cols-1";
+    if (count <= 4) return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2";
+    if (count <= 8) return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3";
+    return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+  }, [mode, listings.length]);
+
+  // 1–2 listings in grid-only mode: cards get a centered max-width
+  // so the single-column rows don't stretch full-width across a
+  // wide viewport. 600px matches the Airbnb-style card max width.
+  const sparseGridWrapper =
+    mode !== "split" && listings.length > 0 && listings.length <= 2
+      ? "mx-auto max-w-[600px]"
+      : "";
+
+  // Listings the map can actually plot. Below 3 there's nothing
+  // useful to display — hide the toggle so it doesn't open onto an
+  // almost-empty canvas.
+  const mappableCount = useMemo(
     () =>
-      mode === "split"
-        ? "grid-cols-1 sm:grid-cols-2"
-        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-    [mode]
+      listings.filter(
+        (l) =>
+          typeof l.latitude === "number" && typeof l.longitude === "number"
+      ).length,
+    [listings]
   );
+  const showMapToggle = mappableCount >= 3;
+  // If we hide the toggle but were already in split/map mode (e.g.
+  // user previously had results and now filtered down), demote back
+  // to grid so the layout stays coherent.
+  useEffect(() => {
+    if (!showMapToggle && mode !== "grid") {
+      setMode("grid");
+    }
+  }, [showMapToggle, mode]);
 
   // Heading row with sort/filters — lives inside the left column so the
   // sort pill aligns with the right edge of the grid (not the far right
@@ -156,6 +198,29 @@ export function BrowseLayout({
             onCopyVouchLink={copyVouchLink}
             isEmpty
           />
+        ) : isSignedIn ? (
+          // User has vouches but no listings show — network-growth
+          // nudge instead of a generic empty-search message. Frames
+          // the empty state as "more network = more listings" so the
+          // CTA fits the trust model.
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <SearchX className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-semibold text-foreground">
+              Your network is growing
+            </h3>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              Ask connections to host, or expand by inviting more
+              friends. You can also try clearing filters or expanding
+              your search area.
+            </p>
+            <Link
+              href="/invite"
+              className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600"
+            >
+              <UserPlus className="h-4 w-4" />
+              Invite a friend
+            </Link>
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <SearchX className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -209,7 +274,7 @@ export function BrowseLayout({
             )}
 
             {headerRow}
-            <div className={cn("grid gap-3", gridCols)}>
+            <div className={cn("grid gap-3", gridCols, sparseGridWrapper)}>
               {listings.map((l) => {
                 const trust = trustByListing[l.id];
                 return (
@@ -261,30 +326,34 @@ export function BrowseLayout({
         </div>
       )}
 
-      {/* Desktop split toggle */}
-      <div className="fixed bottom-8 left-1/2 z-40 hidden -translate-x-1/2 md:block">
-        <Button
-          type="button"
-          onClick={() => setMode((m) => (m === "split" ? "grid" : "split"))}
-          className="h-12 gap-2 rounded-full bg-foreground px-6 text-sm font-medium text-background shadow-lg hover:bg-foreground/90"
-        >
-          {mode === "split" ? (
-            <>
-              <LayoutGrid className="h-4 w-4" />
-              Show grid
-            </>
-          ) : (
-            <>
-              <MapIcon className="h-4 w-4" />
-              Show map
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Desktop split toggle — hidden when fewer than 3 mappable
+          listings are visible (a half-empty map is worse than no map). */}
+      {showMapToggle && (
+        <div className="fixed bottom-8 left-1/2 z-40 hidden -translate-x-1/2 md:block">
+          <Button
+            type="button"
+            onClick={() => setMode((m) => (m === "split" ? "grid" : "split"))}
+            className="h-12 gap-2 rounded-full bg-foreground px-6 text-sm font-medium text-background shadow-lg hover:bg-foreground/90"
+          >
+            {mode === "split" ? (
+              <>
+                <LayoutGrid className="h-4 w-4" />
+                Show grid
+              </>
+            ) : (
+              <>
+                <MapIcon className="h-4 w-4" />
+                Show map
+              </>
+            )}
+          </Button>
+        </div>
+      )}
 
-      {/* Mobile map toggle — floats above the mobile tab bar. The bottom
-          offset accounts for the tab bar's height plus the iOS
-          home-indicator safe area plus a 1rem breathing gap. */}
+      {/* Mobile map toggle — same suppression rule as the desktop one.
+          Floats above the mobile tab bar; bottom offset accounts for
+          the tab bar height + iOS safe area + 1rem breathing gap. */}
+      {showMapToggle && (
       <div
         className="fixed left-1/2 z-40 -translate-x-1/2 md:hidden"
         style={{
@@ -309,6 +378,7 @@ export function BrowseLayout({
           )}
         </Button>
       </div>
+      )}
     </div>
   );
 }

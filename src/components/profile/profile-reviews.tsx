@@ -51,11 +51,16 @@ export function ProfileReviews({ userName, reviewsOf, reviewsBy }: Props) {
       </div>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {tab === "of"
-            ? `${firstName} hasn't received any reviews yet.`
-            : `${firstName} hasn't written any reviews yet.`}
-        </p>
+        <div className="rounded-xl border border-dashed border-border bg-muted/30 p-8 text-center">
+          <p className="text-sm font-medium text-foreground">
+            No reviews yet
+          </p>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+            {tab === "of"
+              ? "Reviews appear after completed stays."
+              : `${firstName} will write reviews after their completed stays.`}
+          </p>
+        </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {rows.map((r) => (

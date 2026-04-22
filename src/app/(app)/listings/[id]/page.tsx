@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { Star, Medal } from "lucide-react";
+import { Star } from "lucide-react";
 import { getListingDetail } from "@/lib/listing-detail-data";
 import { computeIncomingTrustPath } from "@/lib/trust-data";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
@@ -180,9 +180,6 @@ export default async function ListingPage({
   }
 
   const price = listing.price_min ?? listing.price_max ?? 0;
-  const isSuperhost =
-    (listing.host?.host_rating ?? 0) >= 4.8 &&
-    (listing.host?.host_review_count ?? 0) >= 3;
   const yearsHosting = yearsSince(listing.host?.created_at);
 
   return (
@@ -210,13 +207,6 @@ export default async function ListingPage({
                 {listing.review_count}{" "}
                 {listing.review_count === 1 ? "review" : "reviews"}
               </a>
-              <span className="text-muted-foreground">·</span>
-            </>
-          )}
-          {isSuperhost && (
-            <>
-              <Medal className="h-3.5 w-3.5 text-foreground" />
-              <span className="font-semibold">Superhost</span>
               <span className="text-muted-foreground">·</span>
             </>
           )}
@@ -287,11 +277,6 @@ export default async function ListingPage({
                         {initials(listing.host.name)}
                       </div>
                     )}
-                    {isSuperhost && (
-                      <div className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white ring-2 ring-white">
-                        <Medal className="h-3 w-3" />
-                      </div>
-                    )}
                   </div>
                 </Link>
                 <div>
@@ -320,7 +305,6 @@ export default async function ListingPage({
                     {yearsHosting > 0
                       ? `${yearsHosting} year${yearsHosting !== 1 ? "s" : ""} hosting`
                       : "New host"}
-                    {isSuperhost ? " · Superhost" : ""}
                   </div>
                 </div>
               </div>
@@ -549,12 +533,6 @@ export default async function ListingPage({
                         hostRating={listing.host.host_rating}
                         hostReviewCount={listing.host.host_review_count}
                       />
-                    </div>
-                  )}
-                  {isSuperhost && (
-                    <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-                      <Medal className="h-3 w-3" />
-                      Superhost
                     </div>
                   )}
                 </div>

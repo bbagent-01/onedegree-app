@@ -58,6 +58,12 @@ interface Props {
 }
 
 export function FilterSheet({ priceRange, activeCount, compact }: Props) {
+  // Sparse-state derived count. priceRange.histogram already
+  // reflects the post-filter result set; sum gives us the total
+  // without an extra fetch. Drives the price-histogram hide rule
+  // when there's not enough data to draw a meaningful distribution.
+  const totalListings = priceRange.histogram.reduce((a, b) => a + b, 0);
+  const showHistogram = totalListings >= 10;
   const router = useRouter();
   const params = useSearchParams();
   const [open, setOpen] = useState(false);
@@ -237,7 +243,11 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
               <PriceRangeSlider
                 min={priceRange.min}
                 max={priceRange.max}
-                histogram={priceRange.histogram}
+                histogram={
+                  showHistogram
+                    ? priceRange.histogram
+                    : new Array(priceRange.histogram.length).fill(0)
+                }
                 value={[priceMin, priceMax]}
                 onChange={([a, b]) => {
                   setPriceMin(a);

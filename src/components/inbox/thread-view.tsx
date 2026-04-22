@@ -27,6 +27,8 @@ import {
   INTRO_REVOKED_PREFIX,
   RESERVATION_REQUEST_PREFIX,
   CHECKIN_REMINDER_PREFIX,
+  TERMS_DECLINED_PREFIX,
+  RESERVATION_DECLINED_PREFIX,
   parseIssueReportId,
   parsePhotoRequestId,
 } from "@/lib/structured-messages";
@@ -424,6 +426,8 @@ export function ThreadView({
                         }
                         viewerRole={thread.role}
                         termsAcceptedAt={thread.booking.terms_accepted_at}
+                        termsDeclinedAt={thread.booking.terms_declined_at}
+                        termsDeclinedBy={thread.booking.terms_declined_by}
                         hostFirstName={
                           (thread.role === "host"
                             ? "you"
@@ -522,6 +526,16 @@ export function ThreadView({
                 // accepted. Row stays in the DB as a historical
                 // marker but doesn't render anything in the feed.
                 if (m.content.startsWith(TERMS_ACCEPTED_PREFIX)) {
+                  return null;
+                }
+                // Same suppression for the decline lifecycle
+                // markers — the red declined footer on the
+                // preceding terms_offered card already shows the
+                // outcome inline.
+                if (
+                  m.content.startsWith(TERMS_DECLINED_PREFIX) ||
+                  m.content.startsWith(RESERVATION_DECLINED_PREFIX)
+                ) {
                   return null;
                 }
 

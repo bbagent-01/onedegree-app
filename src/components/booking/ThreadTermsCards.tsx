@@ -13,7 +13,16 @@ import {
   ShieldCheck,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CancellationPolicyCard } from "./CancellationPolicyCard";
@@ -74,6 +83,10 @@ interface TermsOfferedProps {
   cleaningFee: number | null;
   viewerRole: "guest" | "host";
   termsAcceptedAt: string | null;
+  /** Set when either party declined the offered terms before the
+   *  guest accepted. Drives the red "declined" footer. */
+  termsDeclinedAt: string | null;
+  termsDeclinedBy: "guest" | "host" | null;
   hostFirstName: string;
   guestFirstName: string;
 }
@@ -110,6 +123,8 @@ export function TermsOfferedCard({
   cleaningFee,
   viewerRole,
   termsAcceptedAt,
+  termsDeclinedAt,
+  termsDeclinedBy,
   hostFirstName,
   guestFirstName,
 }: TermsOfferedProps) {
@@ -130,9 +145,60 @@ export function TermsOfferedCard({
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [acceptedAt, setAcceptedAt] = useState<string | null>(termsAcceptedAt);
+  const [declinedAt, setDeclinedAt] = useState<string | null>(termsDeclinedAt);
+  const [declinedBy, setDeclinedBy] = useState<"guest" | "host" | null>(
+    termsDeclinedBy
+  );
+  // Decline confirmation dialog. Decline endpoint differs by viewer:
+  // guest → /decline-terms, host → /decline-reservation. The reason
+  // textarea is local-only — flows into terms_decline_reason on the
+  // contact_request and stays private to the declining user.
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
+  const [declining, setDeclining] = useState(false);
+
+  const declineEndpoint =
+    viewerRole === "guest" ? "decline-terms" : "decline-reservation";
+
+  const decline = async () => {
+    if (declining) return;
+    setDeclining(true);
+    try {
+      const res = await fetch(
+        `/api/contact-requests/${bookingId}/${declineEndpoint}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: declineReason || null }),
+        }
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        terms_declined_at?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`);
+      const at = data.terms_declined_at ?? new Date().toISOString();
+      setDeclinedAt(at);
+      setDeclinedBy(viewerRole);
+      setDeclineOpen(false);
+      toast.success(
+        viewerRole === "guest"
+          ? "Terms declined — the host has been notified"
+          : "Reservation withdrawn — the guest has been notified"
+      );
+      router.refresh();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't decline");
+    } finally {
+      setDeclining(false);
+    }
+  };
 
   const accept = async () => {
-    if (submitting || acceptedAt) return;
+    if (submitting || acceptedAt || declinedAt) return;
     setSubmitting(true);
     try {
       const res = await fetch(
@@ -162,24 +228,43 @@ export function TermsOfferedCard({
       ? `${hostFirstName} approved your stay`
       : `You approved ${guestFirstName}'s stay`;
 
-  // Once the guest has accepted, the big middle (dates tiles,
-  // total breakdown, policy block, payment methods) auto-collapses
-  // so the thread reads as a compact "header + confirmed footer"
-  // timeline entry. Clicking the header opens it back up.
+  // Header tone shifts to red when declined — same shell, same
+  // collapsible behaviour, just an alarm-flavoured icon chip so the
+  // declined state reads at a glance from the timeline.
+  const headerIconClasses = declinedAt
+    ? "bg-red-100 text-red-700"
+    : "bg-emerald-100 text-emerald-700";
+
+  // Once the guest has accepted (or either party has declined), the
+  // big middle (dates tiles, total breakdown, policy block, payment
+  // methods) auto-collapses so the thread reads as a compact
+  // "header + footer" timeline entry. Clicking the header opens it
+  // back up.
   const headerRow = (
     <div className="flex items-start gap-3 p-4">
-      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-        <ShieldCheck className="h-4 w-4" />
+      <div
+        className={cn(
+          "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+          headerIconClasses
+        )}
+      >
+        {declinedAt ? (
+          <X className="h-4 w-4" />
+        ) : (
+          <ShieldCheck className="h-4 w-4" />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold">{title}</div>
         <div className="mt-0.5 text-xs text-muted-foreground">
-          {anyChanged && viewerRole === "guest" && !acceptedAt
-            ? `${hostFirstName} updated some details before approving — look for the red pills below.`
-            : "Here are the full terms for this reservation."}
+          {declinedAt
+            ? "These terms were declined."
+            : anyChanged && viewerRole === "guest" && !acceptedAt
+              ? `${hostFirstName} updated some details before approving — look for the red pills below.`
+              : "Here are the full terms for this reservation."}
         </div>
       </div>
-      {acceptedAt && (
+      {(acceptedAt || declinedAt) && (
         <ChevronDownIcon className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
       )}
     </div>
@@ -257,11 +342,50 @@ export function TermsOfferedCard({
     </>
   );
 
+  // Declined footer copy mirrors the accepted footer's anatomy
+  // (icon chip + headline + dated subline) so the timeline reads
+  // consistently. Wording branches on who declined to avoid
+  // shaming either side — soft language only.
+  const declinedFooter = declinedAt && (
+    <div className="flex items-center gap-3 border-t border-red-200 bg-red-50 px-4 py-4">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow-sm">
+        <X className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-red-900">
+          {declinedBy === "host"
+            ? "Reservation withdrawn"
+            : "Terms declined"}
+        </div>
+        <div className="text-xs text-red-800/80">
+          {(() => {
+            const who =
+              declinedBy === "guest"
+                ? viewerRole === "guest"
+                  ? "You"
+                  : guestFirstName
+                : viewerRole === "host"
+                  ? "You"
+                  : hostFirstName;
+            const verb =
+              declinedBy === "host" ? "withdrew" : "declined";
+            const when = new Date(declinedAt).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
+            return `${who} ${verb} on ${when}. You can still message each other.`;
+          })()}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border-2 border-border bg-white shadow-sm">
-      {acceptedAt ? (
-        // Accepted — collapsible shell. Header + footer stay
-        // visible; middle body hides until tapped.
+      {acceptedAt || declinedAt ? (
+        // Accepted or declined — collapsible shell. Header + footer
+        // stay visible; middle body hides until tapped.
         <details className="group">
           <summary className="cursor-pointer list-none border-b border-border focus-visible:outline-none">
             {headerRow}
@@ -277,7 +401,10 @@ export function TermsOfferedCard({
         </>
       )}
 
-      {viewerRole === "guest" &&
+      {declinedFooter}
+
+      {!declinedAt &&
+        viewerRole === "guest" &&
         (acceptedAt ? (
           <div className="flex items-center gap-3 border-t border-emerald-200 bg-emerald-50 px-4 py-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
@@ -305,34 +432,54 @@ export function TermsOfferedCard({
               Payment and refunds happen directly with {hostFirstName} —
               1° B&amp;B doesn&apos;t process payments.
             </p>
-            <button
-              type="button"
-              onClick={accept}
-              disabled={submitting}
-              className={cn(
-                "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-60"
-              )}
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Confirming…
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4" />
-                  Accept terms &amp; confirm reservation
-                </>
-              )}
-            </button>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setDeclineOpen(true)}
+                disabled={submitting}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60 sm:w-auto"
+              >
+                <X className="h-4 w-4" />
+                Decline
+              </button>
+              <button
+                type="button"
+                onClick={accept}
+                disabled={submitting}
+                className={cn(
+                  "inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-60"
+                )}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Confirming…
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Accept terms &amp; confirm reservation
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         ))}
 
-      {viewerRole === "host" && !acceptedAt && (
-        <div className="border-t border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-          Waiting for {guestFirstName} to confirm these terms.
+      {!declinedAt && viewerRole === "host" && !acceptedAt && (
+        <div className="flex flex-col-reverse items-stretch gap-2 border-t border-border bg-muted/30 p-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>Waiting for {guestFirstName} to confirm these terms.</span>
+          <button
+            type="button"
+            onClick={() => setDeclineOpen(true)}
+            disabled={submitting}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+          >
+            <X className="h-3.5 w-3.5" />
+            Withdraw offer
+          </button>
         </div>
       )}
-      {viewerRole === "host" && acceptedAt && (
+      {!declinedAt && viewerRole === "host" && acceptedAt && (
         <div className="flex items-center gap-3 border-t border-emerald-200 bg-emerald-50 px-4 py-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
             <Check className="h-5 w-5" />
@@ -353,6 +500,65 @@ export function TermsOfferedCard({
           </div>
         </div>
       )}
+
+      <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {viewerRole === "guest"
+                ? "Decline these terms?"
+                : "Withdraw this reservation?"}
+            </DialogTitle>
+            <DialogDescription>
+              The other party will be notified. You can still message
+              them after declining.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <label
+              htmlFor="decline-reason"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              Reason (optional · private)
+            </label>
+            <textarea
+              id="decline-reason"
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value.slice(0, 500))}
+              placeholder="Just for your own record — won't be shown to the other party."
+              rows={3}
+              className="w-full rounded-lg border-2 border-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
+            />
+          </div>
+          <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setDeclineOpen(false)}
+              disabled={declining}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={decline}
+              disabled={declining}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-60"
+            >
+              {declining ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {viewerRole === "guest" ? "Declining…" : "Withdrawing…"}
+                </>
+              ) : viewerRole === "guest" ? (
+                "Decline terms"
+              ) : (
+                "Withdraw offer"
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

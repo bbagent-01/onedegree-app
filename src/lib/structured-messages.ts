@@ -19,6 +19,14 @@
 
 export const TERMS_OFFERED_PREFIX = "__type:terms_offered__";
 export const TERMS_ACCEPTED_PREFIX = "__type:terms_accepted__";
+/** Posted when the guest declines the host's offered terms from
+ *  TermsOfferedCard (before accepting). The card re-renders in a
+ *  declined state for both viewers; messaging stays open. */
+export const TERMS_DECLINED_PREFIX = "__type:terms_declined__";
+/** Posted when the host withdraws an already-approved reservation
+ *  before the guest accepts terms. Same declined-state renderer as
+ *  TERMS_DECLINED_PREFIX — only the header copy differs. */
+export const RESERVATION_DECLINED_PREFIX = "__type:reservation_declined__";
 /** Reservation-request lifecycle marker posted by POST /api/bookings
  *  when the guest submits a request-to-reserve. The card reads
  *  dates / guest count from thread.booking — no payload needed. */
@@ -129,6 +137,8 @@ export function isStructuredMessage(content: string): boolean {
   return (
     content.startsWith(TERMS_OFFERED_PREFIX) ||
     content.startsWith(TERMS_ACCEPTED_PREFIX) ||
+    content.startsWith(TERMS_DECLINED_PREFIX) ||
+    content.startsWith(RESERVATION_DECLINED_PREFIX) ||
     content.startsWith(RESERVATION_REQUEST_PREFIX) ||
     content.startsWith(CHECKIN_REMINDER_PREFIX) ||
     content.startsWith(REVIEW_PROMPT_PREFIX) ||
@@ -155,6 +165,9 @@ export function isStructuredMessage(content: string): boolean {
 export function structuredMessageLabel(content: string): string | null {
   if (content.startsWith(TERMS_OFFERED_PREFIX)) return "Terms sent";
   if (content.startsWith(TERMS_ACCEPTED_PREFIX)) return "Terms accepted";
+  if (content.startsWith(TERMS_DECLINED_PREFIX)) return "Terms declined";
+  if (content.startsWith(RESERVATION_DECLINED_PREFIX))
+    return "Reservation declined";
   if (content.startsWith(RESERVATION_REQUEST_PREFIX))
     return "Reservation request";
   if (content.startsWith(CHECKIN_REMINDER_PREFIX))

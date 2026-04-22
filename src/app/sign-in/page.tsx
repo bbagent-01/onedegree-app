@@ -214,12 +214,34 @@ function SignInInner() {
               <span>or</span>
               <span className="h-px flex-1 bg-border" />
             </div>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={signInWithGoogle}
+              disabled={googleLoading}
+              className="mt-4 h-14 w-full text-base"
+            >
+              <span className="inline-flex items-center gap-2">
+                {googleLoading ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-foreground" />
+                ) : (
+                  <GoogleIcon className="h-4 w-4" />
+                )}
+                {googleLoading
+                  ? "Opening Google\u2026"
+                  : "Continue with Google"}
+              </span>
+            </Button>
+            <p className="mt-3 text-center text-[11px] text-muted-foreground">
+              Google sign-in only works for accounts that already added
+              the matching email. New here? Sign up with your phone first.
+            </p>
             <button
               type="button"
               onClick={() => setStep("email_fallback")}
               className="mt-4 w-full text-sm font-semibold text-muted-foreground hover:text-foreground underline underline-offset-4"
             >
-              Sign in with email or Google instead
+              Sign in with email and password instead
             </button>
           </div>
         )}
@@ -275,29 +297,10 @@ function SignInInner() {
             >
               &larr; Back to phone sign-in
             </button>
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={signInWithGoogle}
-              disabled={googleLoading}
-              className="mt-4 h-14 w-full text-base"
-            >
-              <span className="inline-flex items-center gap-2">
-                {googleLoading ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-foreground" />
-                ) : (
-                  <GoogleIcon className="h-4 w-4" />
-                )}
-                {googleLoading
-                  ? "Opening Google\u2026"
-                  : "Continue with Google"}
-              </span>
-            </Button>
-            <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />
-              <span>or email and password</span>
-              <span className="h-px flex-1 bg-border" />
-            </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Sign in with the email and password you set on your
+              account.
+            </p>
             <div className="mt-4">
               <Label htmlFor="email-si">Email</Label>
               <Input

@@ -89,17 +89,26 @@ export function TripsList({ trips }: Props) {
     }
   };
 
-  const renderList = (items: TripCard[], emptyHint: string) => {
+  const renderList = (
+    items: TripCard[],
+    emptyHint: string,
+    emptyBody?: string
+  ) => {
     if (items.length === 0) {
       return (
         <div className="mt-12 rounded-xl border border-dashed border-border bg-muted/30 p-12 text-center">
           <CalendarDays className="mx-auto h-10 w-10 text-muted-foreground" />
           <h2 className="mt-3 text-lg font-semibold">{emptyHint}</h2>
+          {emptyBody && (
+            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+              {emptyBody}
+            </p>
+          )}
           <Link
             href="/browse"
             className="mt-6 inline-flex items-center gap-1.5 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"
           >
-            Start searching
+            Browse stays
           </Link>
         </div>
       );
@@ -282,7 +291,11 @@ export function TripsList({ trips }: Props) {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming">
-          {renderList(grouped.upcoming, "No upcoming trips")}
+          {renderList(
+            grouped.upcoming,
+            "No upcoming trips",
+            "Find your first stay through someone you trust."
+          )}
         </TabsContent>
         <TabsContent value="completed">
           {renderList(grouped.completed, "No completed trips yet")}

@@ -150,7 +150,8 @@ function EmptyState() {
         </div>
         <h2 className="mt-4 text-lg font-semibold">No saved stays yet</h2>
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          Save your favorite places by tapping the heart icon while you browse.
+          Save places you&rsquo;re interested in by tapping the heart on
+          any listing.
         </p>
         <Link
           href="/browse"

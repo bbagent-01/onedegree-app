@@ -3,15 +3,37 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
+// OG asset paths point at the current 1DB symbol SVG. S8's brand
+// pass will replace the binary with a proper rasterized share image
+// at /og-image.png — when that lands the metadata can stay as-is or
+// swap to the new path.
+const SITE_NAME = "1° B&B";
+const SITE_DESCRIPTION =
+  "Private home rentals through trusted connections.";
+const OG_IMAGE = "/1db-symbol.svg";
+
 export const metadata: Metadata = {
-  title: "One Degree BNB",
-  description: "Private home rentals through trusted connections",
+  title: SITE_NAME,
+  description: SITE_DESCRIPTION,
   icons: {
     icon: [
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-192.png", sizes: "192x192", type: "image/png" },
     ],
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    type: "website",
+    siteName: SITE_NAME,
+    images: [{ url: OG_IMAGE }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE],
   },
 };
 

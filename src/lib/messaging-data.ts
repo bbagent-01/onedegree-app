@@ -117,6 +117,13 @@ export interface ThreadDetail extends InboxThread {
     created_at: string | null;
     /** When the guest acknowledged the snapshot terms. Null = pending. */
     terms_accepted_at: string | null;
+    /** When either party declined the offered terms before acceptance.
+     *  Distinguishes a post-accept decline (this column) from the
+     *  pre-terms host decline (status='declined' at stage 2). */
+    terms_declined_at: string | null;
+    /** Who declined — 'guest' via decline-terms, 'host' via
+     *  decline-reservation. Null while pending / accepted. */
+    terms_declined_by: "guest" | "host" | null;
     /** Original-request snapshot — what the guest actually submitted
      *  before any host-side counter-offer. Drives "Changed from X"
      *  badges on the terms_offered card. */
@@ -425,7 +432,7 @@ export async function getThreadDetail(
       ? supabase
           .from("contact_requests")
           .select(
-            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at, original_check_in, original_check_out, original_guest_count, original_total_estimate, original_cancellation_policy"
+            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at, terms_declined_at, terms_declined_by, original_check_in, original_check_out, original_guest_count, original_total_estimate, original_cancellation_policy"
           )
           .eq("id", thread.contact_request_id)
           .single()
@@ -705,6 +712,13 @@ export async function getThreadDetail(
           terms_accepted_at:
             (booking as { terms_accepted_at?: string | null })
               .terms_accepted_at ?? null,
+          terms_declined_at:
+            (booking as { terms_declined_at?: string | null })
+              .terms_declined_at ?? null,
+          terms_declined_by:
+            ((booking as { terms_declined_by?: "guest" | "host" | null })
+              .terms_declined_by as "guest" | "host" | null | undefined) ??
+            null,
           original_check_in:
             (booking as { original_check_in?: string | null })
               .original_check_in ?? null,

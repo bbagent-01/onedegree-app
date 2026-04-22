@@ -43,9 +43,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
           <div className="mt-12 rounded-xl border border-dashed border-border bg-muted/30 p-12 text-center">
             <MessageCircle className="mx-auto h-10 w-10 text-muted-foreground" />
             <h2 className="mt-3 text-lg font-semibold">No messages yet</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Once you request a stay or someone reaches out about your listing,
-              your conversations will live here.
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              Start a conversation by reaching out to a host.
             </p>
             <Link
               href="/browse"
