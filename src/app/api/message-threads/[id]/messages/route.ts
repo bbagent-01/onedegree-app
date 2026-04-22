@@ -1,6 +1,5 @@
 export const runtime = "edge";
 
-import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailNewMessage } from "@/lib/email";
 import { effectiveAuth } from "@/lib/impersonation/session";
@@ -30,9 +29,7 @@ export async function POST(
 
   const { data: thread } = await supabase
     .from("message_threads")
-    .select(
-      "id, guest_id, host_id, listing_id, is_intro_request, intro_promoted_at"
-    )
+    .select("id, guest_id, host_id, listing_id")
     .eq("id", threadId)
     .single();
   if (!thread) {
@@ -41,14 +38,6 @@ export async function POST(
   if (thread.guest_id !== currentUser.id && thread.host_id !== currentUser.id) {
     return Response.json({ error: "Not authorized" }, { status: 403 });
   }
-
-  // Promotion: when the recipient (host-slot) replies to a pending
-  // intro request, the thread graduates to a normal conversation and
-  // the sender's identity is revealed.
-  const isRecipientReply =
-    thread.is_intro_request &&
-    !thread.intro_promoted_at &&
-    thread.host_id === currentUser.id;
 
   const body = (await req.json().catch(() => null)) as {
     content?: string;
@@ -75,13 +64,6 @@ export async function POST(
   if (error) {
     console.error("Message insert error:", error);
     return Response.json({ error: "Failed to send" }, { status: 500 });
-  }
-
-  if (isRecipientReply) {
-    await supabase
-      .from("message_threads")
-      .update({ intro_promoted_at: new Date().toISOString() })
-      .eq("id", threadId);
   }
 
   // Fire-and-forget transactional email to the other participant

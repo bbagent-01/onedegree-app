@@ -4,7 +4,10 @@ import { Star, Medal } from "lucide-react";
 import { getListingDetail } from "@/lib/listing-detail-data";
 import { computeIncomingTrustPath } from "@/lib/trust-data";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
-import { checkListingAccess } from "@/lib/trust/check-access";
+import {
+  checkListingAccess,
+  hasActiveListingAccessGrant,
+} from "@/lib/trust/check-access";
 import type { AccessSettings } from "@/lib/trust/types";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { PendingIntroSummary } from "@/components/listing/gated-listing-cta";
@@ -89,11 +92,19 @@ export default async function ListingPage({
     access_settings: (listing as unknown as { access_settings?: AccessSettings | null }).access_settings,
   };
 
+  // Pair-scoped intro-accept grant: if the viewer holds an active
+  // grant from this listing's host, full-listing access is unlocked
+  // regardless of trust score or specific_people rules.
+  const hasGrant = viewerId
+    ? await hasActiveListingAccessGrant(listing.host_id, viewerId)
+    : false;
+
   const access = checkListingAccess(
     viewerId ?? null,
     listingForAccess,
     trust?.score ?? 0,
-    trust?.degree ?? null
+    trust?.degree ?? null,
+    hasGrant
   );
 
   // If even the preview is denied — and the viewer isn't signed in —
@@ -110,41 +121,48 @@ export default async function ListingPage({
 
   const canSeeFull = isHost || access.can_see_full;
 
-  // Detect an open intro request so the preview CTA can flip from
-  // "Request intro" to "Intro in progress" without re-prompting.
-  // Only relevant for gated viewers who have actually pressed the
-  // button; we do the cheap lookup up-front so both paths share it.
+  // Detect an intro request on this listing so the preview CTA can
+  // flip between states without re-prompting. The sender's pill
+  // state reads directly off intro_status + whether the recipient
+  // has replied in the thread. We fetch once here and hand it down.
   let pendingIntro: PendingIntroSummary | null = null;
   if (viewerId && !canSeeFull) {
     const supabase = getSupabaseAdmin();
     const { data: pending } = await supabase
       .from("message_threads")
       .select(
-        "id, host_id, sender_anonymous, intro_connector_id, last_message_at"
+        "id, intro_status, intro_decided_at, last_message_at, intro_recipient_id"
       )
       .eq("listing_id", id)
-      .eq("guest_id", viewerId)
-      .eq("is_intro_request", true)
-      .is("intro_promoted_at", null)
+      .eq("intro_sender_id", viewerId)
+      .in("intro_status", ["pending", "accepted", "declined", "ignored"])
       .order("last_message_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (pending) {
-      let connectorName: string | null = null;
-      const cid = (pending as { intro_connector_id?: string | null })
-        .intro_connector_id;
-      if (cid) {
-        const { data: connector } = await supabase
-          .from("users")
-          .select("name")
-          .eq("id", cid)
-          .maybeSingle();
-        connectorName = connector?.name ?? null;
-      }
+      // Recipient reply detection — lets the sender's pill flip from
+      // "Waiting" to "Conversation started" while intro_status stays
+      // pending. One cheap count query.
+      let recipientReplied = false;
+      const { data: replyRows } = await supabase
+        .from("messages")
+        .select("id")
+        .eq("thread_id", pending.id)
+        .eq("sender_id", pending.intro_recipient_id)
+        .eq("is_system", false)
+        .limit(1);
+      recipientReplied = (replyRows || []).length > 0;
       pendingIntro = {
         threadId: pending.id as string,
-        routedVia: cid ? "connector" : "anonymous",
-        connectorName,
+        status: pending.intro_status as
+          | "pending"
+          | "accepted"
+          | "declined"
+          | "ignored",
+        decidedAt:
+          (pending as { intro_decided_at?: string | null })
+            .intro_decided_at ?? null,
+        recipientReplied,
       };
     }
   }

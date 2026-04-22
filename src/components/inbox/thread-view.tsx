@@ -23,14 +23,14 @@ import {
 import {
   REVIEW_PROMPT_PREFIX,
   INTRO_REQUEST_PREFIX,
-  INTRO_MADE_PREFIX,
-  parseIntroMadeConnectorId,
+  INTRO_ACCEPTED_PREFIX,
+  INTRO_DECLINED_PREFIX,
+  INTRO_REVOKED_PREFIX,
 } from "@/lib/structured-messages";
 import { ReviewPromptCard } from "@/components/booking/ReviewPromptCard";
 import { HostReviewTermsInline } from "@/components/booking/HostReviewTermsInline";
 import { MessageReportMenu } from "@/components/safety/message-report-menu";
 import { IntroRequestCard } from "@/components/trust/IntroRequestCard";
-import { IntroMadeCard } from "@/components/trust/IntroMadeCard";
 
 interface Props {
   thread: ThreadDetail;
@@ -501,55 +501,51 @@ export function ThreadView({
                   return null;
                 }
 
-                // Intro-request structured card — posted to the
-                // connector's thread when a guest routes an intro
-                // through them. Connector sees "Introduce them"
-                // action; guest sees "Waiting for the connector".
-                if (m.content.startsWith(INTRO_REQUEST_PREFIX)) {
-                  const ctx = thread.intro_context;
-                  const viewerIsConnector =
-                    Boolean(ctx) && ctx!.connector_id === currentUserId;
-                  const introMade = Boolean(thread.intro_promoted_at);
+                // Intro-request card (S2a direct model).
+                // Recipient sees Accept / Reply / Decline / Ignore.
+                // Sender sees a read-only pending / accepted / etc.
+                // state on the same card. Data comes from
+                // thread.intro_detail (populated by getThreadDetail).
+                if (
+                  m.content.startsWith(INTRO_REQUEST_PREFIX) &&
+                  thread.intro_detail
+                ) {
                   return (
                     <div key={m.id} className="py-1">
                       <IntroRequestCard
-                        introMade={introMade}
-                        canIntroduce={viewerIsConnector && !introMade}
-                        connectorThreadId={thread.id}
-                        guestFirstName={
-                          (ctx?.guest_name || "the guest").split(" ")[0]
-                        }
-                        hostFirstName={
-                          (ctx?.host_name || "the host").split(" ")[0]
-                        }
-                        listingTitle={thread.listing?.title ?? "the listing"}
+                        threadId={thread.id}
+                        intro={{
+                          sender_id: thread.intro_detail.sender_id,
+                          recipient_id: thread.intro_detail.recipient_id,
+                          status: thread.intro_detail.status,
+                          message: thread.intro_detail.message,
+                          start_date: thread.intro_detail.start_date,
+                          end_date: thread.intro_detail.end_date,
+                          decided_at: thread.intro_detail.decided_at,
+                        }}
+                        viewerId={currentUserId}
+                        sender={thread.intro_detail.sender_profile}
+                        senderListings={thread.intro_detail.sender_listings}
+                        connectorPaths={thread.trust_connector_paths}
+                        trustDegree={thread.trust_degree}
                       />
                     </div>
                   );
                 }
 
-                // Intro-made notification card — posted to the
-                // guest ↔ host thread when the connector forwarded
-                // the intro. Both sides see a notification naming
-                // the connector.
-                if (m.content.startsWith(INTRO_MADE_PREFIX)) {
-                  const connectorId = parseIntroMadeConnectorId(m.content);
-                  const ctx = thread.intro_context;
-                  const resolvedId = connectorId ?? ctx?.connector_id ?? "";
-                  const connectorName =
-                    ctx && ctx.connector_id === resolvedId
-                      ? ctx.connector_name
-                      : "A mutual connection";
+                // Intro lifecycle confirmations — rendered as plain
+                // full-width status rows. Copy comes from
+                // friendlyMessagePreview / structuredMessageLabel.
+                if (
+                  m.content.startsWith(INTRO_ACCEPTED_PREFIX) ||
+                  m.content.startsWith(INTRO_DECLINED_PREFIX) ||
+                  m.content.startsWith(INTRO_REVOKED_PREFIX)
+                ) {
                   return (
                     <div key={m.id} className="py-1">
-                      <IntroMadeCard
-                        viewerRole={thread.role}
-                        connectorId={resolvedId}
-                        connectorName={connectorName}
-                        otherFirstName={
-                          thread.other_user.name.split(" ")[0] || "them"
-                        }
-                      />
+                      <div className="mx-auto w-full max-w-xl rounded-2xl border border-border bg-white px-4 py-3 text-sm text-foreground">
+                        {friendlyMessagePreview(m.content)}
+                      </div>
                     </div>
                   );
                 }

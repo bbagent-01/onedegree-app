@@ -12,8 +12,14 @@ import {
   type PaymentMethod,
 } from "./payment-methods";
 import type { PaymentEvent } from "./payment-events";
+import type {
+  IntroSenderListing,
+  IntroSenderProfile,
+} from "@/components/trust/IntroRequestCard";
 
 export type ThreadRole = "guest" | "host";
+
+export type IntroStatus = "pending" | "accepted" | "declined" | "ignored";
 
 export interface InboxThread {
   id: string;
@@ -46,24 +52,16 @@ export interface InboxThread {
   trust_degree: 1 | 2 | 3 | 4 | null;
   /** Connector bridges sorted strongest → weakest. */
   trust_connector_paths: ConnectorPathSummary[];
-  /** True for pending intro requests. Hidden from Messages tab. */
+  /** True when the thread is an intro thread (filters the Intros tab).
+   *  Stays true across pending/accepted states; flips to false on
+   *  decline so declined threads archive out of the Intros tab. */
   is_intro_request: boolean;
-  /** When populated, the intro was promoted to a normal conversation. */
-  intro_promoted_at: string | null;
-  /** When true, hide sender identity until host replies. */
-  sender_anonymous: boolean;
-  /** Connector on an intro-routed thread. Null for direct threads. */
-  intro_connector_id: string | null;
-  /** Resolved names for the intro cards — connector, requesting
-   *  guest, actual listing host. Populated whenever
-   *  intro_connector_id is set OR the thread carries an intro_made
-   *  card. Null when neither applies. */
-  intro_context: {
-    connector_id: string;
-    connector_name: string;
-    guest_name: string;
-    host_name: string;
-    listing_host_id: string;
+  /** Intro metadata — null when not an intro thread. */
+  intro: {
+    sender_id: string;
+    recipient_id: string;
+    status: IntroStatus;
+    decided_at: string | null;
   } | null;
 }
 
@@ -78,6 +76,19 @@ export interface ThreadMessage {
 
 export interface ThreadDetail extends InboxThread {
   messages: ThreadMessage[];
+  /** Full intro payload + sender profile + sender listings.
+   *  Populated only for intro threads (is_intro_request = true). */
+  intro_detail: {
+    sender_id: string;
+    recipient_id: string;
+    status: IntroStatus;
+    message: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    decided_at: string | null;
+    sender_profile: IntroSenderProfile;
+    sender_listings: IntroSenderListing[];
+  } | null;
   booking: {
     id: string;
     status: string;
@@ -180,7 +191,7 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
   const { data: threads } = await supabase
     .from("message_threads")
     .select(
-      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_promoted_at, sender_anonymous, intro_connector_id"
+      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_sender_id, intro_recipient_id, intro_status, intro_decided_at"
     )
     .or(`guest_id.eq.${currentUserId},host_id.eq.${currentUserId}`)
     .order("last_message_at", { ascending: false });
@@ -252,11 +263,14 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
     const otherId = isGuest ? t.host_id : t.guest_id;
     const otherUser = userMap.get(otherId);
     const listing = listingMap.get(t.listing_id);
-    const isIntro = Boolean(t.is_intro_request) && !t.intro_promoted_at;
-    // Anonymize the sender when the host is viewing an un-replied
-    // anonymous intro request. The guest side always sees the host.
-    const hideIdentity =
-      isIntro && !isGuest && Boolean(t.sender_anonymous);
+    const introSenderId = (t as { intro_sender_id?: string | null })
+      .intro_sender_id ?? null;
+    const introRecipientId = (t as { intro_recipient_id?: string | null })
+      .intro_recipient_id ?? null;
+    const introStatus = (t as { intro_status?: IntroStatus | null })
+      .intro_status ?? null;
+    const introDecidedAt = (t as { intro_decided_at?: string | null })
+      .intro_decided_at ?? null;
     return {
       id: t.id,
       listing_id: t.listing_id,
@@ -269,8 +283,8 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
       role,
       other_user: {
         id: otherId,
-        name: hideIdentity ? "Someone on 1° B&B" : otherUser?.name || "User",
-        avatar_url: hideIdentity ? null : otherUser?.avatar_url || null,
+        name: otherUser?.name || "User",
+        avatar_url: otherUser?.avatar_url || null,
       },
       listing: listing
         ? {
@@ -280,32 +294,29 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
             thumbnail_url: thumbMap.get(listing.id) || null,
           }
         : null,
-      trust_score: hideIdentity
-        ? 0
-        : (isGuest ? incomingTrust : outgoingTrust)[otherId]?.score ?? 0,
-      trust_connection_count: hideIdentity
-        ? 0
-        : (isGuest ? incomingTrust : outgoingTrust)[otherId]
-            ?.connectionCount ?? 0,
-      trust_is_direct: hideIdentity
-        ? false
-        : (isGuest ? incomingTrust : outgoingTrust)[otherId]
-            ?.hasDirectVouch ?? false,
-      trust_degree: hideIdentity
-        ? null
-        : (isGuest ? incomingTrust : outgoingTrust)[otherId]?.degree ?? null,
-      trust_connector_paths: hideIdentity
-        ? []
-        : (isGuest ? incomingTrust : outgoingTrust)[otherId]
-            ?.connectorPaths ?? [],
-      is_intro_request: isIntro,
-      intro_promoted_at: t.intro_promoted_at ?? null,
-      sender_anonymous: Boolean(t.sender_anonymous),
-      // Inbox list doesn't need the resolved intro context; the
-      // detail view fetches + populates it. Keep these fields here
-      // to satisfy the shared InboxThread shape.
-      intro_connector_id: t.intro_connector_id ?? null,
-      intro_context: null,
+      trust_score:
+        (isGuest ? incomingTrust : outgoingTrust)[otherId]?.score ?? 0,
+      trust_connection_count:
+        (isGuest ? incomingTrust : outgoingTrust)[otherId]?.connectionCount ??
+        0,
+      trust_is_direct:
+        (isGuest ? incomingTrust : outgoingTrust)[otherId]?.hasDirectVouch ??
+        false,
+      trust_degree:
+        (isGuest ? incomingTrust : outgoingTrust)[otherId]?.degree ?? null,
+      trust_connector_paths:
+        (isGuest ? incomingTrust : outgoingTrust)[otherId]?.connectorPaths ??
+        [],
+      is_intro_request: Boolean(t.is_intro_request),
+      intro:
+        introSenderId && introRecipientId && introStatus
+          ? {
+              sender_id: introSenderId,
+              recipient_id: introRecipientId,
+              status: introStatus,
+              decided_at: introDecidedAt,
+            }
+          : null,
     } satisfies InboxThread;
   });
 }
@@ -323,7 +334,7 @@ export async function getThreadDetail(
   const { data: thread } = await supabase
     .from("message_threads")
     .select(
-      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_promoted_at, sender_anonymous, intro_connector_id"
+      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_sender_id, intro_recipient_id, intro_status, intro_message, intro_start_date, intro_end_date, intro_decided_at"
     )
     .eq("id", threadId)
     .single();
@@ -336,10 +347,6 @@ export async function getThreadDetail(
   const isGuest = thread.guest_id === currentUserId;
   const role: ThreadRole = isGuest ? "guest" : "host";
   const otherId = isGuest ? thread.host_id : thread.guest_id;
-  const isIntro =
-    Boolean(thread.is_intro_request) && !thread.intro_promoted_at;
-  const hideIdentity =
-    isIntro && !isGuest && Boolean(thread.sender_anonymous);
 
   const [
     { data: messages },
@@ -474,71 +481,109 @@ export async function getThreadDetail(
     )
     .eq("id", threadId);
 
-  // Resolve the intro context used by IntroRequestCard /
-  // IntroMadeCard. We need up to three names: the connector, the
-  // requesting guest, and the actual listing host. The viewer is
-  // always one of these three, but the cards render all three
-  // regardless of role.
-  let introContext: ThreadDetail["intro_context"] = null;
-  const listingHostId = (listing as { host_id?: string } | null)?.host_id ?? null;
-  const connectorIdRaw = (thread as { intro_connector_id?: string | null })
-    .intro_connector_id ?? null;
-  const threadMentionsIntroMade = (messages || []).some(
-    (m) => m.content?.startsWith("__type:intro_made:") ?? false
-  );
-  if (connectorIdRaw && listingHostId) {
-    const missingIds = Array.from(
-      new Set([connectorIdRaw, thread.guest_id, listingHostId])
-    );
-    const { data: introUsers } = await supabase
-      .from("users")
-      .select("id, name")
-      .in("id", missingIds);
-    const nameMap = new Map(
-      (introUsers || []).map((u) => [u.id as string, (u.name as string) || "User"])
-    );
-    introContext = {
-      connector_id: connectorIdRaw,
-      connector_name: nameMap.get(connectorIdRaw) || "A mutual connection",
-      guest_name: nameMap.get(thread.guest_id) || "Someone",
-      host_name: nameMap.get(listingHostId) || "the host",
-      listing_host_id: listingHostId,
-    };
-  } else if (threadMentionsIntroMade && listingHostId) {
-    // Historic intro-made card but no intro_connector_id on thread
-    // (e.g. hand-inserted). Pull the connector id out of the card.
-    const introMsg = (messages || []).find((m) =>
-      m.content?.startsWith("__type:intro_made:")
-    );
-    const cid = introMsg
-      ? introMsg.content.slice("__type:intro_made:".length).split("__")[0]
-      : null;
-    if (cid) {
-      const { data: introUsers } = await supabase
+  // Intro detail — fetch the sender's profile + their listings so the
+  // IntroRequestCard can render inline without additional round trips.
+  // Only populated when the thread is an intro thread AND has a
+  // sender/recipient set.
+  let introDetail: ThreadDetail["intro_detail"] = null;
+  const introSenderId = (thread as { intro_sender_id?: string | null })
+    .intro_sender_id ?? null;
+  const introRecipientId = (thread as { intro_recipient_id?: string | null })
+    .intro_recipient_id ?? null;
+  const introStatus = (thread as { intro_status?: IntroStatus | null })
+    .intro_status ?? null;
+  if (
+    thread.is_intro_request &&
+    introSenderId &&
+    introRecipientId &&
+    introStatus
+  ) {
+    const [{ data: senderRow }, { data: senderListings }] = await Promise.all([
+      supabase
         .from("users")
-        .select("id, name")
-        .in("id", [cid, thread.guest_id, listingHostId]);
-      const nameMap = new Map(
-        (introUsers || []).map((u) => [u.id as string, (u.name as string) || "User"])
-      );
-      introContext = {
-        connector_id: cid,
-        connector_name: nameMap.get(cid) || "A mutual connection",
-        guest_name: nameMap.get(thread.guest_id) || "Someone",
-        host_name: nameMap.get(listingHostId) || "the host",
-        listing_host_id: listingHostId,
-      };
+        .select(
+          "id, name, avatar_url, bio, created_at, host_rating, guest_rating, vouch_count_received"
+        )
+        .eq("id", introSenderId)
+        .maybeSingle(),
+      supabase
+        .from("listings")
+        .select("id, title, area_name, price_min, visibility_mode")
+        .eq("host_id", introSenderId)
+        .neq("visibility_mode", "hidden")
+        .limit(4),
+    ]);
+
+    const senderListingPhotos: Map<string, string> = new Map();
+    if (senderListings && senderListings.length) {
+      const { data: spPhotos } = await supabase
+        .from("listing_photos")
+        .select("listing_id, public_url, sort_order")
+        .in(
+          "listing_id",
+          senderListings.map((l) => l.id as string)
+        )
+        .order("sort_order", { ascending: true });
+      for (const p of spPhotos || []) {
+        if (!senderListingPhotos.has(p.listing_id as string)) {
+          senderListingPhotos.set(p.listing_id as string, p.public_url as string);
+        }
+      }
     }
+
+    introDetail = {
+      sender_id: introSenderId,
+      recipient_id: introRecipientId,
+      status: introStatus,
+      message:
+        (thread as { intro_message?: string | null }).intro_message ?? null,
+      start_date:
+        (thread as { intro_start_date?: string | null }).intro_start_date ??
+        null,
+      end_date:
+        (thread as { intro_end_date?: string | null }).intro_end_date ?? null,
+      decided_at:
+        (thread as { intro_decided_at?: string | null }).intro_decided_at ??
+        null,
+      sender_profile: {
+        id: introSenderId,
+        name: (senderRow as { name?: string } | null)?.name || "Someone",
+        avatar_url:
+          (senderRow as { avatar_url?: string | null } | null)?.avatar_url ??
+          null,
+        bio: (senderRow as { bio?: string | null } | null)?.bio ?? null,
+        member_since_year:
+          (senderRow as { created_at?: string | null } | null)?.created_at
+            ? new Date(
+                (senderRow as { created_at: string }).created_at
+              ).getUTCFullYear()
+            : null,
+        host_rating_avg:
+          (senderRow as { host_rating?: number | null } | null)?.host_rating ??
+          null,
+        guest_rating_avg:
+          (senderRow as { guest_rating?: number | null } | null)
+            ?.guest_rating ?? null,
+        vouch_count_received:
+          (senderRow as { vouch_count_received?: number | null } | null)
+            ?.vouch_count_received ?? 0,
+      },
+      sender_listings: (senderListings || []).map((l) => ({
+        id: l.id as string,
+        title: l.title as string,
+        area_name: l.area_name as string,
+        price_min: (l as { price_min?: number | null }).price_min ?? null,
+        thumbnail_url: senderListingPhotos.get(l.id as string) ?? null,
+      })),
+    };
   }
 
   // Thread detail follows the same direction rule as the inbox list:
   // guest side sees host→me (incoming), host side sees me→guest
   // (outgoing / current direction).
-  const trust = hideIdentity
-    ? undefined
-    : isGuest
-      ? (await computeIncomingTrustPaths([otherId], currentUserId))[otherId]
-      : (await computeTrustPaths(currentUserId, [otherId]))[otherId];
+  const trust = isGuest
+    ? (await computeIncomingTrustPaths([otherId], currentUserId))[otherId]
+    : (await computeTrustPaths(currentUserId, [otherId]))[otherId];
 
   return {
     id: thread.id,
@@ -552,8 +597,8 @@ export async function getThreadDetail(
     role,
     other_user: {
       id: otherId,
-      name: hideIdentity ? "Someone on 1° B&B" : otherUser?.name || "User",
-      avatar_url: hideIdentity ? null : otherUser?.avatar_url || null,
+      name: otherUser?.name || "User",
+      avatar_url: otherUser?.avatar_url || null,
     },
     listing: listing
       ? {
@@ -568,11 +613,16 @@ export async function getThreadDetail(
     trust_is_direct: trust?.hasDirectVouch ?? false,
     trust_degree: trust?.degree ?? null,
     trust_connector_paths: trust?.connectorPaths ?? [],
-    is_intro_request: isIntro,
-    intro_promoted_at: thread.intro_promoted_at ?? null,
-    sender_anonymous: Boolean(thread.sender_anonymous),
-    intro_connector_id: connectorIdRaw,
-    intro_context: introContext,
+    is_intro_request: Boolean(thread.is_intro_request),
+    intro: introDetail
+      ? {
+          sender_id: introDetail.sender_id,
+          recipient_id: introDetail.recipient_id,
+          status: introDetail.status,
+          decided_at: introDetail.decided_at,
+        }
+      : null,
+    intro_detail: introDetail,
     messages: (messages || []) as ThreadMessage[],
     booking: booking
       ? {
@@ -671,13 +721,11 @@ export async function getThreadDetail(
  * and the host "Message guest" button. Returns the thread id.
  *
  * When a real reservation is attached (`contactRequestId` present) to a
- * thread that was previously just an intro request, we PROMOTE it —
- * set `intro_promoted_at` and drop `sender_anonymous` — so the inbox
- * surfaces it in the main Messages tab instead of Intros. Without
- * this, a guest who first sent an anonymous intro and then submitted
- * a real reservation request would find their booking stuck in the
- * host's Intros tab with the host wondering why the message is
- * invisible in their normal inbox.
+ * thread that was previously an intro thread, we leave the intro metadata
+ * alone — a real booking on an intro thread is ALLOWED after the intro
+ * is accepted (the grants exist and unlocked the full listing). If the
+ * intro wasn't accepted, the booking flow will have been blocked upstream
+ * by check-access, so we'd never reach this path.
  */
 export async function getOrCreateThread(opts: {
   listingId: string;
@@ -688,38 +736,20 @@ export async function getOrCreateThread(opts: {
   const supabase = getSupabaseAdmin();
   const { data: existing } = await supabase
     .from("message_threads")
-    .select(
-      "id, contact_request_id, is_intro_request, intro_promoted_at, sender_anonymous"
-    )
+    .select("id, contact_request_id")
     .eq("listing_id", opts.listingId)
     .eq("guest_id", opts.guestId)
     .maybeSingle();
 
   if (existing) {
-    if (opts.contactRequestId) {
-      const patch: Record<string, unknown> = {};
-      // Always re-point to the latest contact_request. One
-      // reservation per thread is the invariant — after a guest
-      // cancels and re-requests, the sidebar + terms card need to
-      // reflect the new request, not the stale cancelled one.
-      if (existing.contact_request_id !== opts.contactRequestId) {
-        patch.contact_request_id = opts.contactRequestId;
-      }
-      // Promote a stuck intro into a normal conversation. The
-      // is_intro_request flag stays so historical context is
-      // preserved; the renderer keys off `intro_promoted_at`.
-      if (existing.is_intro_request && !existing.intro_promoted_at) {
-        patch.intro_promoted_at = new Date().toISOString();
-      }
-      if (existing.sender_anonymous) {
-        patch.sender_anonymous = false;
-      }
-      if (Object.keys(patch).length > 0) {
-        await supabase
-          .from("message_threads")
-          .update(patch)
-          .eq("id", existing.id);
-      }
+    if (
+      opts.contactRequestId &&
+      existing.contact_request_id !== opts.contactRequestId
+    ) {
+      await supabase
+        .from("message_threads")
+        .update({ contact_request_id: opts.contactRequestId })
+        .eq("id", existing.id);
     }
     return existing.id;
   }

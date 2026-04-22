@@ -284,33 +284,22 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                       t.is_intro_request && "bg-amber-50/40"
                     )}
                   >
-                    {t.is_intro_request && t.sender_anonymous ? (
-                      // Anonymous intro — don't link to a profile or
-                      // show a ConnectionPopover. Identity reveals only
-                      // after the host replies.
-                      <Avatar className="h-12 w-12 shrink-0">
-                        <AvatarFallback className="bg-amber-100 text-amber-700">
-                          ?
+                    <ConnectionPopover
+                      targetUserId={t.other_user.id}
+                      direction={t.role === "guest" ? "incoming" : "outgoing"}
+                    >
+                      <Avatar className="h-12 w-12 shrink-0 cursor-pointer">
+                        {t.other_user.avatar_url && (
+                          <AvatarImage
+                            src={t.other_user.avatar_url}
+                            alt={t.other_user.name}
+                          />
+                        )}
+                        <AvatarFallback>
+                          {initials(t.other_user.name)}
                         </AvatarFallback>
                       </Avatar>
-                    ) : (
-                      <ConnectionPopover
-                        targetUserId={t.other_user.id}
-                        direction={t.role === "guest" ? "incoming" : "outgoing"}
-                      >
-                        <Avatar className="h-12 w-12 shrink-0 cursor-pointer">
-                          {t.other_user.avatar_url && (
-                            <AvatarImage
-                              src={t.other_user.avatar_url}
-                              alt={t.other_user.name}
-                            />
-                          )}
-                          <AvatarFallback>
-                            {initials(t.other_user.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                      </ConnectionPopover>
-                    )}
+                    </ConnectionPopover>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-1.5">
@@ -336,11 +325,19 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                           {relTime(t.last_message_at)}
                         </span>
                       </div>
-                      {t.is_intro_request && (
+                      {t.is_intro_request && t.intro && (
                         <div className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
-                          {/* role='host' = someone asked about your listing → received.
-                              role='guest' = you asked about theirs → sent. */}
-                          {t.role === "host" ? "Intro received" : "Intro sent"}
+                          {/* Role-neutral intro label — uses the
+                              sender/recipient identity from the
+                              intro row rather than guest/host. */}
+                          {t.intro.sender_id === t.other_user.id
+                            ? "Intro received"
+                            : "Intro sent"}
+                          {t.intro.status !== "pending" && (
+                            <span className="opacity-80">
+                              · {t.intro.status}
+                            </span>
+                          )}
                         </div>
                       )}
                       {t.listing && (

@@ -7,19 +7,29 @@ import { INTRO_REQUEST_PREFIX } from "@/lib/structured-messages";
 
 /**
  * POST /api/trust/request-intro
- * Body: { listingId, connectorId?, hostName?, listingTitle?, message? }
+ * Body: {
+ *   listingId: string,
+ *   message: string,              // required, 20+ chars
+ *   startDate?: string,           // ISO date, non-binding
+ *   endDate?: string              // ISO date, non-binding
+ * }
  *
- * Two modes based on whether connectorId is provided:
+ * S2a direct-intro model — NO connector middleman.
+ *   Sender initiates → Recipient (listing host) decides. The recipient
+ *   is always the gatekeeper: they see the sender's full profile,
+ *   decide whether to Accept / Reply / Decline / Ignore, and on Accept
+ *   the app issues a bidirectional listing_access_grants pair.
  *
- *   Connector route  — opens a thread between viewer and the mutual
- *   connector, pinned to the listing. The connector decides to
- *   forward or decline. sender_anonymous = false (connector already
- *   knows the viewer — they vouched for them).
+ *   The thread is an intro thread while intro_status is pending /
+ *   accepted / declined / ignored. Accepted intros stay flagged so the
+ *   recipient can later revoke access from the same IntroRequestCard.
  *
- *   Anonymous route  — no mutual exists. Opens a thread directly to
- *   the host with sender_anonymous = true and is_intro_request = true.
- *   The host sees an anonymized sender label; viewer's identity is
- *   revealed once the host replies (thread then promotes to Messages).
+ * Guards:
+ *   - Sender ≠ recipient
+ *   - 30-day re-request block after a decline (same sender/recipient)
+ *   - One active pending intro per (listing, sender) — returns the
+ *     existing thread id so the client can nav to the pending state
+ *     instead of creating a duplicate.
  */
 export async function POST(req: Request) {
   const { userId } = await effectiveAuth();
@@ -27,14 +37,20 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => null)) as {
     listingId?: string;
-    connectorId?: string;
-    hostName?: string;
-    listingTitle?: string;
     message?: string;
+    startDate?: string;
+    endDate?: string;
   } | null;
 
   if (!body?.listingId) {
     return Response.json({ error: "listingId required" }, { status: 400 });
+  }
+  const message = (body.message ?? "").trim();
+  if (message.length < 20) {
+    return Response.json(
+      { error: "Please write at least 20 characters." },
+      { status: 400 }
+    );
   }
 
   const supabase = getSupabaseAdmin();
@@ -56,43 +72,83 @@ export async function POST(req: Request) {
   if (!listing) {
     return Response.json({ error: "Listing not found" }, { status: 404 });
   }
-  if (viewer.id === listing.host_id) {
+  const recipientId = listing.host_id as string;
+  if (viewer.id === recipientId) {
     return Response.json({ error: "Can't intro yourself" }, { status: 400 });
   }
 
-  // Decide which side of the thread is guest vs. host slot.
-  //
-  // Connector route: thread is viewer ↔ connector (connector sits in
-  //   the host_id slot by convention — it's the conversation surface).
-  // Anonymous route: thread is viewer ↔ actual host. is_intro_request
-  //   hides the sender identity until the host replies.
-  const isAnonymous = !body.connectorId;
-  const otherPartyId = body.connectorId ?? listing.host_id;
-  if (viewer.id === otherPartyId) {
-    return Response.json({ error: "Can't intro yourself" }, { status: 400 });
+  // 30-day re-request block: if the same sender→recipient pair has a
+  // declined intro within the last 30 days, refuse. Listing-agnostic
+  // — a decline on one listing blocks re-requests across the host's
+  // listings too (the decision is about the person, not the property).
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentDecline } = await supabase
+    .from("message_threads")
+    .select("id, intro_decided_at")
+    .eq("intro_sender_id", viewer.id)
+    .eq("intro_recipient_id", recipientId)
+    .eq("intro_status", "declined")
+    .gte("intro_decided_at", cutoff)
+    .order("intro_decided_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (recentDecline) {
+    return Response.json(
+      {
+        error:
+          "This person isn't available to new intros right now. Try again in a few weeks.",
+      },
+      { status: 429 }
+    );
   }
 
+  // Reuse a still-pending intro thread for the same (listing, sender)
+  // pair so the client flips into the existing pending state instead
+  // of creating a duplicate.
   const { data: existing } = await supabase
     .from("message_threads")
-    .select("id, is_intro_request, intro_promoted_at")
+    .select("id, intro_status")
     .eq("listing_id", body.listingId)
     .eq("guest_id", viewer.id)
-    .eq("host_id", otherPartyId)
+    .eq("host_id", recipientId)
     .maybeSingle();
 
   let threadId: string;
   if (existing) {
     threadId = existing.id;
+    // If the existing thread is an intro that's still pending, just
+    // return it — no new card, no duplicate notification.
+    if (existing.intro_status === "pending") {
+      return Response.json({ threadId, alreadyPending: true });
+    }
+    // Otherwise repoint the thread into a new intro request.
+    await supabase
+      .from("message_threads")
+      .update({
+        is_intro_request: true,
+        intro_sender_id: viewer.id,
+        intro_recipient_id: recipientId,
+        intro_status: "pending",
+        intro_message: message,
+        intro_start_date: body.startDate ?? null,
+        intro_end_date: body.endDate ?? null,
+        intro_decided_at: null,
+      })
+      .eq("id", threadId);
   } else {
     const { data: created, error: createErr } = await supabase
       .from("message_threads")
       .insert({
         listing_id: body.listingId,
         guest_id: viewer.id,
-        host_id: otherPartyId,
+        host_id: recipientId,
         is_intro_request: true,
-        sender_anonymous: isAnonymous,
-        intro_connector_id: body.connectorId ?? null,
+        intro_sender_id: viewer.id,
+        intro_recipient_id: recipientId,
+        intro_status: "pending",
+        intro_message: message,
+        intro_start_date: body.startDate ?? null,
+        intro_end_date: body.endDate ?? null,
       })
       .select("id")
       .single();
@@ -106,70 +162,21 @@ export async function POST(req: Request) {
     threadId = created.id;
   }
 
-  const title = body.listingTitle || listing.title;
-  const customNote = body.message?.trim() || null;
-
-  // Two message shapes:
-  //
-  //   Connector route: post a STRUCTURED system message with the
-  //   INTRO_REQUEST_PREFIX. The connector's thread renderer turns
-  //   that into an "Introduce them / Decline" card so the connector
-  //   has a clear action surface instead of a plain-text ask. Any
-  //   custom note from the guest rides along as a follow-up user
-  //   message immediately after.
-  //
-  //   Anonymous route: plain-text intro message directly to host —
-  //   host sees it as a normal (anonymized) message and replies.
-  let previewText: string;
-  if (isAnonymous) {
-    const content =
-      customNote ||
-      `Hi! I saw your listing "${title}" on 1° B&B and would love to connect. This is an introduction request — my identity stays private until you reply.`;
-    const { error: msgErr } = await supabase.from("messages").insert({
-      thread_id: threadId,
-      sender_id: viewer.id,
-      content,
-      is_system: false,
-    });
-    if (msgErr) {
-      console.error("request-intro message insert error", msgErr);
-      return Response.json(
-        { error: "Couldn't send message" },
-        { status: 500 }
-      );
-    }
-    previewText = content.slice(0, 240);
-  } else {
-    // Structured intro-request card.
-    const { error: cardErr } = await supabase.from("messages").insert({
-      thread_id: threadId,
-      sender_id: null,
-      content: INTRO_REQUEST_PREFIX,
-      is_system: true,
-    });
-    if (cardErr) {
-      console.error("request-intro card insert error", cardErr);
-      return Response.json(
-        { error: "Couldn't send request" },
-        { status: 500 }
-      );
-    }
-    if (customNote) {
-      // The guest's free-text note appears as a normal user message
-      // right after the system card, so the connector sees both the
-      // structured ask and the personal context.
-      await supabase.from("messages").insert({
-        thread_id: threadId,
-        sender_id: viewer.id,
-        content: customNote,
-        is_system: false,
-      });
-    }
-    previewText = customNote
-      ? customNote.slice(0, 240)
-      : `Intro request · ${title}`;
+  // Post the IntroRequestCard anchor message. The card itself reads
+  // intro_message / intro_start_date / intro_end_date off the thread
+  // row, so this content is just the prefix.
+  const { error: cardErr } = await supabase.from("messages").insert({
+    thread_id: threadId,
+    sender_id: null,
+    content: INTRO_REQUEST_PREFIX,
+    is_system: true,
+  });
+  if (cardErr) {
+    console.error("request-intro card insert error", cardErr);
+    return Response.json({ error: "Couldn't send request" }, { status: 500 });
   }
 
+  const previewText = `Intro request · ${listing.title}`;
   await supabase
     .from("message_threads")
     .update({
@@ -180,11 +187,11 @@ export async function POST(req: Request) {
     .eq("id", threadId);
 
   await emailNewMessage({
-    recipientId: otherPartyId,
-    senderName: isAnonymous ? "Someone on 1° B&B" : viewer.name || "Someone",
+    recipientId,
+    senderName: viewer.name || "Someone",
     threadId,
-    preview: previewText,
-    listingTitle: `Introduction request · ${title}`,
+    preview: message.slice(0, 200),
+    listingTitle: `Intro request · ${listing.title}`,
   });
 
   return Response.json({ threadId });

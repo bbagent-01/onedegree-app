@@ -31,30 +31,24 @@ export const PAYMENT_DUE_PREFIX = "__type:payment_due:";
 export const PAYMENT_CLAIMED_PREFIX = "__type:payment_claimed:";
 export const PAYMENT_CONFIRMED_PREFIX = "__type:payment_confirmed:";
 
-/** Posted to the connector's thread when a guest requests an intro.
- *  The connector's thread renderer replaces this with a card that
- *  offers "Introduce them" and "Decline" actions. */
+/** Intro lifecycle prefixes.
+ *
+ *  Posted to the sender↔recipient thread when the sender submits an
+ *  intro request. The recipient's thread view swaps this for the
+ *  IntroRequestCard (accept / reply / decline / ignore). The sender
+ *  sees a read-only pending state. */
 export const INTRO_REQUEST_PREFIX = "__type:intro_request__";
-
-/** Posted to the guest↔host thread when a connector forwards an
- *  intro. Host sees a notification-style card naming the connector
- *  who made the intro. Format: `__type:intro_made:<connector_uuid>__` */
-export const INTRO_MADE_PREFIX = "__type:intro_made:";
+/** Posted when the recipient accepts. Both sides see a confirmation
+ *  with "you can both now see each other's full listings." */
+export const INTRO_ACCEPTED_PREFIX = "__type:intro_accepted__";
+/** Posted when the recipient declines. Sender sees a soft "not
+ *  available right now" copy — no shaming, no reason exposed. */
+export const INTRO_DECLINED_PREFIX = "__type:intro_declined__";
+/** Posted when the recipient revokes a previously accepted intro.
+ *  Sender sees "Access ended" and preview listings flip back. */
+export const INTRO_REVOKED_PREFIX = "__type:intro_revoked__";
 
 const PAYMENT_SUFFIX = "__";
-const INTRO_MADE_SUFFIX = "__";
-
-export function introMadeMessage(connectorId: string): string {
-  return `${INTRO_MADE_PREFIX}${connectorId}${INTRO_MADE_SUFFIX}`;
-}
-
-export function parseIntroMadeConnectorId(content: string): string | null {
-  if (!content.startsWith(INTRO_MADE_PREFIX)) return null;
-  const rest = content.slice(INTRO_MADE_PREFIX.length);
-  const end = rest.indexOf(INTRO_MADE_SUFFIX);
-  if (end <= 0) return null;
-  return rest.slice(0, end);
-}
 
 /** Build a payment structured-message prefix for a given event. */
 export function paymentDueMessage(eventId: string): string {
@@ -100,7 +94,9 @@ export function isStructuredMessage(content: string): boolean {
     content.startsWith(PAYMENT_CLAIMED_PREFIX) ||
     content.startsWith(PAYMENT_CONFIRMED_PREFIX) ||
     content.startsWith(INTRO_REQUEST_PREFIX) ||
-    content.startsWith(INTRO_MADE_PREFIX)
+    content.startsWith(INTRO_ACCEPTED_PREFIX) ||
+    content.startsWith(INTRO_DECLINED_PREFIX) ||
+    content.startsWith(INTRO_REVOKED_PREFIX)
   );
 }
 
@@ -120,7 +116,9 @@ export function structuredMessageLabel(content: string): string | null {
   if (content.startsWith(PAYMENT_CLAIMED_PREFIX)) return "Payment sent";
   if (content.startsWith(PAYMENT_CONFIRMED_PREFIX)) return "Payment confirmed";
   if (content.startsWith(INTRO_REQUEST_PREFIX)) return "Intro request";
-  if (content.startsWith(INTRO_MADE_PREFIX)) return "Introduction made";
+  if (content.startsWith(INTRO_ACCEPTED_PREFIX)) return "Intro accepted";
+  if (content.startsWith(INTRO_DECLINED_PREFIX)) return "Intro declined";
+  if (content.startsWith(INTRO_REVOKED_PREFIX)) return "Access ended";
   return null;
 }
 

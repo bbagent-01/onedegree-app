@@ -18,6 +18,12 @@
  * gate only when the host has opted into `anyone_anywhere`. Any
  * inner-gate action always requires auth, so logged-out viewers
  * never reach full_listing_contact.
+ *
+ * S2a addition — `hasActiveGrant`: when the viewer holds a bidirectional
+ * access grant from the listing's host (via an accepted intro), every
+ * gate for that pair is unlocked. The grant short-circuits BEFORE the
+ * trust-score / specific_people evaluation — the intro accept *is* the
+ * trust signal in this pair-scoped context.
  */
 
 import type { AccessRule, AccessSettings, ListingAccessResult } from "./types";
@@ -33,7 +39,9 @@ export function checkListingAccess(
   viewerId: string | null,
   listing: ListingForAccess,
   score: number,
-  degree?: number | null
+  degree?: number | null,
+  /** Bidirectional intro-accept grant: listing.host_id → viewerId. */
+  hasActiveGrant?: boolean
 ): ListingAccessResult {
   const NO_ACCESS: ListingAccessResult = {
     can_see_preview: false,
@@ -58,6 +66,12 @@ export function checkListingAccess(
 
   if (listing.visibility_mode === "hidden") return NO_ACCESS;
   if (listing.visibility_mode === "public") return FULL_ACCESS;
+
+  // Pair-scoped grant from an accepted intro unlocks every gate for
+  // this viewer on this host's listings, regardless of trust score or
+  // specific_people rules. The recipient can revoke the grant at any
+  // time and the caller is responsible for passing a fresh `hasActiveGrant`.
+  if (viewerId && hasActiveGrant) return FULL_ACCESS;
 
   // preview_gated (default)
   const settings = normalizeAccessSettings(
@@ -137,4 +151,33 @@ function evaluateRule(
     default:
       return false;
   }
+}
+
+/**
+ * Server-side helper: does `granteeId` hold an active (non-revoked)
+ * listing_access_grants row from `grantorId`?
+ *
+ * Wraps the DB lookup so callers (listing page RSC, listing-card
+ * rendering) can await a single small query and pass the boolean
+ * down to `checkListingAccess`.
+ */
+export async function hasActiveListingAccessGrant(
+  grantorId: string,
+  granteeId: string
+): Promise<boolean> {
+  if (!grantorId || !granteeId || grantorId === granteeId) return false;
+  const { getSupabaseAdmin } = await import("../supabase");
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("listing_access_grants")
+    .select("id")
+    .eq("grantor_id", grantorId)
+    .eq("grantee_id", granteeId)
+    .is("revoked_at", null)
+    .maybeSingle();
+  if (error) {
+    console.error("hasActiveListingAccessGrant error", error);
+    return false;
+  }
+  return Boolean(data?.id);
 }
