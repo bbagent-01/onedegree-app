@@ -16,6 +16,16 @@ import type {
   IntroSenderListing,
   IntroSenderProfile,
 } from "@/components/trust/IntroRequestCard";
+import {
+  getIssueReportsForThread,
+  type IssueReport,
+} from "./issue-reports-data";
+import {
+  countPendingPhotoRequestsForThreads,
+  getPhotoRequestsForThread,
+  signPhotoRequestUrl,
+  type PhotoRequest,
+} from "./photo-requests-data";
 
 export type ThreadRole = "guest" | "host";
 
@@ -54,6 +64,9 @@ export interface InboxThread {
   trust_degree: 1 | 2 | 3 | 4 | null;
   /** Connector bridges sorted strongest → weakest. */
   trust_connector_paths: ConnectorPathSummary[];
+  /** Count of pending photo_requests on this thread. Inbox list
+   *  shows a small camera icon when > 0. S4 Chunk 5. */
+  pending_photo_request_count: number;
   /** True when the thread is an intro thread (filters the Intros tab).
    *  Stays true across pending/accepted states; flips to false on
    *  decline so declined threads archive out of the Intros tab. */
@@ -160,6 +173,17 @@ export interface ThreadDetail extends InboxThread {
    * policy has no payment_schedule. Ordered by schedule_index.
    */
   payment_events?: PaymentEvent[];
+  /**
+   * Issue reports tied to this thread — S4 Chunk 5. Sorted by
+   * created_at asc so card renders stay stable.
+   */
+  issue_reports?: IssueReport[];
+  /**
+   * Photo requests tied to this thread. `photo_url` on each row is
+   * a signed (short-lived) URL suitable for inline rendering — null
+   * for pending/dismissed requests.
+   */
+  photo_requests?: (PhotoRequest & { signed_photo_url: string | null })[];
 }
 
 /** Resolves the current Clerk user to a Track B users row.
@@ -249,18 +273,21 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
     if (isGuest) guestOtherIds.push(otherId);
     else hostOtherIds.push(otherId);
   }
-  const [incomingTrust, outgoingTrust] = await Promise.all<
-    Awaited<ReturnType<typeof computeTrustPaths>>
-  >([
+  const [incomingTrust, outgoingTrust, pendingPhotoReqCount] = await Promise.all([
     guestOtherIds.length
       ? computeIncomingTrustPaths(
           [...new Set(guestOtherIds)],
           currentUserId
         )
-      : Promise.resolve({}),
+      : Promise.resolve(
+          {} as Awaited<ReturnType<typeof computeTrustPaths>>
+        ),
     hostOtherIds.length
       ? computeTrustPaths(currentUserId, [...new Set(hostOtherIds)])
-      : Promise.resolve({}),
+      : Promise.resolve(
+          {} as Awaited<ReturnType<typeof computeTrustPaths>>
+        ),
+    countPendingPhotoRequestsForThreads(threads.map((t) => t.id)),
   ]);
 
   return threads.map((t) => {
@@ -313,6 +340,7 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
       trust_connector_paths:
         (isGuest ? incomingTrust : outgoingTrust)[otherId]?.connectorPaths ??
         [],
+      pending_photo_request_count: pendingPhotoReqCount.get(t.id) ?? 0,
       is_intro_request: Boolean(t.is_intro_request),
       intro:
         introSenderId && introRecipientId && introStatus
@@ -486,6 +514,21 @@ export async function getThreadDetail(
     }
   }
 
+  // Issue reports + photo requests for this thread (S4 Chunk 5).
+  // Sign each submitted photo so the card can render inline without
+  // exposing the private bucket path to the client.
+  const issueReports = await getIssueReportsForThread(threadId);
+  const photoRequestRows = await getPhotoRequestsForThread(threadId);
+  const photoRequests = await Promise.all(
+    photoRequestRows.map(async (pr) => ({
+      ...pr,
+      signed_photo_url:
+        pr.status === "submitted"
+          ? await signPhotoRequestUrl(pr.storage_path)
+          : null,
+    }))
+  );
+
   // Reset unread for this side now that the user is viewing the thread.
   await supabase
     .from("message_threads")
@@ -627,6 +670,9 @@ export async function getThreadDetail(
     trust_is_direct: trust?.hasDirectVouch ?? false,
     trust_degree: trust?.degree ?? null,
     trust_connector_paths: trust?.connectorPaths ?? [],
+    pending_photo_request_count: photoRequests.filter(
+      (p) => p.status === "pending"
+    ).length,
     is_intro_request: Boolean(thread.is_intro_request),
     intro: introDetail
       ? {
@@ -727,6 +773,8 @@ export async function getThreadDetail(
           : [],
     },
     payment_events: paymentEvents,
+    issue_reports: issueReports,
+    photo_requests: photoRequests,
   };
 }
 

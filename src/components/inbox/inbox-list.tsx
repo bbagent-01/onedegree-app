@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, ChevronDown, Check } from "lucide-react";
+import { Search, ChevronDown, Check, Camera } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { TrustTag } from "@/components/trust/trust-tag";
@@ -334,6 +334,15 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                               direct={t.trust_is_direct}
                               connectorPaths={t.trust_connector_paths}
                             />
+                          )}
+                          {t.pending_photo_request_count > 0 && (
+                            <span
+                              aria-label="Pending photo request"
+                              title="Pending photo request"
+                              className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700"
+                            >
+                              <Camera className="h-2.5 w-2.5" />
+                            </span>
                           )}
                         </div>
                         <span className="shrink-0 text-[11px] text-muted-foreground">

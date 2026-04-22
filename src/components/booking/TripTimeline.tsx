@@ -97,7 +97,7 @@ export function TripTimeline({ stages, compact = false }: Props) {
               <div className="flex items-baseline justify-between gap-2">
                 <span
                   className={cn(
-                    "text-sm",
+                    "inline-flex items-center gap-1.5 text-sm",
                     stage.status === "done" && "font-semibold text-foreground",
                     stage.status === "current" &&
                       "font-semibold text-foreground",
@@ -108,6 +108,12 @@ export function TripTimeline({ stages, compact = false }: Props) {
                   )}
                 >
                   {stage.label}
+                  {stage.badge === "alert" && (
+                    <span
+                      aria-label="Open issue on this stage"
+                      className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-600"
+                    />
+                  )}
                 </span>
                 {stage.at && fmtTimestamp(stage.at) && (
                   <span className="shrink-0 text-[11px] text-muted-foreground">

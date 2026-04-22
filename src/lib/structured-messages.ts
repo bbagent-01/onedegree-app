@@ -31,6 +31,17 @@ export const PAYMENT_DUE_PREFIX = "__type:payment_due:";
 export const PAYMENT_CLAIMED_PREFIX = "__type:payment_claimed:";
 export const PAYMENT_CONFIRMED_PREFIX = "__type:payment_confirmed:";
 
+/** Issue-report + photo-request prefixes (S4 Chunk 5).
+ *
+ *  Both embed the row id so the renderer can look up the live
+ *  status in the thread's pre-fetched collections. Format:
+ *  `__type:issue_report:<uuid>__` / `__type:photo_request:<uuid>__`.
+ *  The card re-reads status live, so the same message row can
+ *  render as "open → acknowledged → resolved" over time without
+ *  inserting additional system messages. */
+export const ISSUE_REPORT_PREFIX = "__type:issue_report:";
+export const PHOTO_REQUEST_PREFIX = "__type:photo_request:";
+
 /** Intro lifecycle prefixes.
  *
  *  Posted to the sender↔recipient thread when the sender submits an
@@ -61,6 +72,14 @@ export function paymentConfirmedMessage(eventId: string): string {
   return `${PAYMENT_CONFIRMED_PREFIX}${eventId}${PAYMENT_SUFFIX}`;
 }
 
+/** Build issue_report / photo_request structured messages. */
+export function issueReportMessage(reportId: string): string {
+  return `${ISSUE_REPORT_PREFIX}${reportId}${PAYMENT_SUFFIX}`;
+}
+export function photoRequestMessage(requestId: string): string {
+  return `${PHOTO_REQUEST_PREFIX}${requestId}${PAYMENT_SUFFIX}`;
+}
+
 /**
  * Pull the event id out of a payment_* structured message. Returns
  * null if the content isn't a payment message or the suffix is
@@ -85,6 +104,20 @@ export function parsePaymentEventId(content: string): {
   return null;
 }
 
+/** Pull the row id out of an issue_report / photo_request message. */
+export function parseIssueReportId(content: string): string | null {
+  if (!content.startsWith(ISSUE_REPORT_PREFIX)) return null;
+  const rest = content.slice(ISSUE_REPORT_PREFIX.length);
+  const end = rest.indexOf(PAYMENT_SUFFIX);
+  return end > 0 ? rest.slice(0, end) : null;
+}
+export function parsePhotoRequestId(content: string): string | null {
+  if (!content.startsWith(PHOTO_REQUEST_PREFIX)) return null;
+  const rest = content.slice(PHOTO_REQUEST_PREFIX.length);
+  const end = rest.indexOf(PAYMENT_SUFFIX);
+  return end > 0 ? rest.slice(0, end) : null;
+}
+
 export function isStructuredMessage(content: string): boolean {
   return (
     content.startsWith(TERMS_OFFERED_PREFIX) ||
@@ -96,7 +129,9 @@ export function isStructuredMessage(content: string): boolean {
     content.startsWith(INTRO_REQUEST_PREFIX) ||
     content.startsWith(INTRO_ACCEPTED_PREFIX) ||
     content.startsWith(INTRO_DECLINED_PREFIX) ||
-    content.startsWith(INTRO_REVOKED_PREFIX)
+    content.startsWith(INTRO_REVOKED_PREFIX) ||
+    content.startsWith(ISSUE_REPORT_PREFIX) ||
+    content.startsWith(PHOTO_REQUEST_PREFIX)
   );
 }
 
@@ -119,6 +154,8 @@ export function structuredMessageLabel(content: string): string | null {
   if (content.startsWith(INTRO_ACCEPTED_PREFIX)) return "Intro accepted";
   if (content.startsWith(INTRO_DECLINED_PREFIX)) return "Intro declined";
   if (content.startsWith(INTRO_REVOKED_PREFIX)) return "Access ended";
+  if (content.startsWith(ISSUE_REPORT_PREFIX)) return "Issue reported";
+  if (content.startsWith(PHOTO_REQUEST_PREFIX)) return "Photo requested";
   return null;
 }
 

@@ -26,11 +26,17 @@ import {
   INTRO_ACCEPTED_PREFIX,
   INTRO_DECLINED_PREFIX,
   INTRO_REVOKED_PREFIX,
+  parseIssueReportId,
+  parsePhotoRequestId,
 } from "@/lib/structured-messages";
 import { ReviewPromptCard } from "@/components/booking/ReviewPromptCard";
 import { HostReviewTermsInline } from "@/components/booking/HostReviewTermsInline";
 import { MessageReportMenu } from "@/components/safety/message-report-menu";
 import { IntroRequestCard } from "@/components/trust/IntroRequestCard";
+import { IssueReportCard } from "@/components/stay/IssueReportCard";
+import { PhotoRequestCard } from "@/components/stay/PhotoRequestCard";
+import { ReportIssueButton } from "@/components/stay/ReportIssueButton";
+import { RequestPhotoButton } from "@/components/stay/RequestPhotoButton";
 
 interface Props {
   thread: ThreadDetail;
@@ -502,6 +508,45 @@ export function ThreadView({
                   return null;
                 }
 
+                // Issue-report card (S4 Chunk 5). Re-reads the row
+                // from thread.issue_reports so the card always shows
+                // the current status/resolution — no need for
+                // per-transition message inserts.
+                const issueId = parseIssueReportId(m.content);
+                if (issueId) {
+                  const report = (thread.issue_reports ?? []).find(
+                    (r) => r.id === issueId
+                  );
+                  if (report) {
+                    return (
+                      <div key={m.id} className="py-1">
+                        <IssueReportCard
+                          report={report}
+                          viewerId={currentUserId}
+                        />
+                      </div>
+                    );
+                  }
+                }
+                // Photo-request card.
+                const photoId = parsePhotoRequestId(m.content);
+                if (photoId) {
+                  const req = (thread.photo_requests ?? []).find(
+                    (r) => r.id === photoId
+                  );
+                  if (req) {
+                    return (
+                      <div key={m.id} className="py-1">
+                        <PhotoRequestCard
+                          request={req}
+                          photoUrl={req.signed_photo_url}
+                          viewerId={currentUserId}
+                        />
+                      </div>
+                    );
+                  }
+                }
+
                 // Intro-request card (S2a direct model).
                 // Recipient sees Accept / Reply / Decline / Ignore.
                 // Sender sees a read-only pending / accepted / etc.
@@ -693,38 +738,68 @@ export function ThreadView({
             </div>
           );
         }
+        // Stay-time action row (S4 Chunk 5). Only surfaces when the
+        // thread has a confirmed reservation — no point flagging
+        // issues on a pending inquiry. "Report an issue" gates to
+        // during-stay / post-stay on an accepted booking. "Request
+        // a photo" is always available on a live reservation.
+        const booking = thread.booking;
+        const hasAcceptedReservation =
+          !!booking && booking.status === "accepted";
+        const todayISO = new Date().toISOString().slice(0, 10);
+        const inStayOrAfter =
+          hasAcceptedReservation &&
+          !!booking.check_in &&
+          todayISO >= booking.check_in;
+        const showPhotoRequest = hasAcceptedReservation;
+        const showIssueReport = inStayOrAfter;
+        const showActions = showPhotoRequest || showIssueReport;
         return (
-          <div className="shrink-0 border-t border-border bg-white p-3">
-            <div className="flex items-end gap-2">
-              <textarea
-                rows={1}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    send();
-                  }
-                }}
-                placeholder="Type a message…"
-                className="max-h-32 min-h-[40px] flex-1 resize-none rounded-2xl border border-border bg-muted/40 px-4 py-2 text-sm focus:border-foreground focus:bg-white focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={send}
-                disabled={!draft.trim() || sending}
-                className={cn(
-                  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors",
-                  draft.trim() && !sending
-                    ? "bg-brand text-white hover:bg-brand-600"
-                    : "bg-muted text-muted-foreground"
-                )}
-                aria-label="Send message"
-              >
-                <Send className="h-4 w-4" />
-              </button>
+          <>
+            {showActions && (
+              <div className="shrink-0 border-t border-border bg-muted/20 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {showIssueReport && (
+                    <ReportIssueButton threadId={thread.id} />
+                  )}
+                  {showPhotoRequest && (
+                    <RequestPhotoButton threadId={thread.id} />
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="shrink-0 border-t border-border bg-white p-3">
+              <div className="flex items-end gap-2">
+                <textarea
+                  rows={1}
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                  placeholder="Type a message…"
+                  className="max-h-32 min-h-[40px] flex-1 resize-none rounded-2xl border border-border bg-muted/40 px-4 py-2 text-sm focus:border-foreground focus:bg-white focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={send}
+                  disabled={!draft.trim() || sending}
+                  className={cn(
+                    "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors",
+                    draft.trim() && !sending
+                      ? "bg-brand text-white hover:bg-brand-600"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                  aria-label="Send message"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         );
       })()}
     </div>

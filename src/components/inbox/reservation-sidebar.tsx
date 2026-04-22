@@ -158,6 +158,10 @@ export function ReservationSidebar({ thread, onClose }: Props) {
                   }
                 : null,
               payment_events: thread.payment_events ?? null,
+              has_open_issue:
+                (thread.issue_reports ?? []).some(
+                  (r) => r.status === "open"
+                ),
             })}
           />
         )}

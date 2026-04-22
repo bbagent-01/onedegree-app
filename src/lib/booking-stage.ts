@@ -53,6 +53,9 @@ export interface TimelineStage {
   /** Short per-stage detail line (e.g. "Payment arranged directly",
    *  "Stay ends Mon, Apr 28"). */
   detail?: string | null;
+  /** Render a red-dot badge beside the stage label. Used by the
+   *  S4 Chunk 5 "open issue" surface to flag during-stay stages. */
+  badge?: "alert" | null;
 }
 
 export interface ResolveInput {
@@ -75,6 +78,10 @@ export interface ResolveInput {
   /** Per-payment rows — when present, the single "Payment" stage
    *  expands into one stage per event. Ordered by schedule_index. */
   payment_events?: PaymentEventForStage[] | null;
+  /** True when there's at least one `open` issue_report on the
+   *  booking. Drives the alert badge on the during-stay / checked-
+   *  out stages. */
+  has_open_issue?: boolean;
 }
 
 /** Today in YYYY-MM-DD (UTC — matches how the DB stores dates). */
@@ -319,6 +326,7 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
         : checkInDate && checkOutDate
           ? `${fmtDate(checkInDate)} → ${fmtDate(checkOutDate)}`
           : null,
+    badge: input.has_open_issue && (inStay || postStay) ? "alert" : null,
   };
 
   // Stage 7: Checked out (pre-review gap).
@@ -335,6 +343,7 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
     at: postStay ? checkOutDate : null,
     detail:
       postStay && myRating === null ? "Time to leave a review" : null,
+    badge: input.has_open_issue && postStay ? "alert" : null,
   };
 
   // Stage 8: Reviewed.
