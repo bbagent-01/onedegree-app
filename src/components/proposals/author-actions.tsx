@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Archive, Trash2, Loader2, PenSquare } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -66,13 +64,6 @@ export function AuthorActions({ proposalId, status }: Props) {
 
   return (
     <>
-      <Link
-        href={`/proposals/${proposalId}/edit`}
-        className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-white px-3 text-sm font-semibold hover:bg-muted"
-      >
-        <PenSquare className="h-4 w-4" />
-        Edit
-      </Link>
       {status === "active" && (
         <button
           type="button"
@@ -80,12 +71,7 @@ export function AuthorActions({ proposalId, status }: Props) {
           disabled={busy !== null}
           className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-white px-3 text-sm font-semibold hover:bg-muted disabled:opacity-60"
         >
-          {busy === "close" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Archive className="h-4 w-4" />
-          )}
-          Close
+          {busy === "close" ? "Closing…" : "Close"}
         </button>
       )}
       <button
@@ -94,12 +80,7 @@ export function AuthorActions({ proposalId, status }: Props) {
         disabled={busy !== null}
         className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
       >
-        {busy === "delete" ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Trash2 className="h-4 w-4" />
-        )}
-        Delete
+        {busy === "delete" ? "Deleting…" : "Delete"}
       </button>
     </>
   );

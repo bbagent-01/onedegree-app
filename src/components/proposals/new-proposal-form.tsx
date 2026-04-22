@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, MapPin, Plus, X } from "lucide-react";
 import type { AccessRule, AccessSettings } from "@/lib/trust/types";
 
 export interface MyListingOption {
@@ -245,7 +244,6 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
       >
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
             <input
               className={`${fieldCls} flex-1 text-sm`}
               value={destinationInput}
@@ -266,10 +264,9 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
               type="button"
               onClick={() => addDestination(destinationInput)}
               disabled={!destinationInput.trim() || destinations.length >= 10}
-              className="inline-flex h-14 items-center gap-1 rounded-xl border-2 border-border bg-white px-4 text-sm font-semibold hover:bg-muted disabled:opacity-50"
+              className="inline-flex h-14 items-center rounded-xl border-2 border-border bg-white px-4 text-sm font-semibold hover:bg-muted disabled:opacity-50"
             >
-              <Plus className="h-4 w-4" />
-              Add
+              + Add
             </button>
           </div>
           {destinations.length > 0 && (
@@ -286,7 +283,7 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
                     className="text-muted-foreground hover:text-foreground"
                     aria-label={`Remove ${d}`}
                   >
-                    <X className="h-3 w-3" />
+                    ×
                   </button>
                 </li>
               ))}
@@ -498,7 +495,6 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
           disabled={!canSubmit}
           className="inline-flex h-12 items-center gap-2 rounded-lg bg-foreground px-6 text-sm font-semibold text-background shadow-md hover:bg-foreground/90 disabled:opacity-60"
         >
-          {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
           {submitting ? "Posting…" : "Post proposal"}
         </button>
       </div>
