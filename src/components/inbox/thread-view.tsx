@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { CalendarClock, CalendarPlus, Send } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -125,7 +126,22 @@ export function ThreadView({
   currentUserId,
 }: Props) {
   const [messages, setMessages] = useState<ThreadMessage[]>(thread.messages);
+  // Proposal "Message [name]" CTA redirects here with ?prefill=... so the
+  // user lands with context already typed into the composer. They can edit
+  // before sending. The effect below one-shot seeds the draft on mount
+  // when the thread has no messages yet; we don't clobber an in-progress
+  // reply on an active thread.
+  const searchParams = useSearchParams();
+  const prefillParam = searchParams?.get("prefill") ?? null;
   const [draft, setDraft] = useState("");
+  useEffect(() => {
+    if (prefillParam && thread.messages.length === 0) {
+      setDraft(prefillParam);
+    }
+    // Intentionally only react to prefillParam/thread id — avoid re-seeding
+    // on every messages update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillParam, thread.id]);
   const [sending, setSending] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
 

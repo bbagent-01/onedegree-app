@@ -15,6 +15,8 @@ import { ConnectionPath } from "@/components/trust/connection-path";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { ReportUserButton } from "@/components/safety/report-user-button";
 import { PreviewBadge } from "@/components/profile/preview-badge";
+import { fetchVisibleProposals } from "@/lib/proposals-data";
+import { ProposalCard } from "@/components/proposals/proposal-card";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -66,6 +68,18 @@ export default async function ProfilePage({
     !!viewerId &&
     !isOwn &&
     (!trust || (!trust.hasDirectVouch && trust.degree !== 1));
+
+  // Author's active proposals that the viewer can see. Empty when the
+  // viewer has no path in or the author hasn't posted anything; the
+  // section hides itself in that case so we don't render dead space.
+  const profileProposals = viewerId
+    ? await fetchVisibleProposals({
+        viewerId,
+        authorId: user.id,
+        includeOwn: isOwn,
+        limit: 5,
+      })
+    : [];
 
   return (
     <div className="mx-auto w-full max-w-[1040px] px-4 py-6 md:px-6 md:py-10">
@@ -223,6 +237,27 @@ export default async function ProfilePage({
                 </div>
               </Link>
             ))}
+          </div>
+        </Section>
+      )}
+
+      {/* Proposals */}
+      {profileProposals.length > 0 && viewerId && (
+        <Section title={`${user.name.split(" ")[0]}'s proposals`}>
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {profileProposals.slice(0, 5).map((p) => (
+              <li key={p.row.id}>
+                <ProposalCard proposal={p} viewerId={viewerId} />
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3">
+            <Link
+              href={`/proposals?author=${user.id}`}
+              className="text-sm font-semibold text-foreground hover:underline"
+            >
+              See all →
+            </Link>
           </div>
         </Section>
       )}
