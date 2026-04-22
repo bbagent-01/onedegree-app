@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { EyeOff, Info, MapPin, Shield, Star } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { TrustTag } from "@/components/trust/trust-tag";
-import { ConnectionPopover } from "@/components/trust/connection-breakdown";
+import { TrustTagPopover } from "@/components/trust/trust-tag-popover";
 import { AmenitiesSection } from "./amenities-section";
 import { LocationMapClient } from "./location-map-client";
 import { PhotoGallery } from "./photo-gallery";
@@ -161,68 +160,77 @@ export function GatedListingView({
 
           <Separator className="my-8" />
 
-          {/* Host section — the entire block (avatar + name +
-              trust badge + helper copy) is a single click target
-              for the trust-detail popover. */}
-          {trust && listing.host?.id ? (
-            <ConnectionPopover
-              targetUserId={listing.host.id}
-              direction="incoming"
-              disabled={trust.degree === 1 || trust.hasDirectVouch}
-            >
-              <div className="flex w-full cursor-pointer items-center gap-4 rounded-xl p-2 -m-2 text-left hover:bg-muted/40">
+          {/* Host section — S5 click model.
+              Avatar + name are independent Links to /profile/[id]
+              (hover = drop-shadow / underline). The TrustTag pill
+              carries the trust-detail popover. Helper copy stays
+              inert. When the host profile isn't revealed (name
+              hidden) the avatar and helper copy render without
+              Links so the anonymous preview stays anonymous. */}
+          {listing.host?.id && showHostFirstName && listing.host?.name ? (
+            <div className="flex items-center gap-4">
+              <Link
+                href={`/profile/${listing.host.id}`}
+                className="shrink-0 rounded-full transition-shadow hover:shadow-md"
+                aria-label={`Open ${listing.host.name}'s profile`}
+              >
                 <HostAvatar
                   showProfilePhoto={showProfilePhoto}
                   avatarUrl={listing.host?.avatar_url ?? null}
-                  hostName={
-                    showHostFirstName && listing.host?.name
-                      ? listing.host.name
-                      : "Host"
-                  }
+                  hostName={listing.host.name}
                 />
-                <div className="min-w-0 flex-1">
-                  <div className="text-lg font-semibold">
-                    {showHostFirstName && listing.host?.name
-                      ? `Hosted by ${listing.host.name.split(" ")[0]}`
-                      : "Hosted by a verified member"}
+              </Link>
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/profile/${listing.host.id}`}
+                  className="text-lg font-semibold hover:underline"
+                >
+                  Hosted by {listing.host.name.split(" ")[0]}
+                </Link>
+                {trust && (
+                  <div className="mt-1">
+                    <TrustTagPopover
+                      targetUserId={listing.host.id}
+                      direction="incoming"
+                      size="medium"
+                      score={score}
+                      degree={trust.degree}
+                      direct={trust.hasDirectVouch}
+                      connectorPaths={trust.connectorPaths}
+                    />
                   </div>
-                  <TrustTag
-                    size="medium"
-                    score={score}
-                    degree={trust.degree}
-                    direct={trust.hasDirectVouch}
-                    connectorPaths={trust.connectorPaths}
-                    className="mt-1"
-                  />
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {showHostFirstName
-                      ? "Full profile revealed once you meet the trust threshold"
-                      : "Host identity is revealed once you meet the trust threshold"}
-                  </div>
+                )}
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Full profile revealed once you meet the trust threshold
                 </div>
               </div>
-            </ConnectionPopover>
+            </div>
           ) : (
             <div className="flex items-center gap-4">
               <HostAvatar
                 showProfilePhoto={showProfilePhoto}
                 avatarUrl={listing.host?.avatar_url ?? null}
-                hostName={
-                  showHostFirstName && listing.host?.name
-                    ? listing.host.name
-                    : "Host"
-                }
+                hostName="Host"
               />
               <div className="min-w-0 flex-1">
                 <div className="text-lg font-semibold">
-                  {showHostFirstName && listing.host?.name
-                    ? `Hosted by ${listing.host.name.split(" ")[0]}`
-                    : "Hosted by a verified member"}
+                  Hosted by a verified member
                 </div>
+                {trust && listing.host?.id && (
+                  <div className="mt-1">
+                    <TrustTagPopover
+                      targetUserId={listing.host.id}
+                      direction="incoming"
+                      size="medium"
+                      score={score}
+                      degree={trust.degree}
+                      direct={trust.hasDirectVouch}
+                      connectorPaths={trust.connectorPaths}
+                    />
+                  </div>
+                )}
                 <div className="mt-1 text-sm text-muted-foreground">
-                  {showHostFirstName
-                    ? "Full profile revealed once you meet the trust threshold"
-                    : "Host identity is revealed once you meet the trust threshold"}
+                  Host identity is revealed once you meet the trust threshold
                 </div>
               </div>
             </div>

@@ -31,6 +31,7 @@ import {
   buildPolicyFromPreset,
   type CancellationPolicy,
 } from "../src/lib/cancellation";
+import { createPaymentEventsForRequest } from "../src/lib/payment-events";
 
 const RESERVATION_REQUEST_PREFIX = "__type:reservation_request__";
 const TERMS_OFFERED_PREFIX = "__type:terms_offered__";
@@ -101,8 +102,12 @@ async function main() {
     .eq("id", guestCandidate)
     .single();
 
+  // Installments/moderate gives two payments (50% five days before
+  // check-in + 50% at check-in) so the seeded threads carry real
+  // Payment 1 / Payment 2 cards. Refunds-only would only materialize
+  // a single payment event.
   const policy: CancellationPolicy = buildPolicyFromPreset(
-    "refunds",
+    "installments",
     "moderate"
   );
 
@@ -217,8 +222,13 @@ async function main() {
       });
     }
 
+    // Materialize payment_events for this contact_request. Uses the
+    // snapshotted cancellation_policy to derive the schedule. Also
+    // posts `payment_due` structured messages into the thread per
+    // event so PaymentDueCards render immediately.
+    const events = await createPaymentEventsForRequest(cr.id);
     console.log(
-      `✓ ${label}: guest=${guestFirstName} host=${hostFirstName} booking=${cr.id} thread=${thread.id}`
+      `✓ ${label}: guest=${guestFirstName} host=${hostFirstName} booking=${cr.id} thread=${thread.id} payment_events=${events.createdIds.length}${events.skipped ? ` (${events.skipped})` : ""}`
     );
     return { bookingId: cr.id, threadId: thread.id };
   }
