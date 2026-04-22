@@ -496,8 +496,14 @@ export async function getThreadDetail(
 
   // Intro detail — fetch the sender's profile + their listings so the
   // IntroRequestCard can render inline without additional round trips.
-  // Only populated when the thread is an intro thread AND has a
-  // sender/recipient set.
+  // Populated whenever the thread has intro metadata, REGARDLESS of
+  // is_intro_request. After Accept we flip is_intro_request=false to
+  // move the thread out of the Intros tab, but the card still needs
+  // to render (in its collapsed accepted-strip form) so the recipient
+  // can revoke. Gating on is_intro_request would leave accepted
+  // threads with a broken intro_request system message (falls through
+  // to the plain-text fallback renderer and shows a bare "Intro
+  // request" row).
   let introDetail: ThreadDetail["intro_detail"] = null;
   const introSenderId = (thread as { intro_sender_id?: string | null })
     .intro_sender_id ?? null;
@@ -505,12 +511,7 @@ export async function getThreadDetail(
     .intro_recipient_id ?? null;
   const introStatus = (thread as { intro_status?: IntroStatus | null })
     .intro_status ?? null;
-  if (
-    thread.is_intro_request &&
-    introSenderId &&
-    introRecipientId &&
-    introStatus
-  ) {
+  if (introSenderId && introRecipientId && introStatus) {
     const [{ data: senderRow }, { data: senderListings }] = await Promise.all([
       supabase
         .from("users")
