@@ -111,7 +111,7 @@ export function ReserveReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Review your request</DialogTitle>
         </DialogHeader>
@@ -182,7 +182,6 @@ export function ReserveReviewDialog({
               <CancellationPolicyCard
                 policy={cancellationPolicy}
                 scope="listing"
-                compact
               />
             </div>
           )}

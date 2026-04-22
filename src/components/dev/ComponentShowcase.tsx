@@ -1459,13 +1459,6 @@ function TimelineSection() {
       detail: "Due Jun 11 · $345",
     },
     {
-      key: "upcoming",
-      label: "Trip begins",
-      status: "upcoming",
-      at: "2026-06-12",
-      detail: null,
-    },
-    {
       key: "checked_in",
       label: "Checked in",
       status: "upcoming",

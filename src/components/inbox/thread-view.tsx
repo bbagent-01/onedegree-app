@@ -106,9 +106,15 @@ function bookingBadge(status: string | undefined) {
 
 function formatStayDates(start: string | null, end: string | null) {
   if (!start || !end) return null;
-  const s = new Date(start);
-  const e = new Date(end);
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  const parse = (iso: string): Date | null => {
+    const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+  };
+  const s = parse(start);
+  const e = parse(end);
+  if (!s || !e) return null;
   return `${s.toLocaleDateString(undefined, opts)} – ${e.toLocaleDateString(undefined, opts)}`;
 }
 
@@ -265,12 +271,16 @@ export function ThreadView({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* Thread header — S5 click-model rule: avatar + name navigate
-          to the counterparty's profile. Trust detail lives on the
-          TrustTag where it appears, not on the header avatar. */}
+          to the counterparty's profile. Each gets its own Link so
+          the hover affordance tells the viewer they're a navigation
+          target: avatar gets a soft drop-shadow, name gets an
+          underline. Trust detail lives on the TrustTag (not
+          rendered here in the header). */}
       <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
         <Link
           href={`/profile/${thread.other_user.id}`}
-          className="flex min-w-0 flex-1 items-center gap-3 hover:opacity-90"
+          className="shrink-0 rounded-full transition-shadow hover:shadow-md"
+          aria-label={`Open ${thread.other_user.name}'s profile`}
         >
           <Avatar className="h-10 w-10">
             {thread.other_user.avatar_url && (
@@ -281,17 +291,20 @@ export function ThreadView({
             )}
             <AvatarFallback>{initials(thread.other_user.name)}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-base font-semibold">
-              {thread.other_user.name}
-            </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {thread.listing
-                ? `${thread.role === "host" ? "Guest" : "Host"} · ${thread.listing.area_name}`
-                : "Direct message"}
-            </div>
-          </div>
         </Link>
+        <div className="min-w-0 flex-1">
+          <Link
+            href={`/profile/${thread.other_user.id}`}
+            className="block truncate text-base font-semibold hover:underline"
+          >
+            {thread.other_user.name}
+          </Link>
+          <div className="truncate text-xs text-muted-foreground">
+            {thread.listing
+              ? `${thread.role === "host" ? "Guest" : "Host"} · ${thread.listing.area_name}`
+              : "Direct message"}
+          </div>
+        </div>
       </div>
 
       {/* Host awareness banner — just flags that a request is
@@ -675,18 +688,27 @@ export function ThreadView({
                   );
                 }
 
-                // Structured check-in reminder card.
+                // Structured check-in reminder card. The check_in
+                // date column is a plain YYYY-MM-DD string — parsing
+                // it with `new Date(str)` would coerce to UTC and
+                // drift by the viewer's timezone offset (showing
+                // Apr 22 for an Apr 23 booking in EDT). Split the
+                // pieces and construct a local date instead.
                 if (m.content.startsWith(CHECKIN_REMINDER_PREFIX)) {
                   const checkIn = thread.booking?.check_in;
-                  let subtitle = "Check-in is tomorrow";
+                  let arrival: string | null = null;
                   if (checkIn) {
-                    const d = new Date(checkIn);
-                    if (!Number.isNaN(d.getTime())) {
-                      subtitle = `Arriving ${d.toLocaleDateString(undefined, {
+                    const [y, mo, d] = checkIn.slice(0, 10).split("-").map(Number);
+                    if (y && mo && d) {
+                      arrival = new Date(
+                        y,
+                        mo - 1,
+                        d
+                      ).toLocaleDateString(undefined, {
                         weekday: "long",
                         month: "short",
                         day: "numeric",
-                      })}`;
+                      });
                     }
                   }
                   return (
@@ -694,8 +716,12 @@ export function ThreadView({
                       <SystemMilestoneCard
                         icon={CalendarClock}
                         tone="amber"
-                        title="Check-in tomorrow"
-                        subtitle={`${subtitle} · coordinate any last-minute details here.`}
+                        title="Heads up — check-in is tomorrow"
+                        subtitle={
+                          arrival
+                            ? `Arriving ${arrival}. Coordinate any last-minute details here.`
+                            : "Coordinate any last-minute details here."
+                        }
                       />
                     </div>
                   );

@@ -270,15 +270,14 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
               const isUnread = t.unread_count > 0;
               return (
                 <li key={t.id}>
-                  <button
-                    type="button"
+                  {/* Row-as-div so nested Links (avatar, name) are
+                      legal. Row click opens the thread; Links
+                      stopPropagation so avatar/name specifically
+                      navigate to /profile per the S5 click model. */}
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
-                      // Desktop: swap via the shell's onSelectThread
-                      // callback when present (no RSC round-trip). Fall
-                      // back to router.push for legacy mounts that
-                      // don't wire the callback.
-                      // Mobile: always navigate to /inbox/[id] so the
-                      // thread takes over the whole viewport.
                       const isDesktop =
                         typeof window !== "undefined" &&
                         window.matchMedia("(min-width: 768px)").matches;
@@ -292,39 +291,53 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                         router.push(`/inbox/${t.id}`);
                       }
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        (e.currentTarget as HTMLElement).click();
+                      }
+                    }}
                     className={cn(
-                      "flex w-full items-start gap-3 border-b border-border px-3 py-3 text-left transition-colors hover:bg-muted/60",
+                      "group flex w-full cursor-pointer items-start gap-3 border-b border-border px-3 py-3 text-left transition-colors hover:bg-muted/60",
                       isSelected && "bg-muted",
                       t.is_intro_request && "bg-amber-50/40"
                     )}
                   >
-                    {/* Avatar is part of the row button — clicking
-                        anywhere in the row opens the thread. Trust
-                        detail moved to the TrustTag below per S5
-                        click-model rule (avatar navigates, pill
-                        explains). */}
-                    <Avatar className="h-12 w-12 shrink-0">
-                      {t.other_user.avatar_url && (
-                        <AvatarImage
-                          src={t.other_user.avatar_url}
-                          alt={t.other_user.name}
-                        />
-                      )}
-                      <AvatarFallback>
-                        {initials(t.other_user.name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    {/* Avatar → /profile/[id], with a soft drop-shadow
+                        on hover. stopPropagation keeps the row-level
+                        thread-open from firing. */}
+                    <Link
+                      href={`/profile/${t.other_user.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="shrink-0 rounded-full transition-shadow hover:shadow-md"
+                      aria-label={`Open ${t.other_user.name}'s profile`}
+                    >
+                      <Avatar className="h-12 w-12">
+                        {t.other_user.avatar_url && (
+                          <AvatarImage
+                            src={t.other_user.avatar_url}
+                            alt={t.other_user.name}
+                          />
+                        )}
+                        <AvatarFallback>
+                          {initials(t.other_user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-1.5">
-                          <span
+                          {/* Name → /profile/[id], underline on hover. */}
+                          <Link
+                            href={`/profile/${t.other_user.id}`}
+                            onClick={(e) => e.stopPropagation()}
                             className={cn(
-                              "truncate text-sm",
+                              "truncate text-sm hover:underline",
                               isUnread ? "font-semibold" : "font-medium"
                             )}
                           >
                             {t.other_user.name}
-                          </span>
+                          </Link>
                           {(t.trust_score > 0 || t.trust_is_direct) && (
                             <TrustTagPopover
                               targetUserId={t.other_user.id}
@@ -387,7 +400,7 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                     {isUnread && (
                       <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand" />
                     )}
-                  </button>
+                  </div>
                 </li>
               );
             })}

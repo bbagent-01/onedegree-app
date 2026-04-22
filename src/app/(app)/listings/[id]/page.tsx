@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { Star, Medal } from "lucide-react";
 import { getListingDetail } from "@/lib/listing-detail-data";
@@ -18,11 +19,10 @@ import { AmenitiesSection } from "@/components/listing/amenities-section";
 import { ReviewsSection } from "@/components/listing/reviews-section";
 import { BookingSidebar } from "@/components/listing/booking-sidebar";
 import { AvailabilityCalendarWrapper } from "@/components/listing/availability-calendar-wrapper";
-import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { LocationMapClient } from "@/components/listing/location-map-client";
 import { StickyAnchorBar } from "@/components/listing/sticky-anchor-bar";
 import { GatedListingView } from "@/components/listing/gated-listing-view";
-import { TrustTag } from "@/components/trust/trust-tag";
+import { TrustTagPopover } from "@/components/trust/trust-tag-popover";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
 import { PAYMENT_METHOD_META } from "@/lib/payment-methods";
 
@@ -258,16 +258,23 @@ export default async function ListingPage({
 
           <Separator className="my-8" />
 
-          {/* Host card */}
+          {/* Host card — S5 click model.
+              - Avatar: Link to /profile/[host.id], soft drop-shadow
+                on hover.
+              - Name ("Hosted by …"): Link to /profile/[host.id],
+                underline on hover.
+              - TrustTag pill: ConnectionPopover opens the trust
+                detail in a white rounded card below it (base-ui
+                Popover primitive). */}
           {listing.host && (
             <>
               <div className="flex items-center gap-4">
-                <ConnectionPopover
-                  targetUserId={listing.host.id}
-                  direction="incoming"
-                  disabled={trust?.degree === 1 || trust?.hasDirectVouch}
+                <Link
+                  href={`/profile/${listing.host.id}`}
+                  className="shrink-0 rounded-full transition-shadow hover:shadow-md"
+                  aria-label={`Open ${listing.host.name}'s profile`}
                 >
-                  <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted cursor-pointer">
+                  <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted">
                     {listing.host.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -286,18 +293,19 @@ export default async function ListingPage({
                       </div>
                     )}
                   </div>
-                </ConnectionPopover>
+                </Link>
                 <div>
-                  <div className="text-lg font-semibold">
+                  <Link
+                    href={`/profile/${listing.host.id}`}
+                    className="text-lg font-semibold hover:underline"
+                  >
                     Hosted by {listing.host.name}
-                  </div>
+                  </Link>
                   {trust && (
-                    <ConnectionPopover
-                      targetUserId={listing.host.id}
-                      direction="incoming"
-                      disabled={trust.degree === 1 || trust.hasDirectVouch}
-                    >
-                      <TrustTag
+                    <div className="mt-0.5">
+                      <TrustTagPopover
+                        targetUserId={listing.host.id}
+                        direction="incoming"
                         size="medium"
                         score={trust.score}
                         degree={trust.degree}
@@ -305,9 +313,8 @@ export default async function ListingPage({
                         connectorPaths={trust.connectorPaths}
                         hostRating={listing.host.host_rating}
                         hostReviewCount={listing.host.host_review_count}
-                        className="mt-0.5"
                       />
-                    </ConnectionPopover>
+                    </div>
                   )}
                   <div className="text-sm text-muted-foreground">
                     {yearsHosting > 0
@@ -503,12 +510,12 @@ export default async function ListingPage({
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               <div className="rounded-xl border border-border/60 p-6 md:col-span-1">
                 <div className="flex flex-col items-center text-center">
-                  <ConnectionPopover
-                  targetUserId={listing.host.id}
-                  direction="incoming"
-                  disabled={trust?.degree === 1 || trust?.hasDirectVouch}
-                >
-                    <div className="relative h-24 w-24 overflow-hidden rounded-full bg-muted cursor-pointer">
+                  <Link
+                    href={`/profile/${listing.host.id}`}
+                    className="rounded-full transition-shadow hover:shadow-md"
+                    aria-label={`Open ${listing.host.name}'s profile`}
+                  >
+                    <div className="relative h-24 w-24 overflow-hidden rounded-full bg-muted">
                       {listing.host.avatar_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -522,21 +529,27 @@ export default async function ListingPage({
                         </div>
                       )}
                     </div>
-                  </ConnectionPopover>
-                  <div className="mt-3 text-xl font-semibold">
+                  </Link>
+                  <Link
+                    href={`/profile/${listing.host.id}`}
+                    className="mt-3 text-xl font-semibold hover:underline"
+                  >
                     {listing.host.name}
-                  </div>
+                  </Link>
                   {trust && (
-                    <TrustTag
-                      size="medium"
-                      score={trust.score}
-                      degree={trust.degree}
-                      direct={trust.hasDirectVouch}
-                      connectorPaths={trust.connectorPaths}
-                      hostRating={listing.host.host_rating}
-                      hostReviewCount={listing.host.host_review_count}
-                      className="mt-1"
-                    />
+                    <div className="mt-1">
+                      <TrustTagPopover
+                        targetUserId={listing.host.id}
+                        direction="incoming"
+                        size="medium"
+                        score={trust.score}
+                        degree={trust.degree}
+                        direct={trust.hasDirectVouch}
+                        connectorPaths={trust.connectorPaths}
+                        hostRating={listing.host.host_rating}
+                        hostReviewCount={listing.host.host_review_count}
+                      />
+                    </div>
                   )}
                   {isSuperhost && (
                     <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-muted-foreground">

@@ -26,7 +26,6 @@ export type StageKey =
   | "declined"
   | "cancelled"
   | "payment"
-  | "upcoming"
   | "checked_in"
   | "checked_out"
   | "reviewed";
@@ -287,26 +286,12 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
     });
   }
 
-  // Stage 5: Upcoming (between terms acceptance and check-in).
-  const s5: TimelineStage = {
-    key: "upcoming",
-    label: "Upcoming",
-    status: !isAccepted
-      ? "upcoming"
-      : preCheckIn
-        ? "current"
-        : inStay || postStay
-          ? "done"
-          : "upcoming",
-    at: checkInDate,
-    detail: checkInDate
-      ? preCheckIn
-        ? `Check-in ${fmtDate(checkInDate)}`
-        : inStay || postStay
-          ? `Checked in ${fmtDate(checkInDate)}`
-          : null
-      : null,
-  };
+  // The "Upcoming" waiting stage between terms acceptance and
+  // check-in was removed — it added a row labeled just "Upcoming"
+  // that collided with the "upcoming" status word and, in collapsed
+  // sidebar mode, pushed the NEXT real action (Payment N) off the
+  // visible slice. The check-in date is already implied by the
+  // next payment row and the "During stay" label.
 
   // Stage 6: Checked in (stay in progress).
   const s6: TimelineStage = {
@@ -366,5 +351,5 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
           : null,
   };
 
-  return [s1, s2, s3, ...s4List, s5, s6, s7, s8];
+  return [s1, s2, s3, ...s4List, s6, s7, s8];
 }
