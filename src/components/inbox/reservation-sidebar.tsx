@@ -128,6 +128,7 @@ export function ReservationSidebar({ thread, onClose }: Props) {
         {booking && (
           <CollapsibleTripTimeline
             compact
+            mode="sidebar"
             stages={resolveStages({
               status: booking.status,
               check_in: booking.check_in,

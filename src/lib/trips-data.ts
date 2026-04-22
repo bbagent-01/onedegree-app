@@ -209,6 +209,26 @@ export interface TripDetail extends TripCard {
    *  materialized a ledger (pending/declined/cancelled, or the
    *  policy has no payment_schedule). */
   payment_events: import("./payment-events").PaymentEvent[];
+  /**
+   * Who's looking at this trip — derived by matching viewerUserId
+   * against the contact_request's host_id / guest_id. Drives the
+   * role-aware copy on /trips/[bookingId] so the same page reads
+   * correctly for both sides.
+   */
+  viewer_role: "guest" | "host";
+  /** The OTHER party on this reservation. For a guest viewer that's
+   *  the host; for a host viewer that's the guest. Always present
+   *  because the reservation row is gated on the viewer being one
+   *  of the two parties. */
+  counterparty: {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    role: "guest" | "host";
+  };
+  /** Counterparty's email — only exposed once the reservation is
+   *  accepted so the coordination channel is visible to both sides. */
+  counterparty_email: string | null;
 }
 
 /** Fetch a single trip with extra detail for the trip detail page.
@@ -233,6 +253,7 @@ export async function getTripDetail(
     { data: listing },
     { data: photos },
     { data: host },
+    { data: guest },
     { data: thread },
     { data: stay },
     { data: manual },
@@ -254,6 +275,11 @@ export async function getTripDetail(
         "id, name, avatar_url, email, phone_number, cancellation_policy, payment_methods"
       )
       .eq("id", request.host_id)
+      .maybeSingle(),
+    supabase
+      .from("users")
+      .select("id, name, avatar_url, email")
+      .eq("id", request.guest_id)
       .maybeSingle(),
     supabase
       .from("message_threads")
@@ -354,5 +380,26 @@ export async function getTripDetail(
       (request as { total_estimate?: number | null }).total_estimate ?? null,
     payment_events:
       (paymentEvents || []) as import("./payment-events").PaymentEvent[],
+    viewer_role: viewerUserId === request.host_id ? "host" : "guest",
+    counterparty:
+      viewerUserId === request.host_id
+        ? {
+            id: (guest?.id as string) ?? request.guest_id,
+            name: (guest?.name as string) ?? "Guest",
+            avatar_url: (guest?.avatar_url as string | null) ?? null,
+            role: "guest",
+          }
+        : {
+            id: (host?.id as string) ?? request.host_id,
+            name: (host?.name as string) ?? "Host",
+            avatar_url: (host?.avatar_url as string | null) ?? null,
+            role: "host",
+          },
+    counterparty_email:
+      request.status === "accepted"
+        ? viewerUserId === request.host_id
+          ? (guest?.email as string | null) ?? null
+          : (host?.email as string | null) ?? null
+        : null,
   };
 }

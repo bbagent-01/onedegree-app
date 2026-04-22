@@ -6,6 +6,7 @@ import { getOrCreateThread } from "@/lib/messaging-data";
 import { emailNewBookingRequest } from "@/lib/email";
 import { effectiveAuth } from "@/lib/impersonation/session";
 import { resolveEffectivePolicy } from "@/lib/cancellation";
+import { RESERVATION_REQUEST_PREFIX } from "@/lib/structured-messages";
 
 /**
  * Track B reservation endpoint.
@@ -163,12 +164,14 @@ export async function POST(req: Request) {
     return Response.json({ id: request.id, threadId, deduped: true });
   }
 
-  // System message — reservation request created
-  const guestLabel = currentUser.name?.split(" ")[0] || "Guest";
+  // System message — reservation request created. Structured prefix
+  // so the thread view swaps in SystemMilestoneCard (icon + guest
+  // name + date range + guest count) instead of rendering a plain
+  // sentence. Card reads live data from thread.booking.
   await supabase.from("messages").insert({
     thread_id: threadId,
     sender_id: null,
-    content: `${guestLabel} requested to reserve from ${body.checkIn} to ${body.checkOut} · ${body.guests ?? 1} guest${(body.guests ?? 1) === 1 ? "" : "s"}.`,
+    content: RESERVATION_REQUEST_PREFIX,
     is_system: true,
   });
 

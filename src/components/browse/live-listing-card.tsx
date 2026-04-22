@@ -7,7 +7,7 @@ import { Heart, ChevronLeft, ChevronRight, Lock, Star, Info } from "lucide-react
 import { toast } from "sonner";
 import type { BrowseListing } from "@/lib/browse-data";
 import { SaveToWishlistDialog } from "@/components/wishlist/save-to-wishlist-dialog";
-import { TrustTag } from "@/components/trust/trust-tag";
+import { TrustTagPopover } from "@/components/trust/trust-tag-popover";
 import { GatedListingDialog } from "./gated-listing-dialog";
 import type { BrowseListingTrust } from "./browse-layout";
 
@@ -214,7 +214,8 @@ export function LiveListingCard({
             )}
             {trust && (
               <div className="mt-1">
-                <TrustTag
+                <TrustTagPopover
+                  targetUserId={listing.host_id}
                   size="micro"
                   score={trust.trust_score}
                   degree={trust.degree}
@@ -308,7 +309,8 @@ export function LiveListingCard({
             </p>
             {trust && (
               <div className="mt-1.5 flex items-center gap-2">
-                <TrustTag
+                <TrustTagPopover
+                  targetUserId={listing.host_id}
                   size="micro"
                   score={trust.trust_score}
                   degree={trust.degree}
@@ -406,7 +408,8 @@ export function LiveListingCard({
           )}
           {trust && (
             <div className="mt-1">
-              <TrustTag
+              <TrustTagPopover
+                targetUserId={listing.host_id}
                 size="micro"
                 score={trust.trust_score}
                 degree={trust.degree}

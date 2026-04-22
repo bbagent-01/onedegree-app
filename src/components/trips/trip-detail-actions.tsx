@@ -20,8 +20,17 @@ export function TripDetailActions({ trip, canReview }: Props) {
   const cat = categorizeTrip({ status: trip.status, check_out: trip.check_out });
   const showCancel =
     cat === "upcoming" && (trip.status === "pending" || trip.status === "accepted");
+  // Review button only surfaces for guest viewers. Hosts have their
+  // own review path via the thread's review_prompt card (and
+  // ReviewFlowDialog expects viewerRole="guest" here); gating by
+  // role keeps the button semantically correct.
   const showReview =
-    canReview && trip.status === "accepted" && !trip.guest_left_review;
+    trip.viewer_role === "guest" &&
+    canReview &&
+    trip.status === "accepted" &&
+    !trip.guest_left_review;
+  const counterpartyFirstName =
+    trip.counterparty?.name?.split(" ")[0] ?? "them";
 
   return (
     <>
@@ -32,7 +41,7 @@ export function TripDetailActions({ trip, canReview }: Props) {
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
           >
             <MessageCircle className="h-4 w-4" />
-            Message host
+            Message {counterpartyFirstName}
           </Link>
         )}
         <Link

@@ -19,6 +19,13 @@
 
 export const TERMS_OFFERED_PREFIX = "__type:terms_offered__";
 export const TERMS_ACCEPTED_PREFIX = "__type:terms_accepted__";
+/** Reservation-request lifecycle marker posted by POST /api/bookings
+ *  when the guest submits a request-to-reserve. The card reads
+ *  dates / guest count from thread.booking — no payload needed. */
+export const RESERVATION_REQUEST_PREFIX = "__type:reservation_request__";
+/** Check-in reminder (one day out) posted by the hourly cron. Card
+ *  reads the check-in date from thread.booking. */
+export const CHECKIN_REMINDER_PREFIX = "__type:checkin_reminder__";
 /** Posted when the stay ends — the thread card prompts both sides
  *  to leave a review. One prefix, two viewers; the renderer branches
  *  on role. */
@@ -122,6 +129,8 @@ export function isStructuredMessage(content: string): boolean {
   return (
     content.startsWith(TERMS_OFFERED_PREFIX) ||
     content.startsWith(TERMS_ACCEPTED_PREFIX) ||
+    content.startsWith(RESERVATION_REQUEST_PREFIX) ||
+    content.startsWith(CHECKIN_REMINDER_PREFIX) ||
     content.startsWith(REVIEW_PROMPT_PREFIX) ||
     content.startsWith(PAYMENT_DUE_PREFIX) ||
     content.startsWith(PAYMENT_CLAIMED_PREFIX) ||
@@ -146,6 +155,10 @@ export function isStructuredMessage(content: string): boolean {
 export function structuredMessageLabel(content: string): string | null {
   if (content.startsWith(TERMS_OFFERED_PREFIX)) return "Terms sent";
   if (content.startsWith(TERMS_ACCEPTED_PREFIX)) return "Terms accepted";
+  if (content.startsWith(RESERVATION_REQUEST_PREFIX))
+    return "Reservation request";
+  if (content.startsWith(CHECKIN_REMINDER_PREFIX))
+    return "Check-in tomorrow";
   if (content.startsWith(REVIEW_PROMPT_PREFIX)) return "Leave a review";
   if (content.startsWith(PAYMENT_DUE_PREFIX)) return "Payment due";
   if (content.startsWith(PAYMENT_CLAIMED_PREFIX)) return "Payment sent";

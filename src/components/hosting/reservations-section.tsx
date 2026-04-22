@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageCircle, Check, X, Star } from "lucide-react";
 import type { HostingReservation } from "@/lib/hosting-data";
 import { toast } from "sonner";
-import { TrustTag } from "@/components/trust/trust-tag";
+import { TrustTagPopover } from "@/components/trust/trust-tag-popover";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { ReviewFlowDialog } from "@/components/booking/ReviewFlowDialog";
 import Link from "next/link";
@@ -98,7 +98,9 @@ function ReservationCard({
                 </Link>
                 {(reservation.trust_score > 0 ||
                   reservation.trust_is_direct) && (
-                  <TrustTag
+                  <TrustTagPopover
+                    targetUserId={reservation.guest_id}
+                    direction="incoming"
                     size="micro"
                     score={reservation.trust_score}
                     degree={reservation.trust_degree}

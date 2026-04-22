@@ -14,6 +14,7 @@ import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { ConnectionPath } from "@/components/trust/connection-path";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { ReportUserButton } from "@/components/safety/report-user-button";
+import { PreviewBadge } from "@/components/profile/preview-badge";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -56,6 +57,16 @@ export default async function ProfilePage({
   const trust =
     viewerId && !isOwn ? await computeTrustPath(viewerId, user.id) : null;
 
+  // Preview mode = signed-in viewer, not self, not directly
+  // vouched / 1°. The badge is informational — the page still
+  // renders the full profile — and nudges the viewer to grow a
+  // deeper connection before exchanging intros. Reuses the same
+  // trust fields that drive the trust-tag on the profile.
+  const isPreview =
+    !!viewerId &&
+    !isOwn &&
+    (!trust || (!trust.hasDirectVouch && trust.degree !== 1));
+
   return (
     <div className="mx-auto w-full max-w-[1040px] px-4 py-6 md:px-6 md:py-10">
       {/* Header card */}
@@ -76,7 +87,10 @@ export default async function ProfilePage({
         </ConnectionPopover>
 
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-semibold md:text-3xl">{user.name}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-semibold md:text-3xl">{user.name}</h1>
+            {isPreview && <PreviewBadge />}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Member since {formatMemberSince(user.created_at)}
           </p>

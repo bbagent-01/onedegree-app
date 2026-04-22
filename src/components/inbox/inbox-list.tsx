@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, ChevronDown, Check, Camera } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ConnectionPopover } from "@/components/trust/connection-breakdown";
-import { TrustTag } from "@/components/trust/trust-tag";
+import { TrustTagPopover } from "@/components/trust/trust-tag-popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -299,22 +298,22 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                       t.is_intro_request && "bg-amber-50/40"
                     )}
                   >
-                    <ConnectionPopover
-                      targetUserId={t.other_user.id}
-                      direction={t.role === "guest" ? "incoming" : "outgoing"}
-                    >
-                      <Avatar className="h-12 w-12 shrink-0 cursor-pointer">
-                        {t.other_user.avatar_url && (
-                          <AvatarImage
-                            src={t.other_user.avatar_url}
-                            alt={t.other_user.name}
-                          />
-                        )}
-                        <AvatarFallback>
-                          {initials(t.other_user.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </ConnectionPopover>
+                    {/* Avatar is part of the row button — clicking
+                        anywhere in the row opens the thread. Trust
+                        detail moved to the TrustTag below per S5
+                        click-model rule (avatar navigates, pill
+                        explains). */}
+                    <Avatar className="h-12 w-12 shrink-0">
+                      {t.other_user.avatar_url && (
+                        <AvatarImage
+                          src={t.other_user.avatar_url}
+                          alt={t.other_user.name}
+                        />
+                      )}
+                      <AvatarFallback>
+                        {initials(t.other_user.name)}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-1.5">
@@ -327,7 +326,11 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                             {t.other_user.name}
                           </span>
                           {(t.trust_score > 0 || t.trust_is_direct) && (
-                            <TrustTag
+                            <TrustTagPopover
+                              targetUserId={t.other_user.id}
+                              direction={
+                                t.role === "guest" ? "incoming" : "outgoing"
+                              }
                               size="micro"
                               score={t.trust_score}
                               degree={t.trust_degree}

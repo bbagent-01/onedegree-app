@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Send } from "lucide-react";
+import { CalendarClock, CalendarPlus, Send } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { getSupabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -26,9 +25,12 @@ import {
   INTRO_ACCEPTED_PREFIX,
   INTRO_DECLINED_PREFIX,
   INTRO_REVOKED_PREFIX,
+  RESERVATION_REQUEST_PREFIX,
+  CHECKIN_REMINDER_PREFIX,
   parseIssueReportId,
   parsePhotoRequestId,
 } from "@/lib/structured-messages";
+import { SystemMilestoneCard } from "@/components/inbox/SystemMilestoneCard";
 import { ReviewPromptCard } from "@/components/booking/ReviewPromptCard";
 import { HostReviewTermsInline } from "@/components/booking/HostReviewTermsInline";
 import { MessageReportMenu } from "@/components/safety/message-report-menu";
@@ -262,13 +264,15 @@ export function ThreadView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      {/* Thread header */}
+      {/* Thread header — S5 click-model rule: avatar + name navigate
+          to the counterparty's profile. Trust detail lives on the
+          TrustTag where it appears, not on the header avatar. */}
       <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-        <ConnectionPopover
-          targetUserId={thread.other_user.id}
-          direction={thread.role === "guest" ? "incoming" : "outgoing"}
+        <Link
+          href={`/profile/${thread.other_user.id}`}
+          className="flex min-w-0 flex-1 items-center gap-3 hover:opacity-90"
         >
-          <Avatar className="h-10 w-10 cursor-pointer">
+          <Avatar className="h-10 w-10">
             {thread.other_user.avatar_url && (
               <AvatarImage
                 src={thread.other_user.avatar_url}
@@ -277,17 +281,17 @@ export function ThreadView({
             )}
             <AvatarFallback>{initials(thread.other_user.name)}</AvatarFallback>
           </Avatar>
-        </ConnectionPopover>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-base font-semibold">
-            {thread.other_user.name}
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-base font-semibold">
+              {thread.other_user.name}
+            </div>
+            <div className="truncate text-xs text-muted-foreground">
+              {thread.listing
+                ? `${thread.role === "host" ? "Guest" : "Host"} · ${thread.listing.area_name}`
+                : "Direct message"}
+            </div>
           </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {thread.listing
-              ? `${thread.role === "host" ? "Guest" : "Host"} · ${thread.listing.area_name}`
-              : "Direct message"}
-          </div>
-        </div>
+        </Link>
       </div>
 
       {/* Host awareness banner — just flags that a request is
@@ -638,10 +642,70 @@ export function ThreadView({
                     </div>
                   );
                 }
-                // Plain-text system messages (booking request
-                // announcement, check-in reminder, legacy prompts).
-                // Styled as a full-width card to match the rest of
-                // the timeline instead of a small muted pill.
+                // Structured reservation-request card. The card
+                // reads live dates / guest count from thread.booking,
+                // so no payload is embedded in the message itself.
+                if (m.content.startsWith(RESERVATION_REQUEST_PREFIX)) {
+                  const guestName =
+                    thread.role === "host"
+                      ? thread.other_user.name.split(" ")[0]
+                      : "You";
+                  const dates = formatStayDates(
+                    thread.booking?.check_in ?? null,
+                    thread.booking?.check_out ?? null
+                  );
+                  const guests = thread.booking?.guest_count;
+                  const subtitle = [
+                    dates,
+                    typeof guests === "number"
+                      ? `${guests} guest${guests === 1 ? "" : "s"}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <div key={m.id} className="py-1">
+                      <SystemMilestoneCard
+                        icon={CalendarPlus}
+                        tone="brand"
+                        title={`${guestName} requested to reserve`}
+                        subtitle={subtitle || undefined}
+                      />
+                    </div>
+                  );
+                }
+
+                // Structured check-in reminder card.
+                if (m.content.startsWith(CHECKIN_REMINDER_PREFIX)) {
+                  const checkIn = thread.booking?.check_in;
+                  let subtitle = "Check-in is tomorrow";
+                  if (checkIn) {
+                    const d = new Date(checkIn);
+                    if (!Number.isNaN(d.getTime())) {
+                      subtitle = `Arriving ${d.toLocaleDateString(undefined, {
+                        weekday: "long",
+                        month: "short",
+                        day: "numeric",
+                      })}`;
+                    }
+                  }
+                  return (
+                    <div key={m.id} className="py-1">
+                      <SystemMilestoneCard
+                        icon={CalendarClock}
+                        tone="amber"
+                        title="Check-in tomorrow"
+                        subtitle={`${subtitle} · coordinate any last-minute details here.`}
+                      />
+                    </div>
+                  );
+                }
+
+                // Plain-text system messages (legacy request
+                // announcements before the structured migration,
+                // stray prompts). Styled as a full-width card to
+                // match the rest of the timeline instead of a small
+                // muted pill.
                 return (
                   <div key={m.id} className="py-1">
                     <div className="mx-auto w-full max-w-xl rounded-2xl border border-border bg-white px-4 py-3 text-sm text-foreground">

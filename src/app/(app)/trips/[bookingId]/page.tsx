@@ -15,7 +15,6 @@ import { getTripDetail } from "@/lib/trips-data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { TripDetailActions } from "@/components/trips/trip-detail-actions";
-import { PaymentArrangementCard } from "@/components/trips/payment-arrangement-card";
 import { CollapsibleTripTimeline } from "@/components/booking/CollapsibleTripTimeline";
 import { resolveStages } from "@/lib/booking-stage";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
@@ -169,7 +168,8 @@ export default async function TripDetailPage({ params }: PageProps) {
       {/* Trip timeline — collapsible. Collapsed state shows all
           done stages + next 3 upcoming; expanded shows every
           stage. Moved below the listing card so the stay identity
-          comes first. */}
+          comes first. viewer_role drives which stage reads as
+          "reviewed" for this viewer. */}
       <div className="mt-6">
         <CollapsibleTripTimeline
           stages={resolveStages({
@@ -179,7 +179,7 @@ export default async function TripDetailPage({ params }: PageProps) {
             created_at: trip.created_at,
             responded_at: trip.responded_at,
             terms_accepted_at: trip.terms_accepted_at,
-            viewer_role: "guest",
+            viewer_role: trip.viewer_role,
             stay_confirmation: {
               guest_rating: trip.stay_guest_rating,
               host_rating: trip.stay_host_rating,
@@ -188,15 +188,6 @@ export default async function TripDetailPage({ params }: PageProps) {
           })}
         />
       </div>
-
-      {/* Payment arrangement — only after host accepts */}
-      {isConfirmed && trip.host && (
-        <PaymentArrangementCard
-          bookingId={bookingId}
-          hostFirstName={trip.host.name?.split(" ")[0] ?? "your host"}
-          methods={trip.host_payment_methods}
-        />
-      )}
 
       {/* Cancellation & payment policy — snapshot on accepted
           reservations, resolved live before that. */}
@@ -218,56 +209,76 @@ export default async function TripDetailPage({ params }: PageProps) {
         )}
       </section>
 
-      {/* Host section */}
-      {trip.host && (
+      {/* Counterparty section — role-neutral. Shows the host when
+          viewer is guest, and the guest when viewer is host. The
+          section header mirrors the counterparty's role so the
+          label always reads naturally for the viewer. */}
+      {trip.counterparty && (
         <section className="mt-6 rounded-2xl border border-border bg-white p-5 md:p-6">
-          <h2 className="text-base font-semibold">Your host</h2>
+          <h2 className="text-base font-semibold">
+            {trip.counterparty.role === "host" ? "Host" : "Guest"}
+          </h2>
           <div className="mt-3 flex items-center gap-3">
             <Avatar className="h-12 w-12">
-              {trip.host.avatar_url && (
-                <AvatarImage src={trip.host.avatar_url} alt={trip.host.name} />
+              {trip.counterparty.avatar_url && (
+                <AvatarImage
+                  src={trip.counterparty.avatar_url}
+                  alt={trip.counterparty.name}
+                />
               )}
-              <AvatarFallback>{initials(trip.host.name)}</AvatarFallback>
+              <AvatarFallback>
+                {initials(trip.counterparty.name)}
+              </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <div className="text-sm font-semibold">{trip.host.name}</div>
+              <div className="text-sm font-semibold">
+                {trip.counterparty.name}
+              </div>
               {!isConfirmed && (
                 <div className="text-xs text-muted-foreground">
-                  Contact info unlocks once your host confirms.
+                  Contact info unlocks once the reservation is confirmed.
                 </div>
               )}
             </div>
           </div>
-          {isConfirmed && trip.host_email && (
+          {isConfirmed && trip.counterparty_email && (
             <div className="mt-4 space-y-2 rounded-xl border border-border bg-muted/30 p-4 text-sm">
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-muted-foreground" />
                 <a
-                  href={`mailto:${trip.host_email}`}
+                  href={`mailto:${trip.counterparty_email}`}
                   className="hover:underline"
                 >
-                  {trip.host_email}
+                  {trip.counterparty_email}
                 </a>
               </div>
               <p className="text-xs text-muted-foreground">
                 Use this to coordinate check-in details, parking, and arrival
-                time directly with your host.
+                time directly.
               </p>
             </div>
           )}
         </section>
       )}
 
-      {/* Original message */}
+      {/* Original message from the guest. Heading reads "Guest's
+          request" to the host viewer and "Your request" to the guest
+          viewer. Reply, when present, is always from the host. */}
       {trip.message && (
         <section className="mt-6 rounded-2xl border border-border bg-white p-5 md:p-6">
-          <h2 className="text-base font-semibold">Your request</h2>
+          <h2 className="text-base font-semibold">
+            {trip.viewer_role === "host"
+              ? `${trip.counterparty.name.split(" ")[0]}'s request`
+              : "Your request"}
+          </h2>
           <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
             {trip.message}
           </p>
           {trip.host_response_message && (
             <>
-              <h3 className="mt-5 text-sm font-semibold">Host&rsquo;s reply</h3>
+              <h3 className="mt-5 text-sm font-semibold">
+                {trip.viewer_role === "host" ? "Your reply" : "Host's reply"}
+              </h3>
               <p className="mt-1.5 whitespace-pre-wrap text-sm text-muted-foreground">
                 {trip.host_response_message}
               </p>
@@ -297,18 +308,22 @@ export default async function TripDetailPage({ params }: PageProps) {
           </dl>
         </section>
       )}
+      {/* Empty-state guidance for the house manual. Copy differs
+          per role — guests get nudged to message the host; hosts
+          get a prompt to fill it in from their listing settings. */}
       {isConfirmed && manualEntries.length === 0 && (
         <section className="mt-6 rounded-2xl border border-dashed border-border bg-white p-5 text-center md:p-6">
           <BookOpen className="mx-auto h-6 w-6 text-muted-foreground" />
           <p className="mt-2 text-sm text-muted-foreground">
-            Your host hasn&rsquo;t shared a house manual yet. Message them for
-            check-in instructions.
+            {trip.viewer_role === "host"
+              ? "No house manual yet. Add arrival, Wi-Fi, and checkout details from your listing so your guest has them on hand."
+              : `${trip.counterparty.name.split(" ")[0]} hasn't shared a house manual yet. Send a message for check-in instructions.`}
           </p>
         </section>
       )}
 
-      {/* Quiet host phone hint suppressed — privacy */}
-      {isConfirmed && trip.host && !trip.host_email && (
+      {/* Fallback coordination hint when there's no shared email yet. */}
+      {isConfirmed && trip.counterparty && !trip.counterparty_email && (
         <p className="mt-6 text-center text-xs text-muted-foreground">
           <Phone className="mr-1 inline h-3 w-3" />
           Coordinate directly via the in-app conversation.

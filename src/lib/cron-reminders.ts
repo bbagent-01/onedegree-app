@@ -9,7 +9,10 @@
 
 import { getSupabaseAdmin } from "./supabase";
 import { emailCheckinReminder, emailReviewReminder } from "./email";
-import { REVIEW_PROMPT_PREFIX } from "./structured-messages";
+import {
+  CHECKIN_REMINDER_PREFIX,
+  REVIEW_PROMPT_PREFIX,
+} from "./structured-messages";
 
 interface AcceptedBooking {
   id: string;
@@ -201,12 +204,15 @@ async function fireCheckinReminder(b: AcceptedBooking) {
     .update({ checkin_reminder_sent_at: new Date().toISOString() })
     .eq("id", b.id);
 
-  // System message into the thread (one centered note both parties see)
+  // Structured check-in reminder — thread view swaps in
+  // SystemMilestoneCard (clock icon + arrival date subtitle) so
+  // the reminder reads at the same weight as the rest of the
+  // milestone timeline.
   if (thread) {
     await supabase.from("messages").insert({
       thread_id: thread.id,
       sender_id: null,
-      content: `Heads up — check-in is tomorrow (${b.check_in}). Coordinate any last-minute details here.`,
+      content: CHECKIN_REMINDER_PREFIX,
       is_system: true,
     });
   }
