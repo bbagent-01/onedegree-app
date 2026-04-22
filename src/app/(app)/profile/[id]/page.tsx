@@ -118,6 +118,7 @@ export default async function ProfilePage({
                 targetAvatar={user.avatar_url}
                 isOwnProfile={isOwn}
                 variant="outline"
+                className="h-auto rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
               />
               <Link
                 href="/inbox"

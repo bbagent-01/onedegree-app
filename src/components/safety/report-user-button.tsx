@@ -34,12 +34,17 @@ export function ReportUserButton({
 }: Props) {
   const [open, setOpen] = useState(false);
 
+  // Outline matches the Contact button on the profile header so the
+  // trio (Vouch / Contact / Report) reads as a single action row.
+  // Ghost is the full-width boxed surface in the thread sidebar,
+  // shape-matched to the "View full trip details" link right above
+  // it, with the Report color treatment.
   const base =
-    "inline-flex items-center gap-1.5 rounded-lg text-sm font-medium transition";
+    "inline-flex items-center gap-2 text-sm font-semibold transition";
   const variantClass =
     variant === "ghost"
-      ? "px-2 py-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-      : "border border-border bg-white px-4 py-2 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive";
+      ? "w-full rounded-xl border border-border bg-white px-4 py-3 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+      : "rounded-lg border border-border bg-white px-5 py-2.5 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive";
 
   return (
     <>
