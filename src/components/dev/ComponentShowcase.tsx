@@ -4,17 +4,40 @@
 "use client";
 
 import type { Section as SectionId } from "./Sidebar";
+import {
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  DollarSign,
+  Handshake,
+  Receipt,
+  Shield,
+  ShieldCheck,
+  Users,
+  Wallet,
+  XCircle,
+} from "lucide-react";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { ConnectorAvatars } from "@/components/trust/connector-avatars";
 import { ConnectorDots } from "@/components/trust/connector-dots";
 import { ShieldIcon } from "@/components/trust/shield-icon";
 import { ListingCard } from "@/components/listing-card";
+import { TripTimeline } from "@/components/booking/TripTimeline";
+import type { TimelineStage } from "@/lib/booking-stage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   connectorsFourLong,
   connectorsThreeWithBridge,
@@ -39,6 +62,10 @@ export function ComponentShowcase({ section }: Props) {
       return <NavSection />;
     case "components-inbox":
       return <InboxSection />;
+    case "components-threads":
+      return <ThreadCardsSection />;
+    case "components-timeline":
+      return <TimelineSection />;
     case "components-trips":
       return <TripsSection />;
     default:
@@ -438,7 +465,311 @@ function FormsSection() {
           <Badge variant="destructive">Destructive</Badge>
         </div>
       </Group>
+
+      <Group
+        name="Phone (E.164) input"
+        file="src/components/ui/input.tsx"
+        routes={["/onboarding", "/settings"]}
+      >
+        <div className="grid w-full grid-cols-1 gap-3 md:grid-cols-2">
+          <State label="country + number">
+            <div className="w-full">
+              <Label className="mb-1 block">Phone</Label>
+              <div className="flex gap-2">
+                <Select defaultValue="us">
+                  <SelectTrigger className="h-14 w-28 rounded-xl border-2 !bg-white font-medium shadow-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="us">+1 US</SelectItem>
+                    <SelectItem value="gb">+44 GB</SelectItem>
+                    <SelectItem value="fr">+33 FR</SelectItem>
+                    <SelectItem value="br">+55 BR</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="415 555 1234"
+                  className="h-14 flex-1 rounded-xl border-2 !bg-white px-4 font-medium shadow-sm"
+                />
+              </div>
+            </div>
+          </State>
+          <State label="formatted (valid)">
+            <div className="w-full">
+              <Label className="mb-1 block">Phone</Label>
+              <Input
+                value="+1 (415) 555-1234"
+                onChange={() => {}}
+                className="h-14 rounded-xl border-2 !bg-white px-4 font-medium shadow-sm"
+              />
+              <p className="mt-1 text-xs text-emerald-700">Looks good.</p>
+            </div>
+          </State>
+        </div>
+      </Group>
+
+      <Group
+        name="OTP input (6-digit)"
+        file="—"
+        routes={["/sign-in/verify", "/onboarding"]}
+      >
+        <State label="partially entered">
+          <div className="flex items-center gap-2">
+            {["4", "2", "7", "", "", ""].map((d, i) => (
+              <input
+                key={i}
+                value={d}
+                readOnly
+                className="h-14 w-11 rounded-xl border-2 !bg-white text-center text-xl font-semibold shadow-sm focus:outline-none"
+              />
+            ))}
+          </div>
+        </State>
+        <State label="error">
+          <div className="flex items-center gap-2">
+            {["4", "2", "7", "1", "0", "9"].map((d, i) => (
+              <input
+                key={i}
+                value={d}
+                readOnly
+                className="h-14 w-11 rounded-xl border-2 border-danger !bg-white text-center text-xl font-semibold text-danger shadow-sm focus:outline-none"
+              />
+            ))}
+          </div>
+        </State>
+      </Group>
+
+      <Group name="Date range" file="src/components/listing/availability-calendar.tsx">
+        <State label="picker preview">
+          <div className="w-full rounded-xl border-2 bg-white p-4 shadow-sm">
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Check-in
+                </div>
+                <div className="mt-0.5 text-sm font-medium">Thu, Jun 12</div>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Check-out
+                </div>
+                <div className="mt-0.5 text-sm font-medium">Sun, Jun 15</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center text-xs">
+              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                <div key={i} className="text-muted-foreground">
+                  {d}
+                </div>
+              ))}
+              {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => {
+                const inRange = n >= 12 && n <= 15;
+                const isStart = n === 12;
+                const isEnd = n === 15;
+                return (
+                  <div
+                    key={n}
+                    className={`flex h-8 items-center justify-center rounded-md ${
+                      inRange
+                        ? isStart || isEnd
+                          ? "bg-brand text-white"
+                          : "bg-brand/15 text-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    {n}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </State>
+      </Group>
+
+      <Group name="Price range slider" file="src/components/browse/price-range-slider.tsx">
+        <State label="$50 – $240">
+          <div className="w-full">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>$0</span>
+              <span className="font-medium text-foreground">$50 – $240</span>
+              <span>$500+</span>
+            </div>
+            <div className="relative mt-2 h-1.5 rounded-full bg-muted">
+              <div
+                className="absolute top-0 h-1.5 rounded-full bg-brand"
+                style={{ left: "10%", right: "52%" }}
+              />
+              <div
+                className="absolute -top-1.5 h-4 w-4 rounded-full border-2 border-brand bg-white shadow"
+                style={{ left: "10%", marginLeft: "-8px" }}
+              />
+              <div
+                className="absolute -top-1.5 h-4 w-4 rounded-full border-2 border-brand bg-white shadow"
+                style={{ left: "48%", marginLeft: "-8px" }}
+              />
+            </div>
+          </div>
+        </State>
+      </Group>
+
+      <Group name="Checkbox" file="—">
+        <div className="grid grid-cols-2 gap-3">
+          <State label="unchecked">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" className="h-4 w-4 rounded border-2 accent-brand" />
+              I agree to the terms
+            </label>
+          </State>
+          <State label="checked">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                defaultChecked
+                className="h-4 w-4 rounded border-2 accent-brand"
+              />
+              I agree to the terms
+            </label>
+          </State>
+          <State label="disabled">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input type="checkbox" disabled className="h-4 w-4 rounded border-2" />
+              Requires Inner Circle
+            </label>
+          </State>
+          <State label="error">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-2 border-danger accent-danger"
+                />
+                Accept cancellation policy
+              </span>
+              <span className="text-xs text-danger">Required to continue.</span>
+            </label>
+          </State>
+        </div>
+      </Group>
+
+      <Group name="Radio group" file="—">
+        <State label="vouch type">
+          <fieldset className="w-full space-y-2">
+            {[
+              ["standard", "Standard", "15 base points"],
+              ["inner_circle", "Inner circle", "25 base points"],
+              ["platform_met", "Platform-met", "0.4× multiplier (post-stay)"],
+            ].map(([val, label, blurb], i) => (
+              <label
+                key={val}
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 shadow-sm transition ${
+                  i === 0 ? "border-brand bg-brand/5" : "bg-white hover:bg-muted/30"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="vouch-type"
+                  defaultChecked={i === 0}
+                  className="mt-1 h-4 w-4 accent-brand"
+                />
+                <div>
+                  <div className="text-sm font-semibold">{label}</div>
+                  <div className="text-xs text-muted-foreground">{blurb}</div>
+                </div>
+              </label>
+            ))}
+          </fieldset>
+        </State>
+      </Group>
+
+      <Group name="Toggle / switch" file="—">
+        <div className="grid grid-cols-2 gap-3">
+          <State label="off">
+            <ToggleSwitch on={false} label="Email notifications" />
+          </State>
+          <State label="on">
+            <ToggleSwitch on label="SMS notifications" />
+          </State>
+        </div>
+      </Group>
+
+      <Group name="Select / dropdown" file="src/components/ui/select.tsx">
+        <State label="default">
+          <div className="w-full">
+            <Label className="mb-1 block">Years known</Label>
+            <Select>
+              <SelectTrigger className="h-14 rounded-xl border-2 !bg-white px-4 font-medium shadow-sm">
+                <SelectValue placeholder="How long have you known them?" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lt1">Less than 1 year</SelectItem>
+                <SelectItem value="1to3">1–3 years</SelectItem>
+                <SelectItem value="3to5">3–5 years</SelectItem>
+                <SelectItem value="5to10">5–10 years</SelectItem>
+                <SelectItem value="10plus">10+ years</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </State>
+      </Group>
+
+      <Group name="File upload" file="src/components/hosting/photo-uploader.tsx">
+        <State label="drop zone">
+          <div className="flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/30 p-8 text-center">
+            <div className="mb-2 rounded-full bg-brand/10 p-3 text-brand">
+              <Receipt className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-semibold">Drag photos here</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              …or click to browse. JPG, PNG, HEIC up to 12MB.
+            </p>
+            <Button size="sm" className="mt-3">
+              Choose files
+            </Button>
+          </div>
+        </State>
+        <State label="uploaded thumbs">
+          <div className="grid w-full grid-cols-4 gap-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="relative aspect-square overflow-hidden rounded-lg border"
+              >
+                <div
+                  className="h-full w-full bg-cover"
+                  style={{
+                    backgroundImage: `url(https://images.unsplash.com/photo-${
+                      ["1505691938895-1758d7feb511", "1493809842364-78817add7ffb", "1502672023488-70e25813eb80", "1560448204-e02f11c3d0e2"][i]
+                    }?w=200&q=60)`,
+                  }}
+                />
+                <button className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white">
+                  <XCircle className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </State>
+      </Group>
     </Section>
+  );
+}
+
+function ToggleSwitch({ on, label }: { on: boolean; label: string }) {
+  return (
+    <label className="flex w-full items-center justify-between gap-3 text-sm">
+      <span className="font-medium">{label}</span>
+      <span
+        className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${
+          on ? "bg-brand" : "bg-muted"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+            on ? "translate-x-5" : "translate-x-0.5"
+          }`}
+        />
+      </span>
+    </label>
   );
 }
 
@@ -644,6 +975,565 @@ function TripsSection() {
             <Button variant="ghost">Skip</Button>
             <Button>Submit review</Button>
           </div>
+        </div>
+      </Group>
+    </Section>
+  );
+}
+
+// ── Thread structured cards ──────────────────────────────────────────
+// Styled mocks — the real cards (TermsOfferedCard, PaymentDueCard,
+// IntroRequestCard, etc.) make server calls on mount, so inlining them
+// here requires fake API routes. These previews replicate the visual
+// structure so Loren can iterate on tone + layout in the sandbox and
+// push changes to the canonical components afterward.
+
+function ThreadCardsSection() {
+  return (
+    <Section
+      title="Thread structured cards"
+      blurb="System-posted cards that appear inline inside a /inbox/[threadId]. Mocks match canonical styling — apply sandbox overrides and both previews + live threads respond in lockstep."
+    >
+      <Group
+        name="TermsOfferedCard (post-S2, guest view · pending)"
+        file="src/components/booking/ThreadTermsCards.tsx"
+        routes={["/inbox/[threadId]"]}
+      >
+        <TermsOfferedCardMock role="guest" accepted={false} />
+      </Group>
+      <Group
+        name="TermsOfferedCard (guest view · accepted + collapsed)"
+        file="src/components/booking/ThreadTermsCards.tsx"
+        routes={["/inbox/[threadId]"]}
+      >
+        <TermsOfferedCardMock role="guest" accepted />
+      </Group>
+      <Group
+        name="TermsOfferedCard (host view · pending)"
+        file="src/components/booking/ThreadTermsCards.tsx"
+      >
+        <TermsOfferedCardMock role="host" accepted={false} />
+      </Group>
+
+      <Group
+        name="TermsAcceptedCard"
+        file="src/components/booking/ThreadTermsCards.tsx"
+      >
+        <TermsAcceptedCardMock />
+      </Group>
+
+      <Group
+        name="PaymentDueCard"
+        file="src/components/booking/ThreadTermsCards.tsx"
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PaymentEventCardMock variant="due" />
+          <PaymentEventCardMock variant="claimed" />
+        </div>
+        <PaymentEventCardMock variant="confirmed" />
+      </Group>
+
+      <Group
+        name="IntroRequestCard (post-S2a)"
+        file="src/components/trust/IntroRequestCard.tsx"
+        routes={["/inbox/[threadId]"]}
+      >
+        <IntroRequestCardMock status="pending" />
+        <IntroRequestCardMock status="accepted" />
+        <IntroRequestCardMock status="declined" />
+      </Group>
+
+      <Group
+        name="IssueReportCard (S4-C5)"
+        file="src/components/stay/IssueReportCard.tsx"
+        routes={["/inbox/[threadId]"]}
+      >
+        <IssueReportCardMock />
+      </Group>
+
+      <Group
+        name="PhotoRequestCard (S4-C5)"
+        file="src/components/stay/PhotoRequestCard.tsx"
+        routes={["/inbox/[threadId]"]}
+      >
+        <PhotoRequestCardMock />
+      </Group>
+    </Section>
+  );
+}
+
+function CardShell({
+  children,
+  tone = "default",
+}: {
+  children: React.ReactNode;
+  tone?: "default" | "amber" | "emerald" | "rose";
+}) {
+  const border =
+    tone === "amber"
+      ? "border-amber-300"
+      : tone === "emerald"
+        ? "border-emerald-300"
+        : tone === "rose"
+          ? "border-rose-300"
+          : "border-border";
+  return (
+    <div
+      className={`mx-auto w-full max-w-xl overflow-hidden rounded-2xl border-2 ${border} bg-white shadow-sm`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function TermsOfferedCardMock({
+  role,
+  accepted,
+}: {
+  role: "guest" | "host";
+  accepted: boolean;
+}) {
+  return (
+    <CardShell>
+      <div className="flex items-start gap-3 border-b border-border p-4">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <ShieldCheck className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold">
+            {role === "guest"
+              ? "Sarah approved your stay"
+              : "You approved Loren's stay"}
+          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            Here are the full terms for this reservation.
+          </div>
+        </div>
+        {accepted && (
+          <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+      </div>
+
+      {!accepted && (
+        <>
+          <SectionHeader label="Trip details" />
+          <div className="grid grid-cols-1 divide-y divide-border border-b border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <FieldTile icon={CalendarDays} label="Check-in" value="Thu, Jun 12" />
+            <FieldTile icon={CalendarDays} label="Checkout" value="Sun, Jun 15" />
+            <FieldTile icon={Users} label="Guests" value="2 guests" />
+          </div>
+          <SectionHeader label="Total" />
+          <div className="space-y-1 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span>3 nights × $165</span>
+              <span>$495</span>
+            </div>
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span>Cleaning fee</span>
+              <span>$50</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between border-t pt-2 font-semibold">
+              <span>Total</span>
+              <span>$545</span>
+            </div>
+          </div>
+          <SectionHeader label="Cancellation policy" />
+          <div className="p-4 text-xs text-muted-foreground">
+            <p>
+              Flexible · free cancellation up to 7 days before check-in. After
+              that, full charge applies.
+            </p>
+          </div>
+        </>
+      )}
+
+      {role === "guest" &&
+        (accepted ? (
+          <div className="flex items-center gap-3 border-t border-emerald-200 bg-emerald-50 px-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+              <Check className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-emerald-900">
+                Reservation confirmed
+              </div>
+              <div className="text-xs text-emerald-800/80">
+                You accepted these terms on Apr 20, 2026.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2 border-t border-border bg-muted/30 p-4">
+            <p className="text-xs text-muted-foreground">
+              Accepting confirms you&apos;ve read and agree to these terms.
+            </p>
+            <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm">
+              <Check className="h-4 w-4" />
+              Accept terms &amp; confirm reservation
+            </button>
+          </div>
+        ))}
+      {role === "host" && !accepted && (
+        <div className="border-t border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+          Waiting for Loren to confirm these terms.
+        </div>
+      )}
+    </CardShell>
+  );
+}
+
+function TermsAcceptedCardMock() {
+  return (
+    <CardShell tone="emerald">
+      <div className="flex items-center gap-3 bg-emerald-50 p-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+          <CheckCircle2 className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-emerald-900">
+            Reservation confirmed
+          </div>
+          <div className="text-xs text-emerald-800/80">
+            Loren accepted these terms on Apr 20, 2026 · Jun 12–15 · 2 guests
+          </div>
+        </div>
+      </div>
+    </CardShell>
+  );
+}
+
+function PaymentEventCardMock({
+  variant,
+}: {
+  variant: "due" | "claimed" | "confirmed";
+}) {
+  const copy = {
+    due: {
+      icon: <DollarSign className="h-4 w-4" />,
+      iconBg: "bg-amber-100 text-amber-800",
+      title: "Payment 1 of 2 due",
+      sub: "Pay Sarah $200 by Jun 5 · Venmo @sarahm",
+      action: (
+        <button className="inline-flex items-center justify-center rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white">
+          I paid
+        </button>
+      ),
+      bg: "bg-amber-50 border-amber-200",
+    },
+    claimed: {
+      icon: <Handshake className="h-4 w-4" />,
+      iconBg: "bg-sky-100 text-sky-800",
+      title: "Loren marked payment 1 of 2 paid",
+      sub: "Waiting for Sarah to confirm receipt.",
+      action: (
+        <button className="inline-flex items-center justify-center rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white">
+          Confirm received
+        </button>
+      ),
+      bg: "bg-sky-50 border-sky-200",
+    },
+    confirmed: {
+      icon: <Receipt className="h-4 w-4" />,
+      iconBg: "bg-emerald-100 text-emerald-800",
+      title: "Payment 1 of 2 received",
+      sub: "Sarah confirmed $200 received · Jun 5, 2026",
+      action: (
+        <button className="text-xs font-medium text-muted-foreground underline">
+          Unmark
+        </button>
+      ),
+      bg: "bg-emerald-50 border-emerald-200",
+    },
+  }[variant];
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-xl border-2 p-4 ${copy.bg}`}
+    >
+      <div
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${copy.iconBg}`}
+      >
+        {copy.icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold">{copy.title}</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">{copy.sub}</div>
+      </div>
+      {copy.action}
+    </div>
+  );
+}
+
+function IntroRequestCardMock({
+  status,
+}: {
+  status: "pending" | "accepted" | "declined";
+}) {
+  const badge =
+    status === "accepted"
+      ? {
+          label: "Accepted",
+          className: "bg-emerald-100 text-emerald-800",
+        }
+      : status === "declined"
+        ? { label: "Declined", className: "bg-zinc-200 text-zinc-700" }
+        : { label: "Pending", className: "bg-amber-100 text-amber-800" };
+  return (
+    <CardShell>
+      <div className="flex items-start gap-3 border-b border-border p-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+          <Handshake className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">Intro request</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}
+            >
+              {badge.label}
+            </span>
+          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            From <strong>Loren Polster</strong> · 2° via Sarah &amp; Mike · Jun 12–15
+          </div>
+        </div>
+      </div>
+      <div className="space-y-3 p-4">
+        <p className="text-sm">
+          &ldquo;Hey Priya — would love an intro to the owner of the Stinson
+          cabin. Planning a family weekend for 2 adults.&rdquo;
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {["Sarah Mendel", "Mike Tran"].map((n) => (
+            <span
+              key={n}
+              className="inline-flex items-center gap-1.5 rounded-full border bg-white px-2 py-1 text-xs"
+            >
+              <span className="h-5 w-5 rounded-full bg-muted" />
+              {n}
+            </span>
+          ))}
+        </div>
+      </div>
+      {status === "pending" && (
+        <div className="flex gap-2 border-t border-border bg-muted/30 p-3">
+          <button className="flex-1 rounded-lg bg-brand py-2 text-sm font-semibold text-white">
+            Accept intro
+          </button>
+          <button className="flex-1 rounded-lg border bg-white py-2 text-sm font-semibold">
+            Decline
+          </button>
+        </div>
+      )}
+      {status === "accepted" && (
+        <div className="flex items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-900">
+          <CheckCircle2 className="h-4 w-4" />
+          You introduced Loren on Apr 18, 2026.
+        </div>
+      )}
+      {status === "declined" && (
+        <div className="flex items-center gap-2 border-t border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+          <XCircle className="h-4 w-4" />
+          You declined this intro on Apr 18, 2026.
+        </div>
+      )}
+    </CardShell>
+  );
+}
+
+function IssueReportCardMock() {
+  return (
+    <CardShell tone="rose">
+      <div className="flex items-start gap-3 bg-rose-50 p-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white">
+          <Shield className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-rose-900">
+            Issue reported
+          </div>
+          <div className="mt-0.5 text-xs text-rose-800/80">
+            Loren flagged this stay · Apr 22, 2026 · 1DB admin will reach out.
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-rose-200 p-4 text-sm">
+        <p>
+          &ldquo;Linens weren&apos;t as described — kitchen was unclean on
+          arrival. I&apos;ve documented with photos.&rdquo;
+        </p>
+      </div>
+    </CardShell>
+  );
+}
+
+function PhotoRequestCardMock() {
+  return (
+    <CardShell>
+      <div className="flex items-start gap-3 border-b border-border p-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+          <Receipt className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold">Sarah requested photos</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            &ldquo;Mind sharing a shot of the living room?&rdquo;
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-border bg-muted/30 p-3">
+        <Button size="sm" className="w-full">
+          Upload photos
+        </Button>
+      </div>
+    </CardShell>
+  );
+}
+
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 bg-muted/40 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      {label}
+    </div>
+  );
+}
+
+function FieldTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-start gap-2 p-3">
+      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <div className="min-w-0">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </div>
+        <div className="mt-0.5 text-sm font-medium">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Trip timeline ────────────────────────────────────────────────────
+
+function TimelineSection() {
+  const fullStages: TimelineStage[] = [
+    {
+      key: "requested",
+      label: "Request sent",
+      status: "done",
+      at: "2026-04-12T10:00:00Z",
+      detail: "Loren → Sarah · 3 nights, 2 guests",
+    },
+    {
+      key: "terms_sent",
+      label: "Host approved",
+      status: "done",
+      at: "2026-04-13T14:22:00Z",
+      detail: "Sarah sent final terms",
+    },
+    {
+      key: "terms_accepted",
+      label: "Terms accepted",
+      status: "done",
+      at: "2026-04-13T17:40:00Z",
+      detail: "Reservation confirmed · $545",
+    },
+    {
+      key: "payment",
+      label: "Payment 1 of 2",
+      status: "current",
+      at: null,
+      detail: "Due Jun 5 · $200",
+    },
+    {
+      key: "payment",
+      label: "Payment 2 of 2",
+      status: "upcoming",
+      at: null,
+      detail: "Due Jun 11 · $345",
+    },
+    {
+      key: "upcoming",
+      label: "Trip begins",
+      status: "upcoming",
+      at: "2026-06-12",
+      detail: null,
+    },
+    {
+      key: "checked_in",
+      label: "Checked in",
+      status: "upcoming",
+      at: null,
+      detail: null,
+    },
+    {
+      key: "checked_out",
+      label: "Checked out",
+      status: "upcoming",
+      at: "2026-06-15",
+      detail: null,
+    },
+    {
+      key: "reviewed",
+      label: "Reviewed",
+      status: "upcoming",
+      at: null,
+      detail: null,
+    },
+  ];
+
+  return (
+    <Section
+      title="Trip timeline"
+      blurb="Live TripTimeline component with mock stages. Collapsed view hides the tail until tapped — expanded view shows every stage resolveStages produced."
+    >
+      <Group
+        name="TripTimeline · expanded (full)"
+        file="src/components/booking/TripTimeline.tsx"
+        routes={["/trips/[bookingId]"]}
+      >
+        <div className="mx-auto max-w-xl">
+          <TripTimeline stages={fullStages} />
+        </div>
+      </Group>
+      <Group
+        name="TripTimeline · compact (inbox sidebar)"
+        file="src/components/booking/TripTimeline.tsx"
+        routes={["/inbox/[threadId]"]}
+      >
+        <div className="mx-auto max-w-sm">
+          <TripTimeline stages={fullStages} compact />
+        </div>
+      </Group>
+      <Group
+        name="TripTimeline · declined (terminal)"
+        file="src/components/booking/TripTimeline.tsx"
+      >
+        <div className="mx-auto max-w-xl">
+          <TripTimeline
+            stages={[
+              {
+                key: "requested",
+                label: "Request sent",
+                status: "done",
+                at: "2026-04-12T10:00:00Z",
+                detail: null,
+              },
+              {
+                key: "declined",
+                label: "Declined",
+                status: "done",
+                at: "2026-04-13T09:00:00Z",
+                detail: "Sarah declined — dates not available",
+              },
+            ]}
+          />
         </div>
       </Group>
     </Section>

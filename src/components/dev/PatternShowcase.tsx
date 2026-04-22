@@ -7,7 +7,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Heart, Mail, Plus } from "lucide-react";
+import {
+  AlertTriangle,
+  Heart,
+  Lock,
+  Mail,
+  Plus,
+  WifiOff,
+} from "lucide-react";
 
 export function PatternShowcase() {
   const [open, setOpen] = useState(false);
@@ -117,7 +124,7 @@ export function PatternShowcase() {
         </div>
       </PatternCard>
 
-      <PatternCard title="Skeleton loader" routes={["/browse", "/inbox"]}>
+      <PatternCard title="Skeleton · listing grid" routes={["/browse", "/inbox"]}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Skeleton className="aspect-[4/3] w-full rounded-xl" />
@@ -128,6 +135,118 @@ export function PatternShowcase() {
             <Skeleton className="aspect-[4/3] w-full rounded-xl" />
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
+          </div>
+        </div>
+      </PatternCard>
+
+      <PatternCard title="Skeleton · profile card" routes={["/profile/[id]"]}>
+        <div className="flex items-start gap-4 rounded-xl border bg-white p-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-3 w-24" />
+            <div className="flex gap-2 pt-1">
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="h-6 w-16 rounded-full" />
+            </div>
+          </div>
+        </div>
+      </PatternCard>
+
+      <PatternCard title="Skeleton · thread row" routes={["/inbox"]}>
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 rounded-xl border bg-white p-3"
+            >
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-3 w-1/3" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </PatternCard>
+
+      <PatternCard title="Error · network" routes={["(global)"]}>
+        <div className="flex items-start gap-3 rounded-xl border-2 border-danger/30 bg-danger/5 p-4">
+          <div className="mt-0.5 rounded-full bg-danger/10 p-2 text-danger">
+            <WifiOff className="h-4 w-4" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-danger">
+              Couldn&apos;t reach the server
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Check your connection and retry. Your changes weren&apos;t saved.
+            </p>
+          </div>
+          <Button size="sm" variant="outline">
+            Retry
+          </Button>
+        </div>
+      </PatternCard>
+
+      <PatternCard title="Error · validation (inline)" routes={["forms"]}>
+        <div className="space-y-2 rounded-xl border-2 border-danger/30 bg-danger/5 p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+            <div>
+              <p className="text-sm font-semibold text-danger">
+                Fix the following before continuing
+              </p>
+              <ul className="mt-1 list-disc pl-5 text-xs text-danger">
+                <li>Phone must include country code (e.g. +14155551234)</li>
+                <li>Years known is required</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </PatternCard>
+
+      <PatternCard title="Error · permission / gated" routes={["/listings/[id]"]}>
+        <div className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-8 text-center">
+          <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
+          <p className="mt-3 font-semibold">This listing is gated</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            You need at least 2° trust with the host to see full details.
+            Request an introduction to get closer.
+          </p>
+          <div className="mt-4 flex justify-center gap-2">
+            <Button>Request intro</Button>
+            <Button variant="outline">Browse other stays</Button>
+          </div>
+        </div>
+      </PatternCard>
+
+      <PatternCard title="Empty · no wishlists" routes={["/wishlists"]}>
+        <div className="rounded-2xl border-2 border-dashed bg-muted/30 p-10 text-center">
+          <Heart className="mx-auto h-8 w-8 text-muted-foreground" />
+          <p className="mt-3 font-semibold">Nothing saved yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tap the heart on any stay to save it for later.
+          </p>
+          <Button className="mt-4">Browse stays</Button>
+        </div>
+      </PatternCard>
+
+      <PatternCard title="Empty · 0° onboarding" routes={["(first-signin)"]}>
+        <div className="rounded-2xl border-2 border-brand/30 bg-brand-50/50 p-8 text-center">
+          <div className="mx-auto inline-flex rounded-full bg-brand text-brand-foreground">
+            <Plus className="h-8 w-8 p-2" />
+          </div>
+          <p className="mt-3 text-lg font-semibold">
+            You&apos;re the first in your network
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            1° B&amp;B works by personal trust. Start by inviting two people who
+            know you well — they&apos;ll vouch for you and your network opens up.
+          </p>
+          <div className="mt-4 flex justify-center gap-2">
+            <Button>Send invites</Button>
+            <Button variant="outline">Learn how it works</Button>
           </div>
         </div>
       </PatternCard>

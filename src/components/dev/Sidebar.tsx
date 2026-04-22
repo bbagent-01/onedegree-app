@@ -16,6 +16,8 @@ export type Section =
   | "components-forms"
   | "components-nav"
   | "components-inbox"
+  | "components-threads"
+  | "components-timeline"
   | "components-trips"
   | "patterns"
   | "sandbox";

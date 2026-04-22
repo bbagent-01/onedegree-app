@@ -29,6 +29,8 @@ const SECTIONS: Array<{ id: Section; label: string; group: string }> = [
   { id: "components-forms", label: "Forms & inputs", group: "Components" },
   { id: "components-nav", label: "Nav, header, footer", group: "Components" },
   { id: "components-inbox", label: "Inbox & messaging", group: "Components" },
+  { id: "components-threads", label: "Thread structured cards", group: "Components" },
+  { id: "components-timeline", label: "Trip timeline", group: "Components" },
   { id: "components-trips", label: "Trips & reviews", group: "Components" },
   { id: "patterns", label: "Patterns", group: "Patterns" },
   { id: "sandbox", label: "Sandbox theme", group: "Sandbox" },
