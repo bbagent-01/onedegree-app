@@ -4,7 +4,18 @@
  * Uses the NEW bucket values from migration 014a (lt1, 1to3, etc.).
  * The old values (lt1yr, 1to3yr, etc.) are kept in the DB enum for backward
  * compat but should NOT be used by new code.
+ *
+ * `YEARS_KNOWN_BUCKETS` below is the *user-selectable* picker list —
+ * `platform_met` (0.4×, added in 035a) is intentionally excluded
+ * because it's auto-assigned by the post-stay vouch flow and is never
+ * a manual choice. Labels + multipliers for the full enum (including
+ * platform_met) live in `src/lib/trust/years-known-labels.ts`.
  */
+
+import {
+  yearsKnownMultiplier,
+  type YearsKnownBucketAny,
+} from "@/lib/trust/years-known-labels";
 
 export const VOUCH_TYPES = [
   {
@@ -35,10 +46,14 @@ export const VOUCH_TYPE_POINTS = {
 } as const;
 
 export type VouchType = "standard" | "inner_circle";
+/** User-selectable buckets. DB rows may also carry `platform_met` —
+ *  use `YearsKnownBucketAny` from years-known-labels for those. */
 export type YearsKnownBucket = (typeof YEARS_KNOWN_BUCKETS)[number]["value"];
 
-/** Map old DB bucket values to new Alpha-C values. */
-const BUCKET_MAP: Record<string, YearsKnownBucket> = {
+/** Map old DB bucket values to new Alpha-C values. `platform_met`
+ *  flows through untouched so post-stay rows can round-trip. */
+const BUCKET_MAP: Record<string, YearsKnownBucketAny> = {
+  platform_met: "platform_met",
   lt1: "lt1",
   lt1yr: "lt1",
   "1to3": "1to3",
@@ -51,17 +66,23 @@ const BUCKET_MAP: Record<string, YearsKnownBucket> = {
   "15plusyr": "10plus",
 };
 
+/** Normalize a legacy/canonical bucket to a pickable bucket.
+ *  `platform_met` rows land on `lt1` since the picker has no
+ *  platform_met slot — callers that need to *preserve* the raw
+ *  DB value (e.g. for display) should use
+ *  `yearsKnownLabel` from years-known-labels.ts instead. */
 export function normalizeBucket(raw: string): YearsKnownBucket {
-  return BUCKET_MAP[raw] ?? "lt1";
+  const mapped = BUCKET_MAP[raw] ?? "lt1";
+  return mapped === "platform_met" ? "lt1" : mapped;
 }
 
-/** Compute a vouch score client-side (mirrors the DB trigger logic). */
+/** Compute a vouch score client-side (mirrors the DB trigger logic).
+ *  Accepts the full set of DB-origin bucket values so callers that
+ *  hand in `platform_met` get the correct 0.4× multiplier. */
 export function computeVouchScore(
   type: VouchType,
-  bucket: YearsKnownBucket
+  bucket: YearsKnownBucketAny
 ): number {
   const base = VOUCH_TYPE_POINTS[type];
-  const mult =
-    YEARS_KNOWN_BUCKETS.find((b) => b.value === bucket)?.multiplier ?? 1.0;
-  return base * mult;
+  return base * yearsKnownMultiplier(bucket);
 }

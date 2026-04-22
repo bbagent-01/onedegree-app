@@ -115,11 +115,11 @@ export function ReviewFlowDialog({
   // Shared text
   const [reviewText, setReviewText] = useState("");
 
-  // Vouch step — simplified to a single "Met on Trustead"
-  // option so a post-stay vouch is one click. Type defaults to
-  // "standard"; years-known is hardcoded to "lt1" (the existing
-  // smallest multiplier) until a dedicated Trustead-only bucket
-  // ships. FOLLOW-UP: new bucket w/ a lower multiplier than 0.6.
+  // Vouch step — one-click post-stay vouch. Type is locked to
+  // "standard" and years-known is locked to "platform_met" (0.4×,
+  // the dedicated "Met on 1° B&B" bucket from migration 035a) so
+  // platform-originated relationships can't masquerade as genuine
+  // sub-1-year ties.
 
   const otherFirst = otherUser.name.split(" ")[0] || "them";
 
@@ -227,12 +227,8 @@ export function ReviewFlowDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           targetUserId: otherUser.id,
-          // Single "Met on Trustead" bucket for now — uses
-          // existing standard/lt1 values under the hood. Will
-          // switch to a dedicated lower-multiplier Trustead
-          // bucket once that ships.
           vouchType: "standard" as VouchType,
-          yearsKnownBucket: "lt1",
+          yearsKnownBucket: "platform_met",
           isPostStay: true,
           sourceBookingId: bookingId,
         }),
@@ -363,10 +359,13 @@ export function ReviewFlowDialog({
                     <Shield className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold">
-                      Met through 1° B&amp;B
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Relationship
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm font-semibold">
+                      Met through this platform
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
                       A light vouch — you only know {otherFirst} from this
                       stay. Counts less than vouching for someone you knew
                       before.

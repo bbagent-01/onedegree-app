@@ -78,10 +78,11 @@ export async function POST(req: Request) {
     );
   }
 
-  // Post-stay vouches must use lt1 bucket
-  if (isPostStay && yearsKnownBucket !== "lt1") {
+  // Post-stay vouches are always "Met through 1° B&B" — the
+  // platform_met bucket (0.4×), added in migration 035a.
+  if (isPostStay && yearsKnownBucket !== "platform_met") {
     return Response.json(
-      { error: "Post-stay vouches must use the <1 year bucket." },
+      { error: "Post-stay vouches must use the platform_met bucket." },
       { status: 400 }
     );
   }

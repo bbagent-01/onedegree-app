@@ -24,8 +24,11 @@ import {
   computeVouchScore,
   normalizeBucket,
   type VouchType,
-  type YearsKnownBucket,
 } from "@/lib/vouch-constants";
+import {
+  yearsKnownLabel,
+  type YearsKnownBucketAny,
+} from "@/lib/trust/years-known-labels";
 import { Shield, Star, Check, ChevronRight, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,7 +83,9 @@ export function VouchModal({
 
   const [step, setStep] = useState<Step>("type");
   const [vouchType, setVouchType] = useState<VouchType | null>(null);
-  const [yearsKnown, setYearsKnown] = useState<YearsKnownBucket | null>(null);
+  const [yearsKnown, setYearsKnown] = useState<YearsKnownBucketAny | null>(
+    null
+  );
   const [stakeAcknowledged, setStakeAcknowledged] = useState(false);
   const [showVouchPowerInfo, setShowVouchPowerInfo] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -96,7 +101,9 @@ export function VouchModal({
         : null;
       setStep("type");
       setVouchType(existingVouch?.vouch_type ?? null);
-      setYearsKnown(normalizedBucket ?? (isPostStay ? "lt1" : null));
+      setYearsKnown(
+        normalizedBucket ?? (isPostStay ? "platform_met" : null)
+      );
       setStakeAcknowledged(false);
       setShowVouchPowerInfo(false);
       setSaving(false);
@@ -281,42 +288,50 @@ export function VouchModal({
               : "-translate-x-full absolute inset-0 opacity-0 pointer-events-none"
         )}
       >
-        <p className="mb-4 text-sm text-muted-foreground">
-          How long have you known {firstName}?
-        </p>
-        {isPostStay && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            Since you connected through 1&deg; B&B, this defaults to less than 1
-            year.
-          </div>
+        {isPostStay ? (
+          <>
+            <div className="rounded-xl border-2 border-brand bg-brand/5 p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Relationship
+              </div>
+              <div className="mt-0.5 text-sm font-semibold">
+                {yearsKnownLabel("platform_met")}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Auto-set because you met {firstName} through this platform.
+                Counts less than vouching for someone you knew before.
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mb-4 text-sm text-muted-foreground">
+              How long have you known {firstName}?
+            </p>
+            <div className="space-y-2">
+              {YEARS_KNOWN_BUCKETS.map((b) => (
+                <button
+                  key={b.value}
+                  type="button"
+                  onClick={() => setYearsKnown(b.value)}
+                  className={cn(
+                    "w-full rounded-lg border px-4 py-3 text-left text-sm transition-all",
+                    yearsKnown === b.value
+                      ? "border-brand bg-brand/5 font-medium ring-1 ring-brand/20"
+                      : "border-border hover:border-muted-foreground/30 hover:bg-muted/30"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>{b.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {b.multiplier}x
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
         )}
-        <div className="space-y-2">
-          {YEARS_KNOWN_BUCKETS.map((b) => {
-            const locked = isPostStay && b.value !== "lt1";
-            return (
-              <button
-                key={b.value}
-                type="button"
-                disabled={locked}
-                onClick={() => !locked && setYearsKnown(b.value)}
-                className={cn(
-                  "w-full rounded-lg border px-4 py-3 text-left text-sm transition-all",
-                  locked && "cursor-not-allowed opacity-40",
-                  yearsKnown === b.value
-                    ? "border-brand bg-brand/5 font-medium ring-1 ring-brand/20"
-                    : "border-border hover:border-muted-foreground/30 hover:bg-muted/30"
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <span>{b.label}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {b.multiplier}x
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
 
         {/* Reputation stake acknowledgment with inline info toggle */}
         <label className="mt-4 flex items-start gap-2.5 rounded-lg border border-border bg-muted/30 p-3 cursor-pointer select-none">
@@ -456,9 +471,7 @@ export function VouchModal({
               {vouchType === "inner_circle" ? "Inner Circle" : "Standard"}
             </span>
             <span className="text-muted-foreground">&middot;</span>
-            <span>
-              {YEARS_KNOWN_BUCKETS.find((b) => b.value === yearsKnown)?.label}
-            </span>
+            <span>{yearsKnownLabel(yearsKnown)}</span>
             <span className="text-muted-foreground">&middot;</span>
             <span className="font-semibold">{savedScore ?? computedScore} pts</span>
           </div>

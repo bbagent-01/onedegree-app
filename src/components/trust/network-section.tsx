@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { NetworkEmptyState } from "@/components/trust/network-empty-state";
 import type { NetworkData, NetworkPerson, PendingInvite } from "@/lib/network-data";
-import { YEARS_KNOWN_BUCKETS } from "@/lib/vouch-constants";
+import { yearsKnownLabel } from "@/lib/trust/years-known-labels";
 import {
   Shield,
   Star,
@@ -22,12 +22,6 @@ function initials(name: string) {
       .slice(0, 2)
       .join("")
       .toUpperCase() || "U"
-  );
-}
-
-function yearsLabel(bucket: string): string {
-  return (
-    YEARS_KNOWN_BUCKETS.find((b) => b.value === bucket)?.label ?? bucket
   );
 }
 
@@ -209,7 +203,7 @@ function PersonRow({
       >
         <div className="truncate text-sm font-medium">{person.user_name}</div>
         <div className="text-xs text-muted-foreground">
-          {yearsLabel(person.years_known_bucket)}
+          {yearsKnownLabel(person.years_known_bucket)}
         </div>
       </Link>
       <div className="flex shrink-0 items-center gap-2">

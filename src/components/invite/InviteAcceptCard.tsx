@@ -4,14 +4,7 @@ import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
-
-const YEARS_LABEL: Record<string, string> = {
-  lt1: "less than 1 year",
-  "1to3": "1–3 years",
-  "3to5": "3–5 years",
-  "5to10": "5–10 years",
-  "10plus": "10+ years",
-};
+import { yearsKnownLabel } from "@/lib/trust/years-known-labels";
 
 const VOUCH_LABEL: Record<string, string> = {
   standard: "Standard vouch",
@@ -54,7 +47,12 @@ export function InviteAcceptCard({
   const signInHref = `/sign-in?redirect_url=${encodeURIComponent(completePath)}`;
 
   const vouchLabel = VOUCH_LABEL[vouchType] ?? "Vouch";
-  const yearsLabel = YEARS_LABEL[yearsKnownBucket] ?? yearsKnownBucket;
+  // Lowercase first letter so the copy reads naturally in mid-sentence
+  // contexts like "vouched for you as having known them less than 1 year".
+  const rawYearsLabel = yearsKnownLabel(yearsKnownBucket);
+  const yearsLabel = rawYearsLabel
+    ? rawYearsLabel.charAt(0).toLowerCase() + rawYearsLabel.slice(1)
+    : yearsKnownBucket;
 
   return (
     <div className="mx-auto mt-16 w-full max-w-[520px] rounded-2xl border border-border bg-white p-8 shadow-sm">

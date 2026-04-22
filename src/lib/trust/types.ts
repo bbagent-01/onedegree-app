@@ -5,7 +5,13 @@
 
 export type VouchType = "standard" | "inner_circle";
 
-export type YearsKnownBucket = "lt1" | "1to3" | "3to5" | "5to10" | "10plus";
+export type YearsKnownBucket =
+  | "platform_met"
+  | "lt1"
+  | "1to3"
+  | "3to5"
+  | "5to10"
+  | "10plus";
 
 export type VisibilityMode = "public" | "preview_gated" | "hidden";
 
@@ -274,6 +280,10 @@ export const VOUCH_BASE_POINTS: Record<VouchType, number> = {
 };
 
 export const YEARS_MULTIPLIER: Record<string, number> = {
+  // Platform-originated post-stay vouches (migration 035a). Smaller
+  // than lt1's 0.6× so "Met on 1° B&B" doesn't masquerade as a
+  // genuine sub-1-year IRL relationship.
+  platform_met: 0.4,
   lt1: 0.6,
   "1to3": 1.0,
   "3to5": 1.2,
