@@ -171,7 +171,7 @@ export function GatedListingView({
             <div className="flex items-center gap-4">
               <Link
                 href={`/profile/${listing.host.id}`}
-                className="shrink-0 rounded-full transition-shadow hover:shadow-lg"
+                className="shrink-0 rounded-full transition-all hover:shadow-lg hover:ring-2 hover:ring-white"
                 aria-label={`Open ${listing.host.name}'s profile`}
               >
                 <HostAvatar

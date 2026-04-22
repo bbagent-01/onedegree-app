@@ -313,7 +313,7 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                     <Link
                       href={`/profile/${t.other_user.id}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="shrink-0 rounded-full transition-shadow hover:shadow-lg"
+                      className="shrink-0 rounded-full transition-all hover:shadow-lg hover:ring-2 hover:ring-white"
                       aria-label={`Open ${t.other_user.name}'s profile`}
                     >
                       <Avatar className="h-12 w-12">

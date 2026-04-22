@@ -279,7 +279,7 @@ export function ThreadView({
       <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
         <Link
           href={`/profile/${thread.other_user.id}`}
-          className="shrink-0 rounded-full transition-shadow hover:shadow-lg"
+          className="shrink-0 rounded-full transition-all hover:shadow-lg hover:ring-2 hover:ring-white"
           aria-label={`Open ${thread.other_user.name}'s profile`}
         >
           <Avatar className="h-10 w-10">

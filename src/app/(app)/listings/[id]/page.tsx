@@ -271,7 +271,7 @@ export default async function ListingPage({
               <div className="flex items-center gap-4">
                 <Link
                   href={`/profile/${listing.host.id}`}
-                  className="shrink-0 rounded-full transition-shadow hover:shadow-lg"
+                  className="shrink-0 rounded-full transition-all hover:shadow-lg hover:ring-2 hover:ring-white"
                   aria-label={`Open ${listing.host.name}'s profile`}
                 >
                   <div className="relative h-14 w-14 overflow-hidden rounded-full bg-muted">
@@ -512,7 +512,7 @@ export default async function ListingPage({
                 <div className="flex flex-col items-center text-center">
                   <Link
                     href={`/profile/${listing.host.id}`}
-                    className="rounded-full transition-shadow hover:shadow-lg"
+                    className="rounded-full transition-all hover:shadow-lg hover:ring-2 hover:ring-white"
                     aria-label={`Open ${listing.host.name}'s profile`}
                   >
                     <div className="relative h-24 w-24 overflow-hidden rounded-full bg-muted">

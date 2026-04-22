@@ -39,7 +39,13 @@ export function TrustTagPopover({
   disabled = false,
   ...tagProps
 }: Props) {
-  if (disabled) {
+  // 1° / direct-vouch tags are non-interactive (ConnectionPopover
+  // itself suppresses the popover — there's nothing to break down).
+  // Skip the hover affordance entirely so a non-clickable tag
+  // doesn't hint that it's clickable.
+  const isNonInteractive =
+    disabled || tagProps.degree === 1 || tagProps.direct === true;
+  if (isNonInteractive) {
     return <TrustTag {...tagProps} />;
   }
   // Hover affordance — a subtle white rounded container with a soft
@@ -51,7 +57,6 @@ export function TrustTagPopover({
     <ConnectionPopover
       targetUserId={targetUserId}
       direction={direction}
-      disabled={tagProps.degree === 1 || tagProps.direct === true}
     >
       <span className="-mx-1 -my-0.5 inline-flex cursor-pointer rounded-lg px-1 py-0.5 transition-all hover:bg-white hover:shadow-sm hover:ring-1 hover:ring-black/5">
         <TrustTag {...tagProps} />
