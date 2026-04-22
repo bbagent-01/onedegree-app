@@ -369,6 +369,10 @@ export default async function ListingPage({
             avgRating={listing.avg_rating}
             reviewCount={listing.review_count}
             blockedRanges={listing.blockedRanges}
+            hostFirstName={
+              listing.host?.name?.split(" ")[0] ?? "your host"
+            }
+            cancellationPolicy={listing.cancellation_policy}
             trust={
               trust
                 ? {

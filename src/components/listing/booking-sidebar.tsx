@@ -15,13 +15,9 @@ import { toast } from "sonner";
 import { Minus, Plus, Star } from "lucide-react";
 import { AvailabilityCalendar } from "./availability-calendar";
 import { TrustTag } from "@/components/trust/trust-tag";
+import { ReserveReviewDialog } from "./reserve-review-dialog";
 import type { ConnectorPathSummary } from "@/lib/trust-data";
-
-interface BookingApiResponse {
-  id?: string;
-  threadId?: string;
-  error?: string;
-}
+import type { CancellationPolicy } from "@/lib/cancellation";
 
 interface Props {
   listingId: string;
@@ -33,6 +29,13 @@ interface Props {
   avgRating: number | null;
   reviewCount: number;
   blockedRanges: { start: string; end: string }[];
+  /** Host's first name — shown in the review dialog so the guest
+   *  knows who they're messaging. */
+  hostFirstName: string;
+  /** Effective cancellation policy for this listing — surfaced in
+   *  the review-before-send dialog so guests agree to terms before
+   *  the request posts. */
+  cancellationPolicy: CancellationPolicy | null;
   /** Optional trust info for the host→viewer direction — renders a
    *  medium TrustTag beneath the Contact Host button. */
   trust?: {
@@ -70,13 +73,15 @@ export function BookingSidebar({
   avgRating,
   reviewCount,
   blockedRanges,
+  hostFirstName,
+  cancellationPolicy,
   trust,
 }: Props) {
   const router = useRouter();
   const [range, setRange] = useState<DateRange | undefined>();
   const [guests, setGuests] = useState(1);
   const [guestsOpen, setGuestsOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   // Broadcast the selected range so the sticky anchor bar (sibling client
   // component) can display the dates next to its Reserve button. Using a
@@ -108,12 +113,12 @@ export function BookingSidebar({
 
   const canReserve = nights >= minNights && nights <= maxNights;
 
-  // Thread-native request-to-stay (Booking v2 / Chunk 4.75). Posts
-  // directly to /api/bookings to create the contact_request + thread,
-  // then lands the guest inside the thread where the rest of the
-  // conversation happens. Replaces the old intermediate /reserve page
-  // whose ReserveForm only gated on an optional message field.
-  const reserve = async () => {
+  // "Request to stay" now opens a review dialog where the guest
+  // confirms dates / pricing / cancellation policy and optionally
+  // attaches a note to the host. The actual POST to /api/bookings
+  // lives inside ReserveReviewDialog so the guest never submits
+  // blindly off a single click.
+  const openReview = () => {
     if (!range?.from || !range?.to) return;
     if (!canReserve) {
       toast.error(
@@ -123,45 +128,21 @@ export function BookingSidebar({
       );
       return;
     }
-    if (submitting) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listingId,
-          checkIn: format(range.from, "yyyy-MM-dd"),
-          checkOut: format(range.to, "yyyy-MM-dd"),
-          guests,
-          total: fees.total,
-          message: null,
-        }),
-      });
-      const data = (await res
-        .json()
-        .catch(() => ({}))) as BookingApiResponse;
-      if (!res.ok) {
-        toast.error(data.error || "Couldn't send request. Try again.");
-        return;
-      }
-      toast.success("Request sent to host");
-      if (data.threadId) {
-        const isDesktop =
-          typeof window !== "undefined" &&
-          window.matchMedia("(min-width: 768px)").matches;
-        router.push(
-          isDesktop
-            ? `/inbox?thread=${data.threadId}&sent=1`
-            : `/inbox/${data.threadId}?sent=1`
-        );
-      } else {
-        router.push("/inbox?sent=1");
-      }
-    } catch {
-      toast.error("Network error. Try again.");
-    } finally {
-      setSubmitting(false);
+    setReviewOpen(true);
+  };
+
+  const handleSent = ({ threadId }: { threadId: string | null }) => {
+    if (threadId) {
+      const isDesktop =
+        typeof window !== "undefined" &&
+        window.matchMedia("(min-width: 768px)").matches;
+      router.push(
+        isDesktop
+          ? `/inbox?thread=${threadId}&sent=1`
+          : `/inbox/${threadId}?sent=1`
+      );
+    } else {
+      router.push("/inbox?sent=1");
     }
   };
 
@@ -271,10 +252,10 @@ export function BookingSidebar({
           <Button
             id="booking-reserve"
             className="mt-4 h-12 w-full rounded-lg bg-brand text-base font-semibold hover:bg-brand-600"
-            onClick={reserve}
-            disabled={!range?.from || !range?.to || submitting}
+            onClick={openReview}
+            disabled={!range?.from || !range?.to}
           >
-            {submitting ? "Sending\u2026" : "Request to stay"}
+            Request to stay
           </Button>
           {trust && (
             <div className="mt-3 flex justify-center">
@@ -357,10 +338,10 @@ export function BookingSidebar({
           </div>
           <Button
             className="h-11 rounded-lg bg-brand px-6 font-semibold hover:bg-brand-600"
-            onClick={reserve}
-            disabled={!range?.from || !range?.to || submitting}
+            onClick={openReview}
+            disabled={!range?.from || !range?.to}
           >
-            {submitting ? "Sending\u2026" : "Request to stay"}
+            Request to stay
           </Button>
         </div>
       </div>
@@ -433,6 +414,28 @@ export function BookingSidebar({
           )}
         </div>
       </div>
+
+      {/* Review-before-send dialog. Mounted once and driven by
+          `reviewOpen`; the actual POST to /api/bookings lives inside
+          the dialog so the sidebar only owns the selection state. */}
+      {range?.from && range?.to && (
+        <ReserveReviewDialog
+          open={reviewOpen}
+          onOpenChange={setReviewOpen}
+          listingId={listingId}
+          checkIn={range.from}
+          checkOut={range.to}
+          guests={guests}
+          nights={nights}
+          pricePerNight={pricePerNight}
+          cleaningFee={fees.cleaning}
+          serviceFee={fees.service}
+          total={fees.total}
+          hostFirstName={hostFirstName}
+          cancellationPolicy={cancellationPolicy}
+          onSent={handleSent}
+        />
+      )}
     </>
   );
 }
