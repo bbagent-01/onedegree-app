@@ -11,14 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { AvailabilityCalendar } from "@/components/listing/availability-calendar";
-import { CalendarDays, Loader2, UserPlus, X } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Loader2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -157,31 +152,26 @@ export function RequestIntroDialog({
               Dates you&apos;re exploring (optional)
             </label>
             <div className="flex items-center gap-2">
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                <PopoverTrigger className="flex h-14 flex-1 items-center gap-2 rounded-xl border-2 border-border !bg-white px-4 text-left text-sm font-medium shadow-sm hover:bg-muted/30 focus:border-foreground/60 focus:outline-none">
-                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                  <span
-                    className={range?.from ? "" : "text-muted-foreground"}
-                  >
-                    {dateLabel}
-                  </span>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto p-3"
-                  align="start"
-                  side="bottom"
+              <button
+                type="button"
+                onClick={() => setCalendarOpen((v) => !v)}
+                className="flex h-14 flex-1 items-center gap-2 rounded-xl border-2 border-border !bg-white px-4 text-left text-sm font-medium shadow-sm hover:bg-muted/30 focus:border-foreground/60 focus:outline-none"
+                aria-expanded={calendarOpen}
+              >
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <span
+                  className={range?.from ? "" : "text-muted-foreground"}
                 >
-                  <AvailabilityCalendar
-                    value={range}
-                    onChange={(r) => {
-                      setRange(r);
-                      if (r?.from && r?.to) setCalendarOpen(false);
-                    }}
-                    blockedRanges={[]}
-                    numberOfMonths={1}
-                  />
-                </PopoverContent>
-              </Popover>
+                  {dateLabel}
+                </span>
+                <span className="ml-auto text-muted-foreground">
+                  {calendarOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </span>
+              </button>
               {range?.from && (
                 <button
                   type="button"
@@ -193,6 +183,22 @@ export function RequestIntroDialog({
                 </button>
               )}
             </div>
+            {/* Inline expandable calendar — dodges the Popover/Dialog
+                stacking-context collision where the popover portaled
+                behind the z-70 dialog overlay. */}
+            {calendarOpen && (
+              <div className="mt-2 overflow-hidden rounded-xl border-2 border-border bg-white p-2 shadow-sm">
+                <AvailabilityCalendar
+                  value={range}
+                  onChange={(r) => {
+                    setRange(r);
+                    if (r?.from && r?.to) setCalendarOpen(false);
+                  }}
+                  blockedRanges={[]}
+                  numberOfMonths={1}
+                />
+              </div>
+            )}
             <p className="mt-1 text-xs text-muted-foreground">
               Not a booking — just context for {recipientFirstName}.
             </p>

@@ -23,7 +23,9 @@ export type IntroStatus = "pending" | "accepted" | "declined" | "ignored";
 
 export interface InboxThread {
   id: string;
-  listing_id: string;
+  /** Null for listing-less DMs (migration 034 — person-to-person
+   *  threads opened from profile Contact or intro card DM). */
+  listing_id: string | null;
   guest_id: string;
   host_id: string;
   contact_request_id: string | null;
@@ -205,7 +207,11 @@ export async function getInboxForUser(currentUserId: string): Promise<InboxThrea
       )
     )
   );
-  const listingIds = Array.from(new Set(threads.map((t) => t.listing_id)));
+  // listing_id is nullable for DM threads — filter nulls out before
+  // fanning to the listings lookup.
+  const listingIds = Array.from(
+    new Set(threads.map((t) => t.listing_id).filter((x): x is string => !!x))
+  );
 
   const [{ data: users }, { data: listings }, { data: photos }] = await Promise.all([
     supabase
@@ -367,19 +373,26 @@ export async function getThreadDetail(
       )
       .eq("id", otherId)
       .single(),
-    supabase
-      .from("listings")
-      .select(
-        "id, title, area_name, price_min, price_max, cleaning_fee, avg_listing_rating, listing_review_count, host_id, cancellation_policy_override"
-      )
-      .eq("id", thread.listing_id)
-      .single(),
-    supabase
-      .from("listing_photos")
-      .select("listing_id, public_url, sort_order")
-      .eq("listing_id", thread.listing_id)
-      .order("sort_order", { ascending: true })
-      .limit(1),
+    // Listing is optional — DM threads (migration 034) have no
+    // listing_id. Resolve to a null-shaped result so the rest of
+    // the ThreadDetail builder can treat listing/photos uniformly.
+    thread.listing_id
+      ? supabase
+          .from("listings")
+          .select(
+            "id, title, area_name, price_min, price_max, cleaning_fee, avg_listing_rating, listing_review_count, host_id, cancellation_policy_override"
+          )
+          .eq("id", thread.listing_id)
+          .single()
+      : Promise.resolve({ data: null }),
+    thread.listing_id
+      ? supabase
+          .from("listing_photos")
+          .select("listing_id, public_url, sort_order")
+          .eq("listing_id", thread.listing_id)
+          .order("sort_order", { ascending: true })
+          .limit(1)
+      : Promise.resolve({ data: null }),
     thread.contact_request_id
       ? supabase
           .from("contact_requests")

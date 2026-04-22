@@ -277,8 +277,9 @@ export function ThreadView({
             {thread.other_user.name}
           </div>
           <div className="truncate text-xs text-muted-foreground">
-            {thread.role === "host" ? "Guest" : "Host"}
-            {thread.listing ? ` · ${thread.listing.area_name}` : ""}
+            {thread.listing
+              ? `${thread.role === "host" ? "Guest" : "Host"} · ${thread.listing.area_name}`
+              : "Direct message"}
           </div>
         </div>
       </div>
@@ -510,6 +511,14 @@ export function ThreadView({
                   m.content.startsWith(INTRO_REQUEST_PREFIX) &&
                   thread.intro_detail
                 ) {
+                  // Recipient display name — the viewer's "other
+                  // user" when they're the sender; their own name
+                  // when they're the recipient. Server-side sender
+                  // profile already carries the sender's name.
+                  const recipientName =
+                    thread.intro_detail.recipient_id === currentUserId
+                      ? "you"
+                      : thread.other_user.name;
                   return (
                     <div key={m.id} className="py-1">
                       <IntroRequestCard
@@ -525,6 +534,7 @@ export function ThreadView({
                         }}
                         viewerId={currentUserId}
                         sender={thread.intro_detail.sender_profile}
+                        recipientName={recipientName}
                         senderListings={thread.intro_detail.sender_listings}
                         connectorPaths={thread.trust_connector_paths}
                         trustDegree={thread.trust_degree}

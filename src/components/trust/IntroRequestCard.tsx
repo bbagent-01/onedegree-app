@@ -4,16 +4,19 @@
  * Thread card for the `__type:intro_request__` structured message
  * under the S2a direct-intro model.
  *
- * The recipient is always the gatekeeper. They see the sender's full
- * profile, how they're connected, and the sender's listings as
- * previews, and then decide: Accept / Reply / Decline. On Accept, the
- * app issues a bidirectional listing_access_grants pair and the
- * sender's listings flip to full view on refresh. On Decline the
- * thread stays in the recipient's Intros tab (they can Reopen) and
- * the sender is blocked from posting new messages in the thread.
+ * Three render modes:
  *
- * The sender sees a read-only pending / accepted / declined state
- * on this same card. Only the recipient sees actions.
+ *   pending   — full card with sender profile + chain + actions
+ *               (Accept / Reply / Decline on recipient; read-only
+ *               pending state on sender).
+ *
+ *   accepted  — compact status strip ("Intro accepted · you both
+ *               see each other's full listings"). Revoke menu
+ *               stays on the recipient strip.
+ *
+ *   declined  — compact status strip ("{recipient} has declined
+ *               your intro" on sender; "You declined this intro"
+ *               on recipient). Recipient strip also offers Reopen.
  */
 
 import Link from "next/link";
@@ -47,6 +50,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import type { ConnectorPathSummary } from "@/lib/trust-data";
 
 export interface IntroSenderProfile {
@@ -81,13 +85,17 @@ interface Props {
   };
   viewerId: string;
   sender: IntroSenderProfile;
+  /** Recipient's display name — used in the sender-facing decline
+   *  copy ("{recipient} has declined your intro"). Pulled from
+   *  ThreadDetail.other_user on the sender side, thread.intro_detail
+   *  on the recipient side. */
+  recipientName: string;
   /** Preview cards of the sender's listings. Click opens the listing
-   *  detail page where listing-level gating applies — the intro card
-   *  itself never unlocks listings. */
+   *  detail page where listing-level gating applies. */
   senderListings: IntroSenderListing[];
-  /** Direct connectors bridging recipient → sender (2° paths), sorted
-   *  strongest first. Lives on thread for backwards compat; chains
-   *  beyond 2° are fetched on-demand. */
+  /** Direct connectors bridging recipient → sender (2° paths),
+   *  sorted strongest first. Shipped with the thread for fast
+   *  fallback render before chain data loads async. */
   connectorPaths: ConnectorPathSummary[];
   trustDegree: 1 | 2 | 3 | 4 | null;
 }
@@ -114,12 +122,58 @@ function formatDateRange(start: string | null, end: string | null) {
   return s || e;
 }
 
-// ── Connection chain fetch ────────────────────────────────────────
-// Reuses /api/trust/connection — the same endpoint ConnectionPopover
-// uses to render the full trust breakdown. Direction=incoming gives
-// "sender's trust of me" (viewer = recipient); we render all chains
-// plus a deduped list of 1° people the recipient can DM.
+// ── LinkStrengthPill — purple ramp matching ChainRow in
+//    connection-breakdown.tsx. Kept local so we can tweak the intro-
+//    card style independently (e.g. bigger, more spacing). ──
+function LinkStrengthPill({ strength }: { strength: number }) {
+  if (!strength || strength <= 0) {
+    return (
+      <span className="mx-1 h-px w-4 shrink-0 bg-zinc-300" aria-hidden />
+    );
+  }
+  const rounded = Math.round(strength);
+  const bucket =
+    strength >= 50
+      ? "bg-violet-700"
+      : strength >= 30
+        ? "bg-violet-500"
+        : strength >= 15
+          ? "bg-violet-400"
+          : "bg-violet-300 text-violet-900";
+  return (
+    <span
+      className={cn(
+        "mx-1 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white",
+        bucket
+      )}
+      title={`1° vouch · ${rounded} pts`}
+    >
+      {rounded}
+    </span>
+  );
+}
 
+// ── Degree pill — color-coded by hop count (1/2/3/4°). ──
+function DegreePill({ degree }: { degree: number }) {
+  const map: Record<number, string> = {
+    1: "bg-violet-100 text-violet-800 ring-violet-200",
+    2: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+    3: "bg-amber-100 text-amber-800 ring-amber-200",
+    4: "bg-zinc-100 text-zinc-700 ring-zinc-200",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ring-1",
+        map[degree] ?? map[4]
+      )}
+    >
+      {degree}°
+    </span>
+  );
+}
+
+// ── Connection chain fetch ────────────────────────────────────────
 interface ChainNode {
   id: string;
   name: string;
@@ -161,6 +215,7 @@ export function IntroRequestCard({
   intro,
   viewerId,
   sender,
+  recipientName,
   senderListings,
   connectorPaths,
   trustDegree,
@@ -173,11 +228,8 @@ export function IntroRequestCard({
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
   const [revokeReason, setRevokeReason] = useState("");
+  const [dmLoadingId, setDmLoadingId] = useState<string | null>(null);
 
-  // Connection chain data — fetched once the recipient opens the
-  // "How you're connected" section. Serves two renders: the chain
-  // list (with each intermediary) AND the deduped "people you can
-  // DM" list underneath.
   const [conn, setConn] = useState<ConnectionApiResponse | null>(null);
   const [connLoading, setConnLoading] = useState(false);
 
@@ -191,13 +243,12 @@ export function IntroRequestCard({
       .then((data) => {
         if (data) setConn(data as ConnectionApiResponse);
       })
-      .catch(() => {
-        // Fail silently — section just shows the fallback empty state.
-      })
+      .catch(() => {})
       .finally(() => setConnLoading(false));
   }, [connectionsOpen, intro.sender_id, conn, connLoading]);
 
   const senderFirst = sender.name.split(" ")[0];
+  const recipientFirst = recipientName.split(" ")[0];
   const dateRange = formatDateRange(intro.start_date, intro.end_date);
 
   const call = async (action: "accept" | "decline" | "reopen") => {
@@ -252,14 +303,33 @@ export function IntroRequestCard({
     }
   };
 
+  // DM a connector — find-or-create a listing-less thread and nav.
+  const openDm = async (otherUserId: string) => {
+    if (dmLoadingId) return;
+    setDmLoadingId(otherUserId);
+    try {
+      const res = await fetch("/api/dm/open-thread", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otherUserId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        threadId?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.threadId) {
+        toast.error(data.error || "Couldn't open conversation");
+        return;
+      }
+      router.push(`/inbox/${data.threadId}`);
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setDmLoadingId(null);
+    }
+  };
+
   // ── Build chain + DM lists ──
-  // Chains: render all paths from recipient → sender as an ordered
-  // sequence of nodes. For 2° (connector paths) we shape into a
-  // 3-node chain; for 3°/4° we use the `chains` array the API
-  // returns directly.
-  //
-  // DM list: unique 1° contacts the recipient could reach — the
-  // first hop in each chain (index 1, since index 0 is "you").
   type RenderChain = {
     key: string;
     nodes: ChainNode[];
@@ -293,8 +363,6 @@ export function IntroRequestCard({
     } else if (conn.type === "multi_hop" && Array.isArray(conn.chains)) {
       for (let i = 0; i < conn.chains.length; i++) {
         const c = conn.chains[i];
-        // Incoming chains arrive target-first; flip to viewer-first
-        // so the render reads "You → Connector → … → Sender".
         const viewerFirstNodes = [...c.nodes].reverse();
         const viewerFirstLinks = [...c.linkStrengths].reverse();
         chainEntries.push({
@@ -303,7 +371,6 @@ export function IntroRequestCard({
           linkStrengths: viewerFirstLinks,
           degree: c.degree,
         });
-        // First hop after viewer is the recipient's 1° contact.
         const firstHop = viewerFirstNodes[1];
         if (firstHop && firstHop.id && firstHop.id !== "you") {
           dmMap.set(firstHop.id, firstHop);
@@ -311,9 +378,7 @@ export function IntroRequestCard({
       }
     }
   } else {
-    // Before the async fetch settles, fall back to the 2° connector
-    // paths shipped with the thread so recipients see something
-    // immediately on expand.
+    // Fallback while the connection API round-trips.
     const targetNode: ChainNode = {
       id: intro.sender_id,
       name: sender.name,
@@ -340,85 +405,150 @@ export function IntroRequestCard({
 
   const dmPeople = Array.from(dmMap.values());
 
-  const headerLine = (() => {
-    if (intro.status === "accepted") {
-      if (isRecipient) return `You accepted the intro from ${senderFirst}`;
-      return `Intro accepted`;
-    }
-    if (intro.status === "declined") {
-      if (isRecipient) return `You declined this intro from ${senderFirst}`;
-      return "Not available right now";
-    }
-    if (intro.status === "ignored") {
-      if (isRecipient) return `You marked this intro as ignored`;
-      return "Waiting for a reply";
-    }
-    if (isRecipient) return `Intro request from ${sender.name}`;
-    return `Waiting for their decision`;
-  })();
+  // ── Compact strip renderer for accepted / declined ──
+  if (intro.status === "accepted" || intro.status === "declined") {
+    const isAccepted = intro.status === "accepted";
+    const strip = isAccepted
+      ? {
+          accent: "border-emerald-200 bg-emerald-50",
+          icon: <CheckCircle2 className="h-4 w-4 text-emerald-700" />,
+          label: "Intro accepted",
+          body: isRecipient
+            ? `You and ${senderFirst} can see each other's full listings.`
+            : `You and ${recipientFirst} can see each other's full listings.`,
+        }
+      : {
+          accent: "border-zinc-200 bg-zinc-50",
+          icon: <XCircle className="h-4 w-4 text-zinc-600" />,
+          label: isRecipient
+            ? `You declined this intro`
+            : `${recipientFirst} has declined your intro`,
+          body: isRecipient
+            ? `${senderFirst} can't send more messages until you reopen.`
+            : `You can't send more messages in this thread. Try again in 30 days.`,
+        };
 
-  const statusAccent =
-    intro.status === "accepted"
-      ? "border-emerald-200 bg-emerald-50"
-      : intro.status === "declined"
-        ? "border-zinc-200 bg-zinc-50"
-        : intro.status === "ignored"
-          ? "border-zinc-200 bg-zinc-50"
-          : "border-violet-200 bg-violet-50/60";
-  const statusIcon =
-    intro.status === "accepted" ? (
-      <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-    ) : intro.status === "declined" ? (
-      <XCircle className="h-4 w-4 text-zinc-600" />
-    ) : (
-      <UserPlus className="h-4 w-4 text-violet-700" />
+    return (
+      <>
+        <div
+          className={cn(
+            "mx-auto w-full max-w-xl overflow-hidden rounded-2xl border-2 bg-white shadow-sm",
+            strip.accent
+          )}
+        >
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="mt-0.5 shrink-0">{strip.icon}</div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground">
+                  {strip.label}
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  {strip.body}
+                </div>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Recipient-only revoke when accepted. */}
+              {isRecipient && isAccepted && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="rounded-full p-1 hover:bg-black/5">
+                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem
+                      onClick={() => setRevokeDialogOpen(true)}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <UserMinus className="mr-2 h-4 w-4" />
+                      Revoke access
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {/* Recipient-only reopen when declined. */}
+              {isRecipient && !isAccepted && (
+                <button
+                  type="button"
+                  onClick={() => call("reopen")}
+                  disabled={!!pendingAction}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-60"
+                >
+                  {pendingAction === "reopen" ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3" />
+                  )}
+                  Reopen intro
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Revoke dialog — kept mounted for the accepted strip. */}
+        <Dialog open={revokeDialogOpen} onOpenChange={setRevokeDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Revoke access for {senderFirst}?</DialogTitle>
+              <DialogDescription>
+                This tears down full-listing access on both sides — you
+                won&rsquo;t see {senderFirst}&rsquo;s listings and they
+                won&rsquo;t see yours.
+              </DialogDescription>
+            </DialogHeader>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Private note (optional, for your records)
+              </label>
+              <textarea
+                value={revokeReason}
+                onChange={(e) => setRevokeReason(e.target.value)}
+                rows={3}
+                placeholder="Why are you revoking? Only you see this."
+                className="w-full resize-none rounded-xl border-2 border-border !bg-white px-4 py-3 text-sm font-medium shadow-sm focus:border-foreground/60 focus:outline-none"
+              />
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => setRevokeDialogOpen(false)}
+                className="rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitRevoke}
+                disabled={pendingAction === "revoke"}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {pendingAction === "revoke" ? "Revoking…" : "Revoke access"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     );
+  }
 
-  // Card stays visible across all statuses now that Decline keeps the
-  // thread in the Intros tab and the recipient can Reopen.
-  const showExpandables = intro.status === "pending";
-  const showRecipientActions =
-    isRecipient && (intro.status === "pending" || intro.status === "declined");
+  // ── Pending: full card ──
+  const headerLine = isRecipient
+    ? `Intro request from ${sender.name}`
+    : `Waiting for ${recipientFirst}'s decision`;
 
   return (
     <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border-2 border-border bg-white shadow-sm">
       {/* Status header */}
-      <div
-        className={`flex items-center justify-between border-b-2 px-4 py-2.5 ${statusAccent}`}
-      >
+      <div className="flex items-center justify-between border-b-2 border-violet-200 bg-violet-50/60 px-4 py-2.5">
         <div className="flex items-center gap-2">
-          {statusIcon}
+          <UserPlus className="h-4 w-4 text-violet-700" />
           <div className="text-xs font-semibold uppercase tracking-wide text-foreground">
-            {intro.status === "accepted"
-              ? "Intro accepted"
-              : intro.status === "declined"
-                ? "Intro declined"
-                : intro.status === "ignored"
-                  ? "Ignored"
-                  : "Intro request"}
+            Intro request
           </div>
         </div>
-        {/* Recipient-only revoke menu — only visible while intro is
-            accepted, the only state where an active grant exists. */}
-        {isRecipient && intro.status === "accepted" && (
-          <DropdownMenu>
-            <DropdownMenuTrigger className="rounded-full p-1 hover:bg-black/5">
-              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem
-                onClick={() => setRevokeDialogOpen(true)}
-                className="text-red-600 focus:text-red-600"
-              >
-                <UserMinus className="mr-2 h-4 w-4" />
-                Revoke access
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
       </div>
 
-      {/* Body */}
       <div className="p-4">
         {/* Sender identity row */}
         <div className="flex items-start gap-3">
@@ -438,12 +568,15 @@ export function IntroRequestCard({
             <div className="text-sm font-semibold text-foreground">
               {headerLine}
             </div>
-            {dateRange && intro.status !== "accepted" && (
+            {dateRange && (
               <div className="mt-1 text-xs text-muted-foreground">
-                Exploring: <span className="font-medium text-foreground">{dateRange}</span>
+                Exploring:{" "}
+                <span className="font-medium text-foreground">
+                  {dateRange}
+                </span>
               </div>
             )}
-            {intro.status === "pending" && trustDegree && (
+            {trustDegree && (
               <div className="mt-1 text-xs text-muted-foreground">
                 {trustDegree === 1
                   ? `Directly connected to ${senderFirst}`
@@ -453,9 +586,7 @@ export function IntroRequestCard({
           </div>
         </div>
 
-        {/* Message body — quoted, visible in pending & declined so the
-            recipient still has context after declining. */}
-        {intro.message && (intro.status === "pending" || intro.status === "declined") && (
+        {intro.message && (
           <div className="mt-4 rounded-xl border border-border bg-muted/30 p-3 text-sm leading-relaxed text-foreground">
             <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               {senderFirst} wrote
@@ -466,407 +597,322 @@ export function IntroRequestCard({
           </div>
         )}
 
-        {/* Expandable: sender's profile (pending only) */}
-        {showExpandables && (
-          <div className="mt-3 rounded-xl border border-border bg-white">
-            <button
-              type="button"
-              onClick={() => setProfileOpen((v) => !v)}
-              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-semibold hover:bg-muted/30"
-            >
-              <span>{senderFirst}&rsquo;s profile</span>
-              {profileOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-            </button>
-            {profileOpen && (
-              <div className="space-y-3 border-t border-border p-3 text-sm">
-                <div className="flex items-center gap-3">
-                  <Link href={`/profile/${sender.id}`}>
-                    <Avatar className="h-14 w-14">
-                      {sender.avatar_url && (
-                        <AvatarImage src={sender.avatar_url} alt={sender.name} />
-                      )}
-                      <AvatarFallback>{initials(sender.name)}</AvatarFallback>
-                    </Avatar>
+        {/* Expandable: sender's profile */}
+        <div className="mt-3 rounded-xl border border-border bg-white">
+          <button
+            type="button"
+            onClick={() => setProfileOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-semibold hover:bg-muted/30"
+          >
+            <span>{senderFirst}&rsquo;s profile</span>
+            {profileOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+          {profileOpen && (
+            <div className="space-y-3 border-t border-border p-3 text-sm">
+              <div className="flex items-center gap-3">
+                <Link href={`/profile/${sender.id}`}>
+                  <Avatar className="h-14 w-14">
+                    {sender.avatar_url && (
+                      <AvatarImage src={sender.avatar_url} alt={sender.name} />
+                    )}
+                    <AvatarFallback>{initials(sender.name)}</AvatarFallback>
+                  </Avatar>
+                </Link>
+                <div className="min-w-0">
+                  <Link
+                    href={`/profile/${sender.id}`}
+                    className="font-semibold hover:underline"
+                  >
+                    {sender.name}
                   </Link>
-                  <div className="min-w-0">
-                    <Link
-                      href={`/profile/${sender.id}`}
-                      className="font-semibold hover:underline"
-                    >
-                      {sender.name}
-                    </Link>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      {sender.member_since_year
-                        ? `Member since ${sender.member_since_year}`
-                        : "New member"}
-                      {sender.vouch_count_received > 0 && (
-                        <>
-                          {" · "}
-                          {sender.vouch_count_received} vouch
-                          {sender.vouch_count_received === 1 ? "" : "es"}
-                        </>
-                      )}
-                    </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {sender.member_since_year
+                      ? `Member since ${sender.member_since_year}`
+                      : "New member"}
+                    {sender.vouch_count_received > 0 && (
+                      <>
+                        {" · "}
+                        {sender.vouch_count_received} vouch
+                        {sender.vouch_count_received === 1 ? "" : "es"}
+                      </>
+                    )}
                   </div>
                 </div>
-
-                {sender.bio && (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                    {sender.bio}
-                  </p>
+              </div>
+              {sender.bio && (
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                  {sender.bio}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                {sender.host_rating_avg != null && (
+                  <span>
+                    Host rating:{" "}
+                    <span className="font-semibold text-foreground">
+                      {sender.host_rating_avg.toFixed(2)}
+                    </span>
+                  </span>
                 )}
-
-                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                  {sender.host_rating_avg != null && (
-                    <span>
-                      Host rating:{" "}
-                      <span className="font-semibold text-foreground">
-                        {sender.host_rating_avg.toFixed(2)}
-                      </span>
+                {sender.guest_rating_avg != null && (
+                  <span>
+                    Guest rating:{" "}
+                    <span className="font-semibold text-foreground">
+                      {sender.guest_rating_avg.toFixed(2)}
                     </span>
-                  )}
-                  {sender.guest_rating_avg != null && (
-                    <span>
-                      Guest rating:{" "}
-                      <span className="font-semibold text-foreground">
-                        {sender.guest_rating_avg.toFixed(2)}
-                      </span>
-                    </span>
-                  )}
+                  </span>
+                )}
+              </div>
+              {senderListings.length > 0 && (
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {senderFirst}&rsquo;s listings
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {senderListings.map((l) => (
+                      <Link
+                        key={l.id}
+                        href={`/listings/${l.id}`}
+                        className="overflow-hidden rounded-lg border border-border bg-white hover:shadow-sm"
+                      >
+                        <div className="aspect-[4/3] bg-muted">
+                          {l.thumbnail_url && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={l.thumbnail_url}
+                              alt={l.title}
+                              className="h-full w-full object-cover"
+                            />
+                          )}
+                        </div>
+                        <div className="p-2">
+                          <div className="truncate text-xs font-semibold">
+                            {l.title}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {l.area_name}
+                            {l.price_min ? ` · from $${l.price_min}/night` : ""}
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
+              )}
+              <Link
+                href={`/profile/${sender.id}`}
+                className="block text-xs font-semibold text-brand hover:underline"
+              >
+                View full profile →
+              </Link>
+            </div>
+          )}
+        </div>
 
-                {senderListings.length > 0 && (
+        {/* Expandable: how you're connected */}
+        <div className="mt-2 rounded-xl border border-border bg-white">
+          <button
+            type="button"
+            onClick={() => setConnectionsOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-semibold hover:bg-muted/30"
+          >
+            <span>How you&rsquo;re connected</span>
+            {connectionsOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+          {connectionsOpen && (
+            <div className="space-y-4 border-t border-border p-3 text-sm">
+              {connLoading && chainEntries.length === 0 ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Loading chain…
+                </div>
+              ) : chainEntries.length === 0 ? (
+                <div className="text-xs text-muted-foreground">
+                  No mutual connections — this is a cold intro.
+                </div>
+              ) : (
+                <>
+                  {/* Chains — avatars 10×10, purple link-strength pill
+                      between nodes, color-coded degree pill on the
+                      right. */}
                   <div>
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {senderFirst}&rsquo;s listings
+                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {chainEntries.length === 1
+                        ? "Chain"
+                        : `${chainEntries.length} chains`}
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {senderListings.map((l) => (
-                        <Link
-                          key={l.id}
-                          href={`/listings/${l.id}`}
-                          className="overflow-hidden rounded-lg border border-border bg-white hover:shadow-sm"
+                    <div className="space-y-2">
+                      {chainEntries.map((c) => (
+                        <div
+                          key={c.key}
+                          className="flex items-center gap-1.5 overflow-x-auto rounded-lg bg-muted/30 px-3 py-2.5 text-xs"
                         >
-                          <div className="aspect-[4/3] bg-muted">
-                            {l.thumbnail_url && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={l.thumbnail_url}
-                                alt={l.title}
-                                className="h-full w-full object-cover"
-                              />
-                            )}
-                          </div>
-                          <div className="p-2">
-                            <div className="truncate text-xs font-semibold">
-                              {l.title}
+                          {c.nodes.map((n, idx) => (
+                            <div
+                              key={`${c.key}-${idx}`}
+                              className="flex shrink-0 items-center"
+                            >
+                              {idx > 0 && (
+                                <LinkStrengthPill
+                                  strength={c.linkStrengths[idx - 1] ?? 0}
+                                />
+                              )}
+                              {n.id === "you" ? (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <Avatar className="h-10 w-10 ring-2 ring-foreground/10">
+                                    <AvatarFallback className="text-[10px]">
+                                      Me
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-[10px] font-medium text-muted-foreground">
+                                    You
+                                  </span>
+                                </div>
+                              ) : (
+                                <Link
+                                  href={`/profile/${n.id}`}
+                                  className="flex flex-col items-center gap-0.5 hover:opacity-80"
+                                >
+                                  <Avatar className="h-10 w-10 ring-2 ring-foreground/10">
+                                    {n.avatar_url && (
+                                      <AvatarImage
+                                        src={n.avatar_url}
+                                        alt={n.name}
+                                      />
+                                    )}
+                                    <AvatarFallback className="text-[10px]">
+                                      {initials(n.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="max-w-[4.5rem] truncate text-[10px] font-medium text-muted-foreground">
+                                    {n.name.split(" ")[0]}
+                                  </span>
+                                </Link>
+                              )}
                             </div>
-                            <div className="text-[11px] text-muted-foreground">
-                              {l.area_name}
-                              {l.price_min ? ` · from $${l.price_min}/night` : ""}
-                            </div>
+                          ))}
+                          <div className="ml-auto shrink-0 pl-2">
+                            <DegreePill degree={c.degree} />
                           </div>
-                        </Link>
+                        </div>
                       ))}
                     </div>
                   </div>
-                )}
 
-                <Link
-                  href={`/profile/${sender.id}`}
-                  className="block text-xs font-semibold text-brand hover:underline"
-                >
-                  View full profile →
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Expandable: how you're connected */}
-        {showExpandables && (
-          <div className="mt-2 rounded-xl border border-border bg-white">
-            <button
-              type="button"
-              onClick={() => setConnectionsOpen((v) => !v)}
-              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-semibold hover:bg-muted/30"
-            >
-              <span>How you&rsquo;re connected</span>
-              {connectionsOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-            </button>
-            {connectionsOpen && (
-              <div className="space-y-4 border-t border-border p-3 text-sm">
-                {connLoading && chainEntries.length === 0 ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Loading chain…
-                  </div>
-                ) : chainEntries.length === 0 ? (
-                  <div className="text-xs text-muted-foreground">
-                    No mutual connections — this is a cold intro.
-                  </div>
-                ) : (
-                  <>
-                    {/* All chains, rendered with each intermediary
-                        shown as an avatar node. Chain reads:
-                        You → Connector[s] → Sender. */}
+                  {/* Deduped 1° contacts the recipient could DM. Click
+                      opens an actual DM thread, not a profile. */}
+                  {dmPeople.length > 0 && (
                     <div>
                       <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {chainEntries.length === 1
-                          ? "Chain"
-                          : `${chainEntries.length} chains`}
+                        People you can DM
                       </div>
-                      <div className="space-y-2">
-                        {chainEntries.map((c) => (
+                      <div className="space-y-1.5">
+                        {dmPeople.map((p) => (
                           <div
-                            key={c.key}
-                            className="flex items-center gap-1.5 rounded-lg bg-muted/30 px-3 py-2 text-xs"
+                            key={`dm-${p.id}`}
+                            className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-border"
                           >
-                            {c.nodes.map((n, idx) => (
-                              <div key={`${c.key}-${idx}`} className="flex items-center gap-1.5">
-                                {idx > 0 && (
-                                  <span className="text-muted-foreground">
-                                    →
-                                  </span>
+                            <Link
+                              href={`/profile/${p.id}`}
+                              className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
+                            >
+                              <Avatar className="h-8 w-8">
+                                {p.avatar_url && (
+                                  <AvatarImage
+                                    src={p.avatar_url}
+                                    alt={p.name}
+                                  />
                                 )}
-                                {n.id === "you" ? (
-                                  <span className="flex items-center gap-1">
-                                    <Avatar className="h-6 w-6">
-                                      <AvatarFallback className="text-[10px]">
-                                        Me
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="font-medium">You</span>
-                                  </span>
-                                ) : (
-                                  <Link
-                                    href={`/profile/${n.id}`}
-                                    className="flex items-center gap-1 hover:underline"
-                                  >
-                                    <Avatar className="h-6 w-6">
-                                      {n.avatar_url && (
-                                        <AvatarImage
-                                          src={n.avatar_url}
-                                          alt={n.name}
-                                        />
-                                      )}
-                                      <AvatarFallback className="text-[10px]">
-                                        {initials(n.name)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="font-medium">
-                                      {n.name.split(" ")[0]}
-                                    </span>
-                                  </Link>
-                                )}
+                                <AvatarFallback>
+                                  {initials(p.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="truncate text-sm font-semibold">
+                                {p.name}
                               </div>
-                            ))}
-                            <span className="ml-auto text-[10px] text-muted-foreground">
-                              {c.degree}°
-                            </span>
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => openDm(p.id)}
+                              disabled={!!dmLoadingId}
+                              className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-2.5 py-1 text-xs font-semibold hover:bg-muted disabled:opacity-60"
+                            >
+                              {dmLoadingId === p.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <MessageCircle className="h-3 w-3" />
+                              )}
+                              DM
+                            </button>
                           </div>
                         ))}
                       </div>
                     </div>
-
-                    {/* Deduped 1° contacts the recipient could DM. */}
-                    {dmPeople.length > 0 && (
-                      <div>
-                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          People you can DM
-                        </div>
-                        <div className="space-y-1.5">
-                          {dmPeople.map((p) => (
-                            <div
-                              key={`dm-${p.id}`}
-                              className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 ring-1 ring-border"
-                            >
-                              <Link
-                                href={`/profile/${p.id}`}
-                                className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
-                              >
-                                <Avatar className="h-8 w-8">
-                                  {p.avatar_url && (
-                                    <AvatarImage
-                                      src={p.avatar_url}
-                                      alt={p.name}
-                                    />
-                                  )}
-                                  <AvatarFallback>
-                                    {initials(p.name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="truncate text-sm font-semibold">
-                                  {p.name}
-                                </div>
-                              </Link>
-                              <Link
-                                href={`/profile/${p.id}`}
-                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-2.5 py-1 text-xs font-semibold hover:bg-muted"
-                              >
-                                <MessageCircle className="h-3 w-3" />
-                                DM
-                              </Link>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Terminal-state messaging for the sender side */}
-        {isSender && intro.status === "declined" && (
-          <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-foreground">
-            {senderFirst} isn&rsquo;t able to engage right now.
-            <div className="mt-1 text-xs text-muted-foreground">
-              You can&rsquo;t send more messages in this thread. Try again in
-              30 days.
-            </div>
-          </div>
-        )}
-        {isSender && intro.status === "accepted" && (
-          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-foreground">
-            Intro accepted. You can both now see each other&rsquo;s full
-            listings.
-          </div>
-        )}
-        {intro.status === "accepted" && isRecipient && (
-          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-foreground">
-            You and {senderFirst} can both now see each other&rsquo;s full
-            listings. Use the menu above to revoke access at any time.
-          </div>
-        )}
-      </div>
-
-      {/* Actions — pending or declined, recipient only. */}
-      {showRecipientActions && (
-        <div className="border-t border-border bg-muted/20 p-3">
-          {intro.status === "pending" ? (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <button
-                type="button"
-                onClick={() => call("accept")}
-                disabled={!!pendingAction}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-60"
-              >
-                {pendingAction === "accept" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                )}
-                Accept
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const composer = document.querySelector(
-                    "textarea[placeholder^='Type']"
-                  ) as HTMLTextAreaElement | null;
-                  composer?.focus();
-                  composer?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center",
-                  });
-                }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-              >
-                <MessageCircle className="h-3.5 w-3.5" />
-                Reply
-              </button>
-              <button
-                type="button"
-                onClick={() => call("decline")}
-                disabled={!!pendingAction}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted disabled:opacity-60"
-              >
-                {pendingAction === "decline" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <XCircle className="h-3.5 w-3.5" />
-                )}
-                Decline
-              </button>
-            </div>
-          ) : (
-            // Declined — only the recipient can reopen the intro.
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs text-muted-foreground">
-                Changed your mind? Reopening lets {senderFirst} post
-                messages again.
-              </div>
-              <button
-                type="button"
-                onClick={() => call("reopen")}
-                disabled={!!pendingAction}
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted disabled:opacity-60"
-              >
-                {pendingAction === "reopen" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5" />
-                )}
-                Reopen intro
-              </button>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>
-      )}
+      </div>
 
-      {/* Revoke confirmation dialog */}
-      <Dialog open={revokeDialogOpen} onOpenChange={setRevokeDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Revoke access for {senderFirst}?</DialogTitle>
-            <DialogDescription>
-              This tears down full-listing access on both sides — you
-              won&rsquo;t see {senderFirst}&rsquo;s listings and they
-              won&rsquo;t see yours.
-            </DialogDescription>
-          </DialogHeader>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Private note (optional, for your records)
-            </label>
-            <textarea
-              value={revokeReason}
-              onChange={(e) => setRevokeReason(e.target.value)}
-              rows={3}
-              placeholder="Why are you revoking? Only you see this."
-              className="w-full resize-none rounded-xl border-2 border-border !bg-white px-4 py-3 text-sm font-medium shadow-sm focus:border-foreground/60 focus:outline-none"
-            />
+      {/* Actions — recipient only. */}
+      {isRecipient && (
+        <div className="border-t border-border bg-muted/20 p-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => call("accept")}
+              disabled={!!pendingAction}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-60"
+            >
+              {pendingAction === "accept" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              Accept
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const composer = document.querySelector(
+                  "textarea[placeholder^='Type']"
+                ) as HTMLTextAreaElement | null;
+                composer?.focus();
+                composer?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                });
+              }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Reply
+            </button>
+            <button
+              type="button"
+              onClick={() => call("decline")}
+              disabled={!!pendingAction}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted disabled:opacity-60"
+            >
+              {pendingAction === "decline" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <XCircle className="h-3.5 w-3.5" />
+              )}
+              Decline
+            </button>
           </div>
-          <DialogFooter>
-            <button
-              type="button"
-              onClick={() => setRevokeDialogOpen(false)}
-              className="rounded-lg border-2 border-border bg-white px-4 py-2 text-sm font-semibold hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={submitRevoke}
-              disabled={pendingAction === "revoke"}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-            >
-              {pendingAction === "revoke" ? "Revoking…" : "Revoke access"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }

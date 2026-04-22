@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileReviews } from "@/components/profile/profile-reviews";
 import { VouchPrompt } from "@/components/profile/vouch-prompt";
 import { VouchButton } from "@/components/trust/vouch-button";
+import { ContactButton } from "@/components/profile/contact-button";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { ConnectionPath } from "@/components/trust/connection-path";
 import { TrustTag } from "@/components/trust/trust-tag";
@@ -120,12 +121,10 @@ export default async function ProfilePage({
                 variant="outline"
                 className="h-auto rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
               />
-              <Link
-                href="/inbox"
-                className="rounded-lg border border-border bg-white px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
-              >
-                Contact
-              </Link>
+              <ContactButton
+                targetUserId={user.id}
+                targetName={user.name}
+              />
               <ReportUserButton
                 reportedUserId={user.id}
                 reportedUserName={user.name}
