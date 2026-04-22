@@ -12,7 +12,7 @@ import { VouchButton } from "@/components/trust/vouch-button";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { ConnectionPath } from "@/components/trust/connection-path";
 import { TrustTag } from "@/components/trust/trust-tag";
-import { ProfileSafetyMenu } from "@/components/safety/profile-safety-menu";
+import { ReportUserButton } from "@/components/safety/report-user-button";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -125,9 +125,10 @@ export default async function ProfilePage({
               >
                 Contact
               </Link>
-              <ProfileSafetyMenu
+              <ReportUserButton
                 reportedUserId={user.id}
                 reportedUserName={user.name}
+                sourceContext={{ source: "profile", profile_id: user.id }}
               />
             </>
           )}

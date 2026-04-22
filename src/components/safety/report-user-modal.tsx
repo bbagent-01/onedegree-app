@@ -162,6 +162,11 @@ export function ReportUserModal({
             <div className="mt-1 text-right text-xs text-muted-foreground">
               {details.trim().length} / {MIN_DETAILS}
             </div>
+            <p className="mt-2 rounded-lg bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
+              Trustead can&rsquo;t mediate bookings between users, but we
+              can restrict a user&rsquo;s access to the site based on
+              reports and community guideline violations.
+            </p>
           </div>
 
           <div className="flex gap-2">

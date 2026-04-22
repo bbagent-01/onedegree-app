@@ -28,6 +28,7 @@ import {
 import { resolveStages } from "@/lib/booking-stage";
 import { CollapsibleTripTimeline } from "@/components/booking/CollapsibleTripTimeline";
 import { CancellationPolicyCard } from "@/components/booking/CancellationPolicyCard";
+import { ReportUserButton } from "@/components/safety/report-user-button";
 
 interface Props {
   thread: ThreadDetail;
@@ -372,6 +373,23 @@ export function ReservationSidebar({ thread, onClose }: Props) {
             <ArrowRight className="h-4 w-4 text-muted-foreground transition group-hover:text-foreground" />
           </Link>
         )}
+
+        {/* Sidebar-level report entry. Reports the counterparty of
+            this thread, tagged with the threadId so admins can jump
+            back to the conversation. Rendered at the bottom so it
+            never competes with reservation actions. */}
+        <div className="pt-1">
+          <ReportUserButton
+            variant="ghost"
+            label={`Report ${thread.other_user.name.split(" ")[0] || "user"}`}
+            reportedUserId={thread.other_user.id}
+            reportedUserName={thread.other_user.name}
+            sourceContext={{
+              source: "thread_sidebar",
+              thread_id: thread.id,
+            }}
+          />
+        </div>
 
       </div>
     </aside>
