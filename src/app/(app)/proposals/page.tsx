@@ -48,10 +48,10 @@ export default async function ProposalsFeedPage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold md:text-3xl">
-            {authorParam && !includeOwn
-              ? "Their proposals"
-              : includeOwn
-                ? "Your proposals"
+            {authorParam === viewerId
+              ? "Your proposals"
+              : authorParam
+                ? "Their proposals"
                 : "Proposals in your network"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

@@ -122,6 +122,10 @@ export function NewProposalForm({
     if (submitting) return false;
     if (titleLen < 1 || titleLen > 120) return false;
     if (descTooShort) return false;
+    if (kind === "trip_wish") {
+      const g = parseInt(guestCount || "0", 10);
+      if (!g || g < 1) return false;
+    }
     if (kind === "host_offer") {
       if (!listingId) return false;
       if (dateMode !== "range" || !range?.from || !range?.to) return false;
@@ -449,9 +453,17 @@ export function NewProposalForm({
         </div>
       </Field>
 
-      {/* Trip-only: guest count */}
+      {/* Trip-only: guest count. Required — the host needs to know
+          headcount upfront to judge whether the trip is a fit. */}
       {kind === "trip_wish" && (
-        <Field label="Guest count (optional)">
+        <Field
+          label="Guest count"
+          hint={
+            guestCount && parseInt(guestCount, 10) > 0
+              ? undefined
+              : "Required — how many people are traveling"
+          }
+        >
           <input
             type="number"
             min={1}
