@@ -49,6 +49,19 @@ function initials(name: string) {
 
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
+  // Parse YYYY-MM-DD locally instead of via `new Date(iso)` (which
+  // UTC-coerces and drifts by the viewer's TZ). Full ISO timestamps
+  // still format fine since they include time + offset.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  if (dateOnly) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
   return new Date(iso).toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
@@ -57,12 +70,23 @@ function fmtDate(iso: string | null) {
   });
 }
 
-function statusLabel(s: string | null | undefined): {
+function statusLabel(
+  s: string | null | undefined,
+  termsAcceptedAt: string | null | undefined
+): {
   label: string;
   tone: "pending" | "accepted" | "declined" | "cancelled";
 } {
   if (!s) return { label: "Inquiry", tone: "pending" };
-  if (s === "accepted") return { label: "Confirmed", tone: "accepted" };
+  // S7 fix: `status='accepted'` only means the host approved and sent
+  // terms. The reservation isn't Confirmed until the guest stamps
+  // terms_accepted_at. Before that it's Pending (terms offered,
+  // awaiting guest confirmation).
+  if (s === "accepted") {
+    return termsAcceptedAt
+      ? { label: "Confirmed", tone: "accepted" }
+      : { label: "Pending", tone: "pending" };
+  }
   if (s === "declined") return { label: "Declined", tone: "declined" };
   if (s === "cancelled") return { label: "Cancelled", tone: "cancelled" };
   return { label: "Pending", tone: "pending" };
@@ -83,7 +107,7 @@ function statusLabel(s: string | null | undefined): {
 export function ReservationSidebar({ thread, onClose }: Props) {
   const { booking, listing, other_user, role, reservation_sidebar } = thread;
   const isHostViewer = role === "host";
-  const status = statusLabel(booking?.status);
+  const status = statusLabel(booking?.status, booking?.terms_accepted_at);
 
   const otherRating = reservation_sidebar?.other_user_is_host
     ? reservation_sidebar.other_user_host_rating

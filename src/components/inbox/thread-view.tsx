@@ -84,8 +84,16 @@ function timeLabel(iso: string) {
   });
 }
 
-function bookingBadge(status: string | undefined) {
+function bookingBadge(
+  status: string | undefined,
+  termsAcceptedAt?: string | null
+) {
   if (!status) return null;
+  // S7 fix: host-accepted (terms sent) is still "Pending" until the
+  // guest stamps terms_accepted_at. Only promote to Confirmed once
+  // the guest has actually accepted the offer.
+  const effective =
+    status === "accepted" && !termsAcceptedAt ? "pending" : status;
   const map: Record<string, { label: string; className: string }> = {
     pending: {
       label: "Pending",
@@ -104,7 +112,7 @@ function bookingBadge(status: string | undefined) {
       className: "bg-zinc-100 text-zinc-700 hover:bg-zinc-100",
     },
   };
-  const m = map[status];
+  const m = map[effective];
   if (!m) return null;
   return <Badge className={m.className}>{m.label}</Badge>;
 }
@@ -382,7 +390,10 @@ export function ThreadView({
                 </div>
               )}
             </div>
-            {bookingBadge(thread.booking?.status)}
+            {bookingBadge(
+              thread.booking?.status,
+              thread.booking?.terms_accepted_at
+            )}
           </Link>
         </div>
       )}
@@ -561,6 +572,7 @@ export function ThreadView({
                       <SystemMilestoneCard
                         icon={Pencil}
                         tone="amber"
+                        emphasizeBody
                         title={`${editor} updated the stay terms`}
                         subtitle="Scroll up to the terms card to review the latest details."
                       />
@@ -578,6 +590,7 @@ export function ThreadView({
                       <SystemMilestoneCard
                         icon={MessageSquare}
                         tone="amber"
+                        emphasizeBody
                         title={`${asker} requested edits to the stay terms`}
                         subtitle="See the reply below for what they want changed."
                       />

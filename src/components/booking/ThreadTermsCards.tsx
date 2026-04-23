@@ -104,7 +104,15 @@ interface TermsOfferedProps {
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
+  // check_in / check_out arrive as bare YYYY-MM-DD strings. Passing
+  // that straight to `new Date()` coerces the ISO to UTC-midnight,
+  // which then reformats in the viewer's local TZ — so a Jul 10
+  // stay renders as Jul 9 in anything west of UTC. Parse the pieces
+  // manually and construct a local-date to match the thread header
+  // and sidebar renderers.
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return "—";
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -334,7 +342,9 @@ export function TermsOfferedCard({
         </div>
         <div className="mt-0.5 text-xs text-muted-foreground">
           {declinedAt
-            ? "These terms were declined."
+            ? declinedBy === "host"
+              ? "The host withdrew this offer."
+              : "These terms were declined."
             : anyChanged && viewerRole === "guest" && !acceptedAt
               ? `${hostFirstName} updated some details before approving — look for the red pills below.`
               : "Here are the full terms for this reservation."}

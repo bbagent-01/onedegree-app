@@ -18,6 +18,13 @@ interface Props {
   subtitle?: string;
   /** Accent color for the icon chip. */
   tone?: "neutral" | "emerald" | "amber" | "brand";
+  /**
+   * When true, tint the whole card body with the tone (not just the
+   * icon chip). Used by S7 edit/edit-request markers so they stand
+   * out in the timeline as actionable state shifts rather than
+   * blending into the default white milestone look.
+   */
+  emphasizeBody?: boolean;
 }
 
 export function SystemMilestoneCard({
@@ -25,9 +32,21 @@ export function SystemMilestoneCard({
   title,
   subtitle,
   tone = "neutral",
+  emphasizeBody = false,
 }: Props) {
   return (
-    <div className="mx-auto w-full max-w-xl rounded-2xl border border-border bg-white p-4">
+    <div
+      className={cn(
+        "mx-auto w-full max-w-xl rounded-2xl border p-4",
+        emphasizeBody && tone === "amber"
+          ? "border-amber-300 bg-amber-50"
+          : emphasizeBody && tone === "emerald"
+            ? "border-emerald-200 bg-emerald-50"
+            : emphasizeBody && tone === "brand"
+              ? "border-brand/40 bg-brand/5"
+              : "border-border bg-white"
+      )}
+    >
       <div className="flex items-start gap-3">
         <div
           className={cn(
@@ -41,9 +60,23 @@ export function SystemMilestoneCard({
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold">{title}</div>
+          <div
+            className={cn(
+              "text-sm font-semibold",
+              emphasizeBody && tone === "amber" && "text-amber-900"
+            )}
+          >
+            {title}
+          </div>
           {subtitle && (
-            <div className="mt-0.5 text-xs text-muted-foreground">
+            <div
+              className={cn(
+                "mt-0.5 text-xs",
+                emphasizeBody && tone === "amber"
+                  ? "text-amber-800/80"
+                  : "text-muted-foreground"
+              )}
+            >
               {subtitle}
             </div>
           )}

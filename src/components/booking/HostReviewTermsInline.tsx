@@ -122,15 +122,28 @@ export function HostReviewTermsInline({
   // Total state — stored as the two underlying line items so the
   // breakdown stays editable. Total is derived, not stored separately.
   const seedCleaning = Math.max(0, Math.round(cleaningFee ?? 0));
+  // In edit mode the host-offered total already reflects a prior
+  // edit (possibly different from the listing base). Always derive
+  // nightly from that total so re-opening Edit doesn't silently
+  // reset the host's offered rate back to the listing rate. In
+  // create mode, prefer the listing rate when we have one so hosts
+  // start from their current published price.
+  const seedNights = Math.max(1, nightsBetween(checkIn, checkOut));
+  const totalBackedNightly =
+    initialTotal && seedNights > 0
+      ? Math.max(
+          0,
+          Math.round((initialTotal - seedCleaning) / seedNights)
+        )
+      : 0;
   const derivedNightly =
-    nightlyRate && nightlyRate > 0
-      ? nightlyRate
-      : initialTotal && nightsBetween(checkIn, checkOut) > 0
-        ? Math.round(
-            ((initialTotal ?? 0) - seedCleaning) /
-              Math.max(1, nightsBetween(checkIn, checkOut))
-          )
-        : 0;
+    submitMode === "edit"
+      ? totalBackedNightly > 0
+        ? totalBackedNightly
+        : nightlyRate ?? 0
+      : nightlyRate && nightlyRate > 0
+        ? nightlyRate
+        : totalBackedNightly;
   const [nightlyStr, setNightlyStr] = useState<string>(
     derivedNightly > 0 ? String(derivedNightly) : ""
   );
