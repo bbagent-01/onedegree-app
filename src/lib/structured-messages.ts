@@ -19,6 +19,16 @@
 
 export const TERMS_OFFERED_PREFIX = "__type:terms_offered__";
 export const TERMS_ACCEPTED_PREFIX = "__type:terms_accepted__";
+/** Posted when the host edits a pending (offered-but-not-yet-
+ *  accepted) terms card. The thread renders a compact milestone
+ *  card summarising which sections changed; the canonical TermsOffered
+ *  card above/below re-renders with the new values and the existing
+ *  "Host updated" diff pill. */
+export const TERMS_EDITED_PREFIX = "__type:terms_edited__";
+/** Posted when the guest clicks "Request Edits" on a pending terms
+ *  card. Card status stays pending; this marker anchors the ask in
+ *  the thread timeline alongside the guest's free-text reply. */
+export const TERMS_EDITS_REQUESTED_PREFIX = "__type:terms_edits_requested__";
 /** Posted when the guest declines the host's offered terms from
  *  TermsOfferedCard (before accepting). The card re-renders in a
  *  declined state for both viewers; messaging stays open. */
@@ -137,6 +147,8 @@ export function isStructuredMessage(content: string): boolean {
   return (
     content.startsWith(TERMS_OFFERED_PREFIX) ||
     content.startsWith(TERMS_ACCEPTED_PREFIX) ||
+    content.startsWith(TERMS_EDITED_PREFIX) ||
+    content.startsWith(TERMS_EDITS_REQUESTED_PREFIX) ||
     content.startsWith(TERMS_DECLINED_PREFIX) ||
     content.startsWith(RESERVATION_DECLINED_PREFIX) ||
     content.startsWith(RESERVATION_REQUEST_PREFIX) ||
@@ -165,6 +177,8 @@ export function isStructuredMessage(content: string): boolean {
 export function structuredMessageLabel(content: string): string | null {
   if (content.startsWith(TERMS_OFFERED_PREFIX)) return "Terms sent";
   if (content.startsWith(TERMS_ACCEPTED_PREFIX)) return "Terms accepted";
+  if (content.startsWith(TERMS_EDITED_PREFIX)) return "Terms updated";
+  if (content.startsWith(TERMS_EDITS_REQUESTED_PREFIX)) return "Edits requested";
   if (content.startsWith(TERMS_DECLINED_PREFIX)) return "Terms declined";
   if (content.startsWith(RESERVATION_DECLINED_PREFIX))
     return "Reservation declined";

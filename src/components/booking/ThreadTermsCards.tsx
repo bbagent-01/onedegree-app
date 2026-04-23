@@ -9,12 +9,15 @@ import {
   Copy,
   DollarSign,
   Loader2,
+  MessageSquare,
+  Pencil,
   Receipt,
   ShieldCheck,
   Users,
   Wallet,
   X,
 } from "lucide-react";
+import { HostReviewTermsInline } from "./HostReviewTermsInline";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +26,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+// Import aliases used by the S7 edit-terms dialog (host edit pending
+// terms). Reuses the existing Dialog primitives — keeping the aliases
+// lets callers below stay readable.
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CancellationPolicyCard } from "./CancellationPolicyCard";
@@ -56,6 +62,7 @@ export {
 
 interface TermsOfferedProps {
   bookingId: string;
+  threadId: string;
   checkIn: string | null;
   checkOut: string | null;
   guestCount: number | null;
@@ -87,6 +94,10 @@ interface TermsOfferedProps {
    *  guest accepted. Drives the red "declined" footer. */
   termsDeclinedAt: string | null;
   termsDeclinedBy: "guest" | "host" | null;
+  /** S7: guest asked for edits without declining. Card stays pending;
+   *  host's Edit button picks up an amber accent + the header shows
+   *  an "Edits requested" chip. Cleared when host edits. */
+  editsRequestedAt: string | null;
   hostFirstName: string;
   guestFirstName: string;
 }
@@ -108,6 +119,7 @@ function fmtDate(iso: string | null): string {
  */
 export function TermsOfferedCard({
   bookingId,
+  threadId,
   checkIn,
   checkOut,
   guestCount,
@@ -125,6 +137,7 @@ export function TermsOfferedCard({
   termsAcceptedAt,
   termsDeclinedAt,
   termsDeclinedBy,
+  editsRequestedAt,
   hostFirstName,
   guestFirstName,
 }: TermsOfferedProps) {
@@ -156,6 +169,58 @@ export function TermsOfferedCard({
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [declining, setDeclining] = useState(false);
+  // S7: host-side Edit dialog + guest-side Request Edits button.
+  const [editOpen, setEditOpen] = useState(false);
+  const [requestingEdits, setRequestingEdits] = useState(false);
+  const pending = !acceptedAt && !declinedAt;
+  const hasEditsRequest = Boolean(editsRequestedAt);
+
+  const requestEdits = async () => {
+    if (requestingEdits) return;
+    setRequestingEdits(true);
+    try {
+      const res = await fetch(
+        `/api/contact-requests/${bookingId}/request-edits`,
+        { method: "POST" }
+      );
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error || "Couldn't send edit request");
+        return;
+      }
+      // Navigate the guest into the composer with a prefilled stub so
+      // they can spell out what they want changed. The prefill URL
+      // param is one-shot — ThreadView only seeds it when messages
+      // are empty, so we bypass that by focusing the composer
+      // directly and setting its value via a DOM event.
+      const composer = document.querySelector(
+        "textarea[placeholder^='Type']"
+      ) as HTMLTextAreaElement | null;
+      if (composer) {
+        const nativeSetter = Object.getOwnPropertyDescriptor(
+          window.HTMLTextAreaElement.prototype,
+          "value"
+        )?.set;
+        nativeSetter?.call(composer, "Requested edits on terms: ");
+        composer.dispatchEvent(new Event("input", { bubbles: true }));
+        composer.focus();
+        composer.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Move cursor to end so the guest types directly after the
+        // prefill stub.
+        const endPos = composer.value.length;
+        composer.setSelectionRange(endPos, endPos);
+      }
+      toast.success("Edit request noted — send your message below");
+      router.refresh();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setRequestingEdits(false);
+    }
+  };
 
   const declineEndpoint =
     viewerRole === "guest" ? "decline-terms" : "decline-reservation";
@@ -255,7 +320,18 @@ export function TermsOfferedCard({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold">{title}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-sm font-semibold">{title}</div>
+          {/* S7 — pending + guest asked for edits. Shown on both
+              sides so the host knows an edit was asked for and the
+              guest sees their own ask acknowledged. */}
+          {pending && hasEditsRequest && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+              <MessageSquare className="h-3 w-3" />
+              Edits requested
+            </span>
+          )}
+        </div>
         <div className="mt-0.5 text-xs text-muted-foreground">
           {declinedAt
             ? "These terms were declined."
@@ -442,6 +518,23 @@ export function TermsOfferedCard({
                 <X className="h-4 w-4" />
                 Decline
               </button>
+              {/* S7 Task 4 — middle secondary action. Opens a free-
+                  text reply prefilled with "Requested edits on terms: "
+                  and flags edits_requested_* so the host sees the ask
+                  on their Edit button. */}
+              <button
+                type="button"
+                onClick={requestEdits}
+                disabled={submitting || requestingEdits}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-amber-300 bg-white px-4 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-50 disabled:opacity-60 sm:w-auto"
+              >
+                {requestingEdits ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MessageSquare className="h-4 w-4" />
+                )}
+                Request edits
+              </button>
               <button
                 type="button"
                 onClick={accept}
@@ -467,16 +560,38 @@ export function TermsOfferedCard({
 
       {!declinedAt && viewerRole === "host" && !acceptedAt && (
         <div className="flex flex-col-reverse items-stretch gap-2 border-t border-border bg-muted/30 p-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <span>Waiting for {guestFirstName} to confirm these terms.</span>
-          <button
-            type="button"
-            onClick={() => setDeclineOpen(true)}
-            disabled={submitting}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
-          >
-            <X className="h-3.5 w-3.5" />
-            Withdraw offer
-          </button>
+          <span>
+            {hasEditsRequest
+              ? `${guestFirstName} asked for edits — check their message and update the terms below.`
+              : `Waiting for ${guestFirstName} to confirm these terms.`}
+          </span>
+          <div className="flex items-center gap-2 sm:shrink-0">
+            {/* S7 Task 3 — host Edit button. Amber-accented when the
+                guest has an open edit request; neutral otherwise. */}
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              disabled={submitting}
+              className={cn(
+                "inline-flex items-center justify-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-xs font-semibold shadow-sm transition disabled:opacity-60",
+                hasEditsRequest
+                  ? "border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                  : "border-border bg-white text-foreground hover:bg-muted"
+              )}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit terms
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeclineOpen(true)}
+              disabled={submitting}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+            >
+              <X className="h-3.5 w-3.5" />
+              Withdraw offer
+            </button>
+          </div>
         </div>
       )}
       {!declinedAt && viewerRole === "host" && acceptedAt && (
@@ -500,6 +615,43 @@ export function TermsOfferedCard({
           </div>
         </div>
       )}
+
+      {/* S7 Task 3 — host edit dialog. Reuses HostReviewTermsInline
+          in edit mode: same compose UI, "Save changes" button,
+          PATCH without status flip. Server stamps last_edited_at +
+          clears edits_requested_*. */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit terms for {guestFirstName}</DialogTitle>
+            <DialogDescription>
+              These updates repost in the thread — {guestFirstName} sees a
+              &ldquo;terms updated&rdquo; note and the card below refreshes.
+            </DialogDescription>
+          </DialogHeader>
+          <HostReviewTermsInline
+            bookingId={bookingId}
+            initialTotal={totalEstimate}
+            initialPolicy={policy}
+            checkIn={checkIn}
+            checkOut={checkOut}
+            guestCount={guestCount ?? 1}
+            nightlyRate={nightlyRate}
+            cleaningFee={cleaningFee}
+            guestFirstName={guestFirstName}
+            submitMode="edit"
+            onDone={() => {
+              setEditOpen(false);
+              router.refresh();
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                  new CustomEvent("inbox:thread-refresh")
+                );
+              }
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
         <DialogContent className="sm:max-w-md">

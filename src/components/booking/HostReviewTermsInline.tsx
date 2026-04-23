@@ -43,6 +43,15 @@ interface Props {
   nightlyRate: number | null;
   cleaningFee: number | null;
   guestFirstName: string;
+  /** S7 — "edit" mode skips the status flip (the request is already
+   *  accepted/offered) and drops the "Decline request" button. The
+   *  PATCH server detects already-accepted rows as an edit and
+   *  stamps last_edited_at + increments edit_count. Default "create"
+   *  preserves the original request → offer flow. */
+  submitMode?: "create" | "edit";
+  /** Called after a successful PATCH. The edit-dialog caller uses it
+   *  to close the modal; the inline caller can ignore. */
+  onDone?: () => void;
 }
 
 const APPROACH_ICONS = {
@@ -95,8 +104,11 @@ export function HostReviewTermsInline({
   nightlyRate,
   cleaningFee,
   guestFirstName,
+  submitMode = "create",
+  onDone,
 }: Props) {
   const router = useRouter();
+  const isEditMode = submitMode === "edit";
   const [submitting, setSubmitting] = useState<"approve" | "decline" | null>(
     null
   );
@@ -229,7 +241,10 @@ export function HostReviewTermsInline({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: decision,
+          // Edit mode omits status — the server keeps status=accepted
+          // and just diff-updates the other fields. Create mode sends
+          // the initial accept/decline transition.
+          ...(isEditMode ? {} : { status: decision }),
           ...(decision === "accepted"
             ? {
                 total_price: computedTotal > 0 ? computedTotal : undefined,
@@ -244,10 +259,13 @@ export function HostReviewTermsInline({
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`);
       toast.success(
-        decision === "accepted"
-          ? `Terms sent to ${guestFirstName}`
-          : "Request declined"
+        isEditMode
+          ? "Terms updated"
+          : decision === "accepted"
+            ? `Terms sent to ${guestFirstName}`
+            : "Request declined"
       );
+      onDone?.();
       // RSC refresh + client-side refetch of the inbox thread. The
       // InboxShell listens for this custom event and re-pulls the
       // thread via /api/inbox/thread/[id] so the review card
@@ -274,12 +292,14 @@ export function HostReviewTermsInline({
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-amber-900">
-            Review &amp; send terms to {guestFirstName}
+            {isEditMode
+              ? `Edit terms for ${guestFirstName}`
+              : `Review & send terms to ${guestFirstName}`}
           </div>
           <p className="mt-0.5 text-xs leading-relaxed text-amber-900/80">
-            Each section has its own Edit. These numbers lock when{" "}
-            {guestFirstName} confirms — the reservation isn&apos;t final
-            until they accept.
+            {isEditMode
+              ? `${guestFirstName} hasn't accepted yet, so you can still update any section. Saving reposts the terms with a note about what changed.`
+              : `Each section has its own Edit. These numbers lock when ${guestFirstName} confirms — the reservation isn't final until they accept.`}
           </p>
         </div>
       </div>
@@ -572,15 +592,27 @@ export function HostReviewTermsInline({
       </Section>
 
       <div className="flex flex-col-reverse gap-2 border-t border-border bg-muted/30 p-4 sm:flex-row sm:justify-between">
-        <button
-          type="button"
-          onClick={() => send("declined")}
-          disabled={submitting !== null}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
-        >
-          <X className="h-4 w-4" />
-          {submitting === "decline" ? "Declining…" : "Decline request"}
-        </button>
+        {!isEditMode && (
+          <button
+            type="button"
+            onClick={() => send("declined")}
+            disabled={submitting !== null}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+          >
+            <X className="h-4 w-4" />
+            {submitting === "decline" ? "Declining…" : "Decline request"}
+          </button>
+        )}
+        {isEditMode && onDone && (
+          <button
+            type="button"
+            onClick={onDone}
+            disabled={submitting !== null}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted disabled:opacity-60"
+          >
+            Cancel
+          </button>
+        )}
         <button
           type="button"
           onClick={() => send("accepted")}
@@ -590,12 +622,12 @@ export function HostReviewTermsInline({
           {submitting === "approve" ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Sending…
+              {isEditMode ? "Saving…" : "Sending…"}
             </>
           ) : (
             <>
               <Check className="h-4 w-4" />
-              Approve &amp; send terms
+              {isEditMode ? "Save changes" : "Approve & send terms"}
             </>
           )}
         </button>

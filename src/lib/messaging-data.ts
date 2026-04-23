@@ -136,6 +136,15 @@ export interface ThreadDetail extends InboxThread {
      *  default). Drives the "Host updated" pill on the policy
      *  section when the host counter-offers. */
     original_cancellation_policy: import("./cancellation").CancellationPolicy | null;
+    /** S7: guest clicked "Request Edits" on pending terms. Card
+     *  stays pending; host-side Edit button picks up an amber
+     *  accent until the host commits an edit (which clears this). */
+    edits_requested_at: string | null;
+    edits_requested_by: string | null;
+    /** S7: timestamp of the most recent host edit on offered terms. */
+    last_edited_at: string | null;
+    /** S7: number of times the host has edited the pending offer. */
+    edit_count: number;
   } | null;
   /**
    * Extra fields the reservation sidebar renders. Optional so legacy
@@ -432,7 +441,7 @@ export async function getThreadDetail(
       ? supabase
           .from("contact_requests")
           .select(
-            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at, terms_declined_at, terms_declined_by, original_check_in, original_check_out, original_guest_count, original_total_estimate, original_cancellation_policy"
+            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at, terms_declined_at, terms_declined_by, original_check_in, original_check_out, original_guest_count, original_total_estimate, original_cancellation_policy, edits_requested_at, edits_requested_by, last_edited_at, edit_count"
           )
           .eq("id", thread.contact_request_id)
           .single()
@@ -735,6 +744,17 @@ export async function getThreadDetail(
             (booking as { original_cancellation_policy?: unknown })
               .original_cancellation_policy ?? null
           ),
+          edits_requested_at:
+            (booking as { edits_requested_at?: string | null })
+              .edits_requested_at ?? null,
+          edits_requested_by:
+            (booking as { edits_requested_by?: string | null })
+              .edits_requested_by ?? null,
+          last_edited_at:
+            (booking as { last_edited_at?: string | null }).last_edited_at ??
+            null,
+          edit_count:
+            (booking as { edit_count?: number | null }).edit_count ?? 0,
         }
       : null,
     reservation_sidebar: {

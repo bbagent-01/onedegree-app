@@ -30,6 +30,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  FileText,
   Loader2,
   MessageCircle,
   MoreHorizontal,
@@ -95,6 +96,12 @@ interface Props {
   senderListings: IntroSenderListing[];
   connectorPaths: ConnectorPathSummary[];
   trustDegree: 1 | 2 | 3 | 4 | null;
+  /** S7: true when the thread already has a contact_request attached
+   *  (either from the original listing flow or a prior host-initiated
+   *  send). Hides the "Send stay terms" CTA so the host doesn't
+   *  create a duplicate — the TermsOfferedCard rendering further
+   *  down the thread is the source of truth. */
+  hasExistingBooking?: boolean;
 }
 
 function initials(name: string) {
@@ -173,6 +180,7 @@ export function IntroRequestCard({
   senderListings,
   connectorPaths,
   trustDegree,
+  hasExistingBooking = false,
 }: Props) {
   const router = useRouter();
   const isRecipient = viewerId === intro.recipient_id;
@@ -226,6 +234,34 @@ export function IntroRequestCard({
       else if (action === "decline") toast.success("Intro declined");
       else if (action === "reopen") toast.success("Intro reopened");
       router.refresh();
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  // S7 Task 2 — host spins up a contact_request from the accepted
+  // intro so the existing HostReviewTermsInline composer auto-
+  // appears at the bottom of the thread.
+  const sendStayTerms = async () => {
+    if (pendingAction) return;
+    setPendingAction("send-terms");
+    try {
+      const res = await fetch(
+        `/api/contact-requests/from-thread/${threadId}`,
+        { method: "POST" }
+      );
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error || "Couldn't start stay terms");
+        return;
+      }
+      toast.success("Review & send terms below");
+      router.refresh();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+      }
     } catch {
       toast.error("Network error");
     } finally {
@@ -769,36 +805,59 @@ export function IntroRequestCard({
     </div>
   );
 
+  // S7: the "host" on an intro thread is the recipient (listing
+  // owner — see request-intro/route.ts, which always sets host_id
+  // to the listing host = intro.recipient_id). Surface the host CTA
+  // only when terms haven't already been spun up for this thread.
+  const canSendStayTerms = isRecipient && !hasExistingBooking;
+
   const acceptedFooter = (
-    <div className="flex items-center gap-3 border-t border-emerald-200 bg-emerald-50 px-4 py-4">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
-        <Check className="h-5 w-5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-emerald-900">
-          Intro accepted
+    <div className="flex flex-col gap-3 border-t border-emerald-200 bg-emerald-50 px-4 py-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+          <Check className="h-5 w-5" />
         </div>
-        <div className="text-xs text-emerald-800/80">
-          {isRecipient
-            ? `You and ${senderFirst} can see each other's full listings.`
-            : `You and ${recipientFirst} can see each other's full listings.`}
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-emerald-900">
+            Intro accepted
+          </div>
+          <div className="text-xs text-emerald-800/80">
+            {isRecipient
+              ? `You and ${senderFirst} can see each other's full listings.`
+              : `You and ${recipientFirst} can see each other's full listings.`}
+          </div>
         </div>
+        {isRecipient && (
+          <DropdownMenu>
+            <DropdownMenuTrigger className="shrink-0 rounded-full p-1 hover:bg-emerald-100">
+              <MoreHorizontal className="h-4 w-4 text-emerald-900/70" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                onClick={() => setRevokeDialogOpen(true)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <UserMinus className="mr-2 h-4 w-4" />
+                Revoke access
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
-      {isRecipient && (
-        <DropdownMenu>
-          <DropdownMenuTrigger className="shrink-0 rounded-full p-1 hover:bg-emerald-100">
-            <MoreHorizontal className="h-4 w-4 text-emerald-900/70" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem
-              onClick={() => setRevokeDialogOpen(true)}
-              className="text-red-600 focus:text-red-600"
-            >
-              <UserMinus className="mr-2 h-4 w-4" />
-              Revoke access
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {canSendStayTerms && (
+        <button
+          type="button"
+          onClick={sendStayTerms}
+          disabled={pendingAction === "send-terms"}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-60"
+        >
+          {pendingAction === "send-terms" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FileText className="h-4 w-4" />
+          )}
+          Send stay terms to {senderFirst}
+        </button>
       )}
     </div>
   );

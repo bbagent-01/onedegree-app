@@ -12,7 +12,10 @@ import {
   type CancellationPolicy,
   type CancellationPreset,
 } from "@/lib/cancellation";
-import { TERMS_OFFERED_PREFIX } from "@/lib/structured-messages";
+import {
+  TERMS_EDITED_PREFIX,
+  TERMS_OFFERED_PREFIX,
+} from "@/lib/structured-messages";
 
 // PATCH: host responds to a contact request (accept/decline)
 export async function PATCH(
@@ -35,7 +38,7 @@ export async function PATCH(
   const { data: request } = await supabase
     .from("contact_requests")
     .select(
-      "id, host_id, guest_id, listing_id, check_in, check_out, status, total_estimate"
+      "id, host_id, guest_id, listing_id, check_in, check_out, status, total_estimate, terms_accepted_at, terms_declined_at, edit_count"
     )
     .eq("id", id)
     .single();
@@ -48,7 +51,16 @@ export async function PATCH(
     return Response.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  if (request.status !== "pending") {
+  // S7: two lifecycle phases land in this PATCH now.
+  //   pending  → host accept/decline (original flow)
+  //   accepted (terms offered but not yet guest-accepted) → host edit
+  //             of the pending offer. Allowed only while the guest
+  //             hasn't locked terms and nobody has declined.
+  const isEditMode =
+    request.status === "accepted" &&
+    !request.terms_accepted_at &&
+    !request.terms_declined_at;
+  if (request.status !== "pending" && !isEditMode) {
     return Response.json({ error: "Request already responded to" }, { status: 400 });
   }
 
@@ -78,9 +90,13 @@ export async function PATCH(
     /** Host-edited guest count. */
     guest_count?: number;
   };
-  const { status, hostResponseMessage } = body;
+  const { status: bodyStatus, hostResponseMessage } = body;
 
-  if (!status || !["accepted", "declined"].includes(status)) {
+  // Edit mode skips the status gate — the request is already
+  // accepted and the host is updating the offer in place. In the
+  // initial accept/decline flow, status is required.
+  const status = isEditMode ? "accepted" : bodyStatus;
+  if (!isEditMode && (!status || !["accepted", "declined"].includes(status))) {
     return Response.json({ error: "Invalid status" }, { status: 400 });
   }
 
@@ -167,12 +183,35 @@ export async function PATCH(
       ? Math.floor(body.guest_count)
       : null;
 
+  const nowIso = new Date().toISOString();
+  // Edit mode diff — used below to decide whether the TERMS_EDITED
+  // card should render (only when something actually changed).
+  const editChanges = {
+    dates:
+      isEditMode &&
+      checkInEdit !== null &&
+      checkOutEdit !== null &&
+      (checkInEdit !== request.check_in ||
+        checkOutEdit !== request.check_out),
+    total:
+      isEditMode &&
+      totalPriceEdit !== null &&
+      totalPriceEdit !== request.total_estimate,
+    policy: isEditMode && cancellationSnapshot !== null,
+  };
+  const anyEditChange =
+    editChanges.dates || editChanges.total || editChanges.policy;
+
   const { error } = await supabase
     .from("contact_requests")
     .update({
       status,
-      host_response_message: hostResponseMessage || null,
-      responded_at: new Date().toISOString(),
+      ...(isEditMode
+        ? {}
+        : {
+            host_response_message: hostResponseMessage || null,
+            responded_at: nowIso,
+          }),
       ...(cancellationSnapshot
         ? { cancellation_policy: cancellationSnapshot }
         : {}),
@@ -181,6 +220,16 @@ export async function PATCH(
         ? { check_in: checkInEdit, check_out: checkOutEdit }
         : {}),
       ...(guestCountEdit !== null ? { guest_count: guestCountEdit } : {}),
+      ...(isEditMode
+        ? {
+            last_edited_at: nowIso,
+            edit_count: (request.edit_count ?? 0) + 1,
+            // Close the loop on any guest edit request — the host has
+            // now responded with concrete changes.
+            edits_requested_at: null,
+            edits_requested_by: null,
+          }
+        : {}),
     })
     .eq("id", id);
 
@@ -206,7 +255,26 @@ export async function PATCH(
       .maybeSingle();
     const hostFirst = (hostRow?.name ?? "Host").split(" ")[0];
 
-    if (status === "accepted") {
+    if (isEditMode) {
+      // Host edited a pending offer. Only anchor a milestone card
+      // when something actually changed — a no-op save shouldn't
+      // clutter the timeline. The TermsOfferedCard itself re-
+      // renders with the new values automatically.
+      if (anyEditChange) {
+        const { error: msgErr } = await supabase.from("messages").insert({
+          thread_id: thread.id,
+          sender_id: null,
+          content: TERMS_EDITED_PREFIX,
+          is_system: true,
+        });
+        if (msgErr) {
+          console.error(
+            "[contact-requests PATCH] terms_edited insert failed:",
+            msgErr
+          );
+        }
+      }
+    } else if (status === "accepted") {
       // Structured terms_offered message — the thread renderer
       // reads live policy + price from thread.booking and draws a
       // rich card with an Accept button for the guest.
@@ -313,15 +381,17 @@ export async function PATCH(
 
   // Detached so the handler returns immediately; Edge occasionally
   // hangs on the Resend fetch and that leaves the client spinning.
-  if (status === "accepted") {
+  // Edit mode skips transactional email — the guest's inbox shouldn't
+  // refire the "Booking confirmed" banner for each host revision.
+  if (!isEditMode && status === "accepted") {
     emailBookingConfirmed(emailPayload).catch((e) =>
       console.error("emailBookingConfirmed failed:", e)
     );
-  } else if (status === "declined") {
+  } else if (!isEditMode && status === "declined") {
     emailBookingDeclined(emailPayload).catch((e) =>
       console.error("emailBookingDeclined failed:", e)
     );
   }
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, edited: isEditMode });
 }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CalendarClock, CalendarPlus, Send } from "lucide-react";
+import { CalendarClock, CalendarPlus, MessageSquare, Pencil, Send } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { getSupabase } from "@/lib/supabase";
@@ -29,6 +29,8 @@ import {
   RESERVATION_REQUEST_PREFIX,
   CHECKIN_REMINDER_PREFIX,
   TERMS_DECLINED_PREFIX,
+  TERMS_EDITED_PREFIX,
+  TERMS_EDITS_REQUESTED_PREFIX,
   RESERVATION_DECLINED_PREFIX,
   parseIssueReportId,
   parsePhotoRequestId,
@@ -417,6 +419,7 @@ export function ThreadView({
                     <div key={m.id} className="py-1">
                       <TermsOfferedCard
                         bookingId={thread.booking.id}
+                        threadId={thread.id}
                         checkIn={thread.booking.check_in}
                         checkOut={thread.booking.check_out}
                         guestCount={thread.booking.guest_count}
@@ -444,6 +447,7 @@ export function ThreadView({
                         termsAcceptedAt={thread.booking.terms_accepted_at}
                         termsDeclinedAt={thread.booking.terms_declined_at}
                         termsDeclinedBy={thread.booking.terms_declined_by}
+                        editsRequestedAt={thread.booking.edits_requested_at}
                         hostFirstName={
                           (thread.role === "host"
                             ? "you"
@@ -544,6 +548,42 @@ export function ThreadView({
                 if (m.content.startsWith(TERMS_ACCEPTED_PREFIX)) {
                   return null;
                 }
+                // S7: host edited pending terms. Anchor a compact
+                // milestone card so the timeline reads as "terms
+                // updated on <date>"; the TermsOfferedCard above
+                // reflects the new values via its existing diff
+                // pills.
+                if (m.content.startsWith(TERMS_EDITED_PREFIX)) {
+                  const editor =
+                    thread.role === "host" ? "You" : thread.other_user.name.split(" ")[0];
+                  return (
+                    <div key={m.id} className="py-1">
+                      <SystemMilestoneCard
+                        icon={Pencil}
+                        tone="amber"
+                        title={`${editor} updated the stay terms`}
+                        subtitle="Scroll up to the terms card to review the latest details."
+                      />
+                    </div>
+                  );
+                }
+                // S7: guest requested edits without declining. The
+                // free-text reply the guest sends separately carries
+                // the substance; this card is the timeline anchor.
+                if (m.content.startsWith(TERMS_EDITS_REQUESTED_PREFIX)) {
+                  const asker =
+                    thread.role === "guest" ? "You" : thread.other_user.name.split(" ")[0];
+                  return (
+                    <div key={m.id} className="py-1">
+                      <SystemMilestoneCard
+                        icon={MessageSquare}
+                        tone="amber"
+                        title={`${asker} requested edits to the stay terms`}
+                        subtitle="See the reply below for what they want changed."
+                      />
+                    </div>
+                  );
+                }
                 // Same suppression for the decline lifecycle
                 // markers — the red declined footer on the
                 // preceding terms_offered card already shows the
@@ -630,6 +670,7 @@ export function ThreadView({
                         senderListings={thread.intro_detail.sender_listings}
                         connectorPaths={thread.trust_connector_paths}
                         trustDegree={thread.trust_degree}
+                        hasExistingBooking={thread.booking !== null}
                       />
                     </div>
                   );
