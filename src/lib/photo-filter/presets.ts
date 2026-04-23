@@ -1,36 +1,40 @@
 import type { FilterPreset, FilterSettings } from "./types";
 import { IDENTITY_SETTINGS } from "./types";
 
-// Starting values from CC-C10a spec. Tuned during self-test against a
-// spread of test images (bright room, dark room, warm natural light,
-// cool daylight, mixed lighting). Tweaks documented in the session recap.
+// v2 presets — re-tuned after first-pass feedback that filtered photos
+// looked too close to the original. New engine semantics:
+//   brightness = exposure in stops × 100 (preserves blacks)
+//   contrast   = positive → filmic S-curve, negative → blend toward gray
+//   saturation = vibrance (muted colors lift more than saturated)
+//   shadow_lift = gamma curve in sRGB (opens shadows + some midtones)
+//   highlight_recovery = soft-clip above 0.78 (saves blown whites)
 export const PRESET_SETTINGS: Record<Exclude<FilterPreset, "custom">, FilterSettings> = {
   natural: {
-    brightness: 5,
-    contrast: 10,
-    saturation: 8,
+    brightness: 30,       // ~+0.3 stop
+    contrast: 20,
+    saturation: 25,
     white_balance: 0,
     tint: 0,
-    shadow_lift: 12,
-    highlight_recovery: 8,
+    shadow_lift: 25,
+    highlight_recovery: 20,
   },
   bright_airy: {
-    brightness: 18,
-    contrast: 5,
-    saturation: 6,
-    white_balance: 300,
+    brightness: 50,       // ~+0.5 stop
+    contrast: 10,
+    saturation: 15,
+    white_balance: 250,
     tint: 0,
-    shadow_lift: 22,
-    highlight_recovery: 15,
+    shadow_lift: 40,
+    highlight_recovery: 35,
   },
   warm: {
-    brightness: 10,
-    contrast: 8,
-    saturation: 15,
+    brightness: 35,       // ~+0.35 stop
+    contrast: 20,
+    saturation: 35,
     white_balance: 600,
     tint: 5,
-    shadow_lift: 15,
-    highlight_recovery: 10,
+    shadow_lift: 30,
+    highlight_recovery: 25,
   },
 };
 

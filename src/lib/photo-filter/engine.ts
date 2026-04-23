@@ -1,19 +1,50 @@
 // Client-side filter engine. Pure canvas 2D, no external deps.
 //
-// Color space note: we operate in sRGB throughout. A proper linear
-// pipeline (pow 2.4 decode → ops → encode) gives more "photographic"
-// results for brightness/contrast, but doubles per-pixel work and is
-// indistinguishable from well-tuned sRGB ops at the slider ranges we
-// expose. If we ever need the extra fidelity we can swap in a
-// linearize()/delinearize() pair around the LUT.
+// Color pipeline (v2 — CC-C10a self-test rev):
+//   1. Channel WB/tint offsets (sRGB 0-255 space, cheap and perceptual)
+//   2. sRGB → linear-light
+//   3. Brightness (additive, linear-light — gives proper highlight rolloff)
+//   4. Contrast: positive = filmic sigmoid S-curve; negative = pull toward
+//      mid-gray. Linear-light so the shape hits tonal values evenly.
+//   5. linear → sRGB
+//   6. Shadow lift: gamma curve (pow 1/(1+amt)) — lifts blacks strongly,
+//      midtones moderately, highlights barely.
+//   7. Highlight recovery: soft-clip above ~0.78 — compresses only the
+//      top of the range so midtones stay where they are.
+// Then per-pixel (outside the LUT because it needs cross-channel info):
+//   8. Vibrance — boost factor scales with (1 - current chroma), so
+//      muted colors jump more than already-saturated ones.
+//
+// Everything scalar is baked into one 256-entry per-channel LUT, so the
+// per-pixel hot loop is 3 LUT hits + the vibrance math. The filter
+// settings are still called "saturation" on the wire to keep the API
+// stable — the label just means "more color punch" now.
 
 import type { FilterSettings } from "./types";
 import { isIdentity } from "./types";
 
-/** Build a per-channel 256-entry LUT that folds every scalar op
- *  (channel offset, brightness, contrast, shadow lift, highlight
- *  recovery) into a single lookup. Saturation touches all three
- *  channels at once so it stays in the main loop. */
+// Standard sRGB transfer functions. Used only when building the LUT
+// (256 iterations), so the Math.pow cost is amortized over all pixels.
+function srgbToLinear(v: number): number {
+  if (v <= 0) return 0;
+  if (v >= 1) return 1;
+  return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+function linearToSrgb(v: number): number {
+  if (v <= 0) return 0;
+  if (v >= 1) return 1;
+  return v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+}
+
+/** Normalized sigmoid that preserves 0, 0.5, 1 as fixed points. Steeper
+ *  `k` → stronger S-curve = more filmic contrast. */
+function filmicSigmoid(x: number, k: number): number {
+  const sig = (t: number) => 1 / (1 + Math.exp(-k * (t - 0.5)));
+  const s0 = sig(0);
+  const s1 = sig(1);
+  return (sig(x) - s0) / (s1 - s0);
+}
+
 function buildChannelLut(
   channelOffset: number,
   brightness: number,
@@ -22,36 +53,61 @@ function buildChannelLut(
   highlightRecovery: number
 ): Uint8ClampedArray {
   const lut = new Uint8ClampedArray(256);
-  const bAdd = brightness / 200; // +100 → +0.5
-  const cFactor = (contrast + 100) / 100; // 0..2, 1 = identity
-  const slAmt = shadowLift / 100;
-  const hrAmt = highlightRecovery / 100;
+  // Brightness is an exposure multiplier in linear light — preserves
+  // blacks at 0 (they're already dark, no reason to lift them here;
+  // that's shadow lift's job) and clips gracefully at the top.
+  // +100 slider ≈ +1 stop, +25 ≈ +0.25 stop.
+  const expMul = Math.pow(2, brightness / 100);
+  const cAmt = contrast / 100; // -1..1
+  const slAmt = shadowLift / 100; // 0..1
+  const hrAmt = highlightRecovery / 100; // 0..1
+  // Contrast S-curve strength. c=0 → k=1 (near-identity), c=0.5 → k=2.5
+  // (moderate S), c=1 → k=4 (strong filmic).
+  const cK = 1 + cAmt * 3;
+  const HR_THRESHOLD = 0.78;
 
   for (let i = 0; i < 256; i++) {
-    let v = (i + channelOffset) / 255;
+    let vSrgb = (i + channelOffset) / 255;
+    if (vSrgb < 0) vSrgb = 0;
+    if (vSrgb > 1) vSrgb = 1;
 
-    // Brightness (additive, in normalized space).
-    v += bAdd;
-    // Contrast around mid-gray.
-    v = (v - 0.5) * cFactor + 0.5;
+    // → linear for brightness + contrast.
+    let lin = srgbToLinear(vSrgb);
+    lin *= expMul;
+    if (lin < 0) lin = 0;
+    if (lin > 1) lin = 1;
 
-    // Shadow lift — raises dark tones, barely touches midtones/highlights.
-    // (1 - v)^4 is peaked near v=0, so the effect fades quickly above ~0.3.
+    if (cAmt > 0) {
+      lin = filmicSigmoid(lin, cK);
+    } else if (cAmt < 0) {
+      // De-contrast: blend toward mid-gray (0.18 in linear ~= 0.5 sRGB).
+      const mid = 0.18;
+      lin = lin + -cAmt * (mid - lin);
+    }
+    if (lin < 0) lin = 0;
+    if (lin > 1) lin = 1;
+
+    // → sRGB for perceptually-scaled tone work.
+    let v = linearToSrgb(lin);
+
+    // Shadow lift: gamma curve. 1/(1+amt) > 1 flattens the dark end
+    // upward. At amt=0.3, gamma=1.3, so 0.1 → 0.17, 0.3 → 0.39, 0.5 →
+    // 0.58 — shadows open, midtones get a small bump, highlights unmoved.
     if (slAmt > 0) {
-      const vClamped = v < 0 ? 0 : v > 1 ? 1 : v;
-      const w = 1 - vClamped;
-      v += slAmt * w * w * w * w;
+      v = Math.pow(v, 1 / (1 + slAmt * 1.5));
     }
 
-    // Highlight recovery — pulls bright tones down, barely touches midtones.
-    // v^4 peaks near v=1 for the same reason (mirrored curve).
-    if (hrAmt > 0) {
-      const vClamped = v < 0 ? 0 : v > 1 ? 1 : v;
-      const vv = vClamped * vClamped;
-      v -= hrAmt * vv * vv;
+    // Highlight recovery: soft-clip above a fixed threshold so midtones
+    // are never touched. At hr=0.3 a pixel at 1.0 maps to ~0.91.
+    if (hrAmt > 0 && v > HR_THRESHOLD) {
+      const excess = v - HR_THRESHOLD;
+      const compress = 1 + hrAmt * 5 * excess;
+      v = HR_THRESHOLD + excess / compress;
     }
 
-    lut[i] = Math.max(0, Math.min(255, Math.round(v * 255)));
+    if (v < 0) v = 0;
+    if (v > 1) v = 1;
+    lut[i] = Math.round(v * 255);
   }
   return lut;
 }
@@ -60,10 +116,7 @@ function buildChannelLut(
  *  White balance: warmer = more red, less blue.
  *  Tint: positive = magenta (more red+blue, less green). */
 function channelOffsets(whiteBalance: number, tint: number): [number, number, number] {
-  // ±1000 K → ±30 on channels. Empirically this matches perceived WB
-  // shifts in the preset range (0..+600K).
   const wbMag = whiteBalance * 0.03;
-  // ±100 tint → ±20 on green, half that on R/B.
   const tMag = tint * 0.2;
   const rOff = wbMag - tMag * 0.5;
   const gOff = -tMag;
@@ -71,8 +124,6 @@ function channelOffsets(whiteBalance: number, tint: number): [number, number, nu
   return [rOff, gOff, bOff];
 }
 
-/** Apply filter to an ImageData in place. Safe to call with identity
- *  settings — it'll early-return without touching pixels. */
 export function applyFilter(img: ImageData, settings: FilterSettings): void {
   if (isIdentity(settings)) return;
 
@@ -105,22 +156,27 @@ export function applyFilter(img: ImageData, settings: FilterSettings): void {
   const data = img.data;
   const len = data.length;
 
-  // Saturation: luminance-preserving chroma scale.
-  // Rec. 601 weights (0.299/0.587/0.114) — perceptually closer for
-  // sRGB-encoded inputs than Rec. 709.
-  const satScale = 1 + settings.saturation / 100;
-  const doSat = satScale !== 1;
+  // Vibrance: amt scales muted-pixel saturation more than saturated-
+  // pixel saturation. Chroma measured via max-min over 255. The (1-c)²
+  // falloff keeps already-vivid reds/skin-tones from cooking.
+  const vibAmt = settings.saturation / 100;
+  const doVib = vibAmt !== 0;
 
   for (let i = 0; i < len; i += 4) {
     let r = rLut[data[i]];
     let g = gLut[data[i + 1]];
     let b = bLut[data[i + 2]];
 
-    if (doSat) {
+    if (doVib) {
+      const mx = r > g ? (r > b ? r : b) : g > b ? g : b;
+      const mn = r < g ? (r < b ? r : b) : g < b ? g : b;
+      const chroma = (mx - mn) / 255;
+      const dampen = (1 - chroma) * (1 - chroma);
+      const factor = 1 + vibAmt * dampen;
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      r = lum + (r - lum) * satScale;
-      g = lum + (g - lum) * satScale;
-      b = lum + (b - lum) * satScale;
+      r = lum + (r - lum) * factor;
+      g = lum + (g - lum) * factor;
+      b = lum + (b - lum) * factor;
       r = r < 0 ? 0 : r > 255 ? 255 : r;
       g = g < 0 ? 0 : g > 255 ? 255 : g;
       b = b < 0 ? 0 : b > 255 ? 255 : b;
@@ -133,8 +189,6 @@ export function applyFilter(img: ImageData, settings: FilterSettings): void {
   }
 }
 
-/** Render a bitmap to a canvas with the filter applied, returning
- *  a new canvas. Used for both the live preview and the final save. */
 export function renderFiltered(
   source: HTMLImageElement | HTMLCanvasElement | ImageBitmap,
   settings: FilterSettings,
