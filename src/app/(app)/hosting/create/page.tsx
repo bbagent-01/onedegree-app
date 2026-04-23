@@ -504,6 +504,9 @@ export default function CreateListingPage() {
           is_cover: p.is_cover,
           is_preview: p.is_preview,
           sort_order: i,
+          original_url: p.original_url ?? null,
+          filter_preset: p.filter_preset ?? null,
+          filter_settings: p.filter_settings ?? null,
         })),
       };
 

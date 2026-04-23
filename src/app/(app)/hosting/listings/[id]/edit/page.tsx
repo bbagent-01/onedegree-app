@@ -43,7 +43,9 @@ export default async function EditListingPage({ params }: PageProps) {
 
   const { data: photos } = await supabase
     .from("listing_photos")
-    .select("id, public_url, storage_path, is_cover, is_preview, sort_order")
+    .select(
+      "id, public_url, storage_path, is_cover, is_preview, sort_order, original_url, filter_preset, filter_settings"
+    )
     .eq("listing_id", id)
     .order("sort_order", { ascending: true });
 

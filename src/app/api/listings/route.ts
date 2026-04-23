@@ -107,6 +107,9 @@ export async function POST(req: Request) {
         is_preview: boolean;
         is_cover?: boolean;
         sort_order: number;
+        original_url?: string | null;
+        filter_preset?: string | null;
+        filter_settings?: Record<string, number> | null;
       },
       i: number
     ) => ({
@@ -116,6 +119,9 @@ export async function POST(req: Request) {
       is_preview: p.is_preview ?? false,
       is_cover: p.is_cover ?? false,
       sort_order: p.sort_order ?? i,
+      original_url: p.original_url ?? null,
+      filter_preset: p.filter_preset ?? null,
+      filter_settings: p.filter_settings ?? null,
     })
   );
 

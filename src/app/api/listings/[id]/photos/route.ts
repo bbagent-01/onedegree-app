@@ -43,6 +43,9 @@ export async function PUT(
       is_cover?: boolean;
       is_preview: boolean;
       sort_order: number;
+      original_url?: string | null;
+      filter_preset?: string | null;
+      filter_settings?: Record<string, number> | null;
     }>;
   };
 
@@ -96,6 +99,9 @@ export async function PUT(
       is_cover: p.is_cover ?? false,
       is_preview: p.is_preview,
       sort_order: p.sort_order,
+      original_url: p.original_url ?? null,
+      filter_preset: p.filter_preset ?? null,
+      filter_settings: p.filter_settings ?? null,
     }));
   if (toInsert.length > 0) {
     const { error: insertErr } = await supabase
@@ -113,7 +119,9 @@ export async function PUT(
   // Return fresh ordered list
   const { data: photos } = await supabase
     .from("listing_photos")
-    .select("id, public_url, storage_path, is_cover, is_preview, sort_order")
+    .select(
+      "id, public_url, storage_path, is_cover, is_preview, sort_order, original_url, filter_preset, filter_settings"
+    )
     .eq("listing_id", listingId)
     .order("sort_order", { ascending: true });
 
