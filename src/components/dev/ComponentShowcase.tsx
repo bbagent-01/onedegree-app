@@ -11,6 +11,7 @@ import {
   ChevronDown,
   DollarSign,
   Handshake,
+  ImageIcon,
   Receipt,
   Shield,
   ShieldCheck,
@@ -297,12 +298,13 @@ function TrustSection() {
               size="h-7 w-7"
             />
           </State>
-          <State label="overflow (5 + 2 hidden)">
+          <State label="overflow (7 total · 4 visible + 3 pill)">
             <ConnectorAvatars
               connectors={[
                 ...connectorsTwoKnown,
                 ...connectorsTwoKnown.map((c, i) => ({ ...c, id: `o-${i}` })),
                 ...connectorsTwoKnown.map((c, i) => ({ ...c, id: `o2-${i}` })),
+                { ...connectorsTwoKnown[0], id: "o3-0" },
               ]}
               size="h-7 w-7"
             />
@@ -316,7 +318,7 @@ function TrustSection() {
         routes={["/listings/[id]"]}
       >
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-          {[1, 2, 3, 5].map((n) => (
+          {[1, 2, 3, 4, 5].map((n) => (
             <State key={n} label={`${n} dot${n === 1 ? "" : "s"}`}>
               <ConnectorDots
                 strengths={Array.from({ length: n }).map(() => 60)}
@@ -504,15 +506,15 @@ function FormsSection() {
             <div className="w-full">
               <Label className="mb-1 block">Phone</Label>
               <div className="flex gap-2">
-                <Select defaultValue="us">
+                <Select defaultValue="US">
                   <SelectTrigger className="h-14 w-28 rounded-xl border-2 !bg-white font-medium shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="us">+1 US</SelectItem>
-                    <SelectItem value="gb">+44 GB</SelectItem>
-                    <SelectItem value="fr">+33 FR</SelectItem>
-                    <SelectItem value="br">+55 BR</SelectItem>
+                    <SelectItem value="US">🇺🇸 +1 US</SelectItem>
+                    <SelectItem value="GB">🇬🇧 +44 GB</SelectItem>
+                    <SelectItem value="FR">🇫🇷 +33 FR</SelectItem>
+                    <SelectItem value="BR">🇧🇷 +55 BR</SelectItem>
                   </SelectContent>
                 </Select>
                 <Input
@@ -744,7 +746,7 @@ function FormsSection() {
         <State label="drop zone">
           <div className="flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/30 p-8 text-center">
             <div className="mb-2 rounded-full bg-brand/10 p-3 text-brand">
-              <Receipt className="h-5 w-5" />
+              <ImageIcon className="h-5 w-5" />
             </div>
             <p className="text-sm font-semibold">Drag photos here</p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -909,9 +911,20 @@ function ThreadRow({
   unread?: boolean;
   badge?: string;
 }) {
+  const initials = title
+    .split(/\s+/)
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  // Deterministic avatar seed from title so the showcase thread rows
+  // don't look like empty skeletons.
   return (
     <div className="flex items-center gap-3 rounded-xl border bg-white p-3 shadow-card">
-      <div className="h-10 w-10 shrink-0 rounded-full bg-muted" />
+      <Avatar className="h-10 w-10 shrink-0">
+        <AvatarImage src={fakeAvatar(title)} alt={title} />
+        <AvatarFallback>{initials}</AvatarFallback>
+      </Avatar>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <p className="truncate font-semibold">{title}</p>
@@ -1574,7 +1587,7 @@ function ProposalsSection() {
         file="src/components/proposals/proposal-card.tsx"
         routes={["/proposals", "/profile/[id]"]}
       >
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-xl">
           <ProposalCard proposal={sampleProposals[0]} viewerId={DEV_VIEWER_ID} />
         </div>
       </Group>
@@ -1582,7 +1595,7 @@ function ProposalsSection() {
         name="ProposalCard · Host Offer (2°, discount hook, with listing)"
         file="src/components/proposals/proposal-card.tsx"
       >
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-xl">
           <ProposalCard proposal={sampleProposals[1]} viewerId={DEV_VIEWER_ID} />
         </div>
       </Group>
@@ -1590,7 +1603,7 @@ function ProposalsSection() {
         name="ProposalCard · Host Offer (3°, trade hook, with listing)"
         file="src/components/proposals/proposal-card.tsx"
       >
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-xl">
           <ProposalCard proposal={sampleProposals[2]} viewerId={DEV_VIEWER_ID} />
         </div>
       </Group>
@@ -1598,7 +1611,7 @@ function ProposalsSection() {
         name="ProposalCard · Trip Wish (4°, no hook)"
         file="src/components/proposals/proposal-card.tsx"
       >
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-xl">
           <ProposalCard proposal={sampleProposals[3]} viewerId={DEV_VIEWER_ID} />
         </div>
       </Group>
@@ -1606,7 +1619,7 @@ function ProposalsSection() {
         name="ProposalCard · Host Offer (1° direct, discount, last-minute)"
         file="src/components/proposals/proposal-card.tsx"
       >
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-xl">
           <ProposalCard proposal={sampleProposals[4]} viewerId={DEV_VIEWER_ID} />
         </div>
       </Group>
@@ -1614,7 +1627,7 @@ function ProposalsSection() {
         name="ProposalCard · Own proposal (viewer is author)"
         file="src/components/proposals/proposal-card.tsx"
       >
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-xl">
           <ProposalCard proposal={sampleProposals[5]} viewerId={DEV_VIEWER_ID} />
         </div>
       </Group>
@@ -1749,8 +1762,8 @@ function ProfileBadgeSection() {
           </State>
           <State label="0° not connected">
             <ProfileBadgeMicro
-              name="Unknown user"
-              avatarSeed="unknown"
+              name="Chris Vega"
+              avatarSeed="chris"
               degree={null}
             />
           </State>
@@ -1830,6 +1843,18 @@ function ProfileBadgeSection() {
             bio="Frequent traveler. Hosts intermittently in the summer."
             ctaDirect="Vouch for Priya"
             showConnectors
+          />
+          <ProfileBadgeFull
+            name="Alex Kim"
+            avatarSeed="alex"
+            degree={3}
+            score={42}
+            hostRating={4.3}
+            reviews={6}
+            memberSince={2025}
+            location="Brooklyn, NY"
+            bio="Photographer. Hosts a loft once a month."
+            ctaDirect="Request intro"
           />
           <ProfileBadgeFull
             name="Chris Vega"
@@ -2173,6 +2198,16 @@ function PageListingSection() {
           </PageShell>
         </PagePreview>
       </Group>
+      <Group
+        name="/listings/[id] · GATED preview · mobile (375)"
+        file="src/components/listing/gated-listing-view.tsx"
+      >
+        <PagePreview label="gated, mobile" width={375}>
+          <PageShell mobile>
+            <ListingDetailMock access="gated" mobile />
+          </PageShell>
+        </PagePreview>
+      </Group>
     </Section>
   );
 }
@@ -2471,6 +2506,32 @@ function PageProfileSection() {
           </PageShell>
         </PagePreview>
       </Group>
+      <Group
+        name="/profile/[id] · 0° preview · mobile"
+        file="src/app/(app)/profile/[id]/page.tsx"
+      >
+        <PagePreview label="preview, mobile" width={375}>
+          <PageShell mobile>
+            <div className="space-y-6 px-4 py-6">
+              <ProfileBadgeFull
+                name="Chris Vega"
+                avatarSeed="chris"
+                degree={null}
+                memberSince={2026}
+                location="—"
+                bio="Preview — full profile gated until 2° connection."
+                ctaDirect={null}
+              />
+              <div className="rounded-2xl border-2 border-dashed p-4 text-sm">
+                <p className="font-semibold">Reviews hidden</p>
+                <p className="mt-1 text-muted-foreground">
+                  Reach 2° trust to unlock.
+                </p>
+              </div>
+            </div>
+          </PageShell>
+        </PagePreview>
+      </Group>
     </Section>
   );
 }
@@ -2499,7 +2560,10 @@ function PageInboxSection() {
                         i === 0 ? "bg-muted" : ""
                       }`}
                     >
-                      <div className="h-10 w-10 rounded-full bg-muted" />
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={fakeAvatar(n as string)} alt={n as string} />
+                        <AvatarFallback>{(n as string)[0]}</AvatarFallback>
+                      </Avatar>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between">
                           <p className="truncate text-sm font-semibold">{n as string}</p>
@@ -2577,7 +2641,10 @@ function PageInboxSection() {
                     key={i}
                     className="flex items-center gap-3 rounded-xl border bg-white p-3"
                   >
-                    <div className="h-10 w-10 shrink-0 rounded-full bg-muted" />
+                    <Avatar className="h-10 w-10 shrink-0">
+                      <AvatarImage src={fakeAvatar(n as string)} alt={n as string} />
+                      <AvatarFallback>{(n as string)[0]}</AvatarFallback>
+                    </Avatar>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{n as string}</p>
                       <p
@@ -2612,11 +2679,12 @@ function PageProposalsSection() {
             <div className="mx-auto max-w-[960px] px-6 py-10">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <h1 className="text-3xl font-semibold">
+                  <h1 className="text-2xl font-semibold md:text-3xl">
                     Proposals in your network
                   </h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Trip wishes + host offers visible via trust.
+                    Trip Wishes and Host Offers from people you can see —
+                    bounded by each post&apos;s preview network.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -2653,9 +2721,12 @@ function PageProposalsSection() {
         <PagePreview label="mobile" width={375}>
           <PageShell mobile>
             <div className="px-4 py-6">
-              <h1 className="text-xl font-semibold">Proposals</h1>
+              <h1 className="text-xl font-semibold">
+                Proposals in your network
+              </h1>
               <p className="mt-1 text-xs text-muted-foreground">
-                Trip wishes + host offers visible via trust.
+                Trip Wishes and Host Offers from people you can see — bounded
+                by each post&apos;s preview network.
               </p>
               <div className="mt-4 flex gap-2">
                 {["All", "Wishes", "Offers"].map((t, i) => (

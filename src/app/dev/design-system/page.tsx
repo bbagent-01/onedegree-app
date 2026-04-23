@@ -7,10 +7,12 @@ import { auth } from "@clerk/nextjs/server";
 import { isAdmin, isImpersonationEnabled } from "@/lib/impersonation/session";
 import { tokensByCategory } from "@/lib/dev-theme/tokens";
 import { DesignSystemRoot } from "@/components/dev/DesignSystemRoot";
+import usageCounts from "@/lib/dev-theme/usage-counts.json";
 
-// Cloudflare Pages runs every route on the edge runtime; without this
-// export the route 404s on alpha-c. Node-only deps (fs-based usage
-// grep) were removed for the same reason — usage counts pass empty.
+// Cloudflare Pages runs every route on the edge runtime. Usage counts
+// can't be computed at request time (no fs on edge), so they're
+// generated at build time via scripts/generate-token-usage.mjs and
+// imported as a static JSON map.
 export const runtime = "edge";
 
 // Triple-gated. Both gates fall through to notFound() so an
@@ -21,5 +23,10 @@ export default async function DesignSystemPage() {
   if (!isAdmin(userId)) notFound();
 
   const tokens = tokensByCategory();
-  return <DesignSystemRoot tokens={tokens} usage={{}} />;
+  return (
+    <DesignSystemRoot
+      tokens={tokens}
+      usage={usageCounts as Record<string, number>}
+    />
+  );
 }

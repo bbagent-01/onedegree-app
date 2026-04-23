@@ -138,14 +138,25 @@ function spacingTokens(): TokenSpec[] {
     "24": "96px",
   };
   const all = { ...baseScale, ...customSpacing };
-  return Object.entries(all).map(([k, v]) => ({
-    id: `spacing/${k}`,
-    name: `spacing-${k}`,
-    category: "spacing",
-    group: customSpacing[k] ? "custom" : "scale",
-    value: v,
-    utilityFragment: `p-${k}`, // representative — actually used across p-/m-/gap-
-  }));
+  return Object.entries(all)
+    .sort(([a], [b]) => {
+      // Numeric (or half-step) sort so "0.5" sits between "0" and "1",
+      // not at the end of the scale. Previously the flat Object.entries
+      // ordering appended custom spacing at the tail — reaching for
+      // "2.5" between "2" and "3" meant scanning the full scale.
+      const an = parseFloat(a);
+      const bn = parseFloat(b);
+      if (Number.isFinite(an) && Number.isFinite(bn)) return an - bn;
+      return a.localeCompare(b);
+    })
+    .map(([k, v]) => ({
+      id: `spacing/${k}`,
+      name: `spacing-${k}`,
+      category: "spacing",
+      group: customSpacing[k] ? "custom" : "scale",
+      value: v,
+      utilityFragment: `p-${k}`, // representative — actually used across p-/m-/gap-
+    }));
 }
 
 // ── Border radius ─────────────────────────────────────────────────────

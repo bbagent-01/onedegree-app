@@ -103,7 +103,11 @@ export const sampleListingGated: ListingCardProps = {
   id: "fixture-2",
   title: "Private cabin · gated to 2°+ network",
   location: "Stinson Beach, California",
-  trustScore: 0,
+  // trustScore: null hides the photo-overlay trust pill entirely
+  // (the canonical ListingCard hardcodes `degree={1}` when it renders
+  // the pill — passing 0 ship-shipped a "1° score 0" badge, which is
+  // nonsense. Null is the correct no-trust state.)
+  trustScore: null,
   connectionLabel: null,
   pricePerNight: 240,
 };

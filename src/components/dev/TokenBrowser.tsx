@@ -3,8 +3,13 @@
 // src/lib/dev-theme/ delete together.
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { TokenSpec } from "@/lib/dev-theme/tokens";
+import {
+  readOverrides,
+  SANDBOX_EVENT,
+  type SandboxOverrides,
+} from "@/lib/dev-theme/sandbox";
 
 interface Props {
   title: string;
@@ -13,7 +18,26 @@ interface Props {
   kind: "color" | "typography" | "spacing" | "radius" | "shadow";
 }
 
+/**
+ * Live-subscribe to sandbox overrides so the token previews
+ * re-render whenever Loren edits a value. Without this, the
+ * swatches hardcode `style={{ background: token.value }}` at
+ * mount time and never reflect an override — which is what
+ * tripped the first round of sandbox testing.
+ */
+function useSandboxOverrides(): SandboxOverrides {
+  const [o, setO] = useState<SandboxOverrides>({});
+  useEffect(() => {
+    setO(readOverrides());
+    const sync = () => setO(readOverrides());
+    window.addEventListener(SANDBOX_EVENT, sync);
+    return () => window.removeEventListener(SANDBOX_EVENT, sync);
+  }, []);
+  return o;
+}
+
 export function TokenBrowser({ title, tokens, usage, kind }: Props) {
+  const overrides = useSandboxOverrides();
   const grouped = useMemo(() => {
     const m = new Map<string, TokenSpec[]>();
     for (const t of tokens) {
@@ -53,6 +77,7 @@ export function TokenBrowser({ title, tokens, usage, kind }: Props) {
                 token={t}
                 usageCount={usage[t.utilityFragment] ?? 0}
                 kind={kind}
+                override={overrides[t.id]}
               />
             ))}
           </div>
@@ -66,37 +91,64 @@ function TokenCard({
   token,
   usageCount,
   kind,
+  override,
 }: {
   token: TokenSpec;
   usageCount: number;
   kind: Props["kind"];
+  override?: string;
 }) {
+  const hasOverride = typeof override === "string";
+  const displayValue = override ?? token.value;
   return (
-    <div className="rounded-xl border bg-white p-3 shadow-card">
+    <div
+      className={`rounded-xl border bg-white p-3 shadow-card ${
+        hasOverride ? "ring-2 ring-purple-400" : ""
+      }`}
+    >
       <div className="mb-2">
-        <Preview token={token} kind={kind} />
+        <Preview token={token} value={displayValue} kind={kind} />
       </div>
       <div className="space-y-0.5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <code className="font-mono text-[12px] font-medium">{token.name}</code>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-            {usageCount} {usageCount === 1 ? "file" : "files"}
-          </span>
+          {hasOverride ? (
+            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
+              overridden
+            </span>
+          ) : usageCount > 0 ? (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {usageCount} {usageCount === 1 ? "file" : "files"}
+            </span>
+          ) : null}
         </div>
-        <code className="block truncate font-mono text-[11px] text-muted-foreground">
-          {token.value}
+        <code className="block break-all font-mono text-[11px] leading-snug text-muted-foreground">
+          {displayValue}
+          {hasOverride && (
+            <span className="ml-1 text-purple-600">
+              (was {token.value})
+            </span>
+          )}
         </code>
       </div>
     </div>
   );
 }
 
-function Preview({ token, kind }: { token: TokenSpec; kind: Props["kind"] }) {
+function Preview({
+  token,
+  value,
+  kind,
+}: {
+  token: TokenSpec;
+  value: string;
+  kind: Props["kind"];
+}) {
   if (kind === "color") {
     return (
       <div
         className="h-16 rounded-lg border"
-        style={{ background: token.value }}
+        style={{ background: value }}
       />
     );
   }
@@ -105,14 +157,14 @@ function Preview({ token, kind }: { token: TokenSpec; kind: Props["kind"] }) {
       return (
         <div
           className="rounded-lg border bg-muted/40 p-3 text-base"
-          style={{ fontFamily: token.value }}
+          style={{ fontFamily: value }}
         >
           The quick brown fox · 0123
         </div>
       );
     }
     // fontSize: value is "size / lineHeight"
-    const [size] = token.value.split("/").map((s) => s.trim());
+    const [size] = value.split("/").map((s) => s.trim());
     return (
       <div
         className="rounded-lg border bg-muted/40 p-3"
@@ -127,25 +179,31 @@ function Preview({ token, kind }: { token: TokenSpec; kind: Props["kind"] }) {
       <div className="flex items-center gap-3">
         <div
           className="rounded bg-brand"
-          style={{ width: token.value, height: 16 }}
+          style={{ width: value, height: 16 }}
         />
-        <span className="text-[11px] text-muted-foreground">{token.value}</span>
+        <span className="text-[11px] text-muted-foreground">{value}</span>
       </div>
     );
   }
   if (kind === "radius") {
     return (
-      <div
-        className="h-16 w-full bg-muted/40"
-        style={{ borderRadius: token.value }}
-      />
+      <div className="flex h-16 w-full items-center justify-center border bg-muted/40">
+        <div
+          className="h-12 w-20 bg-brand-100"
+          style={{ borderRadius: value }}
+          aria-label={`radius ${value}`}
+        />
+        <span className="ml-3 font-mono text-[11px] text-muted-foreground">
+          {value}
+        </span>
+      </div>
     );
   }
   if (kind === "shadow") {
     return (
       <div
         className="h-16 rounded-xl bg-white"
-        style={{ boxShadow: token.value }}
+        style={{ boxShadow: value }}
       />
     );
   }

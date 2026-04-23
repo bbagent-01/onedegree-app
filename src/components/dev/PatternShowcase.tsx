@@ -84,11 +84,20 @@ export function PatternShowcase() {
             onClick={() => setOpen(false)}
           >
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="vouch-dialog-title"
+              aria-describedby="vouch-dialog-desc"
               className="w-full max-w-md rounded-2xl bg-white p-6 shadow-modal"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-semibold">Vouch for Sarah</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <h3 id="vouch-dialog-title" className="text-lg font-semibold">
+                Vouch for Sarah
+              </h3>
+              <p
+                id="vouch-dialog-desc"
+                className="mt-1 text-sm text-muted-foreground"
+              >
                 Standard or inner circle? You can change this later.
               </p>
               <div className="mt-4 flex flex-col gap-2">
@@ -124,7 +133,7 @@ export function PatternShowcase() {
         </div>
       </PatternCard>
 
-      <PatternCard title="Skeleton · listing grid" routes={["/browse", "/inbox"]}>
+      <PatternCard title="Skeleton · listing grid" routes={["/browse", "/wishlists/[id]"]}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Skeleton className="aspect-[4/3] w-full rounded-xl" />

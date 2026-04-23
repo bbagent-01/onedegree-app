@@ -17,6 +17,9 @@ jobs:
 
       - run: npm install
 
+      - name: Generate design-system token usage counts
+        run: node scripts/generate-token-usage.mjs
+
       - name: Build with next-on-pages
         run: npx @cloudflare/next-on-pages
         env:
