@@ -109,9 +109,18 @@ export function MobileNav() {
   }, []);
 
   const closeMenu = () => setMenuOpen(false);
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     closeMenu();
-    signOut({ redirectUrl: "/" });
+    // Stop any active impersonation first — the imp_user_id cookie
+    // outlives Clerk's signOut otherwise, which leaves the user
+    // still appearing "logged in as" whoever they were impersonating
+    // on the landing page. No-op when no impersonation exists.
+    try {
+      await fetch("/api/admin/impersonate/stop", { method: "POST" });
+    } catch {
+      // Non-fatal — still continue the Clerk sign-out.
+    }
+    await signOut({ redirectUrl: "/" });
   };
 
   return (

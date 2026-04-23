@@ -122,10 +122,10 @@ export default async function ProfilePage({
                 label={`Speaks ${user.languages.join(", ")}`}
               />
             )}
-            {user.email && (
+            {user.phone_number && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-foreground">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                Email verified
+                Phone verified
               </span>
             )}
           </div>

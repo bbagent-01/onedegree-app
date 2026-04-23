@@ -122,34 +122,20 @@ export function BrowseLayout({
     else cardRefs.current.delete(id);
   };
 
-  // Sparse-state grid sizing. With only a handful of listings, the
-  // default 4-column grid leaves visually broken half-empty rows
-  // — instead, scale the card count per row to the result count so
-  // the row always fills. Caps out at the standard 4-up grid in
-  // grid-only mode and 2-up in split mode (where the map takes the
-  // other half).
-  const gridCols = useMemo(() => {
-    const count = listings.length;
-    if (mode === "split") {
-      // Split mode: cap at 2 columns. Below 3 listings drop to 1 col
-      // so each card gets the full width on the left half.
-      if (count <= 2) return "grid-cols-1";
-      return "grid-cols-1 sm:grid-cols-2";
-    }
-    // Grid-only mode — scale columns to result count.
-    if (count <= 2) return "grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 xl:grid-cols-1";
-    if (count <= 4) return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2";
-    if (count <= 8) return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3";
-    return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
-  }, [mode, listings.length]);
+  const gridCols = useMemo(
+    () =>
+      mode === "split"
+        ? "grid-cols-1 sm:grid-cols-2"
+        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+    [mode]
+  );
 
-  // 1–2 listings in grid-only mode: cards get a centered max-width
-  // so the single-column rows don't stretch full-width across a
-  // wide viewport. 600px matches the Airbnb-style card max width.
-  const sparseGridWrapper =
-    mode !== "split" && listings.length > 0 && listings.length <= 2
-      ? "mx-auto max-w-[600px]"
-      : "";
+  // Sparse-state note — when results are thin, prod the user toward
+  // expanding the search instead of silently showing an empty row.
+  // Threshold matches the filter-sheet's "hide histogram below 10"
+  // signal so the cues move together.
+  const showSparseNote =
+    listings.length > 0 && listings.length < 5;
 
 
   // Heading row with sort/filters — lives inside the left column so the
@@ -254,7 +240,7 @@ export function BrowseLayout({
             )}
 
             {headerRow}
-            <div className={cn("grid gap-3", gridCols, sparseGridWrapper)}>
+            <div className={cn("grid gap-3", gridCols)}>
               {listings.map((l) => {
                 const trust = trustByListing[l.id];
                 return (
@@ -281,6 +267,14 @@ export function BrowseLayout({
                 );
               })}
             </div>
+            {showSparseNote && (
+              <p className="mt-6 text-center text-xs text-muted-foreground">
+                Only {listings.length} listing
+                {listings.length === 1 ? "" : "s"} in this search — try
+                expanding your search area or clearing filters to see
+                more.
+              </p>
+            )}
           </div>
 
           {/* Right column — map, extends up to the same top as the heading */}

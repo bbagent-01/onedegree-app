@@ -67,9 +67,19 @@ export function AccountMenu() {
   }, [isSignedIn, profileId]);
 
   const close = () => setOpen(false);
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     close();
-    signOut({ redirectUrl: "/" });
+    // Stop any active impersonation first — the imp_user_id cookie
+    // outlives Clerk's signOut otherwise, which leaves the user still
+    // appearing "logged in as" whoever they were impersonating on
+    // the landing page. The /stop endpoint is a no-op when no
+    // impersonation session exists, so this is always safe to call.
+    try {
+      await fetch("/api/admin/impersonate/stop", { method: "POST" });
+    } catch {
+      // Non-fatal — still continue the Clerk sign-out.
+    }
+    await signOut({ redirectUrl: "/" });
   };
   const profileHref = profileId ? `/profile/${profileId}` : "/profile/edit";
 

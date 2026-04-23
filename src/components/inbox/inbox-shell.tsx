@@ -100,7 +100,7 @@ export function InboxShell({
   const visuallySelectedId = loadingId ?? selected?.id ?? null;
 
   return (
-    <div className="grid h-[calc(100vh-180px)] grid-cols-1 overflow-hidden rounded-xl border border-border bg-white md:grid-cols-[360px_1fr] xl:grid-cols-[320px_1fr_340px]">
+    <div className="grid h-[calc(100dvh-228px)] max-h-[calc(100dvh-228px)] grid-cols-1 overflow-hidden rounded-xl border border-border bg-white md:grid-cols-[360px_1fr] xl:grid-cols-[320px_1fr_340px]">
       <div className="border-r border-border md:overflow-y-auto">
         <InboxList
           threads={threads}

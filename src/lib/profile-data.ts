@@ -5,6 +5,7 @@ export interface UserProfile {
   clerk_id: string | null;
   name: string;
   email: string | null;
+  phone_number: string | null;
   avatar_url: string | null;
   bio: string | null;
   location: string | null;
@@ -89,6 +90,7 @@ export async function getProfileById(
     clerk_id: (raw.clerk_id as string) ?? null,
     name: (raw.name as string) || "User",
     email: (raw.email as string) ?? null,
+    phone_number: (raw.phone_number as string) ?? null,
     avatar_url: (raw.avatar_url as string) ?? null,
     bio: (raw.bio as string) ?? null,
     location: (raw.location as string) ?? null,
