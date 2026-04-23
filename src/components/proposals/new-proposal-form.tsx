@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
@@ -224,12 +225,12 @@ export function NewProposalForm({
           <p className="mt-1 text-xs text-amber-900/80">
             You already have {hostOfferActiveCount} active Host Offers
             (max {hostOfferCap}). Close or delete one from{" "}
-            <a
+            <Link
               href="/proposals?author=me"
               className="font-semibold underline hover:text-amber-950"
             >
               your proposals
-            </a>{" "}
+            </Link>{" "}
             before posting another. Trip Wishes are unlimited — switch
             kinds above if you want to post one of those.
           </p>
