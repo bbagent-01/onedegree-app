@@ -3,14 +3,11 @@
 /**
  * Client-side collapsible wrapper around TripTimeline.
  *
- * Two collapsed modes:
- *   - "default" (trips page): shows all done stages + next 3
- *     upcoming so the reader keeps full context.
- *   - "sidebar" (inbox): shows current + next 3 (4 max), plus the
- *     last two stages (Checked out / Reviewed) as anchors with an
- *     ellipsis divider between the two slices when there's a gap.
- *     Keeps the sidebar short so it doesn't push payment handles
- *     and the counterparty card below the fold.
+ * Collapsed view (unified across trips page + inbox sidebar since
+ * S7): most-recent-completed stage at the top, then the next 3
+ * upcoming/current stages. Drops the previous "last-two anchor"
+ * pattern — it added a second slice with an ellipsis divider that
+ * cluttered the card without adding context.
  *
  * Header row is clickable to toggle. Expanded view always shows
  * every stage the resolver produced regardless of mode.
@@ -29,63 +26,35 @@ interface Props {
   /** When true, the collapsible starts open. Default false. */
   defaultOpen?: boolean;
   /**
-   * Collapsed-state trimming strategy.
-   *   "default" — done stages + next 3 upcoming (trips-page default).
-   *   "sidebar" — current + next 3, plus last two anchor stages with
-   *   an ellipsis divider when there's a gap.
+   * Retained for backwards-compatible call sites; both values now
+   * feed the same unified trimmer (most recent done + next 3).
    */
   mode?: "default" | "sidebar";
 }
 
-/** Slice the stage list to the default collapsed view: all done + next 3. */
-export function trimmedStages(stages: TimelineStage[]): TimelineStage[] {
-  const done = stages.filter((s) => s.status === "done");
-  const rest = stages.filter((s) => s.status !== "done");
-  return [...done, ...rest.slice(0, 3)];
-}
-
 /**
- * Sidebar-mode trimming. Returns the top slice (current + up to 3
- * upcoming), and optionally the last-two anchor pair split off when a
- * gap exists between the two slices.
+ * Unified collapsed-view slicer (S7): the most recent completed
+ * stage at the top, then the next 3 not-yet-done stages (current +
+ * upcoming). Keeps the reader's eye on "where I am" without burying
+ * it under the earlier history; stops short of the trailing anchor
+ * pair that the sidebar variant used to surface.
  */
-function sidebarTrimmed(stages: TimelineStage[]): {
-  top: TimelineStage[];
-  anchor: TimelineStage[]; // empty when no gap
-} {
-  if (stages.length === 0) return { top: [], anchor: [] };
-
-  // Find the "current" anchor; fall back to the first upcoming. If
-  // neither exists (everything's done) the whole list renders as-is.
-  const currentIdx = stages.findIndex((s) => s.status === "current");
-  const upcomingIdx = stages.findIndex((s) => s.status === "upcoming");
-  const startIdx =
-    currentIdx >= 0 ? currentIdx : upcomingIdx >= 0 ? upcomingIdx : -1;
-
-  if (startIdx < 0) {
-    return { top: stages, anchor: [] };
-  }
-
-  const topEnd = Math.min(stages.length, startIdx + 4); // current + 3
-  const anchorStart = Math.max(0, stages.length - 2);
-
-  // If the top slice already reaches the anchor pair, render the
-  // contiguous run from current → end (no ellipsis needed).
-  if (topEnd >= anchorStart) {
-    return { top: stages.slice(startIdx), anchor: [] };
-  }
-
-  return {
-    top: stages.slice(startIdx, topEnd),
-    anchor: stages.slice(anchorStart),
-  };
+export function trimmedStages(stages: TimelineStage[]): TimelineStage[] {
+  if (stages.length === 0) return [];
+  const doneStages = stages.filter((s) => s.status === "done");
+  const mostRecentDone = doneStages[doneStages.length - 1] ?? null;
+  const notDone = stages.filter((s) => s.status !== "done");
+  const nextThree = notDone.slice(0, 3);
+  return mostRecentDone ? [mostRecentDone, ...nextThree] : nextThree;
 }
 
 export function CollapsibleTripTimeline({
   stages,
   compact = false,
   defaultOpen = false,
-  mode = "default",
+  // `mode` retained for call-site compatibility; the trimmer is now
+  // unified and ignores it.
+  mode: _mode = "default",
 }: Props) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -93,14 +62,8 @@ export function CollapsibleTripTimeline({
     stages.find((s) => s.status === "current") ??
     stages.find((s) => s.status === "upcoming");
 
-  // Derive the collapsed view per mode.
-  const collapsed =
-    mode === "sidebar"
-      ? sidebarTrimmed(stages)
-      : { top: trimmedStages(stages), anchor: [] as TimelineStage[] };
-
-  const hiddenCount =
-    stages.length - (collapsed.top.length + collapsed.anchor.length);
+  const collapsed = trimmedStages(stages);
+  const hiddenCount = stages.length - collapsed.length;
 
   return (
     <div
@@ -145,19 +108,8 @@ export function CollapsibleTripTimeline({
       >
         {open ? (
           <TripTimeline stages={stages} compact={compact} />
-        ) : collapsed.anchor.length > 0 ? (
-          <div className={cn("space-y-2")}>
-            <TripTimeline stages={collapsed.top} compact={compact} />
-            <div
-              aria-hidden
-              className="pl-[11px] text-xs font-semibold leading-none text-muted-foreground/70"
-            >
-              &middot;&middot;&middot;
-            </div>
-            <TripTimeline stages={collapsed.anchor} compact={compact} />
-          </div>
         ) : (
-          <TripTimeline stages={collapsed.top} compact={compact} />
+          <TripTimeline stages={collapsed} compact={compact} />
         )}
       </div>
     </div>

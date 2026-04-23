@@ -113,6 +113,19 @@ export async function POST(
       content: TERMS_DECLINED_PREFIX,
       is_system: true,
     });
+    // When the guest provided a reason, echo it into the thread as
+    // a normal user message so the host sees the substance alongside
+    // the structured decline marker. Previously stored only on the
+    // contact_request row (never surfaced), which masqueraded as
+    // "message never got sent."
+    if (reason) {
+      await supabase.from("messages").insert({
+        thread_id: thread.id,
+        sender_id: currentUser.id,
+        content: reason,
+        is_system: false,
+      });
+    }
   }
 
   return Response.json({ ok: true, terms_declined_at: now });

@@ -662,8 +662,8 @@ export function TermsOfferedCard({
                 : "Withdraw this reservation?"}
             </DialogTitle>
             <DialogDescription>
-              The other party will be notified. You can still message
-              them after declining.
+              The other party will be notified. Anything you write below
+              is sent to them as a message in this thread.
             </DialogDescription>
           </DialogHeader>
           <div>
@@ -671,13 +671,14 @@ export function TermsOfferedCard({
               htmlFor="decline-reason"
               className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
             >
-              Reason (optional · private)
+              Message to {viewerRole === "guest" ? hostFirstName : guestFirstName}{" "}
+              (optional)
             </label>
             <textarea
               id="decline-reason"
               value={declineReason}
               onChange={(e) => setDeclineReason(e.target.value.slice(0, 500))}
-              placeholder="Just for your own record — won't be shown to the other party."
+              placeholder={`Tell ${viewerRole === "guest" ? hostFirstName : guestFirstName} what's going on — sent as a thread message.`}
               rows={3}
               className="w-full rounded-lg border-2 border-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
             />
@@ -874,15 +875,36 @@ function PriceBreakdown({
         </div>
       )}
       {nightsSubtotal !== null && Math.abs(adjustment) >= 1 && (
-        <div className="flex items-center justify-between gap-3 py-1 text-sm">
-          <span className={labelTone}>
-            {adjustment > 0 ? "Adjustment" : "Discount"}
-          </span>
-          <span className={cn("font-medium", valueTone)}>
-            {adjustment > 0 ? "+" : "−"}$
-            {Math.abs(adjustment).toLocaleString()}
-          </span>
-        </div>
+        (() => {
+          // When the host-offered total lands at a whole-dollar shift
+          // per night (vs the listing's nightly rate), break the
+          // adjustment out as "$X/night × N nights" so the guest sees
+          // where the delta is coming from instead of a bare lump
+          // sum. Falls back to the lump line when the split isn't
+          // clean (e.g. adjustment landed on cleaning-only or a mix).
+          const absAdj = Math.abs(adjustment);
+          const perNight =
+            nights && absAdj % nights === 0 ? absAdj / nights : null;
+          const label = adjustment > 0 ? "Adjustment" : "Discount";
+          return (
+            <div className="flex items-start justify-between gap-3 py-1 text-sm">
+              <div className={labelTone}>
+                <div>{label}</div>
+                {perNight !== null && (
+                  <div className="text-[11px] text-muted-foreground">
+                    {adjustment > 0 ? "+" : "−"}$
+                    {perNight.toLocaleString()}/night × {nights} night
+                    {nights === 1 ? "" : "s"}
+                  </div>
+                )}
+              </div>
+              <span className={cn("shrink-0 font-medium", valueTone)}>
+                {adjustment > 0 ? "+" : "−"}$
+                {absAdj.toLocaleString()}
+              </span>
+            </div>
+          );
+        })()
       )}
       <div
         className={cn(

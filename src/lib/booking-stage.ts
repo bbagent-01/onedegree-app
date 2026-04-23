@@ -290,13 +290,17 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
   // check-in was removed — it added a row labeled just "Upcoming"
   // that collided with the "upcoming" status word and, in collapsed
   // sidebar mode, pushed the NEXT real action (Payment N) off the
-  // visible slice. The check-in date is already implied by the
-  // next payment row and the "During stay" label.
+  // visible slice.
 
-  // Stage 6: Checked in (stay in progress).
+  // Stage 6: Check-in (was "During stay" — S7 rename, same key).
+  // The stage represents the first day of the stay through the last.
+  // Status is "current" while inside the stay window, "done" post-
+  // checkout, "upcoming" before arrival. Copy varies by status so
+  // the timeline reads either "Arriving …", "Stay ends …", or
+  // "Stayed through …".
   const s6: TimelineStage = {
     key: "checked_in",
-    label: "During stay",
+    label: "Check-in",
     status: !isAccepted
       ? "upcoming"
       : inStay
@@ -305,11 +309,11 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
           ? "done"
           : "upcoming",
     detail: inStay
-      ? `Check-out ${fmtDate(checkOutDate)}`
+      ? `Stay ends ${fmtDate(checkOutDate)}`
       : postStay
         ? `Stayed through ${fmtDate(checkOutDate)}`
         : checkInDate && checkOutDate
-          ? `${fmtDate(checkInDate)} → ${fmtDate(checkOutDate)}`
+          ? `Arriving ${fmtDate(checkInDate)} → ${fmtDate(checkOutDate)}`
           : null,
     badge: input.has_open_issue && (inStay || postStay) ? "alert" : null,
   };

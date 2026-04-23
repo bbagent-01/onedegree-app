@@ -107,6 +107,17 @@ export async function POST(
       content: RESERVATION_DECLINED_PREFIX,
       is_system: true,
     });
+    // Host-provided reason echoes into the thread as a normal host
+    // message so the guest sees why. Stored copy on contact_requests
+    // is still kept for audit; this is the surfaced version.
+    if (reason) {
+      await supabase.from("messages").insert({
+        thread_id: thread.id,
+        sender_id: currentUser.id,
+        content: reason,
+        is_system: false,
+      });
+    }
   }
 
   return Response.json({ ok: true, terms_declined_at: now });

@@ -50,7 +50,7 @@ export async function getIssueReportsForThread(
 
 /**
  * Counts threads with at least one `open` issue — used for the
- * red-dot badge on the trip timeline "During stay" / "Checked out"
+ * red-dot badge on the trip timeline "Check-in" / "Checked out"
  * stages.
  */
 export async function countOpenIssuesForThread(
