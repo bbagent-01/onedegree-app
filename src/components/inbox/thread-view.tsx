@@ -861,21 +861,18 @@ export function ThreadView({
             </div>
           );
         }
-        // Stay-time action row (S4 Chunk 5). Only surfaces when the
-        // thread has a confirmed reservation — no point flagging
-        // issues on a pending inquiry. "Report an issue" gates to
-        // during-stay / post-stay on an accepted booking. "Request
-        // a photo" is always available on a live reservation.
+        // Stay-time action row (S4 Chunk 5).
+        //   - "Report an issue" is always surfaced now: a bad-actor
+        //     host or guest can pop up at any thread stage (pre-
+        //     booking harassment, post-stay disputes), so gating
+        //     behind check-in forced Loren to chase edge cases.
+        //   - "Request a photo" still gates to an accepted booking —
+        //     it's a scheduling concern, not a safety one.
         const booking = thread.booking;
         const hasAcceptedReservation =
           !!booking && booking.status === "accepted";
-        const todayISO = new Date().toISOString().slice(0, 10);
-        const inStayOrAfter =
-          hasAcceptedReservation &&
-          !!booking.check_in &&
-          todayISO >= booking.check_in;
         const showPhotoRequest = hasAcceptedReservation;
-        const showIssueReport = inStayOrAfter;
+        const showIssueReport = true;
         const showActions = showPhotoRequest || showIssueReport;
         return (
           <>

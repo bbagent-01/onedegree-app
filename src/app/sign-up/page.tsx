@@ -149,6 +149,32 @@ function SignUpInner() {
     }
   };
 
+  // Google SSO on sign-up — surfaced ONLY on the email_fallback
+  // step so the phone-first path stays uncluttered. Users who pick
+  // Google will still be asked for a phone number by Clerk before
+  // their account is complete (our missing-fields router sends them
+  // to the phone step).
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const signUpWithGoogle = () => {
+    if (!isLoaded || googleLoading) return;
+    setGoogleLoading(true);
+    // rAF so React commits the spinner state before Clerk's
+    // authenticateWithRedirect fires. Without it, the redirect can
+    // start inside the same task and the spinner never paints.
+    requestAnimationFrame(() => {
+      signUp
+        .authenticateWithRedirect({
+          strategy: "oauth_google",
+          redirectUrl: "/sso-callback",
+          redirectUrlComplete: redirectUrl,
+        })
+        .catch((e: unknown) => {
+          setGoogleLoading(false);
+          toast.error(clerkError(e) || "Couldn't start Google sign-up");
+        });
+    });
+  };
+
   // Route the signup to whichever step is next based on what Clerk
   // says is still missing. Called after every successful verify /
   // update so the UI stays in sync with Clerk's state.
@@ -325,13 +351,13 @@ function SignUpInner() {
             )}
 
             {/* Privacy promise */}
-            <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-900">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+            <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
               <div>
-                <strong className="block">
+                <strong className="block text-base">
                   Your phone is your identity on 1&deg; B&amp;B.
                 </strong>
-                <span>
+                <span className="text-sm leading-snug">
                   We&rsquo;ll never share or sell it, or send marketing
                   texts (unless you opt in).
                 </span>
@@ -489,9 +515,44 @@ function SignUpInner() {
               &larr; Back to phone sign-up
             </button>
             <p className="mt-4 text-sm text-muted-foreground">
-              You&rsquo;ll add a phone number on the next step — phone
-              verification is required for all 1° B&amp;B accounts.
+              You can sign up now, but you&rsquo;ll need a phone number to
+              verify your account on the next step.
             </p>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={signUpWithGoogle}
+              disabled={googleLoading}
+              className="mt-4 h-14 w-full text-base"
+            >
+              <span className="inline-flex items-center gap-2">
+                {googleLoading ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-foreground" />
+                ) : (
+                  <GoogleIcon className="h-4 w-4" />
+                )}
+                {googleLoading
+                  ? "Opening Google\u2026"
+                  : "Continue with Google"}
+              </span>
+            </Button>
+            <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>or email and password</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+              <div>
+                <strong className="block text-base">
+                  Your phone is your identity on 1&deg; B&amp;B.
+                </strong>
+                <span className="text-sm leading-snug">
+                  We&rsquo;ll never share or sell it, or send marketing
+                  texts (unless you opt in).
+                </span>
+              </div>
+            </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div>
                 <Label htmlFor="first-e">First name</Label>
@@ -718,5 +779,16 @@ function clerkErrorCode(e: unknown): string | null {
   if (!e || typeof e !== "object") return null;
   const errs = (e as { errors?: Array<{ code?: string }> }).errors;
   return errs?.[0]?.code ?? null;
+}
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22.5 12.2c0-.7-.1-1.4-.2-2.1H12v4h5.9a5.1 5.1 0 0 1-2.2 3.3v2.7h3.5c2-1.9 3.3-4.6 3.3-7.9z" fill="#4285F4" />
+      <path d="M12 23c3 0 5.5-1 7.3-2.8l-3.5-2.7c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.3-1.9-6.2-4.5H2.2v2.8A11 11 0 0 0 12 23z" fill="#34A853" />
+      <path d="M5.8 14.1a6.7 6.7 0 0 1 0-4.2V7.1H2.2a11 11 0 0 0 0 9.8l3.6-2.8z" fill="#FBBC04" />
+      <path d="M12 5.4c1.6 0 3 .6 4.2 1.6l3.1-3.1A11 11 0 0 0 2.2 7.1l3.6 2.8C6.7 7.3 9.1 5.4 12 5.4z" fill="#EA4335" />
+    </svg>
+  );
 }
 

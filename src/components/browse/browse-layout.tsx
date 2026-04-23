@@ -151,26 +151,6 @@ export function BrowseLayout({
       ? "mx-auto max-w-[600px]"
       : "";
 
-  // Listings the map can actually plot. Below 3 there's nothing
-  // useful to display — hide the toggle so it doesn't open onto an
-  // almost-empty canvas.
-  const mappableCount = useMemo(
-    () =>
-      listings.filter(
-        (l) =>
-          typeof l.latitude === "number" && typeof l.longitude === "number"
-      ).length,
-    [listings]
-  );
-  const showMapToggle = mappableCount >= 3;
-  // If we hide the toggle but were already in split/map mode (e.g.
-  // user previously had results and now filtered down), demote back
-  // to grid so the layout stays coherent.
-  useEffect(() => {
-    if (!showMapToggle && mode !== "grid") {
-      setMode("grid");
-    }
-  }, [showMapToggle, mode]);
 
   // Heading row with sort/filters — lives inside the left column so the
   // sort pill aligns with the right edge of the grid (not the far right
@@ -206,7 +186,7 @@ export function BrowseLayout({
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <SearchX className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-semibold text-foreground">
-              Your network is growing
+              No listings in this area yet
             </h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
               Ask connections to host, or expand by inviting more
@@ -326,34 +306,30 @@ export function BrowseLayout({
         </div>
       )}
 
-      {/* Desktop split toggle — hidden when fewer than 3 mappable
-          listings are visible (a half-empty map is worse than no map). */}
-      {showMapToggle && (
-        <div className="fixed bottom-8 left-1/2 z-40 hidden -translate-x-1/2 md:block">
-          <Button
-            type="button"
-            onClick={() => setMode((m) => (m === "split" ? "grid" : "split"))}
-            className="h-12 gap-2 rounded-full bg-foreground px-6 text-sm font-medium text-background shadow-lg hover:bg-foreground/90"
-          >
-            {mode === "split" ? (
-              <>
-                <LayoutGrid className="h-4 w-4" />
-                Show grid
-              </>
-            ) : (
-              <>
-                <MapIcon className="h-4 w-4" />
-                Show map
-              </>
-            )}
-          </Button>
-        </div>
-      )}
+      {/* Desktop split toggle */}
+      <div className="fixed bottom-8 left-1/2 z-40 hidden -translate-x-1/2 md:block">
+        <Button
+          type="button"
+          onClick={() => setMode((m) => (m === "split" ? "grid" : "split"))}
+          className="h-12 gap-2 rounded-full bg-foreground px-6 text-sm font-medium text-background shadow-lg hover:bg-foreground/90"
+        >
+          {mode === "split" ? (
+            <>
+              <LayoutGrid className="h-4 w-4" />
+              Show grid
+            </>
+          ) : (
+            <>
+              <MapIcon className="h-4 w-4" />
+              Show map
+            </>
+          )}
+        </Button>
+      </div>
 
-      {/* Mobile map toggle — same suppression rule as the desktop one.
-          Floats above the mobile tab bar; bottom offset accounts for
-          the tab bar height + iOS safe area + 1rem breathing gap. */}
-      {showMapToggle && (
+      {/* Mobile map toggle — floats above the mobile tab bar. The
+          bottom offset accounts for the tab bar height + iOS safe
+          area + 1rem breathing gap. */}
       <div
         className="fixed left-1/2 z-40 -translate-x-1/2 md:hidden"
         style={{
@@ -378,7 +354,6 @@ export function BrowseLayout({
           )}
         </Button>
       </div>
-      )}
     </div>
   );
 }
