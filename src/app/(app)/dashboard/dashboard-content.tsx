@@ -14,6 +14,7 @@ import { TripsList } from "@/components/trips/trips-list";
 import { UnifiedDashboard } from "./unified-dashboard";
 import { SectionNav } from "@/components/layout/section-nav";
 import { DashboardWelcomeBanner } from "@/components/dashboard/dashboard-welcome-banner";
+import { MyProposalsSection } from "@/components/dashboard/my-proposals-section";
 import { Plus } from "lucide-react";
 import type { DashboardTab } from "@/components/dashboard/dashboard-tabs";
 
@@ -112,6 +113,10 @@ export async function DashboardContent({
     </div>
   ) : null;
 
+  const proposalsContent = (
+    <MyProposalsSection userId={currentUser.id} />
+  );
+
   return (
     <>
       <SectionNav />
@@ -132,6 +137,7 @@ export async function DashboardContent({
           hostingContent={hostingContent}
           travelingContent={travelingContent}
           networkContent={networkContent}
+          proposalsContent={proposalsContent}
         />
       </div>
     </>

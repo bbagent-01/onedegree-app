@@ -1,10 +1,33 @@
 import Link from "next/link";
-import { CalendarDays, MapPin, Users, BadgePercent, ArrowLeftRight, Gift } from "lucide-react";
+import {
+  CalendarDays,
+  MapPin,
+  Users,
+  BadgePercent,
+  ArrowLeftRight,
+  Gift,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import type { HydratedProposal } from "@/lib/proposals-data";
 import { MessageAuthorButton } from "./message-author-button";
+import { ListingPhotoCarousel } from "./listing-photo-carousel";
+
+/**
+ * Proposal card — full-row layout with visual on the left, info on the
+ * right. Both kinds (Trip Wish / Host Offer) share the same footprint
+ * so the feed reads as a consistent stream.
+ *
+ *  - Host Offer → photo carousel of the linked listing on the left.
+ *  - Trip Wish  → themed destination callout on the left (gradient +
+ *                 overlaid destination label). Generated deterministically
+ *                 from the proposal id so refreshes don't jitter.
+ *
+ * Right column: large (medium-size) author avatar + name + TrustTag
+ * popover, kind badge, large title, date / guest / location meta, and
+ * CTA row pinned to the bottom.
+ */
 
 interface Props {
   proposal: HydratedProposal;
@@ -46,140 +69,228 @@ export function ProposalCard({ proposal, viewerId }: Props) {
   const detailHref = `/proposals/${row.id}`;
 
   return (
-    <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* Header — kind badge + author snippet */}
-      <div className="flex items-start gap-3 p-4">
-        <Link
-          href={authorHref}
-          className="shrink-0"
-          aria-label={`View ${author.name}'s profile`}
-        >
-          <Avatar className="h-10 w-10">
-            {author.avatar_url && (
-              <AvatarImage src={author.avatar_url} alt={author.name} />
-            )}
-            <AvatarFallback className="text-xs">
-              {initials(author.name)}
-            </AvatarFallback>
-          </Avatar>
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
+    <article className="group overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
+      <div className="flex flex-col md:flex-row">
+        {/* Visual pane — fixed width on desktop, aspect-stable on mobile */}
+        <div className="relative w-full shrink-0 md:w-[340px]">
+          {isTrip ? (
+            <TripWishVisual proposal={proposal} />
+          ) : (
+            <HostOfferVisual proposal={proposal} />
+          )}
+        </div>
+
+        {/* Info pane */}
+        <div className="flex min-w-0 flex-1 flex-col p-5 md:p-6">
+          {/* Author row */}
+          <div className="flex items-start gap-3">
             <Link
               href={authorHref}
-              className="truncate text-sm font-semibold hover:underline"
+              className="shrink-0"
+              aria-label={`View ${author.name}'s profile`}
             >
-              {author.name}
+              <Avatar className="h-12 w-12">
+                {author.avatar_url && (
+                  <AvatarImage src={author.avatar_url} alt={author.name} />
+                )}
+                <AvatarFallback className="text-sm">
+                  {initials(author.name)}
+                </AvatarFallback>
+              </Avatar>
             </Link>
-            <KindBadge kind={row.kind} />
-          </div>
-          <div className="mt-1">
-            {!isOwn ? (
-              <ConnectionPopover
-                targetUserId={proposal.audienceHostId}
-                isSelf={false}
-                disabled={proposal.trustDegree === 1 || proposal.hasDirectVouch}
-              >
-                <TrustTag
-                  size="micro"
-                  score={proposal.trustScore}
-                  degree={proposal.trustDegree}
-                  direct={proposal.hasDirectVouch}
-                />
-              </ConnectionPopover>
-            ) : (
-              <span className="text-xs text-muted-foreground">Your post</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Body */}
-      <Link href={detailHref} className="flex-1 px-4 pb-3 hover:bg-muted/20">
-        <h3 className="line-clamp-2 text-base font-semibold text-foreground">
-          {row.title}
-        </h3>
-        <p className="mt-1.5 line-clamp-3 text-sm leading-6 text-muted-foreground">
-          {row.description}
-        </p>
-
-        {/* Meta row */}
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-          {row.destinations.length > 0 && (
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5" />
-              <span className="line-clamp-1">
-                {row.destinations.slice(0, 3).join(" · ")}
-                {row.destinations.length > 3
-                  ? ` +${row.destinations.length - 3}`
-                  : ""}
-              </span>
-            </span>
-          )}
-          <span className="inline-flex items-center gap-1.5">
-            <CalendarDays className="h-3.5 w-3.5" />
-            {formatDateRange(proposal)}
-          </span>
-          {isTrip && row.guest_count && (
-            <span className="inline-flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5" />
-              {row.guest_count} guest{row.guest_count === 1 ? "" : "s"}
-            </span>
-          )}
-        </div>
-
-        {/* Host-offer: linked listing + hook */}
-        {!isTrip && listing && (
-          <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-2">
-            {listing.cover_photo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={listing.cover_photo_url}
-                alt={listing.title}
-                className="h-10 w-14 shrink-0 rounded object-cover"
-              />
-            ) : (
-              <div className="h-10 w-14 shrink-0 rounded bg-muted" />
-            )}
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-semibold">
-                {listing.title}
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={authorHref}
+                  className="truncate text-sm font-semibold hover:underline"
+                >
+                  {author.name}
+                </Link>
+                <KindBadge kind={row.kind} />
+                {isOwn && (
+                  <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Your post
+                  </span>
+                )}
               </div>
-              <div className="truncate text-[11px] text-muted-foreground">
-                {listing.area_name}
-              </div>
+              {!isOwn ? (
+                <div className="mt-1.5">
+                  <ConnectionPopover
+                    targetUserId={proposal.audienceHostId}
+                    isSelf={false}
+                    disabled={
+                      proposal.trustDegree === 1 || proposal.hasDirectVouch
+                    }
+                  >
+                    <TrustTag
+                      size="micro"
+                      score={proposal.trustScore}
+                      degree={proposal.trustDegree}
+                      direct={proposal.hasDirectVouch}
+                    />
+                  </ConnectionPopover>
+                </div>
+              ) : null}
             </div>
-            {row.hook_type !== "none" && (
-              <HookBadge
+          </div>
+
+          {/* Title + description */}
+          <Link href={detailHref} className="mt-4 block">
+            <h3 className="line-clamp-2 text-xl font-semibold leading-tight text-foreground group-hover:underline">
+              {row.title}
+            </h3>
+            <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
+              {row.description}
+            </p>
+          </Link>
+
+          {/* Meta row */}
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
+            {row.destinations.length > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />
+                <span className="line-clamp-1">
+                  {row.destinations.slice(0, 3).join(" · ")}
+                  {row.destinations.length > 3
+                    ? ` +${row.destinations.length - 3}`
+                    : ""}
+                </span>
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {formatDateRange(proposal)}
+            </span>
+            {isTrip && row.guest_count && (
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                {row.guest_count} guest{row.guest_count === 1 ? "" : "s"}
+              </span>
+            )}
+            {!isTrip && row.hook_type !== "none" && (
+              <HookPill
                 hookType={row.hook_type}
                 hookDetails={row.hook_details}
               />
             )}
           </div>
-        )}
-      </Link>
 
-      {/* Footer — CTAs */}
-      <div className="flex items-center gap-2 border-t border-border bg-muted/20 px-4 py-3">
-        <Link
-          href={detailHref}
-          className="inline-flex h-9 items-center rounded-lg border border-border bg-white px-3 text-xs font-semibold hover:bg-muted"
-        >
-          View details
-        </Link>
-        {!isOwn && (
-          <MessageAuthorButton
-            proposalId={row.id}
-            authorId={author.id}
-            authorFirstName={author.name.split(" ")[0] ?? "them"}
-            listingId={listing?.id ?? null}
-            kindLabel={isTrip ? "Trip Wish" : "Host Offer"}
-            title={row.title}
-          />
+          {/* Linked listing title strip (host-offer only, small; the big
+              visual is already on the left). */}
+          {!isTrip && listing && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              Linked listing:{" "}
+              <Link
+                href={`/listings/${listing.id}`}
+                className="font-semibold text-foreground hover:underline"
+              >
+                {listing.title}
+              </Link>{" "}
+              · {listing.area_name}
+            </div>
+          )}
+
+          {/* CTA row — pinned bottom. mt-auto on the flex column pushes
+              it below whatever content precedes it. */}
+          <div className="mt-auto flex items-center gap-2 pt-5">
+            <Link
+              href={detailHref}
+              className="inline-flex h-10 items-center rounded-lg border border-border bg-white px-4 text-sm font-semibold hover:bg-muted"
+            >
+              View details
+            </Link>
+            {!isOwn && (
+              <MessageAuthorButton
+                proposalId={row.id}
+                authorId={author.id}
+                authorFirstName={author.name.split(" ")[0] ?? "them"}
+                listingId={listing?.id ?? null}
+                kindLabel={isTrip ? "Trip Wish" : "Host Offer"}
+                title={row.title}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function HostOfferVisual({ proposal }: { proposal: HydratedProposal }) {
+  const { listing } = proposal;
+  if (!listing || listing.photo_urls.length === 0) {
+    // No photos: show a subtle placeholder that still locks the same
+    // footprint so card heights stay consistent across the feed.
+    return (
+      <div className="flex h-56 w-full items-center justify-center bg-muted md:h-full md:min-h-[260px]">
+        <span className="text-xs font-medium text-muted-foreground">
+          No photos yet
+        </span>
+      </div>
+    );
+  }
+  return (
+    <ListingPhotoCarousel
+      photos={listing.photo_urls}
+      title={listing.title}
+    />
+  );
+}
+
+function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
+  const primary =
+    proposal.row.destinations[0] ||
+    proposal.row.flexible_month ||
+    "Anywhere";
+
+  // Deterministic gradient from the proposal id so each wish has its
+  // own visual identity but doesn't flicker across renders. Six palettes
+  // cover warm / cool / tropical / city vibes.
+  const palettes = [
+    "from-amber-300 via-orange-400 to-rose-500", // sunset
+    "from-sky-300 via-blue-500 to-indigo-600", // sky
+    "from-emerald-300 via-teal-500 to-cyan-600", // tropical
+    "from-fuchsia-300 via-pink-500 to-rose-500", // summer
+    "from-violet-300 via-purple-500 to-indigo-600", // dusk
+    "from-lime-300 via-green-500 to-emerald-600", // garden
+  ];
+  const hashed = hashString(proposal.row.id);
+  const palette = palettes[hashed % palettes.length];
+
+  return (
+    <div
+      className={`relative flex h-56 w-full items-end overflow-hidden bg-gradient-to-br ${palette} md:h-full md:min-h-[260px]`}
+    >
+      {/* Subtle texture */}
+      <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,white_0,transparent_40%),radial-gradient(circle_at_80%_80%,white_0,transparent_40%)]" />
+      {/* Label */}
+      <div className="relative z-[1] w-full p-5">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/80">
+          Trip Wish
+        </div>
+        <div className="mt-2 line-clamp-2 text-2xl font-semibold leading-tight text-white drop-shadow-sm md:text-3xl">
+          {primary}
+        </div>
+        {proposal.row.destinations.length > 1 && (
+          <div className="mt-1 text-xs text-white/90">
+            {proposal.row.destinations.slice(1, 3).join(" · ")}
+            {proposal.row.destinations.length > 3
+              ? ` +${proposal.row.destinations.length - 3}`
+              : ""}
+          </div>
         )}
       </div>
     </div>
   );
+}
+
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h << 5) - h + s.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
 }
 
 function KindBadge({ kind }: { kind: "trip_wish" | "host_offer" }) {
@@ -197,7 +308,7 @@ function KindBadge({ kind }: { kind: "trip_wish" | "host_offer" }) {
   );
 }
 
-function HookBadge({
+function HookPill({
   hookType,
   hookDetails,
 }: {
@@ -206,14 +317,20 @@ function HookBadge({
 }) {
   if (hookType === "none") return null;
   const Icon =
-    hookType === "discount" ? BadgePercent : hookType === "trade" ? ArrowLeftRight : Gift;
+    hookType === "discount"
+      ? BadgePercent
+      : hookType === "trade"
+        ? ArrowLeftRight
+        : Gift;
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900"
+      className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-900"
       title={hookDetails ?? undefined}
     >
       <Icon className="h-3 w-3" />
-      {hookDetails ? hookDetails.slice(0, 22) : hookType}
+      <span className="line-clamp-1 max-w-[140px]">
+        {hookDetails || hookType}
+      </span>
     </span>
   );
 }

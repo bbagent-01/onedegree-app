@@ -74,6 +74,9 @@ export interface ProposalListingSnippet {
   title: string;
   area_name: string;
   cover_photo_url: string | null;
+  /** Up to 6 photos total, cover first then sort_order. Feeds the
+   *  card-side image carousel. Empty when the listing has no photos. */
+  photo_urls: string[];
   host_id: string;
   access_settings: AccessSettings | null;
   visibility_mode: string | null;
@@ -233,19 +236,38 @@ export async function fetchVisibleProposals(
         "id, title, area_name, host_id, access_settings, visibility_mode"
       )
       .in("id", listingIds);
-    const { data: coverRows } = await supabase
+    const { data: photoRows } = await supabase
       .from("listing_photos")
       .select("listing_id, public_url, is_cover, sort_order")
       .in("listing_id", listingIds);
-    const coverByListing = new Map<string, string>();
-    for (const p of (coverRows ?? []) as {
+    // Sort cover-first then sort_order, then bucket by listing.
+    const byListing = new Map<
+      string,
+      { public_url: string; is_cover: boolean; sort_order: number }[]
+    >();
+    for (const p of (photoRows ?? []) as {
       listing_id: string;
       public_url: string;
       is_cover: boolean;
       sort_order: number;
     }[]) {
-      const existing = coverByListing.get(p.listing_id);
-      if (!existing || p.is_cover) coverByListing.set(p.listing_id, p.public_url);
+      const arr = byListing.get(p.listing_id) ?? [];
+      arr.push({
+        public_url: p.public_url,
+        is_cover: p.is_cover,
+        sort_order: p.sort_order ?? 0,
+      });
+      byListing.set(p.listing_id, arr);
+    }
+    const photosByListing = new Map<string, string[]>();
+    const coverByListing = new Map<string, string>();
+    for (const [lid, arr] of byListing.entries()) {
+      arr.sort((a, b) => {
+        if (a.is_cover !== b.is_cover) return a.is_cover ? -1 : 1;
+        return a.sort_order - b.sort_order;
+      });
+      photosByListing.set(lid, arr.slice(0, 6).map((p) => p.public_url));
+      if (arr[0]) coverByListing.set(lid, arr[0].public_url);
     }
     for (const l of (listingRows ?? []) as {
       id: string;
@@ -263,6 +285,7 @@ export async function fetchVisibleProposals(
         access_settings: l.access_settings,
         visibility_mode: l.visibility_mode,
         cover_photo_url: coverByListing.get(l.id) ?? null,
+        photo_urls: photosByListing.get(l.id) ?? [],
       });
     }
   }
@@ -403,14 +426,18 @@ export async function fetchProposalById(
         access_settings: AccessSettings | null;
         visibility_mode: string | null;
       };
-      const { data: coverRows } = await supabase
+      const { data: photoRows } = await supabase
         .from("listing_photos")
         .select("public_url, is_cover, sort_order")
         .eq("listing_id", row.listing_id)
         .order("is_cover", { ascending: false })
         .order("sort_order", { ascending: true })
-        .limit(1);
-      const cover = ((coverRows ?? []) as { public_url: string }[])[0];
+        .limit(6);
+      const photos = (photoRows ?? []) as {
+        public_url: string;
+        is_cover: boolean;
+        sort_order: number;
+      }[];
       listing = {
         id: listingTyped.id,
         title: listingTyped.title,
@@ -418,7 +445,8 @@ export async function fetchProposalById(
         host_id: listingTyped.host_id,
         access_settings: listingTyped.access_settings,
         visibility_mode: listingTyped.visibility_mode,
-        cover_photo_url: cover?.public_url ?? null,
+        cover_photo_url: photos[0]?.public_url ?? null,
+        photo_urls: photos.map((p) => p.public_url),
       };
     }
   }

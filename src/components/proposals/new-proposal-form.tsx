@@ -29,6 +29,12 @@ export interface MyListingOption {
 interface Props {
   myListings: MyListingOption[];
   profileDefaultRule: AccessRule;
+  /** True when the author already has the maximum number of active
+   *  Host Offers. The UI blocks the kind toggle + form fields rather
+   *  than letting them fill everything out and hit a 409. */
+  hostOfferCapReached: boolean;
+  hostOfferActiveCount: number;
+  hostOfferCap: number;
 }
 
 type Kind = "trip_wish" | "host_offer";
@@ -36,6 +42,7 @@ type HookType = "none" | "discount" | "trade";
 type DateMode = "range" | "flexible_month";
 type VisibilityMode = "inherit" | "custom";
 type CustomRuleType =
+  | "anyone_anywhere"
   | "anyone"
   | "min_score"
   | "max_degrees"
@@ -46,7 +53,13 @@ const fieldCls =
 const textareaCls =
   "min-h-[120px] w-full resize-none rounded-xl border-2 border-border !bg-white px-4 py-3 text-sm font-medium shadow-sm focus:border-foreground/60 focus:outline-none";
 
-export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
+export function NewProposalForm({
+  myListings,
+  profileDefaultRule,
+  hostOfferCapReached,
+  hostOfferActiveCount,
+  hostOfferCap,
+}: Props) {
   const router = useRouter();
 
   const [kind, setKind] = useState<Kind>("trip_wish");
@@ -79,7 +92,7 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
   const descLen = description.trim().length;
   const titleLen = title.trim().length;
   const descTooShort = descLen < 20;
-  const canSwitchToHostOffer = myListings.length > 0;
+  const canSwitchToHostOffer = myListings.length > 0 && !hostOfferCapReached;
 
   const selectedListing = useMemo(
     () => myListings.find((l) => l.id === listingId) ?? null,
@@ -190,8 +203,39 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
     return `${format(range.from, "MMM d")} – pick end date`;
   })();
 
+  const hostOfferHint = (() => {
+    if (hostOfferCapReached) {
+      return `${hostOfferActiveCount}/${hostOfferCap} active — close one first`;
+    }
+    if (myListings.length === 0) return "Create a listing first";
+    return "I have availability";
+  })();
+
   return (
     <div className="mt-8 space-y-6">
+      {/* Cap banner — gates the Host Offer path before the user fills out
+          the form. Trip Wishes stay uncapped so the banner only shows on
+          that specific cap. */}
+      {hostOfferCapReached && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <div className="text-sm font-semibold text-amber-900">
+            You&apos;re at the Host Offer cap
+          </div>
+          <p className="mt-1 text-xs text-amber-900/80">
+            You already have {hostOfferActiveCount} active Host Offers
+            (max {hostOfferCap}). Close or delete one from{" "}
+            <a
+              href="/proposals?author=me"
+              className="font-semibold underline hover:text-amber-950"
+            >
+              your proposals
+            </a>{" "}
+            before posting another. Trip Wishes are unlimited — switch
+            kinds above if you want to post one of those.
+          </p>
+        </div>
+      )}
+
       {/* Kind toggle */}
       <div className="flex gap-2">
         <KindToggleButton
@@ -203,11 +247,7 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
         <KindToggleButton
           active={kind === "host_offer"}
           label="Host Offer"
-          hint={
-            canSwitchToHostOffer
-              ? "I have availability"
-              : "Create a listing first"
-          }
+          hint={hostOfferHint}
           onClick={() => {
             if (canSwitchToHostOffer) setKind("host_offer");
           }}
@@ -515,6 +555,9 @@ export function NewProposalForm({ myListings, profileDefaultRule }: Props) {
                   }
                   className="h-10 rounded-lg border border-border bg-white px-3 text-sm"
                 >
+                  <option value="anyone_anywhere">
+                    Anyone (incl. not signed in)
+                  </option>
                   <option value="anyone">Anyone signed in</option>
                   <option value="min_score">Min 1° score</option>
                   <option value="max_degrees">Within N degrees of me</option>
@@ -712,7 +755,7 @@ function VisibilityRadio({
 function ruleToLabel(rule: AccessRule): string {
   switch (rule.type) {
     case "anyone_anywhere":
-      return "Anyone, including signed-out visitors";
+      return "Anyone (incl. not signed in)";
     case "anyone":
       return "Anyone signed in";
     case "min_score":
@@ -732,6 +775,8 @@ function buildCustomRule(
   maxDegrees: string
 ): AccessRule {
   switch (type) {
+    case "anyone_anywhere":
+      return { type: "anyone_anywhere" };
     case "anyone":
       return { type: "anyone" };
     case "min_score":

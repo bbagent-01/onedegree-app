@@ -262,7 +262,7 @@ export default async function ProfilePage({
       {/* Proposals */}
       {profileProposals.length > 0 && viewerId && (
         <Section title={`${user.name.split(" ")[0]}'s proposals`}>
-          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <ul className="flex flex-col gap-4">
             {profileProposals.slice(0, 5).map((p) => (
               <li key={p.row.id}>
                 <ProposalCard proposal={p} viewerId={viewerId} />

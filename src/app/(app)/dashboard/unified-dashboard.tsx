@@ -5,6 +5,7 @@ interface UnifiedDashboardProps {
   hostingContent: React.ReactNode;
   travelingContent: React.ReactNode;
   networkContent: React.ReactNode;
+  proposalsContent: React.ReactNode;
 }
 
 /**
@@ -20,8 +21,10 @@ export function UnifiedDashboard({
   hostingContent,
   travelingContent,
   networkContent,
+  proposalsContent,
 }: UnifiedDashboardProps) {
   if (defaultTab === "traveling") return <>{travelingContent}</>;
   if (defaultTab === "network") return <>{networkContent}</>;
+  if (defaultTab === "proposals") return <>{proposalsContent}</>;
   return <>{hostingContent}</>;
 }

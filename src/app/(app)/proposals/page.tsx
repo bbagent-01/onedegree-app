@@ -26,8 +26,15 @@ export default async function ProposalsFeedPage({
   const kindParam = typeof sp.kind === "string" ? sp.kind : "all";
   const kind: "trip_wish" | "host_offer" | "all" =
     kindParam === "trip_wish" || kindParam === "host_offer" ? kindParam : "all";
-  const authorParam = typeof sp.author === "string" ? sp.author : undefined;
-  const includeOwn = authorParam != null && authorParam === viewerId;
+  // Convenience alias so /proposals?author=me routes to the viewer's own
+  // posts without exposing their UUID in the URL.
+  const authorRaw = typeof sp.author === "string" ? sp.author : undefined;
+  const authorParam = authorRaw === "me" ? viewerId : authorRaw;
+  // Always include the viewer's own posts — seeing "what does my post
+  // look like in the feed" is part of the onboarding loop for alpha.
+  // The old discovery-only behavior can return later if the feed gets
+  // noisy, but until then visibility wins over novelty.
+  const includeOwn = true;
 
   const items = await fetchVisibleProposals({
     viewerId,
@@ -90,7 +97,7 @@ export default async function ProposalsFeedPage({
           {items.length === 0 ? (
             <EmptyState kind={kind} />
           ) : (
-            <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <ul className="flex flex-col gap-4">
               {items.map((p) => (
                 <li key={p.row.id}>
                   <ProposalCard proposal={p} viewerId={viewerId} />

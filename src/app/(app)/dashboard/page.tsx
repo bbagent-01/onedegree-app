@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 function parseTab(raw: string | string[] | undefined): DashboardTab {
   const v = Array.isArray(raw) ? raw[0] : raw;
-  if (v === "traveling" || v === "network") return v;
+  if (v === "traveling" || v === "network" || v === "proposals") return v;
   return "hosting";
 }
 

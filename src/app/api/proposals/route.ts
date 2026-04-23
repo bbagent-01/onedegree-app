@@ -15,7 +15,11 @@ import {
 } from "@/lib/trust/types";
 import { fanOutAlerts } from "@/lib/proposal-alerts";
 
-const ACTIVE_CAP_PER_KIND = 5;
+// Trip Wishes are uncapped — we want guests to post freely and have hosts
+// respond. Host Offers are capped at 5 active per author to keep the feed
+// from being dominated by a single prolific host and to nudge hosts toward
+// refreshing their offer catalog.
+const HOST_OFFER_CAP = 5;
 
 interface CreateBody {
   kind?: ProposalKind;
@@ -116,19 +120,18 @@ export async function POST(req: Request) {
     }
   }
 
-  // Cap check. Same user can have 5 Trip Wishes and 5 Host Offers
-  // simultaneously — caps are independent across the two kinds.
-  const counts = await countActiveProposalsByAuthor(viewer.id);
-  if (counts[body.kind as ProposalKind] >= ACTIVE_CAP_PER_KIND) {
-    return Response.json(
-      {
-        error: `You already have ${ACTIVE_CAP_PER_KIND} active ${
-          body.kind === "trip_wish" ? "Trip Wishes" : "Host Offers"
-        }. Close one before posting another.`,
-        code: "cap_reached",
-      },
-      { status: 409 }
-    );
+  // Cap check — Host Offers only. Trip Wishes are uncapped.
+  if (body.kind === "host_offer") {
+    const counts = await countActiveProposalsByAuthor(viewer.id);
+    if (counts.host_offer >= HOST_OFFER_CAP) {
+      return Response.json(
+        {
+          error: `You already have ${HOST_OFFER_CAP} active Host Offers. Close one before posting another.`,
+          code: "cap_reached",
+        },
+        { status: 409 }
+      );
+    }
   }
 
   // Normalize custom access_settings: require a see_preview rule,

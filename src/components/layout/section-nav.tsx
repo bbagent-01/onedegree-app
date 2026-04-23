@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Home, Luggage, Users, MessageCircle } from "lucide-react";
+import { Home, Luggage, Users, MessageCircle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -55,6 +55,15 @@ const items: NavItem[] = [
     href: "/dashboard?tab=network",
     icon: Users,
     isActive: (p, sp) => p === "/dashboard" && sp.get("tab") === "network",
+  },
+  {
+    key: "proposals",
+    label: "Proposals",
+    href: "/dashboard?tab=proposals",
+    icon: Sparkles,
+    isActive: (p, sp) =>
+      p.startsWith("/proposals") ||
+      (p === "/dashboard" && sp.get("tab") === "proposals"),
   },
 ];
 

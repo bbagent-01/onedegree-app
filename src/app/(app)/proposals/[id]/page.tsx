@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
 import { fetchProposalById } from "@/lib/proposals-data";
+import type { AccessRule } from "@/lib/trust/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
@@ -32,6 +33,23 @@ function initials(name: string) {
       .join("")
       .toUpperCase() || "U"
   );
+}
+
+function describeRule(rule: AccessRule): string {
+  switch (rule.type) {
+    case "anyone_anywhere":
+      return "Anyone (incl. not signed in) can see this.";
+    case "anyone":
+      return "Anyone signed in can see this.";
+    case "min_score":
+      return `People with a 1° trust score ≥ ${rule.threshold ?? 0} can see this.`;
+    case "max_degrees":
+      return `People within ${rule.threshold ?? 2}° of the author can see this.`;
+    case "specific_people":
+      return `${rule.user_ids?.length ?? 0} specific people can see this.`;
+    default:
+      return "—";
+  }
 }
 
 export default async function ProposalDetailPage({
@@ -217,15 +235,21 @@ export default async function ProposalDetailPage({
           </Link>
         )}
 
-        {/* Visibility hint */}
+        {/* Visibility hint — shows the resolved rule so the author can
+            tell at a glance what network they're actually reaching
+            (vs. what they intended). */}
         <div className="mt-6 flex items-start gap-2 rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5" />
           <span>
-            {row.visibility_mode === "inherit"
-              ? isTrip
-                ? "Visible to people in the author's profile preview network."
-                : "Visible to people in this listing's preview network."
-              : "Custom audience: the author picked a different preview network for this post."}
+            <strong className="font-semibold text-foreground">
+              {row.visibility_mode === "inherit"
+                ? isTrip
+                  ? "Inherited from your profile preview network"
+                  : "Inherited from this listing's preview network"
+                : "Custom audience"}
+              :
+            </strong>{" "}
+            {describeRule(proposal.effectiveRule)}
           </span>
         </div>
 

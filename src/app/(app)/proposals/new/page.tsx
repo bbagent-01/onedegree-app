@@ -7,7 +7,10 @@ import {
   normalizeAccessSettings,
   type AccessSettings,
 } from "@/lib/trust/types";
+import { countActiveProposalsByAuthor } from "@/lib/proposals-data";
 import { NewProposalForm } from "@/components/proposals/new-proposal-form";
+
+const HOST_OFFER_CAP = 5;
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -41,6 +44,13 @@ export default async function NewProposalPage() {
       normalizeAccessSettings(l.access_settings).see_preview,
   }));
 
+  // Pre-resolve active-count caps so the form can gate the kind toggle
+  // at render-time instead of letting the user fill everything out and
+  // then rejecting with a 409. Host Offers cap at 5, Trip Wishes are
+  // uncapped.
+  const counts = await countActiveProposalsByAuthor(viewerId);
+  const hostOfferCapReached = counts.host_offer >= HOST_OFFER_CAP;
+
   return (
     <div className="mx-auto w-full max-w-[720px] px-4 py-6 md:px-6 md:py-10">
       <h1 className="text-2xl font-semibold md:text-3xl">Create a proposal</h1>
@@ -51,6 +61,9 @@ export default async function NewProposalPage() {
       <NewProposalForm
         myListings={myListings}
         profileDefaultRule={DEFAULT_ACCESS_SETTINGS.see_preview}
+        hostOfferCapReached={hostOfferCapReached}
+        hostOfferActiveCount={counts.host_offer}
+        hostOfferCap={HOST_OFFER_CAP}
       />
     </div>
   );

@@ -1,14 +1,15 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { LayoutGrid, CalendarDays, Users } from "lucide-react";
+import { LayoutGrid, CalendarDays, Users, Sparkles } from "lucide-react";
 
-export type DashboardTab = "hosting" | "traveling" | "network";
+export type DashboardTab = "hosting" | "traveling" | "network" | "proposals";
 
 const tabs: { value: DashboardTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { value: "hosting", label: "Hosting", icon: LayoutGrid },
   { value: "traveling", label: "Traveling", icon: CalendarDays },
   { value: "network", label: "Network", icon: Users },
+  { value: "proposals", label: "Proposals", icon: Sparkles },
 ];
 
 interface DashboardTabsProps {

@@ -227,6 +227,9 @@ export const sampleProposals: HydratedProposal[] = [
       area_name: "Stinson Beach, California",
       cover_photo_url:
         "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=800&q=70",
+      photo_urls: [
+        "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=800&q=70",
+      ],
       host_id: "author-p2",
       access_settings: sampleAccessSettings,
       visibility_mode: "preview_gated",
@@ -254,6 +257,9 @@ export const sampleProposals: HydratedProposal[] = [
       area_name: "Silver Lake, Los Angeles",
       cover_photo_url:
         "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=70",
+      photo_urls: [
+        "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=70",
+      ],
       host_id: "author-p3",
       access_settings: sampleAccessSettings,
       visibility_mode: "preview_gated",
@@ -298,6 +304,9 @@ export const sampleProposals: HydratedProposal[] = [
       area_name: "South Lake Tahoe, CA",
       cover_photo_url:
         "https://images.unsplash.com/photo-1502672023488-70e25813eb80?w=800&q=70",
+      photo_urls: [
+        "https://images.unsplash.com/photo-1502672023488-70e25813eb80?w=800&q=70",
+      ],
       host_id: "author-p5",
       access_settings: sampleAccessSettings,
       visibility_mode: "public",
