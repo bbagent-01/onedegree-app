@@ -234,7 +234,10 @@ export function BrowseLayout({
               <div className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4">
                 <Lock className="h-5 w-5 shrink-0 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  <Link href="/sign-in" className="font-semibold text-foreground underline underline-offset-2">Sign in</Link> to see trusted listings from your network.
+                  <Link href="/sign-in" className="font-semibold text-foreground underline underline-offset-2">Sign in</Link>
+                  {" "}or{" "}
+                  <Link href="/sign-up" className="font-semibold text-foreground underline underline-offset-2">sign up</Link>
+                  {" "}to see trusted listings from your network.
                 </p>
               </div>
             )}
@@ -268,12 +271,14 @@ export function BrowseLayout({
               })}
             </div>
             {showSparseNote && (
-              <p className="mt-6 text-center text-xs text-muted-foreground">
-                Only {listings.length} listing
-                {listings.length === 1 ? "" : "s"} in this search — try
-                expanding your search area or clearing filters to see
-                more.
-              </p>
+              <div className="mt-6 rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Only {listings.length} listing
+                  {listings.length === 1 ? "" : "s"} in this search — try
+                  expanding your search area or clearing filters to see
+                  more.
+                </p>
+              </div>
             )}
           </div>
 

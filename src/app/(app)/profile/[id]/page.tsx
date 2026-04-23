@@ -1,7 +1,15 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { CheckCircle2, MapPin, Briefcase, Languages, Info, Star } from "lucide-react";
+import {
+  CheckCircle2,
+  AlertCircle,
+  MapPin,
+  Briefcase,
+  Languages,
+  Info,
+  Star,
+} from "lucide-react";
 import { getProfileById, type ProfileReview } from "@/lib/profile-data";
 import { computeTrustPath } from "@/lib/trust-data";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
@@ -122,10 +130,20 @@ export default async function ProfilePage({
                 label={`Speaks ${user.languages.join(", ")}`}
               />
             )}
-            {user.phone_number && (
+            {user.phone_number ? (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-foreground">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                 Phone verified
+              </span>
+            ) : (
+              // No phone on file — user signed up via Google / email
+              // and hit "Skip for now" on the phone step. Flag visibly
+              // so hosts can see at a glance that this account is not
+              // phone-verified yet. They regain the green badge by
+              // adding + verifying a number from /profile/edit.
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+                <AlertCircle className="h-3.5 w-3.5 text-red-600" />
+                Unverified
               </span>
             )}
           </div>

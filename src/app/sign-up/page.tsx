@@ -252,6 +252,54 @@ function SignUpInner() {
     }
   };
 
+  // Skip the phone step — "Verify later". The user gets an active
+  // session with no phone, their Supabase row has phone_number=null,
+  // and the profile UI surfaces a red "Unverified" badge until they
+  // return and add a number.
+  //
+  // TODO (post-S6): Clerk's instance still has phone marked required
+  // in the dashboard, which means `setActive` will reject the pending
+  // signUp. This Skip button works ONLY after the Clerk config is
+  // updated to "phone required at verification, optional at signup".
+  // In the meantime this will surface a toast + leave the user on
+  // the phone step so they can't get stuck. The future fix is either
+  // relaxing the Clerk instance config OR creating a custom
+  // backend-session endpoint that can bypass Clerk's missing_fields
+  // gate and hand back a session token.
+  const skipPhone = async () => {
+    if (!isLoaded || saving) return;
+    setSaving(true);
+    try {
+      if (signUp.status === "complete" && signUp.createdSessionId && setActive) {
+        await setActive({ session: signUp.createdSessionId });
+        router.push(redirectUrl);
+        return;
+      }
+      // Try to force-complete the signUp without phone. If Clerk's
+      // instance config still requires phone_number this will throw
+      // and we show a toast asking the user to enter a number.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updated = (await (signUp as any).update({
+        unsafeMetadata: { phone_skipped: true },
+      })) as typeof signUp;
+      if (updated.status === "complete" && updated.createdSessionId && setActive) {
+        await setActive({ session: updated.createdSessionId });
+        router.push(redirectUrl);
+      } else {
+        toast.error(
+          "Phone is still required right now. Add a number to continue — we'll make skip available soon."
+        );
+      }
+    } catch (e) {
+      toast.error(
+        clerkError(e) ||
+          "Phone is still required right now. Add a number to continue."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Final step of the email-fallback path: add phone + verify it so
   // the signUp can flip to complete.
   const submitEmailPhone = async () => {
@@ -541,18 +589,6 @@ function SignUpInner() {
               <span>or email and password</span>
               <span className="h-px flex-1 bg-border" />
             </div>
-            <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900">
-              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-              <div>
-                <strong className="block text-base">
-                  Your phone is your identity on 1&deg; B&amp;B.
-                </strong>
-                <span className="text-sm leading-snug">
-                  We&rsquo;ll never share or sell it, or send marketing
-                  texts (unless you opt in).
-                </span>
-              </div>
-            </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div>
                 <Label htmlFor="first-e">First name</Label>
@@ -662,11 +698,16 @@ function SignUpInner() {
             "Finish sign up" after email was already verified. */}
         {step === "email_phone" && (
           <div>
-            <div className="flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-900">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+            <div className="flex items-start gap-2.5 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
               <div>
-                Almost done &mdash; add your phone number to finish
-                signing up. One account per number.
+                <strong className="block text-base">
+                  Your phone is your identity on 1&deg; B&amp;B.
+                </strong>
+                <span className="text-sm leading-snug">
+                  We&rsquo;ll never share or sell it, or send marketing
+                  texts (unless you opt in). One account per number.
+                </span>
               </div>
             </div>
             <div className="mt-5">
@@ -708,6 +749,18 @@ function SignUpInner() {
             >
               {saving ? "Sending code\u2026" : "Send code"}
             </Button>
+            <button
+              type="button"
+              onClick={skipPhone}
+              disabled={saving}
+              className="mt-3 w-full text-center text-sm font-semibold text-muted-foreground hover:text-foreground underline underline-offset-4 disabled:opacity-60"
+            >
+              Skip for now &mdash; I&rsquo;ll verify my phone later
+            </button>
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+              Skipping means your profile shows an &ldquo;Unverified&rdquo;
+              badge until you add a number from your account settings.
+            </p>
           </div>
         )}
 
