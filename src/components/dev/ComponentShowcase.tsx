@@ -23,8 +23,11 @@ import { ConnectorAvatars } from "@/components/trust/connector-avatars";
 import { ConnectorDots } from "@/components/trust/connector-dots";
 import { ShieldIcon } from "@/components/trust/shield-icon";
 import { ListingCard } from "@/components/listing-card";
+import { LiveListingCard } from "@/components/browse/live-listing-card";
+import { ProposalCard } from "@/components/proposals/proposal-card";
 import { TripTimeline } from "@/components/booking/TripTimeline";
 import type { TimelineStage } from "@/lib/booking-stage";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +47,15 @@ import {
   connectorsTwoKnown,
   sampleListing,
   sampleListingGated,
+  sampleProposals,
+  sampleBrowseListingFull,
+  sampleBrowseListingPreview,
+  sampleBrowseListingGated,
+  sampleTrustFull,
+  sampleTrustPreview,
+  sampleTrustGated,
+  DEV_VIEWER_ID,
+  fakeAvatar,
 } from "@/lib/dev-theme/fixtures";
 
 interface Props {
@@ -68,6 +80,22 @@ export function ComponentShowcase({ section }: Props) {
       return <TimelineSection />;
     case "components-trips":
       return <TripsSection />;
+    case "components-proposals":
+      return <ProposalsSection />;
+    case "components-listing-full":
+      return <ListingFullSection />;
+    case "components-profile":
+      return <ProfileBadgeSection />;
+    case "pages-browse":
+      return <PageBrowseSection />;
+    case "pages-listing":
+      return <PageListingSection />;
+    case "pages-profile":
+      return <PageProfileSection />;
+    case "pages-inbox":
+      return <PageInboxSection />;
+    case "pages-proposals":
+      return <PageProposalsSection />;
     default:
       return null;
   }
@@ -332,8 +360,8 @@ function TrustSection() {
 function ListingSection() {
   return (
     <Section
-      title="Listing components"
-      blurb="Browse tile, gated states, host card. Renders from sample fixtures in src/lib/dev-theme/fixtures.ts."
+      title="Listing card · simple (legacy)"
+      blurb="The simpler ListingCard (trust badge overlaid on the photo, bottom-right). Used on /wishlists and a few legacy surfaces. For the browse-grid variant that matches alpha-c today — trust tag below the host's first name, access-aware branching — see 'Listing card (live, gated variants)'."
     >
       <Group
         name="ListingCard"
@@ -1530,5 +1558,1178 @@ function TimelineSection() {
         </div>
       </Group>
     </Section>
+  );
+}
+
+// ── Proposals ────────────────────────────────────────────────────────
+
+function ProposalsSection() {
+  return (
+    <Section
+      title="Proposals"
+      blurb="Trip Wishes (guests asking) and Host Offers (hosts pitching). Rendered live from ProposalCard with fixtures covering the kind × trust × hook matrix."
+    >
+      <Group
+        name="ProposalCard · Trip Wish (1° direct vouch)"
+        file="src/components/proposals/proposal-card.tsx"
+        routes={["/proposals", "/profile/[id]"]}
+      >
+        <div className="mx-auto max-w-md">
+          <ProposalCard proposal={sampleProposals[0]} viewerId={DEV_VIEWER_ID} />
+        </div>
+      </Group>
+      <Group
+        name="ProposalCard · Host Offer (2°, discount hook, with listing)"
+        file="src/components/proposals/proposal-card.tsx"
+      >
+        <div className="mx-auto max-w-md">
+          <ProposalCard proposal={sampleProposals[1]} viewerId={DEV_VIEWER_ID} />
+        </div>
+      </Group>
+      <Group
+        name="ProposalCard · Host Offer (3°, trade hook, with listing)"
+        file="src/components/proposals/proposal-card.tsx"
+      >
+        <div className="mx-auto max-w-md">
+          <ProposalCard proposal={sampleProposals[2]} viewerId={DEV_VIEWER_ID} />
+        </div>
+      </Group>
+      <Group
+        name="ProposalCard · Trip Wish (4°, no hook)"
+        file="src/components/proposals/proposal-card.tsx"
+      >
+        <div className="mx-auto max-w-md">
+          <ProposalCard proposal={sampleProposals[3]} viewerId={DEV_VIEWER_ID} />
+        </div>
+      </Group>
+      <Group
+        name="ProposalCard · Host Offer (1° direct, discount, last-minute)"
+        file="src/components/proposals/proposal-card.tsx"
+      >
+        <div className="mx-auto max-w-md">
+          <ProposalCard proposal={sampleProposals[4]} viewerId={DEV_VIEWER_ID} />
+        </div>
+      </Group>
+      <Group
+        name="ProposalCard · Own proposal (viewer is author)"
+        file="src/components/proposals/proposal-card.tsx"
+      >
+        <div className="mx-auto max-w-md">
+          <ProposalCard proposal={sampleProposals[5]} viewerId={DEV_VIEWER_ID} />
+        </div>
+      </Group>
+      <Group
+        name="Proposals grid · 2-col layout (as on /proposals)"
+        file="src/app/(app)/proposals/page.tsx"
+      >
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {sampleProposals.slice(0, 4).map((p) => (
+            <li key={p.row.id}>
+              <ProposalCard proposal={p} viewerId={DEV_VIEWER_ID} />
+            </li>
+          ))}
+        </ul>
+      </Group>
+    </Section>
+  );
+}
+
+// ── Listing (live, gated variants) ───────────────────────────────────
+
+function ListingFullSection() {
+  return (
+    <Section
+      title="Listing card · live variants"
+      blurb="LiveListingCard is the browse-grid card with access-aware branching: full → clickable detail; preview → opens GatedListingDialog; gated no-preview → locked card. Save (heart) calls /api/wishlists on click — expect an error toast here since we're outside the signed-in flow."
+    >
+      <Group
+        name="LiveListingCard · full access (1° trusted)"
+        file="src/components/browse/live-listing-card.tsx"
+        routes={["/browse", "/wishlists/[id]"]}
+      >
+        <div className="mx-auto max-w-sm">
+          <LiveListingCard
+            listing={sampleBrowseListingFull}
+            trust={sampleTrustFull}
+            isSignedIn
+          />
+        </div>
+      </Group>
+      <Group
+        name="LiveListingCard · preview only (3° via 2 connectors)"
+        file="src/components/browse/live-listing-card.tsx"
+      >
+        <div className="mx-auto max-w-sm">
+          <LiveListingCard
+            listing={sampleBrowseListingPreview}
+            trust={sampleTrustPreview}
+            isSignedIn
+          />
+        </div>
+      </Group>
+      <Group
+        name="LiveListingCard · gated, no preview (0° network)"
+        file="src/components/browse/live-listing-card.tsx"
+      >
+        <div className="mx-auto max-w-sm">
+          <LiveListingCard
+            listing={sampleBrowseListingGated}
+            trust={sampleTrustGated}
+            isSignedIn
+          />
+        </div>
+      </Group>
+      <Group
+        name="Browse grid · 4-column (desktop)"
+        file="src/components/browse/browse-grid.tsx"
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <LiveListingCard
+            listing={sampleBrowseListingFull}
+            trust={sampleTrustFull}
+            isSignedIn
+          />
+          <LiveListingCard
+            listing={sampleBrowseListingPreview}
+            trust={sampleTrustPreview}
+            isSignedIn
+          />
+          <LiveListingCard
+            listing={{ ...sampleBrowseListingFull, id: "browse-4", title: "Desert cabin · Joshua Tree" }}
+            trust={{ ...sampleTrustFull, degree: 2, trust_score: 62 }}
+            isSignedIn
+          />
+          <LiveListingCard
+            listing={sampleBrowseListingGated}
+            trust={sampleTrustGated}
+            isSignedIn
+          />
+        </div>
+      </Group>
+    </Section>
+  );
+}
+
+// ── Profile badge (3 sizes + interactions) ───────────────────────────
+
+function ProfileBadgeSection() {
+  return (
+    <Section
+      title="Profile badges"
+      blurb="The three badge sizes that represent a person across the app: micro (inline / avatars), medium (cards / rows), and full (hero / profile header)."
+    >
+      <Group
+        name="Profile badge · micro (inline mention)"
+        file="src/components/ui/avatar.tsx + trust/trust-tag.tsx"
+        routes={["inbox rows, proposal headers, message senders"]}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <State label="1° direct">
+            <ProfileBadgeMicro
+              name="Sarah Mendel"
+              avatarSeed="sarah"
+              degree={1}
+            />
+          </State>
+          <State label="2° via connectors">
+            <ProfileBadgeMicro
+              name="Priya Shah"
+              avatarSeed="priya"
+              degree={2}
+              score={68}
+            />
+          </State>
+          <State label="3° distant">
+            <ProfileBadgeMicro
+              name="Alex Kim"
+              avatarSeed="alex"
+              degree={3}
+              score={42}
+            />
+          </State>
+          <State label="0° not connected">
+            <ProfileBadgeMicro
+              name="Unknown user"
+              avatarSeed="unknown"
+              degree={null}
+            />
+          </State>
+        </div>
+      </Group>
+
+      <Group
+        name="Profile badge · medium (card row)"
+        file="profile mini-card style used across listing cards, proposals, thread rows"
+      >
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <State label="1° direct vouch">
+            <ProfileBadgeMedium
+              name="Sarah Mendel"
+              avatarSeed="sarah"
+              degree={1}
+              subtext="Vouched · 5 years known"
+              hostRating={4.92}
+              reviews={47}
+            />
+          </State>
+          <State label="2° through Sarah + Mike">
+            <ProfileBadgeMedium
+              name="Priya Shah"
+              avatarSeed="priya"
+              degree={2}
+              subtext="2 connectors"
+              score={68}
+            />
+          </State>
+          <State label="3° distant">
+            <ProfileBadgeMedium
+              name="Alex Kim"
+              avatarSeed="alex"
+              degree={3}
+              subtext="3° via Sarah"
+              score={42}
+            />
+          </State>
+          <State label="0° not connected">
+            <ProfileBadgeMedium
+              name="Chris Vega"
+              avatarSeed="chris"
+              degree={null}
+              subtext="Not connected"
+            />
+          </State>
+        </div>
+      </Group>
+
+      <Group
+        name="Profile badge · full (profile hero, 1° B&B)"
+        file="src/app/(app)/profile/[id]/page.tsx header"
+        routes={["/profile/[id]"]}
+      >
+        <div className="space-y-6">
+          <ProfileBadgeFull
+            name="Sarah Mendel"
+            avatarSeed="sarah"
+            degree={1}
+            hostRating={4.92}
+            reviews={47}
+            memberSince={2023}
+            location="San Francisco, CA"
+            bio="Architect. Love dog-friendly places and off-grid cabins."
+            ctaDirect="Update vouch"
+          />
+          <ProfileBadgeFull
+            name="Priya Shah"
+            avatarSeed="priya"
+            degree={2}
+            score={68}
+            hostRating={4.6}
+            reviews={18}
+            memberSince={2024}
+            location="Oakland, CA"
+            bio="Frequent traveler. Hosts intermittently in the summer."
+            ctaDirect="Vouch for Priya"
+            showConnectors
+          />
+          <ProfileBadgeFull
+            name="Chris Vega"
+            avatarSeed="chris"
+            degree={null}
+            memberSince={2026}
+            location="—"
+            bio="Preview — full profile gated until 2° connection."
+            ctaDirect={null}
+          />
+        </div>
+      </Group>
+    </Section>
+  );
+}
+
+function ProfileBadgeMicro({
+  name,
+  avatarSeed,
+  degree,
+  score,
+}: {
+  name: string;
+  avatarSeed: string;
+  degree: 1 | 2 | 3 | 4 | null;
+  score?: number;
+}) {
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full border bg-white px-2 py-1 shadow-sm">
+      <Avatar className="h-5 w-5">
+        <AvatarImage src={fakeAvatar(avatarSeed)} alt={name} />
+        <AvatarFallback>{name[0]}</AvatarFallback>
+      </Avatar>
+      <span className="text-xs font-medium">{name}</span>
+      <TrustTag size="micro" degree={degree} score={score} />
+    </div>
+  );
+}
+
+function ProfileBadgeMedium({
+  name,
+  avatarSeed,
+  degree,
+  score,
+  hostRating,
+  reviews,
+  subtext,
+}: {
+  name: string;
+  avatarSeed: string;
+  degree: 1 | 2 | 3 | 4 | null;
+  score?: number;
+  hostRating?: number;
+  reviews?: number;
+  subtext?: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border bg-white p-3 shadow-sm">
+      <Avatar className="h-12 w-12">
+        <AvatarImage src={fakeAvatar(avatarSeed)} alt={name} />
+        <AvatarFallback>{name[0]}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-semibold">{name}</span>
+          <TrustTag
+            size="micro"
+            degree={degree}
+            score={score}
+            hostRating={hostRating}
+            hostReviewCount={reviews}
+          />
+        </div>
+        {subtext && (
+          <div className="mt-0.5 text-xs text-muted-foreground">{subtext}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProfileBadgeFull({
+  name,
+  avatarSeed,
+  degree,
+  score,
+  hostRating,
+  reviews,
+  memberSince,
+  location,
+  bio,
+  ctaDirect,
+  showConnectors,
+}: {
+  name: string;
+  avatarSeed: string;
+  degree: 1 | 2 | 3 | 4 | null;
+  score?: number;
+  hostRating?: number;
+  reviews?: number;
+  memberSince?: number;
+  location?: string;
+  bio?: string;
+  ctaDirect: string | null;
+  showConnectors?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-6 rounded-3xl border bg-white p-6 shadow-sm md:flex-row md:items-center">
+      <Avatar className="h-24 w-24">
+        <AvatarImage src={fakeAvatar(avatarSeed)} alt={name} />
+        <AvatarFallback>{name[0]}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-2xl font-semibold">{name}</h3>
+          <TrustTag
+            size="medium"
+            degree={degree}
+            score={score}
+            hostRating={hostRating}
+            hostReviewCount={reviews}
+            showSubtext
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          {memberSince && <span>Member since {memberSince}</span>}
+          {location && <span>· {location}</span>}
+          {hostRating && <span>· {hostRating.toFixed(2)}★ host rating ({reviews} reviews)</span>}
+        </div>
+        {bio && <p className="text-sm text-foreground/90">{bio}</p>}
+        {showConnectors && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <ConnectorAvatars
+              connectors={[
+                { id: "c1", name: "Sarah", avatar_url: fakeAvatar("sarah"), viewer_knows: true },
+                { id: "c2", name: "Mike", avatar_url: fakeAvatar("mike"), viewer_knows: true },
+              ]}
+              size="h-6 w-6"
+            />
+            <span>2 connectors · Sarah Mendel, Mike Tran</span>
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        {ctaDirect && <Button className="w-full md:w-auto">{ctaDirect}</Button>}
+        <Button variant="outline" className="w-full md:w-auto">
+          Message
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Pages · full-route compositions ──────────────────────────────────
+//
+// These previews render miniature versions of real app pages so Loren
+// can see how individual components compose at route scale. Each page
+// has a desktop (1440 artboard, scaled to fit) and a mobile (375
+// artboard) frame. Interactive navigation is suppressed — these are
+// visual previews. Clicking into a card inside a page preview is
+// allowed to work where the component supports it (e.g. a carousel
+// chevron), just not links.
+
+function PagePreview({
+  label,
+  width,
+  children,
+}: {
+  label: string;
+  width: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
+        <span className="text-[11px] font-mono text-muted-foreground">
+          {width}px
+        </span>
+      </div>
+      <div className="overflow-hidden rounded-2xl border-2 border-border bg-surface/60 shadow-sm">
+        <div
+          className="origin-top-left"
+          style={{
+            width,
+            // Scale 1440 down to fit common container widths; leave
+            // mobile 1:1 so the real responsive rules fire.
+            transform: width > 900 ? "scale(0.6)" : "none",
+            transformOrigin: "top left",
+            height: width > 900 ? 900 * 0.6 : undefined,
+          }}
+        >
+          <div
+            style={{
+              width,
+              height: width > 900 ? 900 : undefined,
+              overflow: "auto",
+            }}
+            className="bg-white"
+          >
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PageBrowseSection() {
+  return (
+    <Section
+      title="Page · /browse"
+      blurb="Global nav (with portaled search + filters) over a 4-column grid of LiveListingCard on desktop; sticky search pill + 1-col stack on mobile."
+    >
+      <Group name="/browse · desktop (1440)" file="src/app/(app)/browse/page.tsx">
+        <PagePreview label="desktop" width={1440}>
+          <PageShell>
+            <div className="px-20 py-6">
+              <div className="grid grid-cols-4 gap-4">
+                <LiveListingCard
+                  listing={sampleBrowseListingFull}
+                  trust={sampleTrustFull}
+                  isSignedIn
+                />
+                <LiveListingCard
+                  listing={sampleBrowseListingPreview}
+                  trust={sampleTrustPreview}
+                  isSignedIn
+                />
+                <LiveListingCard
+                  listing={{
+                    ...sampleBrowseListingFull,
+                    id: "b3",
+                    title: "Desert cabin · Joshua Tree",
+                  }}
+                  trust={{ ...sampleTrustFull, degree: 2, trust_score: 62 }}
+                  isSignedIn
+                />
+                <LiveListingCard
+                  listing={sampleBrowseListingGated}
+                  trust={sampleTrustGated}
+                  isSignedIn
+                />
+                {[4, 5, 6, 7].map((n) => (
+                  <LiveListingCard
+                    key={n}
+                    listing={{
+                      ...sampleBrowseListingFull,
+                      id: `b${n}`,
+                      title:
+                        n === 4
+                          ? "Cozy downtown loft"
+                          : n === 5
+                            ? "Lakefront A-frame"
+                            : n === 6
+                              ? "Treehouse studio"
+                              : "Vineyard guest cottage",
+                      price_min: 120 + n * 20,
+                      price_max: 180 + n * 20,
+                    }}
+                    trust={{
+                      ...sampleTrustFull,
+                      degree: n % 2 === 0 ? 1 : 2,
+                      trust_score: 90 - n * 4,
+                    }}
+                    isSignedIn
+                  />
+                ))}
+              </div>
+            </div>
+          </PageShell>
+        </PagePreview>
+      </Group>
+      <Group name="/browse · mobile (375)" file="src/app/(app)/browse/page.tsx">
+        <PagePreview label="mobile" width={375}>
+          <PageShell mobile>
+            <div className="sticky top-[56px] z-10 bg-white/95 px-4 py-2 backdrop-blur">
+              <div className="flex items-center gap-2 rounded-full border bg-white px-4 py-2 shadow-sm">
+                <span className="text-xs text-muted-foreground">Where to?</span>
+              </div>
+            </div>
+            <div className="space-y-4 px-4 py-4">
+              <LiveListingCard
+                listing={sampleBrowseListingFull}
+                trust={sampleTrustFull}
+                isSignedIn
+              />
+              <LiveListingCard
+                listing={sampleBrowseListingPreview}
+                trust={sampleTrustPreview}
+                isSignedIn
+              />
+              <LiveListingCard
+                listing={sampleBrowseListingGated}
+                trust={sampleTrustGated}
+                isSignedIn
+              />
+            </div>
+          </PageShell>
+        </PagePreview>
+      </Group>
+    </Section>
+  );
+}
+
+function PageListingSection() {
+  return (
+    <Section
+      title="Page · /listings/[id]"
+      blurb="Photo gallery + 2-col layout (left content, sticky right booking sidebar) at desktop. On mobile, the booking card moves to a fixed bottom bar and sections stack. Two preview states: full access and gated preview."
+    >
+      <Group
+        name="/listings/[id] · FULL access · desktop (1440)"
+        file="src/app/(app)/listings/[id]/page.tsx"
+      >
+        <PagePreview label="full, desktop" width={1440}>
+          <PageShell>
+            <ListingDetailMock access="full" />
+          </PageShell>
+        </PagePreview>
+      </Group>
+      <Group
+        name="/listings/[id] · GATED preview · desktop (1440)"
+        file="src/components/listing/gated-listing-view.tsx"
+      >
+        <PagePreview label="gated, desktop" width={1440}>
+          <PageShell>
+            <ListingDetailMock access="gated" />
+          </PageShell>
+        </PagePreview>
+      </Group>
+      <Group
+        name="/listings/[id] · FULL access · mobile (375)"
+        file="src/app/(app)/listings/[id]/page.tsx"
+      >
+        <PagePreview label="full, mobile" width={375}>
+          <PageShell mobile>
+            <ListingDetailMock access="full" mobile />
+          </PageShell>
+        </PagePreview>
+      </Group>
+    </Section>
+  );
+}
+
+function ListingDetailMock({
+  access,
+  mobile,
+}: {
+  access: "full" | "gated";
+  mobile?: boolean;
+}) {
+  const photos = [
+    "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=1200&q=70",
+    "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=70",
+    "https://images.unsplash.com/photo-1502672023488-70e25813eb80?w=800&q=70",
+  ];
+  const isGated = access === "gated";
+  return (
+    <div className={mobile ? "pb-24" : "px-20 py-6"}>
+      {!mobile && (
+        <div className="mb-4">
+          <h1 className="text-2xl font-semibold">
+            {isGated
+              ? "Private listing in Stinson Beach, CA"
+              : "Sun-drenched studio with garden access"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {isGated ? "Preview — request access for full details." : "4.92 · 47 reviews · Mission District, San Francisco"}
+          </p>
+        </div>
+      )}
+      <div
+        className={
+          mobile
+            ? "aspect-[4/3] w-full overflow-hidden"
+            : "grid aspect-[2/1] w-full grid-cols-4 grid-rows-2 gap-1 overflow-hidden rounded-2xl"
+        }
+      >
+        <div
+          className={mobile ? "h-full w-full bg-cover bg-center" : "col-span-2 row-span-2 bg-cover bg-center"}
+          style={{ backgroundImage: `url(${photos[0]})`, filter: isGated ? "blur(8px)" : "none" }}
+        />
+        {!mobile && (
+          <>
+            <div
+              className="bg-cover bg-center"
+              style={{ backgroundImage: `url(${photos[1]})`, filter: isGated ? "blur(8px)" : "none" }}
+            />
+            <div
+              className="bg-cover bg-center"
+              style={{ backgroundImage: `url(${photos[2]})`, filter: isGated ? "blur(8px)" : "none" }}
+            />
+            <div
+              className="bg-cover bg-center"
+              style={{ backgroundImage: `url(${photos[0]})`, filter: isGated ? "blur(8px)" : "none" }}
+            />
+            <div
+              className="bg-cover bg-center"
+              style={{ backgroundImage: `url(${photos[1]})`, filter: isGated ? "blur(8px)" : "none" }}
+            />
+          </>
+        )}
+      </div>
+      {mobile && (
+        <div className="px-4 pt-4">
+          <h1 className="text-lg font-semibold">
+            {isGated
+              ? "Private listing in Stinson Beach, CA"
+              : "Sun-drenched studio · Mission"}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            4.92 · 47 reviews · Mission District, SF
+          </p>
+        </div>
+      )}
+
+      <div
+        className={
+          mobile
+            ? "space-y-5 px-4 pt-4"
+            : "mt-8 grid grid-cols-3 gap-10"
+        }
+      >
+        <div className={mobile ? "" : "col-span-2 space-y-6"}>
+          <div className="flex items-center gap-3 rounded-2xl border p-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={fakeAvatar("sarah")} alt="host" />
+              <AvatarFallback>S</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="text-sm font-semibold">
+                {isGated ? "Host identity hidden" : "Hosted by Sarah Mendel"}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {isGated ? "Preview mode" : "Superhost · 4.92★ (47 reviews)"}
+              </div>
+            </div>
+            {!isGated && (
+              <TrustTag size="micro" degree={1} hostRating={4.92} hostReviewCount={47} />
+            )}
+          </div>
+
+          {isGated ? (
+            <div className="rounded-2xl border-2 border-dashed p-6 text-sm">
+              <p className="font-semibold">About this space (preview)</p>
+              <p className="mt-1 text-muted-foreground">
+                Hidden hillside cabin with ocean views. Full details unlocked
+                once you&apos;re introduced to the host or reach 2° trust.
+              </p>
+              <div className="mt-4 flex gap-2">
+                <Button>Request intro</Button>
+                <Button variant="outline">Ask a connector</Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <h2 className="text-lg font-semibold">About this space</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Bright studio with a private patio, walkable to Mission
+                  restaurants and Dolores Park. Dedicated workspace + quiet
+                  residential block.
+                </p>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Amenities</h2>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                  {["Wi-Fi", "Kitchen", "Washer", "Dedicated workspace"].map(
+                    (a) => (
+                      <div key={a} className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-muted-foreground" />
+                        {a}
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className={mobile ? "" : "col-span-1"}>
+          <div
+            className={
+              mobile
+                ? "fixed inset-x-0 bottom-0 z-20 border-t bg-white p-3 shadow-lg"
+                : "sticky top-6 rounded-2xl border bg-white p-5 shadow-sm"
+            }
+          >
+            <div className="flex items-baseline justify-between">
+              <div>
+                <span className="text-xl font-semibold">$165</span>
+                <span className="text-sm text-muted-foreground"> / night</span>
+              </div>
+              {!isGated && (
+                <span className="text-xs text-muted-foreground">
+                  ★ 4.92 · 47
+                </span>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg border p-2">
+                <div className="text-[10px] uppercase text-muted-foreground">
+                  Check-in
+                </div>
+                <div>Add date</div>
+              </div>
+              <div className="rounded-lg border p-2">
+                <div className="text-[10px] uppercase text-muted-foreground">
+                  Check-out
+                </div>
+                <div>Add date</div>
+              </div>
+            </div>
+            <Button className="mt-3 w-full">
+              {isGated ? "Request intro" : "Contact host"}
+            </Button>
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+              1° B&amp;B doesn&apos;t process payments.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PageProfileSection() {
+  return (
+    <Section
+      title="Page · /profile/[id]"
+      blurb="Profile header (hero badge) + bio + reviews + their proposals + their listings. Max-width 1040px container."
+    >
+      <Group
+        name="/profile/[id] · 1° direct (full view) · desktop"
+        file="src/app/(app)/profile/[id]/page.tsx"
+      >
+        <PagePreview label="desktop" width={1440}>
+          <PageShell>
+            <div className="mx-auto max-w-[1040px] px-6 py-10 space-y-8">
+              <ProfileBadgeFull
+                name="Sarah Mendel"
+                avatarSeed="sarah"
+                degree={1}
+                hostRating={4.92}
+                reviews={47}
+                memberSince={2023}
+                location="San Francisco, CA"
+                bio="Architect. Love dog-friendly places and off-grid cabins."
+                ctaDirect="Update vouch"
+              />
+              <div>
+                <h2 className="mb-4 text-lg font-semibold">Reviews (47)</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {["Loren Polster", "Mike Tran"].map((n) => (
+                    <div key={n} className="rounded-2xl border bg-white p-4">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={fakeAvatar(n)} alt={n} />
+                          <AvatarFallback>{n[0]}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="text-sm font-semibold">{n}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Feb 2026 · 5★
+                          </div>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Wonderful host — very welcoming + prompt to respond.
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h2 className="mb-4 text-lg font-semibold">Their proposals</h2>
+                <ul className="grid grid-cols-2 gap-4">
+                  {sampleProposals.slice(0, 2).map((p) => (
+                    <li key={p.row.id}>
+                      <ProposalCard proposal={p} viewerId={DEV_VIEWER_ID} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </PageShell>
+        </PagePreview>
+      </Group>
+      <Group
+        name="/profile/[id] · 0° preview · desktop"
+        file="src/app/(app)/profile/[id]/page.tsx"
+      >
+        <PagePreview label="preview, desktop" width={1440}>
+          <PageShell>
+            <div className="mx-auto max-w-[1040px] px-6 py-10 space-y-8">
+              <ProfileBadgeFull
+                name="Chris Vega"
+                avatarSeed="chris"
+                degree={null}
+                memberSince={2026}
+                location="—"
+                bio="Preview — full profile gated until 2° connection. Join via an introduction or mutual vouch."
+                ctaDirect={null}
+              />
+              <div className="rounded-2xl border-2 border-dashed p-6 text-sm">
+                <p className="font-semibold">Reviews hidden</p>
+                <p className="mt-1 text-muted-foreground">
+                  Reach 2° trust to unlock Chris&apos;s review history and
+                  connections.
+                </p>
+              </div>
+            </div>
+          </PageShell>
+        </PagePreview>
+      </Group>
+      <Group
+        name="/profile/[id] · 1° direct · mobile"
+        file="src/app/(app)/profile/[id]/page.tsx"
+      >
+        <PagePreview label="mobile" width={375}>
+          <PageShell mobile>
+            <div className="space-y-6 px-4 py-6">
+              <ProfileBadgeFull
+                name="Sarah Mendel"
+                avatarSeed="sarah"
+                degree={1}
+                hostRating={4.92}
+                reviews={47}
+                memberSince={2023}
+                location="San Francisco, CA"
+                bio="Architect. Love dog-friendly places."
+                ctaDirect="Update vouch"
+              />
+            </div>
+          </PageShell>
+        </PagePreview>
+      </Group>
+    </Section>
+  );
+}
+
+function PageInboxSection() {
+  return (
+    <Section
+      title="Page · /inbox"
+      blurb="Split-pane layout on desktop (list left, thread right). Mobile shows the list first; tapping a row navigates to /inbox/[threadId]."
+    >
+      <Group name="/inbox · desktop (1440)" file="src/app/(app)/inbox/page.tsx">
+        <PagePreview label="desktop" width={1440}>
+          <PageShell>
+            <div className="mx-auto max-w-[1600px] px-6 py-6">
+              <h1 className="mb-4 text-2xl font-semibold">Messages</h1>
+              <div className="grid grid-cols-[350px_1fr] gap-6">
+                <div className="space-y-2 rounded-2xl border bg-white p-3">
+                  {[
+                    ["Sarah Mendel", "Sounds good — let me check…", true],
+                    ["Mike Tran", "Thanks for the intro!", false],
+                    ["Intro · Stinson cabin", "Loren wants an intro…", false, "Intro"],
+                  ].map(([n, p, unread, badge], i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center gap-2 rounded-xl p-2 ${
+                        i === 0 ? "bg-muted" : ""
+                      }`}
+                    >
+                      <div className="h-10 w-10 rounded-full bg-muted" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="truncate text-sm font-semibold">{n as string}</p>
+                          {badge && (
+                            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand">
+                              {badge as string}
+                            </span>
+                          )}
+                        </div>
+                        <p
+                          className={`truncate text-xs ${
+                            unread ? "font-semibold" : "text-muted-foreground"
+                          }`}
+                        >
+                          {p as string}
+                        </p>
+                      </div>
+                      {unread && <span className="h-2 w-2 rounded-full bg-brand" />}
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-2xl border bg-white p-6">
+                  <div className="border-b pb-3">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={fakeAvatar("sarah")} alt="S" />
+                        <AvatarFallback>S</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-semibold">Sarah Mendel</div>
+                        <div className="text-xs text-muted-foreground">
+                          about Sun-drenched studio · Jun 12–15
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3 py-4">
+                    <div className="max-w-[70%] rounded-2xl bg-muted p-3 text-sm">
+                      Hi! We&apos;re hoping to visit in mid-June for 3 nights.
+                    </div>
+                    <div className="ml-auto max-w-[70%] rounded-2xl bg-brand p-3 text-sm text-white">
+                      Those dates are open — let me send terms.
+                    </div>
+                    <div className="mx-auto my-2 max-w-md rounded-2xl border-2 border-emerald-300 bg-white p-3 text-xs">
+                      <div className="flex items-center gap-2 text-emerald-900 font-semibold">
+                        <CheckCircle2 className="h-4 w-4" /> Sarah sent final terms
+                      </div>
+                    </div>
+                  </div>
+                  <div className="border-t pt-3">
+                    <div className="flex items-center gap-2 rounded-xl border p-2">
+                      <span className="flex-1 text-sm text-muted-foreground">
+                        Write a message…
+                      </span>
+                      <Button size="sm">Send</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </PageShell>
+        </PagePreview>
+      </Group>
+      <Group name="/inbox · mobile list (375)" file="src/app/(app)/inbox/page.tsx">
+        <PagePreview label="mobile list" width={375}>
+          <PageShell mobile>
+            <div className="px-4 py-4">
+              <h1 className="mb-3 text-xl font-semibold">Messages</h1>
+              <div className="space-y-2">
+                {[
+                  ["Sarah Mendel", "Sounds good — let me check…", true],
+                  ["Mike Tran", "Thanks for the intro!", false],
+                ].map(([n, p, unread], i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 rounded-xl border bg-white p-3"
+                  >
+                    <div className="h-10 w-10 shrink-0 rounded-full bg-muted" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{n as string}</p>
+                      <p
+                        className={`truncate text-xs ${
+                          unread ? "font-semibold" : "text-muted-foreground"
+                        }`}
+                      >
+                        {p as string}
+                      </p>
+                    </div>
+                    {unread && <span className="h-2 w-2 rounded-full bg-brand" />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </PageShell>
+        </PagePreview>
+      </Group>
+    </Section>
+  );
+}
+
+function PageProposalsSection() {
+  return (
+    <Section
+      title="Page · /proposals"
+      blurb="Header + filter tabs + 2-col grid of ProposalCard. Max-width 960px container. Same component is reused on /profile/[id] under the 'Their proposals' section."
+    >
+      <Group name="/proposals · desktop (1440)" file="src/app/(app)/proposals/page.tsx">
+        <PagePreview label="desktop" width={1440}>
+          <PageShell>
+            <div className="mx-auto max-w-[960px] px-6 py-10">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-semibold">
+                    Proposals in your network
+                  </h1>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Trip wishes + host offers visible via trust.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline">Alerts</Button>
+                  <Button>Create</Button>
+                </div>
+              </div>
+              <div className="mt-6 flex gap-2">
+                {["All", "Trip Wishes", "Host Offers"].map((t, i) => (
+                  <span
+                    key={t}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                      i === 0
+                        ? "border-brand bg-brand/10 text-brand"
+                        : "bg-white text-foreground"
+                    }`}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <ul className="mt-6 grid grid-cols-2 gap-4">
+                {sampleProposals.slice(0, 4).map((p) => (
+                  <li key={p.row.id}>
+                    <ProposalCard proposal={p} viewerId={DEV_VIEWER_ID} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </PageShell>
+        </PagePreview>
+      </Group>
+      <Group name="/proposals · mobile (375)" file="src/app/(app)/proposals/page.tsx">
+        <PagePreview label="mobile" width={375}>
+          <PageShell mobile>
+            <div className="px-4 py-6">
+              <h1 className="text-xl font-semibold">Proposals</h1>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Trip wishes + host offers visible via trust.
+              </p>
+              <div className="mt-4 flex gap-2">
+                {["All", "Wishes", "Offers"].map((t, i) => (
+                  <span
+                    key={t}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                      i === 0
+                        ? "border-brand bg-brand/10 text-brand"
+                        : "bg-white"
+                    }`}
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <ul className="mt-4 space-y-3">
+                {sampleProposals.slice(0, 3).map((p) => (
+                  <li key={p.row.id}>
+                    <ProposalCard proposal={p} viewerId={DEV_VIEWER_ID} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </PageShell>
+        </PagePreview>
+      </Group>
+    </Section>
+  );
+}
+
+function PageShell({
+  children,
+  mobile,
+}: {
+  children: React.ReactNode;
+  mobile?: boolean;
+}) {
+  return (
+    <div className="bg-white">
+      <div
+        className={`flex items-center justify-between border-b bg-white/90 ${
+          mobile ? "px-4 py-3" : "px-20 py-3"
+        }`}
+      >
+        <div className="text-sm font-semibold text-brand">1° B&amp;B</div>
+        {!mobile ? (
+          <nav className="flex items-center gap-6 text-sm text-muted-foreground">
+            <span>Browse</span>
+            <span>Inbox</span>
+            <span>Trips</span>
+            <span>Hosting</span>
+          </nav>
+        ) : null}
+        <div className="flex items-center gap-2">
+          {!mobile && (
+            <Button variant="outline" size="sm">
+              Vouch
+            </Button>
+          )}
+          <div className="h-7 w-7 rounded-full bg-muted" />
+        </div>
+      </div>
+      {children}
+      {mobile && (
+        <div className="sticky bottom-0 border-t bg-white px-4 py-2">
+          <div className="flex items-center justify-around text-[10px] text-muted-foreground">
+            {["Browse", "Inbox", "Trips", "Profile"].map((l, i) => (
+              <span key={l} className={i === 0 ? "text-brand font-medium" : ""}>
+                {l}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

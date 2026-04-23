@@ -25,13 +25,21 @@ const SECTIONS: Array<{ id: Section; label: string; group: string }> = [
   { id: "tokens-radius", label: "Radius", group: "Tokens" },
   { id: "tokens-shadow", label: "Shadows", group: "Tokens" },
   { id: "components-trust", label: "Trust components", group: "Components" },
-  { id: "components-listing", label: "Listing components", group: "Components" },
+  { id: "components-profile", label: "Profile badges", group: "Components" },
+  { id: "components-listing", label: "Listing card (simple)", group: "Components" },
+  { id: "components-listing-full", label: "Listing card (live, gated variants)", group: "Components" },
+  { id: "components-proposals", label: "Proposals", group: "Components" },
   { id: "components-forms", label: "Forms & inputs", group: "Components" },
   { id: "components-nav", label: "Nav, header, footer", group: "Components" },
   { id: "components-inbox", label: "Inbox & messaging", group: "Components" },
   { id: "components-threads", label: "Thread structured cards", group: "Components" },
   { id: "components-timeline", label: "Trip timeline", group: "Components" },
   { id: "components-trips", label: "Trips & reviews", group: "Components" },
+  { id: "pages-browse", label: "/browse", group: "Pages" },
+  { id: "pages-listing", label: "/listings/[id]", group: "Pages" },
+  { id: "pages-profile", label: "/profile/[id]", group: "Pages" },
+  { id: "pages-inbox", label: "/inbox", group: "Pages" },
+  { id: "pages-proposals", label: "/proposals", group: "Pages" },
   { id: "patterns", label: "Patterns", group: "Patterns" },
   { id: "sandbox", label: "Sandbox theme", group: "Sandbox" },
 ];
@@ -131,6 +139,9 @@ export function DesignSystemRoot({ tokens, usage }: Props) {
               />
             )}
             {active.startsWith("components-") && (
+              <ComponentShowcase section={active} />
+            )}
+            {active.startsWith("pages-") && (
               <ComponentShowcase section={active} />
             )}
             {active === "patterns" && <PatternShowcase />}
