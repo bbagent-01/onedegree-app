@@ -84,6 +84,15 @@ export function LegalPageShell({
 
             <div className="legal-prose mt-8">{children}</div>
 
+            {/* Bottom spacer so the last TOC section can always scroll
+                flush to the top of the viewport. Without it the page
+                runs out of scrollable height before §N reaches the
+                80px rootMargin zone, so IntersectionObserver never
+                promotes the last section to active and the scroll-to
+                anchor lands short. Only rendered when a TOC is present
+                (non-TOC pages don't need the headroom). */}
+            {hasToc && <div aria-hidden="true" className="min-h-[60vh]" />}
+
             <footer className="mt-16 border-t border-border pt-6 text-xs text-muted-foreground">
               <p>
                 Questions? Email{" "}
