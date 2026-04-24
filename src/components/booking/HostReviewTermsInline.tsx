@@ -71,7 +71,14 @@ const APPROACH_ICONS = {
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
+  // check_in / check_out are bare YYYY-MM-DD date strings. `new Date(iso)`
+  // UTC-coerces them and then reformats in the viewer's local TZ, which
+  // drifts by one day west of UTC (e.g. Apr 24 renders as Apr 23). Parse
+  // the pieces and construct a local date so the Trip section shows the
+  // same dates the guest submitted and the sidebar already shows.
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return "—";
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
