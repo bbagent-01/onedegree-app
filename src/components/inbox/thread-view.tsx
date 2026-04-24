@@ -454,6 +454,12 @@ export function ThreadView({
                         cleaningFee={
                           thread.reservation_sidebar.listing_cleaning_fee
                         }
+                        offeredNightlyRate={
+                          thread.booking.offered_nightly_rate
+                        }
+                        offeredCleaningFee={
+                          thread.booking.offered_cleaning_fee
+                        }
                         viewerRole={thread.role}
                         termsAcceptedAt={thread.booking.terms_accepted_at}
                         termsDeclinedAt={thread.booking.terms_declined_at}

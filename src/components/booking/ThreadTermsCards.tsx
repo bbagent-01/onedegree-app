@@ -83,11 +83,17 @@ interface TermsOfferedProps {
    *  so they know where to send money after confirming. Host
    *  already knows their own handles. */
   paymentMethods: PaymentMethod[];
-  /** Listing's nightly rate + cleaning fee. Drives the total
-   *  breakdown ("2 nights × $140 = $280, Cleaning fee $50"). Both
-   *  can be null — row falls back to the total-only view. */
+  /** Listing's nightly rate + cleaning fee — used as the comparison
+   *  baseline in the breakdown ("normally $220/night"). Both can be
+   *  null for legacy listings that don't have them. */
   nightlyRate: number | null;
   cleaningFee: number | null;
+  /** S7/040: host-offered per-line breakdown. When set we render
+   *  these as the primary nightly × N + cleaning lines on the card,
+   *  with optional sublines showing the listing baseline for
+   *  comparison. Null on legacy rows → derive from listing values. */
+  offeredNightlyRate: number | null;
+  offeredCleaningFee: number | null;
   viewerRole: "guest" | "host";
   termsAcceptedAt: string | null;
   /** Set when either party declined the offered terms before the
@@ -141,6 +147,8 @@ export function TermsOfferedCard({
   paymentMethods,
   nightlyRate,
   cleaningFee,
+  offeredNightlyRate,
+  offeredCleaningFee,
   viewerRole,
   termsAcceptedAt,
   termsDeclinedAt,
@@ -396,6 +404,8 @@ export function TermsOfferedCard({
             totalEstimate={totalEstimate}
             nightlyRate={nightlyRate}
             cleaningFee={cleaningFee}
+            offeredNightlyRate={offeredNightlyRate}
+            offeredCleaningFee={offeredCleaningFee}
           />
         </>
       )}
@@ -652,6 +662,8 @@ export function TermsOfferedCard({
             guestCount={guestCount ?? 1}
             nightlyRate={nightlyRate}
             cleaningFee={cleaningFee}
+            offeredNightlyRate={offeredNightlyRate}
+            offeredCleaningFee={offeredCleaningFee}
             guestFirstName={guestFirstName}
             submitMode="edit"
             onDone={() => {
@@ -835,13 +847,22 @@ function PriceBreakdown({
   totalEstimate,
   nightlyRate,
   cleaningFee,
+  offeredNightlyRate,
+  offeredCleaningFee,
   tone = "default",
 }: {
   checkIn: string | null;
   checkOut: string | null;
   totalEstimate: number;
+  /** Listing baseline — used for the "normally $X" comparison
+   *  sublines when the host offered something different. */
   nightlyRate: number | null;
   cleaningFee: number | null;
+  /** S7/040 offered breakdown. When present the card shows these as
+   *  the primary rows; the baseline values only appear as muted
+   *  comparison text beneath when they differ. */
+  offeredNightlyRate?: number | null;
+  offeredCleaningFee?: number | null;
   tone?: "default" | "emerald";
 }) {
   const nights = (() => {
@@ -852,14 +873,45 @@ function PriceBreakdown({
     const n = Math.round(ms / 86_400_000);
     return n > 0 ? n : null;
   })();
-  const haveRate = typeof nightlyRate === "number" && nightlyRate > 0;
-  const haveCleaning = typeof cleaningFee === "number" && cleaningFee > 0;
 
-  const nightsSubtotal = nights !== null && haveRate ? nights * nightlyRate! : null;
-  const cleaningAmount = haveCleaning ? cleaningFee! : 0;
+  // Prefer the host-offered breakdown when we have it (migration 040+).
+  // Fall back to the listing baseline on legacy rows so pre-migration
+  // reservations still render something sensible.
+  const effectiveNightly =
+    typeof offeredNightlyRate === "number" ? offeredNightlyRate : nightlyRate;
+  const effectiveCleaning =
+    typeof offeredCleaningFee === "number"
+      ? offeredCleaningFee
+      : (cleaningFee ?? 0);
+
+  const haveRate =
+    typeof effectiveNightly === "number" && effectiveNightly > 0;
+  const nightsSubtotal =
+    nights !== null && haveRate ? nights * effectiveNightly! : null;
+  const cleaningAmount = Math.max(0, effectiveCleaning ?? 0);
   const sumKnown = (nightsSubtotal ?? 0) + cleaningAmount;
   const adjustment =
     nightsSubtotal !== null ? totalEstimate - sumKnown : 0;
+
+  // Optional comparison sublines — shown only when the host offered
+  // something different from the listing baseline. Keeps the guest
+  // oriented ("this is a discount from the listing rate") without
+  // forcing a confusing "Discount" row that doesn't explain where the
+  // delta came from.
+  const showNightlyCompare =
+    typeof offeredNightlyRate === "number" &&
+    typeof nightlyRate === "number" &&
+    offeredNightlyRate !== nightlyRate;
+  const nightlyDelta = showNightlyCompare
+    ? nightlyRate! - offeredNightlyRate!
+    : 0;
+  const showCleaningCompare =
+    typeof offeredCleaningFee === "number" &&
+    typeof cleaningFee === "number" &&
+    offeredCleaningFee !== cleaningFee;
+  const cleaningDelta = showCleaningCompare
+    ? cleaningFee! - offeredCleaningFee!
+    : 0;
 
   const labelTone =
     tone === "emerald" ? "text-emerald-900/70" : "text-muted-foreground";
@@ -870,55 +922,60 @@ function PriceBreakdown({
   return (
     <div className="px-4 py-3">
       {nightsSubtotal !== null && (
-        <div className="flex items-center justify-between gap-3 py-1 text-sm">
-          <span className={labelTone}>
-            {nights} night{nights === 1 ? "" : "s"} × $
-            {nightlyRate!.toLocaleString()}
-          </span>
-          <span className={cn("font-medium", valueTone)}>
-            ${nightsSubtotal.toLocaleString()}
-          </span>
+        <div className="py-1 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className={labelTone}>
+              {nights} night{nights === 1 ? "" : "s"} × $
+              {effectiveNightly!.toLocaleString()}
+            </span>
+            <span className={cn("font-medium", valueTone)}>
+              ${nightsSubtotal.toLocaleString()}
+            </span>
+          </div>
+          {showNightlyCompare && nightlyDelta !== 0 && (
+            <div className={cn("text-[11px]", labelTone)}>
+              {nightlyDelta > 0
+                ? `Listing rate $${nightlyRate!.toLocaleString()}/night — saving $${nightlyDelta.toLocaleString()}/night`
+                : `Listing rate $${nightlyRate!.toLocaleString()}/night — $${Math.abs(nightlyDelta).toLocaleString()}/night premium`}
+            </div>
+          )}
         </div>
       )}
-      {haveCleaning && (
-        <div className="flex items-center justify-between gap-3 py-1 text-sm">
-          <span className={labelTone}>Cleaning fee</span>
-          <span className={cn("font-medium", valueTone)}>
-            ${cleaningAmount.toLocaleString()}
-          </span>
+      {(cleaningAmount > 0 || showCleaningCompare) && (
+        <div className="py-1 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className={labelTone}>
+              {cleaningAmount > 0 ? "Cleaning fee" : "Cleaning fee waived"}
+            </span>
+            <span className={cn("font-medium", valueTone)}>
+              ${cleaningAmount.toLocaleString()}
+            </span>
+          </div>
+          {showCleaningCompare && cleaningDelta !== 0 && (
+            <div className={cn("text-[11px]", labelTone)}>
+              {cleaningAmount === 0
+                ? `Normally $${cleaningFee!.toLocaleString()} — waived by the host`
+                : cleaningDelta > 0
+                  ? `Normally $${cleaningFee!.toLocaleString()} — saving $${cleaningDelta.toLocaleString()}`
+                  : `Normally $${cleaningFee!.toLocaleString()} — +$${Math.abs(cleaningDelta).toLocaleString()}`}
+            </div>
+          )}
         </div>
       )}
       {nightsSubtotal !== null && Math.abs(adjustment) >= 1 && (
-        (() => {
-          // When the host-offered total lands at a whole-dollar shift
-          // per night (vs the listing's nightly rate), break the
-          // adjustment out as "$X/night × N nights" so the guest sees
-          // where the delta is coming from instead of a bare lump
-          // sum. Falls back to the lump line when the split isn't
-          // clean (e.g. adjustment landed on cleaning-only or a mix).
-          const absAdj = Math.abs(adjustment);
-          const perNight =
-            nights && absAdj % nights === 0 ? absAdj / nights : null;
-          const label = adjustment > 0 ? "Adjustment" : "Discount";
-          return (
-            <div className="flex items-start justify-between gap-3 py-1 text-sm">
-              <div className={labelTone}>
-                <div>{label}</div>
-                {perNight !== null && (
-                  <div className="text-[11px] text-muted-foreground">
-                    {adjustment > 0 ? "+" : "−"}$
-                    {perNight.toLocaleString()}/night × {nights} night
-                    {nights === 1 ? "" : "s"}
-                  </div>
-                )}
-              </div>
-              <span className={cn("shrink-0 font-medium", valueTone)}>
-                {adjustment > 0 ? "+" : "−"}$
-                {absAdj.toLocaleString()}
-              </span>
-            </div>
-          );
-        })()
+        // Remaining residual after the per-line breakdown accounts for
+        // nightly + cleaning. Only renders when the host set a total
+        // that doesn't match nightly × N + cleaning (rare — typically
+        // a rounding quirk or legacy row without offered values).
+        <div className="flex items-start justify-between gap-3 py-1 text-sm">
+          <span className={labelTone}>
+            {adjustment > 0 ? "Adjustment" : "Discount"}
+          </span>
+          <span className={cn("shrink-0 font-medium", valueTone)}>
+            {adjustment > 0 ? "+" : "−"}$
+            {Math.abs(adjustment).toLocaleString()}
+          </span>
+        </div>
       )}
       <div
         className={cn(

@@ -145,6 +145,11 @@ export interface ThreadDetail extends InboxThread {
     last_edited_at: string | null;
     /** S7: number of times the host has edited the pending offer. */
     edit_count: number;
+    /** S7/040: host-offered per-line breakdown. Null on legacy rows
+     *  that predate migration 040 — the card falls back to deriving
+     *  from listing values in that case. */
+    offered_nightly_rate: number | null;
+    offered_cleaning_fee: number | null;
   } | null;
   /**
    * Extra fields the reservation sidebar renders. Optional so legacy
@@ -441,7 +446,7 @@ export async function getThreadDetail(
       ? supabase
           .from("contact_requests")
           .select(
-            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at, terms_declined_at, terms_declined_by, original_check_in, original_check_out, original_guest_count, original_total_estimate, original_cancellation_policy, edits_requested_at, edits_requested_by, last_edited_at, edit_count"
+            "id, status, check_in, check_out, guest_count, total_estimate, message, responded_at, host_response_message, created_at, cancellation_policy, terms_accepted_at, terms_declined_at, terms_declined_by, original_check_in, original_check_out, original_guest_count, original_total_estimate, original_cancellation_policy, edits_requested_at, edits_requested_by, last_edited_at, edit_count, offered_nightly_rate, offered_cleaning_fee"
           )
           .eq("id", thread.contact_request_id)
           .single()
@@ -755,6 +760,12 @@ export async function getThreadDetail(
             null,
           edit_count:
             (booking as { edit_count?: number | null }).edit_count ?? 0,
+          offered_nightly_rate:
+            (booking as { offered_nightly_rate?: number | null })
+              .offered_nightly_rate ?? null,
+          offered_cleaning_fee:
+            (booking as { offered_cleaning_fee?: number | null })
+              .offered_cleaning_fee ?? null,
         }
       : null,
     reservation_sidebar: {

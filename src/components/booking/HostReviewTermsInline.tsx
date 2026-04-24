@@ -18,6 +18,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import {
   CANCELLATION_APPROACHES,
@@ -32,6 +34,7 @@ import {
 } from "@/lib/cancellation";
 import { CancellationPolicyCard } from "./CancellationPolicyCard";
 import { PaymentRows, RefundRows } from "./cancellation-row-editors";
+import { AvailabilityCalendar } from "@/components/listing/availability-calendar";
 
 interface Props {
   bookingId: string;
@@ -40,8 +43,15 @@ interface Props {
   checkIn: string | null;
   checkOut: string | null;
   guestCount: number;
+  /** Listing baseline — used when creating the first offer so the
+   *  nightly input starts from the host's published rate. */
   nightlyRate: number | null;
   cleaningFee: number | null;
+  /** S7/040: previously-offered breakdown. In edit mode these seed
+   *  the nightly + cleaning inputs so reopening Edit doesn't silently
+   *  reset the host's prior offer back to the listing rate. */
+  offeredNightlyRate?: number | null;
+  offeredCleaningFee?: number | null;
   guestFirstName: string;
   /** S7 — "edit" mode skips the status flip (the request is already
    *  accepted/offered) and drops the "Decline request" button. The
@@ -103,6 +113,8 @@ export function HostReviewTermsInline({
   guestCount,
   nightlyRate,
   cleaningFee,
+  offeredNightlyRate,
+  offeredCleaningFee,
   guestFirstName,
   submitMode = "create",
   onDone,
@@ -118,32 +130,76 @@ export function HostReviewTermsInline({
   const [localCheckIn, setLocalCheckIn] = useState<string>(checkIn ?? "");
   const [localCheckOut, setLocalCheckOut] = useState<string>(checkOut ?? "");
   const [localGuests, setLocalGuests] = useState<number>(guestCount);
+  // Inline calendar popover — expands under the date button when the
+  // host wants to change the range. Matches the Request Intro dialog
+  // pattern so the picker reads consistently across the app instead
+  // of falling back to the browser-native <input type="date"> popup.
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  const tripRange: DateRange | undefined = useMemo(() => {
+    const parse = (iso: string): Date | undefined => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return undefined;
+      const [y, m, d] = iso.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+    const from = parse(localCheckIn);
+    const to = parse(localCheckOut);
+    if (!from) return undefined;
+    return { from, to };
+  }, [localCheckIn, localCheckOut]);
+
+  const onRangeChange = (next: DateRange | undefined) => {
+    if (!next?.from) {
+      setLocalCheckIn("");
+      setLocalCheckOut("");
+      return;
+    }
+    setLocalCheckIn(format(next.from, "yyyy-MM-dd"));
+    setLocalCheckOut(next.to ? format(next.to, "yyyy-MM-dd") : "");
+    // Auto-close only after a TRUE range is picked — react-day-picker
+    // sets to=from on the first click, which would slam the calendar
+    // shut before the host could pick an end date.
+    if (next.from && next.to && next.from.getTime() !== next.to.getTime()) {
+      setCalendarOpen(false);
+    }
+  };
+
+  const dateLabel = (() => {
+    if (!tripRange?.from) return "Add dates";
+    const fromLabel = format(tripRange.from, "MMM d");
+    if (!tripRange.to) return `${fromLabel} — pick end date`;
+    return `${fromLabel} – ${format(tripRange.to, "MMM d")}`;
+  })();
 
   // Total state — stored as the two underlying line items so the
   // breakdown stays editable. Total is derived, not stored separately.
-  const seedCleaning = Math.max(0, Math.round(cleaningFee ?? 0));
-  // In edit mode the host-offered total already reflects a prior
-  // edit (possibly different from the listing base). Always derive
-  // nightly from that total so re-opening Edit doesn't silently
-  // reset the host's offered rate back to the listing rate. In
-  // create mode, prefer the listing rate when we have one so hosts
-  // start from their current published price.
+  //
+  // Seed priority:
+  //   1. S7/040 offered breakdown — if the booking row has stored
+  //      nightly/cleaning from a prior send/edit, reuse those exactly.
+  //   2. Listing baseline — create-mode starts from the host's
+  //      published rate.
+  //   3. Derived from total − cleaning − nights — last-resort legacy
+  //      fallback for rows that predate offered_* columns.
+  const seedCleaning =
+    typeof offeredCleaningFee === "number"
+      ? Math.max(0, Math.round(offeredCleaningFee))
+      : Math.max(0, Math.round(cleaningFee ?? 0));
   const seedNights = Math.max(1, nightsBetween(checkIn, checkOut));
   const totalBackedNightly =
     initialTotal && seedNights > 0
-      ? Math.max(
-          0,
-          Math.round((initialTotal - seedCleaning) / seedNights)
-        )
+      ? Math.max(0, Math.round((initialTotal - seedCleaning) / seedNights))
       : 0;
   const derivedNightly =
-    submitMode === "edit"
-      ? totalBackedNightly > 0
-        ? totalBackedNightly
-        : nightlyRate ?? 0
-      : nightlyRate && nightlyRate > 0
-        ? nightlyRate
-        : totalBackedNightly;
+    typeof offeredNightlyRate === "number" && offeredNightlyRate >= 0
+      ? offeredNightlyRate
+      : submitMode === "edit"
+        ? totalBackedNightly > 0
+          ? totalBackedNightly
+          : nightlyRate ?? 0
+        : nightlyRate && nightlyRate > 0
+          ? nightlyRate
+          : totalBackedNightly;
   const [nightlyStr, setNightlyStr] = useState<string>(
     derivedNightly > 0 ? String(derivedNightly) : ""
   );
@@ -261,6 +317,11 @@ export function HostReviewTermsInline({
           ...(decision === "accepted"
             ? {
                 total_price: computedTotal > 0 ? computedTotal : undefined,
+                // S7/040: send the per-line offered values too so the
+                // guest-side card renders a real breakdown instead of
+                // deriving a lump Discount from listing defaults.
+                nightly_rate: Math.max(0, Math.round(numericNightly)),
+                cleaning_fee: Math.max(0, Math.round(numericCleaning)),
                 ...policyPayload,
                 check_in: localCheckIn || undefined,
                 check_out: localCheckOut || undefined,
@@ -325,47 +386,84 @@ export function HostReviewTermsInline({
         onEditToggle={() => toggleSection("trip")}
       >
         {editSection === "trip" ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <FieldLabel label="Check-in">
-              <input
-                type="date"
-                value={localCheckIn}
-                onChange={(e) => setLocalCheckIn(e.target.value)}
-                className={INPUT_CLS}
-              />
-            </FieldLabel>
-            <FieldLabel label="Checkout">
-              <input
-                type="date"
-                min={localCheckIn || undefined}
-                value={localCheckOut}
-                onChange={(e) => setLocalCheckOut(e.target.value)}
-                className={INPUT_CLS}
-              />
-            </FieldLabel>
-            <FieldLabel label="Guests">
-              <div className="flex h-14 items-center gap-2 rounded-xl border-2 border-border bg-white px-3 shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setLocalGuests((g) => Math.max(1, g - 1))}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-                  aria-label="Decrease guests"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="flex-1 text-center text-base font-semibold">
-                  {localGuests}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setLocalGuests((g) => g + 1)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
-                  aria-label="Increase guests"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[2fr_1fr]">
+              <FieldLabel label="Dates">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCalendarOpen((v) => !v)}
+                    aria-expanded={calendarOpen}
+                    className="flex h-14 flex-1 items-center gap-2 rounded-xl border-2 border-border !bg-white px-4 text-left text-base font-medium shadow-sm transition hover:bg-muted/30 focus:border-foreground/60 focus:outline-none"
+                  >
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                    <span
+                      className={
+                        tripRange?.from ? "" : "text-muted-foreground"
+                      }
+                    >
+                      {dateLabel}
+                    </span>
+                    <span className="ml-auto text-muted-foreground">
+                      {calendarOpen ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </span>
+                  </button>
+                  {tripRange?.from && (
+                    <button
+                      type="button"
+                      aria-label="Clear dates"
+                      onClick={() => {
+                        setLocalCheckIn("");
+                        setLocalCheckOut("");
+                      }}
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </FieldLabel>
+              <FieldLabel label="Guests">
+                <div className="flex h-14 items-center gap-2 rounded-xl border-2 border-border bg-white px-3 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setLocalGuests((g) => Math.max(1, g - 1))}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
+                    aria-label="Decrease guests"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="flex-1 text-center text-base font-semibold">
+                    {localGuests}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setLocalGuests((g) => g + 1)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
+                    aria-label="Increase guests"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </FieldLabel>
+            </div>
+            {/* Inline expandable calendar. blockedRanges left empty —
+                the host is picking dates they're offering, not
+                filtering against availability at this stage. */}
+            {calendarOpen && (
+              <div className="overflow-hidden rounded-xl border-2 border-border bg-white p-2 shadow-sm">
+                <AvailabilityCalendar
+                  value={tripRange}
+                  onChange={onRangeChange}
+                  blockedRanges={[]}
+                  numberOfMonths={1}
+                />
               </div>
-            </FieldLabel>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">

@@ -89,6 +89,12 @@ export async function PATCH(
     check_out?: string;
     /** Host-edited guest count. */
     guest_count?: number;
+    /** S7/040: host-offered per-night rate + cleaning fee. Stored
+     *  alongside total_estimate so the guest-side card can render a
+     *  truthful price breakdown (nightly × nights + cleaning) instead
+     *  of the derived "listing rate minus a mystery discount" view. */
+    nightly_rate?: number;
+    cleaning_fee?: number;
   };
   const { status: bodyStatus, hostResponseMessage } = body;
 
@@ -183,6 +189,24 @@ export async function PATCH(
       ? Math.floor(body.guest_count)
       : null;
 
+  // S7/040: persist the offered breakdown alongside the offered total
+  // so the guest-side terms card can render the real breakdown rather
+  // than reverse-engineering a "Discount" row from listing values.
+  const nightlyRateEdit =
+    status === "accepted" &&
+    typeof body.nightly_rate === "number" &&
+    Number.isFinite(body.nightly_rate) &&
+    body.nightly_rate >= 0
+      ? Math.round(body.nightly_rate)
+      : null;
+  const cleaningFeeEdit =
+    status === "accepted" &&
+    typeof body.cleaning_fee === "number" &&
+    Number.isFinite(body.cleaning_fee) &&
+    body.cleaning_fee >= 0
+      ? Math.round(body.cleaning_fee)
+      : null;
+
   const nowIso = new Date().toISOString();
   // Edit mode diff — used below to decide whether the TERMS_EDITED
   // card should render (only when something actually changed).
@@ -220,6 +244,12 @@ export async function PATCH(
         ? { check_in: checkInEdit, check_out: checkOutEdit }
         : {}),
       ...(guestCountEdit !== null ? { guest_count: guestCountEdit } : {}),
+      ...(nightlyRateEdit !== null
+        ? { offered_nightly_rate: nightlyRateEdit }
+        : {}),
+      ...(cleaningFeeEdit !== null
+        ? { offered_cleaning_fee: cleaningFeeEdit }
+        : {}),
       ...(isEditMode
         ? {
             last_edited_at: nowIso,
