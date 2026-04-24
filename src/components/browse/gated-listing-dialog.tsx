@@ -51,8 +51,8 @@ export function GatedListingDialog({
             Stay in {listing.area_name}
           </DialogTitle>
           <DialogDescription>
-            One Degree B&amp;B listings are private by default — hosts choose
-            how close a guest must be before seeing details.
+            Trustead listings are private by default — hosts choose how close
+            a guest must be before seeing details.
           </DialogDescription>
         </DialogHeader>
 

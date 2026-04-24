@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "description": "Ready-to-use theme.extend for tailwind.config.ts — 1DB brand colors + Airbnb structural tokens",
+    "description": "Ready-to-use theme.extend for tailwind.config.ts — Trustead brand colors + Airbnb structural tokens",
     "usage": "Copy the 'extend' object into your tailwind.config.ts theme.extend section",
     "date": "2026-04-13"
   },

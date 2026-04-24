@@ -44,7 +44,7 @@ export function PostStayVouchBanner({
               {contextLabel}. Would you like to vouch for {firstName}?
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Vouching helps build their trust profile on 1&deg; B&B.
+              Vouching helps build their trust profile on Trustead.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={() => setVouchOpen(true)}>

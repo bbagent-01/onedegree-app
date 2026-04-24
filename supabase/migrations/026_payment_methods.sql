@@ -10,7 +10,7 @@
 -- "offline/other" note. The cancellation policy (mig 025) tells
 -- guests *when* money is due; this tells them *where* to send it.
 --
--- 1° B&B still doesn't custody money. We store receive-only
+-- Trustead still doesn't custody money. We store receive-only
 -- handles (never bank routing numbers) so guests can copy a
 -- Venmo handle or a PayPal email after a request is approved.
 --

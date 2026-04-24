@@ -9,7 +9,11 @@
 import { Resend } from "resend";
 import { getSupabaseAdmin } from "./supabase";
 
-const FROM = "One Degree BNB <notifications@onedegreebnb.com>";
+// Display name is Trustead; underlying SMTP address stays on the
+// onedegreebnb.com sending domain until staytrustead.com is verified
+// with Resend (infra task — see S9 backlog). Recipients see
+// "Trustead" in their inbox sender column regardless.
+const FROM = "Trustead <notifications@onedegreebnb.com>";
 // Replies route back to a real mailbox so anyone hitting Reply still
 // reaches a human while we're in alpha. Future: parse inbound replies via
 // Resend's Inbound API and post them as messages into the originating thread.
@@ -91,9 +95,9 @@ async function send({ to, kind, subject, html }: SendOpts) {
 /* ---------- Templates ---------- */
 // Visual style mirrors the landing page survey email so transactional mail
 // from app.* feels like the same brand. Playfair Display headline, cream
-// background, gradient purple CTA, wordmark logo from onedegreebnb.com.
+// background, gradient purple CTA, Trustead wordmark served from the app.
 
-const WORDMARK_URL = "https://onedegreebnb.com/images/wordmark-gradient.svg";
+const WORDMARK_URL = `${APP_BASE_URL}/trustead-wordmark.svg`;
 
 const wrap = (greeting: string, body: string) => `<!DOCTYPE html>
 <html>
@@ -109,7 +113,7 @@ const wrap = (greeting: string, body: string) => `<!DOCTYPE html>
         <table width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E5E7EB;">
           <tr>
             <td style="padding:32px 40px 24px;text-align:left;">
-              <img src="${WORDMARK_URL}" alt="One Degree BNB" width="180" style="display:inline-block;">
+              <img src="${WORDMARK_URL}" alt="Trustead" width="160" style="display:inline-block;">
             </td>
           </tr>
           <tr>
@@ -120,7 +124,7 @@ const wrap = (greeting: string, body: string) => `<!DOCTYPE html>
           </tr>
           <tr>
             <td style="background-color:#F9FAFB;padding:20px 40px;text-align:center;border-top:1px solid #E5E7EB;">
-              <p style="color:#9CA3AF;font-size:12px;margin:0 0 4px;">One Degree BNB &middot; <a href="https://onedegreebnb.com" style="color:#9CA3AF;text-decoration:none;">onedegreebnb.com</a></p>
+              <p style="color:#9CA3AF;font-size:12px;margin:0 0 4px;">Trustead &middot; <a href="mailto:hello@staytrustead.com" style="color:#9CA3AF;text-decoration:none;">hello@staytrustead.com</a></p>
               <p style="color:#9CA3AF;font-size:11px;margin:0;"><a href="${APP_BASE_URL}/settings/notifications" style="color:#9CA3AF;text-decoration:underline;">Manage email preferences</a></p>
             </td>
           </tr>
@@ -374,9 +378,9 @@ export async function emailInvitation(p: InvitationPayload) {
   }
 
   const body = `
-    ${para(`<strong>${escapeHtml(p.inviterName)}</strong> vouched for you and invited you to join their trusted network on 1&deg; B&B.`)}
-    ${para("1&deg; B&B is a trust-based short-term rental platform where every guest and host is connected through personal vouches. Your invitation means someone trusts you enough to stake their reputation.")}
-    ${button("Join 1\u00B0 B&B", p.inviteUrl)}
+    ${para(`<strong>${escapeHtml(p.inviterName)}</strong> vouched for you and invited you to join their trusted network on Trustead.`)}
+    ${para("Trustead is a trust-based short-term rental platform where every guest and host is connected through personal vouches. Your invitation means someone trusts you enough to stake their reputation.")}
+    ${button("Join Trustead", p.inviteUrl)}
     ${para('<span style="color:#9CA3AF;font-size:12px;">If you didn\'t expect this invitation, you can safely ignore it.</span>')}
   `;
 
@@ -385,7 +389,7 @@ export async function emailInvitation(p: InvitationPayload) {
       from: FROM,
       to: p.inviteeEmail,
       replyTo: REPLY_TO,
-      subject: `${p.inviterName} invited you to 1\u00B0 B&B`,
+      subject: `${p.inviterName} invited you to Trustead`,
       html: wrap(`Hi ${firstName(p.inviteeName)}!`, body),
     });
     return { ok: true as const, id: result.data?.id };

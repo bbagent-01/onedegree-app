@@ -1,5 +1,5 @@
 /**
- * One Degree BNB — hourly cron worker.
+ * Trustead — hourly cron worker.
  *
  * Cloudflare Pages doesn't natively support cron triggers, so this tiny
  * standalone Worker is the only piece of cron infrastructure. Every hour

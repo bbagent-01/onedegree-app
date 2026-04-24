@@ -97,7 +97,7 @@ async function lookupInvite(token: string): Promise<InviteLookup> {
 function DeadEndCard({
   headline,
   body,
-  cta = "Sign up on 1° B&B",
+  cta = "Sign up on Trustead",
 }: {
   headline: string;
   body: string;
@@ -144,7 +144,7 @@ export default async function JoinPage({
     return (
       <DeadEndCard
         headline="This invite has expired"
-        body="Invites are valid for 7 days. Reach out to whoever sent this to you and ask for a fresh one. You can still create an account on 1° B&B, but this particular pre-vouch won't apply."
+        body="Invites are valid for 7 days. Reach out to whoever sent this to you and ask for a fresh one. You can still create an account on Trustead, but this particular pre-vouch won't apply."
       />
     );
   }

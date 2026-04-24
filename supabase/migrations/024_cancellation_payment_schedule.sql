@@ -6,7 +6,7 @@
 -- Idempotent: safe to re-run
 -- ============================================================
 --
--- Why the reshape: 1° B&B doesn't custody or refund money — every
+-- Why the reshape: Trustead doesn't custody or refund money — every
 -- payment moves host↔guest off-platform. A "refund schedule" is an
 -- abstraction that doesn't map cleanly. What hosts actually need
 -- is: WHEN to collect money, and how much. If a host wants strict

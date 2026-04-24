@@ -4,24 +4,21 @@ import { Toaster } from "@/components/ui/sonner";
 import { CookieBanner } from "@/components/layout/cookie-banner";
 import "./globals.css";
 
-// OG asset paths point at the current 1DB symbol SVG. S8's brand
-// pass will replace the binary with a proper rasterized share image
-// at /og-image.png — when that lands the metadata can stay as-is or
-// swap to the new path.
-const SITE_NAME = "1° B&B";
+const SITE_NAME = "Trustead";
 const SITE_DESCRIPTION =
-  "Private home rentals through trusted connections.";
-const OG_IMAGE = "/1db-symbol.svg";
+  "Stay with people you trust. Private home stays through trusted personal networks.";
+const OG_IMAGE = "/trustead-og.svg";
 
 export const metadata: Metadata = {
   title: SITE_NAME,
   description: SITE_DESCRIPTION,
   icons: {
     icon: [
-      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/trustead-favicon.svg", type: "image/svg+xml" },
+      { url: "/trustead-favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/trustead-favicon-192.png", sizes: "192x192", type: "image/png" },
     ],
-    apple: "/apple-touch-icon.png",
+    apple: "/trustead-favicon-192.png",
   },
   openGraph: {
     title: SITE_NAME,

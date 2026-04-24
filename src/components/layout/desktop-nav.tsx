@@ -13,7 +13,7 @@ export function DesktopNav() {
   // StickyAnchorBar toggles `listing-sticky-active` on <html> when the
   // listing sticky nav is visible. We mirror that flag here so the primary
   // nav contents (logo + profile cluster) hide at narrow viewports to
-  // avoid overlapping the 1280-wide sticky nav.
+  // avoid overlapping the sticky nav.
   const [stickyActive, setStickyActive] = useState(false);
   useEffect(() => {
     const el = document.documentElement;
@@ -40,7 +40,7 @@ export function DesktopNav() {
             anchor bar is active so there's no overlap. */}
         <Link
           href="/browse"
-          aria-label="One Degree B&B"
+          aria-label="Trustead"
           className={cn(
             "shrink-0 items-center",
             hidePrimaryNarrow ? "hidden min-[1900px]:flex" : "flex"
@@ -48,14 +48,14 @@ export function DesktopNav() {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/1db-wordmark.svg"
-            alt="One Degree B&B"
-            className="hidden h-12 w-auto lg:block"
+            src="/trustead-wordmark.svg"
+            alt="Trustead"
+            className="hidden h-7 w-auto lg:block"
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/1db-symbol.svg"
-            alt="One Degree B&B"
+            src="/trustead-favicon.svg"
+            alt="Trustead"
             className="block h-9 w-auto lg:hidden"
           />
         </Link>

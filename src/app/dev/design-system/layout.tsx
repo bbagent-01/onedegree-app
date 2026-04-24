@@ -5,7 +5,7 @@
 import "../../globals.css";
 
 export const metadata = {
-  title: "Design System · 1DB Dev",
+  title: "Design System · Trustead Dev",
 };
 
 export default function DesignSystemLayout({

@@ -99,7 +99,7 @@ export async function POST(req: Request) {
           {
             error: isSelf
               ? "That's your own phone or email. You can't invite yourself."
-              : `${match.name} is already on 1° B&B. Vouch for them directly instead.`,
+              : `${match.name} is already on Trustead. Vouch for them directly instead.`,
             existing: true,
             self: isSelf,
             user: isSelf

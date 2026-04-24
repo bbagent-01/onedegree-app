@@ -55,7 +55,7 @@
 - [ ] **Empty state:** New user with no invites sees "No invites yet" with CTA.
 
 ### SIGNUP_MODE Feature Flag
-- [ ] **invite-only mode (default):** Visit `/sign-up` directly → see "One Degree is Invite-Only" message.
+- [ ] **invite-only mode (default):** Visit `/sign-up` directly → see "Trustead is Invite-Only" message.
 - [ ] **open mode:** Set `SIGNUP_MODE=open` in `.env.local` → Visit `/sign-up` → Clerk signup form appears normally.
 - [ ] **Invite link in open mode:** Invite links still work and apply pre-vouch even when signup is open.
 

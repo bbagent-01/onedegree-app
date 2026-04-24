@@ -92,7 +92,7 @@ Host Listings:
 }
 ```
 
-## 1DB Adaptation Notes
+## Trustead Adaptation Notes
 - **Add:** Trust score dashboard section (your trust rating, vouch count, trend)
 - **Add:** Community activity feed (recent vouches, new connections)
 - **Add:** Booking request queue with trust-level indicators

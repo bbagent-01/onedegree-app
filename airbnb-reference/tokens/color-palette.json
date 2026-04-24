@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "description": "DO NOT USE — Airbnb reference colors only. 1DB uses its own brand colors.",
-    "warning": "These colors are for reference/comparison ONLY. See tailwind-extend.json for 1DB colors.",
+    "description": "DO NOT USE — Airbnb reference colors only. Trustead uses its own brand colors.",
+    "warning": "These colors are for reference/comparison ONLY. See tailwind-extend.json for Trustead colors.",
     "date": "2026-04-13"
   },
   "airbnb_reference_colors": {

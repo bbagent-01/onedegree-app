@@ -5,7 +5,7 @@
 -- Idempotent: safe to re-run
 -- ============================================================
 -- Adds a new `platform_met` value to years_known_bucket_enum,
--- ranked *below* `lt1`. Used for post-stay ("Met on 1° B&B")
+-- ranked *below* `lt1`. Used for post-stay ("Met on Trustead")
 -- vouches so platform-originated relationships are scored with
 -- a smaller multiplier (0.4×) than genuine sub-1-year IRL ties.
 --

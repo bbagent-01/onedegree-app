@@ -65,7 +65,7 @@ export function InviteAcceptCard({
         </Avatar>
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Invitation to 1° B&B
+            Invitation to Trustead
           </p>
           <h1 className="mt-1 text-xl font-semibold text-foreground">
             <span className="text-foreground">{inviter.name}</span>
@@ -104,7 +104,7 @@ export function InviteAcceptCard({
       </div>
 
       <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
-        1° B&B is a trust-based short-term rental platform. Listings are
+        Trustead is a trust-based short-term rental platform. Listings are
         private and only visible through personal networks and vouches.
       </p>
 

@@ -117,7 +117,7 @@ export function ReviewFlowDialog({
 
   // Vouch step — one-click post-stay vouch. Type is locked to
   // "standard" and years-known is locked to "platform_met" (0.4×,
-  // the dedicated "Met on 1° B&B" bucket from migration 035a) so
+  // the dedicated "Met on Trustead" bucket from migration 035a) so
   // platform-originated relationships can't masquerade as genuine
   // sub-1-year ties.
 

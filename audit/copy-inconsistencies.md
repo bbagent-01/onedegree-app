@@ -55,7 +55,7 @@ The product is off-platform messaging only (no on-platform payment/reservation).
 
 ## 3. Airbnb-clone orphans
 
-### Superhost — should be zero in 1DB (trust is the equivalent signal, not badges):
+### Superhost — should be zero in Trustead (trust is the equivalent signal, not badges):
 
 | File | Line | Context |
 |---|---|---|
@@ -67,9 +67,9 @@ The product is off-platform messaging only (no on-platform payment/reservation).
 | [src/lib/mock-listings.ts](src/lib/mock-listings.ts) | 14 mock rows still set `isSuperhost: true/false` |
 | [src/lib/browse-utils.ts:99](src/lib/browse-utils.ts#L99) | `isSuperhost: false` fallback |
 
-**Recommendation:** Strip Superhost. Its role is replaced by the trust score + direct-vouch badge. If a "long-time host" signal is desired, introduce a separate 1DB-native badge (e.g. "Host rating 4.8" already present).
+**Recommendation:** Strip Superhost. Its role is replaced by the trust score + direct-vouch badge. If a "long-time host" signal is desired, introduce a separate Trustead-native badge (e.g. "Host rating 4.8" already present).
 
-### Experiences — should be zero in 1DB:
+### Experiences — should be zero in Trustead:
 Grep found NO matches for "Experiences" in user-facing src. **PASS.** ✓
 
 ---
@@ -127,4 +127,4 @@ These must be consolidated into a clear hierarchy. Phase B should decide whether
 2. **Retire booking verbs.** Replace every "Reserve", "Request to Book", "booking request" with "Contact", "Message", "Intro request". Route `/listings/[id]/reserve` should either be removed or renamed `/listings/[id]/contact`.
 3. **Kill Superhost.** 14 mock rows + 5 render sites + derivation logic. Replace with "Direct vouch" badge or remove entirely.
 4. **Direction doc.** Before any UI touch, produce a trust-direction convention doc so every screen shows the right score from the right side.
-5. **Notifications form rewrite.** Rename categories to match the 1DB mental model.
+5. **Notifications form rewrite.** Rename categories to match the Trustead mental model.

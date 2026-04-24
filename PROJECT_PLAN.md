@@ -1,10 +1,12 @@
-# One Degree B&B — Project Plan
+# Trustead — Project Plan
 
-> Last updated: April 15, 2026 · Alpha-C phase
+> Last updated: April 24, 2026 · Alpha-C phase (renamed from "One Degree B&B / 1DB" in S8)
 
 ## Overview
 
-One Degree B&B (1DB) is a trust-based short-term rental platform — "Airbnb meets Hinge." Listings are private and only visible through personal networks and vouches. Guests must be vouched for by someone the host trusts. Payments happen off-platform (Venmo/Zelle). The platform facilitates introductions, not transactions.
+Trustead is a trust-based short-term rental platform — "Airbnb meets Hinge." Listings are private and only visible through personal networks and vouches. Guests must be vouched for by someone the host trusts. Payments happen off-platform (Venmo/Zelle). The platform facilitates introductions, not transactions.
+
+> **Note on naming:** real infrastructure (GitHub repo names, Cloudflare project names, Supabase project names, Clerk instance, branch names, deploy URLs like `alpha-c.onedegreebnb.com`) intentionally still use the pre-rename identifiers. Don't swap those unless the underlying infra is also migrated.
 
 ## Domains & URLs
 
@@ -12,7 +14,7 @@ One Degree B&B (1DB) is a trust-based short-term rental platform — "Airbnb mee
 |---|---|
 | Landing page | https://onedegreebnb.com |
 | Clean Airbnb clone (rollback) | https://alpha-b.onedegreebnb.com |
-| 1DB overlay (Alpha-C testing) | https://alpha-c.onedegreebnb.com |
+| Trustead overlay (Alpha-C testing) | https://alpha-c.onedegreebnb.com |
 | Production (after CC-C8) | https://app.onedegreebnb.com |
 | GitHub repo (app) | https://github.com/bbagent-01/onedegree-app |
 | GitHub repo (landing) | https://github.com/bbagent-01/onedegree-bnb |
@@ -94,7 +96,7 @@ Per-action access_settings JSON controls: see_preview, see_full, request_book, m
 Alpha access types: "anyone", "min_score" (threshold), "max_degrees" (hop count), "specific_people" (user_ids).
 
 ### Platform Posture
-1DB facilitates introductions. It does NOT process payments, is NOT party to rental agreements, and does NOT operate as a booking service. All financial arrangements happen directly between parties off-platform.
+Trustead facilitates introductions. It does NOT process payments, is NOT party to rental agreements, and does NOT operate as a booking service. All financial arrangements happen directly between parties off-platform.
 
 ## Schema (Alpha-C)
 

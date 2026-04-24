@@ -1,5 +1,5 @@
 /**
- * Seed script for One Degree BNB
+ * Seed script for Trustead
  *
  * Usage:
  *   npx tsx scripts/seed.ts --loren-email loren@example.com
@@ -100,7 +100,7 @@ const SEED_USERS = [
 // ── Main ──
 
 async function main() {
-  console.log("🌱 One Degree BNB — Seed Script\n");
+  console.log("🌱 Trustead — Seed Script\n");
 
   if (shouldClean) {
     await clean();

@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Post-stay vouches are always "Met through 1° B&B" — the
+  // Post-stay vouches are always "Met through Trustead" — the
   // platform_met bucket (0.4×), added in migration 035a.
   if (isPostStay && yearsKnownBucket !== "platform_met") {
     return Response.json(

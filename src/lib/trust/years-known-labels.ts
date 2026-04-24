@@ -2,7 +2,7 @@
  * Canonical label + multiplier map for `years_known_bucket`.
  *
  * Covers every DB enum value, including `platform_met` — a
- * non-selectable bucket auto-assigned to post-stay "Met on 1° B&B"
+ * non-selectable bucket auto-assigned to post-stay "Met on Trustead"
  * vouches. The user-facing picker in VouchModal still shows only
  * the five IRL buckets (lt1 → 10plus); platform_met is locked in
  * by ReviewFlowDialog / VouchModal-post-stay under the hood.

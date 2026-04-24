@@ -339,7 +339,7 @@ async function sendAlertEmail(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "One Degree BNB <notifications@onedegreebnb.com>",
+        from: "Trustead <notifications@onedegreebnb.com>",
         to: subscriber.email,
         subject: `New ${args.kindLabel} in your network — ${args.title}`,
         html,
@@ -375,7 +375,7 @@ async function sendAlertSMS(
     return;
   }
   const body =
-    `1° B&B: ${args.authorFirst} posted ${args.title}. ` +
+    `Trustead: ${args.authorFirst} posted ${args.title}. ` +
     `View: ${args.link}\n\nReply STOP to opt out.`;
   try {
     const res = await fetch(

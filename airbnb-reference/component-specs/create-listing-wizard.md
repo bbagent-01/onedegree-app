@@ -130,37 +130,37 @@ Step 3 — Location:
 }
 ```
 
-## 1DB Adaptation Notes — Extended Wizard Steps
+## Trustead Adaptation Notes — Extended Wizard Steps
 
-### 1DB Step 1: Basics
+### Trustead Step 1: Basics
 - Title, description, listing type (whole home, private room, shared)
 - Same as ski043 step 2 but without price
 
-### 1DB Step 2: Details
+### Trustead Step 2: Details
 - Bedrooms, beds, baths, amenities checklist, max guests
 - Borrow amenities grid from aumsoni2002 (`AmenitiesInput.tsx`)
 
-### 1DB Step 3: Photos
+### Trustead Step 3: Photos
 - Multi-image upload (not in any reference — custom build)
 - Drag & drop reorder
 - Cover photo selection
 
-### 1DB Step 4: Location
+### Trustead Step 4: Location
 - Same as ski043 step 3
 - Add: neighborhood description, nearby landmarks
 
-### 1DB Step 5: Pricing & Availability
+### Trustead Step 5: Pricing & Availability
 - Nightly rate, cleaning fee
 - Calendar setup (integrate Track A availability system)
 - Stay rules: min/max nights, check-in/check-out times
 
-### 1DB Step 6: Trust & Visibility
-- **New for 1DB:** Who can see this listing (network only, verified, all)
+### Trustead Step 6: Trust & Visibility
+- **New for Trustead:** Who can see this listing (network only, verified, all)
 - Minimum trust score for booking
 - Booking approval mode (auto for high-trust, manual for others)
 - Guest requirements (must have X vouches, must be connected to you)
 
-### 1DB Step 7: Preview & Publish
+### Trustead Step 7: Preview & Publish
 - Preview listing card + full listing page
 - Publish button
 - Save as draft option

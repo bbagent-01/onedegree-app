@@ -8,7 +8,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
  * GET /api/invites/check?phone=…&email=…
  *
  * Pre-invite lookup. Tells the client whether the supplied contact
- * info already belongs to a 1° B&B member, so the /invite UI can
+ * info already belongs to a Trustead member, so the /invite UI can
  * redirect the flow to "vouch for them directly" instead of creating
  * a no-op invite.
  *

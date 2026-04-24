@@ -90,7 +90,7 @@ export function DesignSystemRoot({ tokens, usage }: Props) {
               <p className="text-xs uppercase tracking-wider text-muted-foreground">
                 Dev · alpha-only · admin
               </p>
-              <h1 className="mt-1 text-3xl font-semibold">1DB Design System</h1>
+              <h1 className="mt-1 text-3xl font-semibold">Trustead Design System</h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 Live tokens, components, and patterns. Edit tokens in the
                 Sandbox section to preview overrides without touching

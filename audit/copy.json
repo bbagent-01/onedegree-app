@@ -40,7 +40,7 @@
   },
   "/sign-up": {
     "titles": ["Create your account"],
-    "subtitles": ["1° B&B is invite-only and phone-first. One account per number."],
+    "subtitles": ["Trustead is invite-only and phone-first. One account per number."],
     "labels": [
       "Your phone number",
       "Enter the 6-digit code",
@@ -59,7 +59,7 @@
       "Sign in"
     ],
     "system_messages": [
-      "Your phone is your identity on 1° B&B.",
+      "Your phone is your identity on Trustead.",
       "We'll never share or sell it, and we'll never send marketing texts unless you opt in.",
       "Code sent to {phone}",
       "Couldn't start sign-up",
@@ -184,7 +184,7 @@
     "ctas": ["Send"]
   },
   "/invite": {
-    "titles": ["Invite someone to 1° B&B"],
+    "titles": ["Invite someone to Trustead"],
     "subtitles": [
       "Invite someone you trust. Your vouch is created automatically when they join."
     ],
@@ -210,7 +210,7 @@
     "system_messages": [
       "I understand that {name}'s guest rating will affect my vouch power.",
       "Invitation sent!",
-      "{name} will receive an invitation to join 1° B&B. Your vouch will be automatically applied when they sign up.",
+      "{name} will receive an invitation to join Trustead. Your vouch will be automatically applied when they sign up.",
       "Or share this link directly:",
       "An invite will be sent via SMS to {phone} and email to {email}.",
       "An invite will be sent via SMS to {phone}.",
@@ -279,7 +279,7 @@
     "labels": ["Dates", "Guests", "Price", "Cleaning fee", "Service fee", "Total before taxes"],
     "ctas": ["Back to listing", "Confirm and reserve"],
     "system_messages": [
-      "By selecting Confirm and reserve, you agree to follow the host's house rules and the One Degree BNB rebooking and refund policy."
+      "By selecting Confirm and reserve, you agree to follow the host's house rules and the Trustead rebooking and refund policy."
     ],
     "default_rules": ["No parties or events", "No smoking"]
   },
@@ -342,7 +342,7 @@
   },
   "/settings/notifications": {
     "titles": ["Email notifications"],
-    "subtitles": ["Choose which transactional emails One Degree BNB sends you."],
+    "subtitles": ["Choose which transactional emails Trustead sends you."],
     "ctas": ["Account settings"],
     "notification_options": [
       "New booking request",
@@ -357,7 +357,7 @@
   "/settings/phone": {
     "titles": ["Phone number"],
     "subtitles": [
-      "Your phone is how friends find you when they vouch or send an intro. It's also your primary identifier on 1° B&B — one account per number."
+      "Your phone is how friends find you when they vouch or send an intro. It's also your primary identifier on Trustead — one account per number."
     ],
     "labels": ["Current phone number", "New phone number", "Enter the 6-digit code"],
     "ctas": [
@@ -401,20 +401,20 @@
     "system_messages": ["Contact info unlocks once your host confirms."],
     "vouch_prompt": [
       "You stayed at {listing}",
-      "Vouch for them to unlock more opportunities on 1° B&B."
+      "Vouch for them to unlock more opportunities on Trustead."
     ]
   },
   "/vouch": {
     "titles": ["Vouch for someone"],
     "subtitles": [
-      "Search by name, email, or phone. If they're not on 1° B&B yet, you can invite them."
+      "Search by name, email, or phone. If they're not on Trustead yet, you can invite them."
     ],
     "labels": ["Search by name, email, or phone..."],
-    "ctas": ["Vouch", "Update vouch", "Invite them to 1° B&B", "Invite them to join"],
+    "ctas": ["Vouch", "Update vouch", "Invite them to Trustead", "Invite them to join"],
     "empty_states": [
       "Searching...",
       "No members found for \"{query}\"",
-      "They might not be on 1° B&B yet. Invite them to join!",
+      "They might not be on Trustead yet. Invite them to join!",
       "Don't see who you're looking for?"
     ]
   },

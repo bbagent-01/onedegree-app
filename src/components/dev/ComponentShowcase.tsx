@@ -1393,7 +1393,7 @@ function IssueReportCardMock() {
             Issue reported
           </div>
           <div className="mt-0.5 text-xs text-rose-800/80">
-            Loren flagged this stay · Apr 22, 2026 · 1DB admin will reach out.
+            Loren flagged this stay · Apr 22, 2026 · Trustead admin will reach out.
           </div>
         </div>
       </div>
@@ -1815,7 +1815,7 @@ function ProfileBadgeSection() {
       </Group>
 
       <Group
-        name="Profile badge · full (profile hero, 1° B&B)"
+        name="Profile badge · full (profile hero, Trustead)"
         file="src/app/(app)/profile/[id]/page.tsx header"
         routes={["/profile/[id]"]}
       >

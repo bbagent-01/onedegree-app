@@ -46,7 +46,7 @@ interface Props {
   } | null;
 }
 
-// 1° B&B still doesn't charge a service fee — hosts collect directly
+// Trustead still doesn't charge a service fee — hosts collect directly
 // off-platform. Cleaning fee is now a flat per-listing amount the
 // host sets (mig 028) instead of a percentage, which matches how
 // hosts actually think about cleaning costs.
@@ -272,7 +272,7 @@ export function BookingSidebar({
             </div>
           )}
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            Payment arranged directly with your host — 1° B&amp;B doesn&apos;t
+            Payment arranged directly with your host — Trustead doesn&apos;t
             process payments.
           </p>
 

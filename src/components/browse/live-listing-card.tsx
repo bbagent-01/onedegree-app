@@ -209,7 +209,7 @@ export function LiveListingCard({
             )}
             {listing.host && !showHostFirstName && (
               <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
-                Hosted by a 1&deg; B&amp;B member
+                Hosted by a Trustead member
               </p>
             )}
             {trust && (

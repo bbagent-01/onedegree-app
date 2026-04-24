@@ -21,7 +21,7 @@
  *     npx playwright codegen $AUDIT_TARGET_URL --save-storage audit/.auth/0deg.json
  *   Repeat for 1deg.json and 4deg.json.
  *
- *   Known accounts for 1DB:
+ *   Known accounts for Trustead:
  *     - 0deg: audit-0deg-<timestamp> — create fresh via Clerk test phone
  *     - 1deg: Loren's primary (most vouches; high connectivity)
  *     - 4deg: Pavel or Ines (chain-only distance from test targets)
@@ -243,7 +243,7 @@ async function captureSignedOut(browser) {
 
 // ---------- MAIN ----------
 (async () => {
-  console.log("🎬 1DB UX Audit — screenshot capture");
+  console.log("🎬 Trustead UX Audit — screenshot capture");
   console.log(`   target: ${TARGET_URL}`);
   console.log(`   output: ${SCREENSHOT_DIR}`);
   console.log();

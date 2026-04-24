@@ -950,7 +950,7 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-foreground">
           Currently only serving the US market. If you live outside the US,{" "}
           <a
-            href="mailto:hello@onedegreebnb.com?subject=Add%20my%20region%20to%20One%20Degree%20BNB"
+            href="mailto:hello@staytrustead.com?subject=Add%20my%20region%20to%20Trustead"
             className="font-semibold underline underline-offset-2"
           >
             contact us here
@@ -1831,7 +1831,7 @@ function ListingTileMock({
       ? viewer.firstName
         ? `Hosted by ${viewer.firstName}`
         : "Hosted by you"
-      : "Hosted by a 1\u00b0 B&B member"
+      : "Hosted by a Trustead member"
     : viewer.fullName
       ? `Hosted by ${viewer.fullName}`
       : "Hosted by you";
@@ -2029,7 +2029,7 @@ function ListingDetailMock({
                       ? viewer.firstName
                         ? `Hosted by ${viewer.firstName}`
                         : "Hosted by you"
-                      : "Hosted by a 1\u00b0 B&B member"
+                      : "Hosted by a Trustead member"
                     : viewer.fullName
                       ? `Hosted by ${viewer.fullName}`
                       : "Hosted by you"}
@@ -2300,8 +2300,8 @@ function ListingDetailMock({
                 {isPreview && !show("previewShowHostFirstName")
                   ? "Host profile is revealed once you meet the trust threshold."
                   : viewer.fullName
-                    ? `${viewer.fullName} is a host on One Degree BNB.`
-                    : "You are a host on One Degree BNB."}
+                    ? `${viewer.fullName} is a host on Trustead.`
+                    : "You are a host on Trustead."}
               </p>
             </div>
           </div>

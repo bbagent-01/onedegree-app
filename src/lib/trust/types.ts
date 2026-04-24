@@ -91,7 +91,7 @@ export interface PreviewContentSettings {
   show_price_range?: boolean;
   /** Show preview description (or truncated full description) */
   show_description?: boolean;
-  /** Show host first name (otherwise "Hosted by a 1° B&B member") */
+  /** Show host first name (otherwise "Hosted by a Trustead member") */
   show_host_first_name?: boolean;
   /** Show host profile photo (otherwise a silhouette placeholder) */
   show_profile_photo?: boolean;
@@ -281,7 +281,7 @@ export const VOUCH_BASE_POINTS: Record<VouchType, number> = {
 
 export const YEARS_MULTIPLIER: Record<string, number> = {
   // Platform-originated post-stay vouches (migration 035a). Smaller
-  // than lt1's 0.6× so "Met on 1° B&B" doesn't masquerade as a
+  // than lt1's 0.6× so "Met on Trustead" doesn't masquerade as a
   // genuine sub-1-year IRL relationship.
   platform_met: 0.4,
   lt1: 0.6,

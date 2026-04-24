@@ -38,7 +38,7 @@ export async function sendInviteSMS({
 
   // Keep SMS under 160 chars when possible
   const body =
-    `${inviterName} invited you to 1° B&B — a trusted rental network. ` +
+    `${inviterName} invited you to Trustead — a trusted rental network. ` +
     `They vouched for you so you can start browsing. Join: ${inviteUrl}\n\n` +
     `Reply STOP to opt out.`;
 

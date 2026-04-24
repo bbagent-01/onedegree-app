@@ -98,7 +98,7 @@ export default function VouchPage() {
           Vouch for someone
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Search by name, email, or phone. If they&rsquo;re not on 1&deg; B&B yet, you
+          Search by name, email, or phone. If they&rsquo;re not on Trustead yet, you
           can invite them.
         </p>
       </div>
@@ -128,12 +128,12 @@ export default function VouchPage() {
               No members found for &ldquo;{query}&rdquo;
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              They might not be on 1&deg; B&B yet. Invite them to join!
+              They might not be on Trustead yet. Invite them to join!
             </p>
             <Link href="/invite">
               <Button size="lg" className="mt-4 gap-1.5">
                 <UserPlus className="h-4 w-4" />
-                Invite them to 1&deg; B&B
+                Invite them to Trustead
               </Button>
             </Link>
           </div>

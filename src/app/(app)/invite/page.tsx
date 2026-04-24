@@ -28,8 +28,8 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 /**
  * Existing-member pre-check result. When the invitee's phone or
- * email already matches a 1° B&B user we block the invite flow and
- * point the inviter at /profile/<id> for a direct vouch instead.
+ * email already matches a Trustead user we block the invite flow and
+ * point the inviter at /profile/[id] for a direct vouch instead.
  */
 type ExistingCheck =
   | { kind: "none" }
@@ -142,7 +142,7 @@ export default function InvitePage() {
           setExisting({ kind: "existing", user: err.user });
         }
         setStep("info");
-        toast.error(err.error ?? "This contact is already on 1° B&B.");
+        toast.error(err.error ?? "This contact is already on Trustead.");
         return;
       }
       if (!res.ok) {
@@ -174,7 +174,7 @@ export default function InvitePage() {
           <UserPlus className="h-6 w-6" />
         </div>
         <h1 className="mt-4 text-2xl font-bold md:text-3xl">
-          Invite someone to 1&deg; B&B
+          Invite someone to Trustead
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Invite someone you trust. Your vouch is created automatically when
@@ -302,7 +302,7 @@ export default function InvitePage() {
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-emerald-900">
-                      {existing.user.name} is already on 1° B&B
+                      {existing.user.name} is already on Trustead
                     </p>
                     <p className="mt-0.5 text-xs text-emerald-900/80">
                       Vouch for them directly — no invite needed.
@@ -566,7 +566,7 @@ export default function InvitePage() {
             </div>
             <h2 className="mt-4 text-lg font-semibold">Invitation sent!</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {name} will receive an invitation to join 1&deg; B&B.
+              {name} will receive an invitation to join Trustead.
               {" "}Your vouch will be automatically applied when they sign up.
             </p>
             {inviteUrl && (

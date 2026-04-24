@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Page not found · 1° B&B",
+  title: "Page not found · Trustead",
 };
 
 export default function NotFound() {
@@ -14,7 +14,7 @@ export default function NotFound() {
             href="/browse"
             className="text-sm font-semibold tracking-tight text-foreground"
           >
-            1&deg; B&amp;B
+            Trustead
           </Link>
         </div>
       </header>

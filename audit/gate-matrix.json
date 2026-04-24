@@ -255,7 +255,7 @@
     },
     "/vouch": {
       "signed_out": "Redirected to /sign-in.",
-      "0deg": "Search UI. If target not on 1DB → invite CTA. Typical entry point for a 0° user growing their network.",
+      "0deg": "Search UI. If target not on Trustead → invite CTA. Typical entry point for a 0° user growing their network.",
       "1deg": "Full access.",
       "2deg": "Full access.",
       "3deg": "Full access.",

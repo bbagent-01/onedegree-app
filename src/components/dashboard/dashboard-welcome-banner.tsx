@@ -9,7 +9,7 @@ interface Props {
   userId: string;
 }
 
-const DISMISS_KEY_PREFIX = "1db.welcomeBannerDismissed.";
+const DISMISS_KEY_PREFIX = "trustead.welcomeBannerDismissed.";
 
 /**
  * First-run welcome banner for true 0° users (no vouches in either

@@ -1,7 +1,7 @@
 /**
  * Cancellation & payment policy.
  *
- * 1° B&B never custodies, processes, or refunds money — every
+ * Trustead never custodies, processes, or refunds money — every
  * transaction moves host↔guest off-platform. This module encodes
  * the two mental models hosts actually use, and treats the policy
  * as expectation-setting guidance rather than an enforceable
@@ -557,4 +557,4 @@ export function policiesEqual(
 /** Platform disclaimers. Used in one or more places everywhere
  *  the policy surfaces, so copy stays consistent. */
 export const PLATFORM_NEUTRALITY_NOTE =
-  "1° B&B doesn't process payments or manage refunds. This is guidance to help you and your counterpart set expectations.";
+  "Trustead doesn't process payments or manage refunds. This is guidance to help you and your counterpart set expectations.";

@@ -720,7 +720,7 @@
       ],
       "trust_direction_copy": "N/A",
       "mobile_responsive_notes": "Good: max-w-[540px] container, px-4 md:px-6 md:py-10, responsive text (md:text-3xl). BIG_INPUT h-14 rounded-xl spacing. Should scale well.",
-      "notes": "Client-side state machine (\"use client\"). Fetches current phone via /api/users/me on mount. POST /api/users/phone/start to send OTP, POST /api/users/phone/verify to confirm. maskPhone utility hides all but last 4 digits. Phone required for account identity on 1DB (note in description). Edge-compatible (component, not route handler)."
+      "notes": "Client-side state machine (\"use client\"). Fetches current phone via /api/users/me on mount. POST /api/users/phone/start to send OTP, POST /api/users/phone/verify to confirm. maskPhone utility hides all but last 4 digits. Phone required for account identity on Trustead (note in description). Edge-compatible (component, not route handler)."
     },
     {
       "path": "/trips",

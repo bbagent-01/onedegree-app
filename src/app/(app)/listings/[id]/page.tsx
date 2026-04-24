@@ -564,7 +564,7 @@ export default async function ListingPage({
               <div className="md:col-span-2">
                 <p className="whitespace-pre-wrap text-base leading-relaxed">
                   {listing.host.bio ||
-                    `${listing.host.name} is a host on One Degree BNB.`}
+                    `${listing.host.name} is a host on Trustead.`}
                 </p>
               </div>
             </div>

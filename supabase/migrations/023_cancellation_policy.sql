@@ -28,7 +28,7 @@
 -- name + null windows is allowed (lib expands it); storing the
 -- windows explicitly future-proofs custom schedules.
 --
--- 1° B&B doesn't process payments — this policy is informational /
+-- Trustead doesn't process payments — this policy is informational /
 -- expectation-setting. `contact_requests.cancellation_policy` stays
 -- with the row as the authoritative term if the guest later cancels.
 -- ============================================================

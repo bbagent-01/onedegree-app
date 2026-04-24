@@ -1,4 +1,4 @@
-# Schema Notes — One Degree BNB
+# Schema Notes — Trustead
 
 > Last updated: CC-8 (April 11, 2026)
 

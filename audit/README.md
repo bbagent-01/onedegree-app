@@ -1,4 +1,4 @@
-# 1DB UX Audit — Phase A Snapshot
+# Trustead UX Audit — Phase A Snapshot
 
 > Ground-truth snapshot of the `track-b/1db-overlay` build for the pending UX gap analysis. Produced read-only (no application source modified).
 

@@ -1,4 +1,4 @@
-name: Deploy 1DB Overlay (alpha-c) to Cloudflare Pages
+name: Deploy Trustead Overlay (alpha-c) to Cloudflare Pages
 
 on:
   push:

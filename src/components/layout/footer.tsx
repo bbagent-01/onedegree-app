@@ -46,7 +46,7 @@ const COLUMNS: Column[] = [
     ],
   },
   {
-    heading: "One Degree B&B",
+    heading: "Trustead",
     links: [
       { label: "About", href: "#", soon: true },
       { label: "How it works", href: "#", soon: true },
@@ -137,8 +137,7 @@ export function Footer() {
 
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-border pt-6 sm:flex-row">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} One Degree B&B. All rights
-            reserved.
+            &copy; {new Date().getFullYear()} Trustead. All rights reserved.
           </p>
           <div className="flex items-center gap-5 text-xs text-muted-foreground">
             {LEGAL_LINKS.map((link) => (

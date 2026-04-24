@@ -39,10 +39,10 @@ Severity is a guess based on visibility to new users and potential to block core
 
 ### O-3 · Mock-data and seed-listing flags still present
 - **Where:** [src/lib/mock-listings.ts](src/lib/mock-listings.ts) — 14 rows with `isSuperhost`; [src/lib/browse-utils.ts:99](src/lib/browse-utils.ts#L99) fallback
-- **Missing:** Superhost flag has no equivalent in the 1DB model. Should be stripped from seeds and from UI render sites.
+- **Missing:** Superhost flag has no equivalent in the Trustead model. Should be stripped from seeds and from UI render sites.
 - **Severity:** med
 
-### O-4 · Airbnb-clone `reviews.rating` vs 1DB three-rating schema
+### O-4 · Airbnb-clone `reviews.rating` vs Trustead three-rating schema
 - **Where:** schema extension for `reviews.guest_rating`, `host_rating`, `listing_rating` (per PROJECT_PLAN.md)
 - **Missing:** CHECK whether `/trips/[bookingId]` review modal actually captures all three. If only the legacy single `rating` is captured, the new columns are unused.
 - **Severity:** high if unwired (trust-power math depends on guest_rating)
@@ -206,17 +206,17 @@ Severity is a guess based on visibility to new users and potential to block core
 
 ### A-3 · Price-range-slider on /browse — upper bound
 - **Where:** [src/components/browse/price-range-slider.tsx](src/components/browse/price-range-slider.tsx)
-- **Missing:** Max price defaults may reflect Airbnb's ceiling, not 1DB's seed-listing pricing reality. Check defaults.
+- **Missing:** Max price defaults may reflect Airbnb's ceiling, not Trustead's seed-listing pricing reality. Check defaults.
 - **Severity:** low
 
 ### A-4 · Cancellation policy copy on /listings/[id]
 - **Where:** "Free cancellation before 48 hours of check-in. Review the full policy at the time of booking."
-- **Missing:** Cancellation policy is an on-platform-booking concept. In 1DB the booking isn't on-platform. This copy is leftover.
+- **Missing:** Cancellation policy is an on-platform-booking concept. In Trustead the booking isn't on-platform. This copy is leftover.
 - **Severity:** med
 
 ### A-5 · "Service fee" on /listings/[id]/reserve
 - **Where:** [src/app/(app)/listings/[id]/reserve/page.tsx](src/app/(app)/listings/[id]/reserve/page.tsx) labels
-- **Missing:** 1DB is not party to rental agreements and doesn't process payments. Service fee has no meaning.
+- **Missing:** Trustead is not party to rental agreements and doesn't process payments. Service fee has no meaning.
 - **Severity:** med
 
 ---

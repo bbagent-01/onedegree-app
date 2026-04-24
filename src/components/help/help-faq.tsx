@@ -32,7 +32,7 @@ export const FAQS: FaqItem[] = [
   },
   {
     q: "What payment methods are accepted?",
-    a: "One Degree B&B facilitates introductions — we don't process payments. Guests and hosts arrange payment directly (Venmo, Zelle, cash, or whatever works for both parties).",
+    a: "Trustead facilitates introductions — we don't process payments. Guests and hosts arrange payment directly (Venmo, Zelle, cash, or whatever works for both parties).",
   },
   {
     q: "How do I cancel a booking?",
