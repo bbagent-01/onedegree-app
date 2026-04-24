@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { NetworkEmptyState } from "@/components/trust/network-empty-state";
 import { VouchBackSection } from "@/components/trust/vouch-back-section";
+import { SHOW_VOUCH_POINTS } from "@/lib/vouch-constants";
 import type { NetworkData, NetworkPerson, PendingInvite } from "@/lib/network-data";
 import { yearsKnownLabel } from "@/lib/trust/years-known-labels";
 import {
@@ -240,7 +241,7 @@ function PersonRow({
           )}
           {isInnerCircle ? "Vouch+" : "Vouch"}
         </Badge>
-        {person.vouch_score != null && (
+        {SHOW_VOUCH_POINTS && person.vouch_score != null && (
           <span className="text-xs font-medium text-muted-foreground">
             {person.vouch_score} pts
           </span>

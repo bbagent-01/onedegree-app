@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import {
   VOUCH_TYPES,
   YEARS_KNOWN_BUCKETS,
+  SHOW_VOUCH_POINTS,
   computeVouchScore,
   normalizeBucket,
   type VouchType,
@@ -192,7 +193,11 @@ export function VouchModal({
   };
 
   const content = (
-    <div className="relative min-h-[280px]">
+    // No min-height: every absolute step panel inherits the active
+    // panel's height via `inset-0`, so forcing a floor here just adds
+    // dead whitespace below Continue when the tier cards happen to be
+    // the shortest of the four steps.
+    <div className="relative">
       {/* Step 1: Vouch Type */}
       <div
         className={cn(
@@ -236,9 +241,11 @@ export function VouchModal({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold">{t.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {t.basePoints} pts base
-                    </span>
+                    {SHOW_VOUCH_POINTS && (
+                      <span className="text-xs text-muted-foreground">
+                        {t.basePoints} pts base
+                      </span>
+                    )}
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {t.description}
@@ -472,8 +479,14 @@ export function VouchModal({
             </span>
             <span className="text-muted-foreground">&middot;</span>
             <span>{yearsKnownLabel(yearsKnown)}</span>
-            <span className="text-muted-foreground">&middot;</span>
-            <span className="font-semibold">{savedScore ?? computedScore} pts</span>
+            {SHOW_VOUCH_POINTS && (
+              <>
+                <span className="text-muted-foreground">&middot;</span>
+                <span className="font-semibold">
+                  {savedScore ?? computedScore} pts
+                </span>
+              </>
+            )}
           </div>
 
           {savedVouchPower !== null && (

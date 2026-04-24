@@ -50,6 +50,15 @@ export const VOUCH_TYPE_POINTS = {
   inner_circle: 25,
 } as const;
 
+/**
+ * Alpha display toggle. Hides pt values from vouch-selection surfaces
+ * and from the Network dashboard while we iterate on the UX. The
+ * scores are still computed + stored in the DB — flip this back to
+ * `true` to re-surface the numbers in every gated render. Keep this
+ * flag until product decides whether points stay hidden long-term.
+ */
+export const SHOW_VOUCH_POINTS = false;
+
 export type VouchType = "standard" | "inner_circle";
 /** User-selectable buckets. DB rows may also carry `platform_met` —
  *  use `YearsKnownBucketAny` from years-known-labels for those. */
