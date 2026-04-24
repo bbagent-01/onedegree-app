@@ -67,20 +67,28 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
   const [tab, setTab] = useState<"mailbox" | "intros">("mailbox");
   const [query, setQuery] = useState("");
 
-  // If the user landed on /inbox/<id> with an intro thread selected
-  // (or deep-linked to one from a listing page), auto-switch to the
-  // Intros tab so the list + right panel agree. Without this the
-  // left list can show "no conversations match" while the right
-  // shows a fully-rendered intro thread.
+  // Keep the left-filter in sync with the selected thread so the
+  // user never sees "No conversations match" while they're actively
+  // viewing a thread on the right.
+  //   Case A: selected thread is an intro → flip to the Intros tab.
+  //   Case B: we're on Intros but the selected thread is no longer
+  //           an intro (just got accepted) → flip back to the
+  //           mailbox so the now-non-intro thread shows up in the
+  //           sidebar list.
   useEffect(() => {
     if (!selectedId) return;
     const selectedThread = threads.find((t) => t.id === selectedId);
-    if (selectedThread?.is_intro_request) {
+    if (!selectedThread) return;
+    if (selectedThread.is_intro_request) {
       setTab("intros");
+    } else if (tab === "intros") {
+      setTab("mailbox");
     }
-    // Only on initial selection change — manual tab clicks must win.
+    // Intentionally not gating on `tab` — we want this to react to
+    // thread/selection changes only; manual tab clicks shouldn't
+    // self-reverse.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
+  }, [selectedId, threads]);
 
   // Filter buckets.
   //   Hosting     — role === "host" and not an intro
