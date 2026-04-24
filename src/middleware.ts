@@ -19,6 +19,9 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/sso-callback(.*)",
+  "/terms",
+  "/privacy",
+  "/legal-status",
 ]);
 
 // ── ALPHA-ONLY (CC-Dev1 Impersonation Switcher) ─────────────────

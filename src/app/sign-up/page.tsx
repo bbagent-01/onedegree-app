@@ -421,6 +421,7 @@ function SignUpInner() {
               >
                 {saving ? "Sending code\u2026" : "Continue with phone"}
               </Button>
+              <SignInWrap />
             </div>
 
             <div className="mt-6 flex items-center gap-3 text-xs text-muted-foreground">
@@ -647,6 +648,7 @@ function SignUpInner() {
             >
               {saving ? "Sending code\u2026" : "Continue"}
             </Button>
+            <SignInWrap />
           </div>
         )}
 
@@ -832,6 +834,35 @@ function clerkErrorCode(e: unknown): string | null {
   if (!e || typeof e !== "object") return null;
   const errs = (e as { errors?: Array<{ code?: string }> }).errors;
   return errs?.[0]?.code ?? null;
+}
+
+/**
+ * Sign-in-wrap legal consent (Alpha Legal Pack v2 §04.1). Rendered under
+ * the primary submit button on each signup entry point so account
+ * creation is bound to the Terms + Privacy without a separate checkbox.
+ */
+function SignInWrap() {
+  return (
+    <p className="mt-4 text-center text-sm leading-relaxed text-muted-foreground">
+      By creating an account, I confirm that I am at least 18 years old and I
+      agree to Trustead&rsquo;s{" "}
+      <Link
+        href="/terms"
+        className="font-semibold text-foreground underline underline-offset-2 hover:text-brand"
+      >
+        Terms of Service
+      </Link>
+      , including its binding arbitration and class-action waiver, and I
+      acknowledge the{" "}
+      <Link
+        href="/privacy"
+        className="font-semibold text-foreground underline underline-offset-2 hover:text-brand"
+      >
+        Privacy Policy
+      </Link>
+      .
+    </p>
+  );
 }
 
 function GoogleIcon({ className }: { className?: string }) {

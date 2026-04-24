@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
+import { CookieBanner } from "@/components/layout/cookie-banner";
 import "./globals.css";
 
 // OG asset paths point at the current 1DB symbol SVG. S8's brand
@@ -60,6 +61,7 @@ export default function RootLayout({
         <body>
           {children}
           <Toaster />
+          <CookieBanner />
         </body>
       </html>
     </ClerkProvider>

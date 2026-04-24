@@ -17,6 +17,8 @@ interface FooterLink {
   href: string;
   /** When true, render as disabled with a "Soon" pill instead of a link. */
   soon?: boolean;
+  /** When true, render as a plain <a> (mailto:, external, etc.) instead of Next Link. */
+  external?: boolean;
 }
 
 interface Column {
@@ -64,9 +66,10 @@ const COLUMNS: Column[] = [
 ];
 
 const LEGAL_LINKS: FooterLink[] = [
-  { label: "Privacy", href: "#", soon: true },
-  { label: "Terms", href: "#", soon: true },
-  { label: "Sitemap", href: "#", soon: true },
+  { label: "Terms", href: "/terms" },
+  { label: "Privacy", href: "/privacy" },
+  { label: "Beta Status", href: "/legal-status" },
+  { label: "Contact", href: "mailto:hello@staytrustead.com", external: true },
 ];
 
 function FooterLinkItem({ link }: { link: FooterLink }) {
@@ -83,6 +86,16 @@ function FooterLinkItem({ link }: { link: FooterLink }) {
           Soon
         </span>
       </span>
+    );
+  }
+  if (link.external) {
+    return (
+      <a
+        href={link.href}
+        className="text-muted-foreground transition-colors hover:text-foreground"
+      >
+        {link.label}
+      </a>
     );
   }
   return (
