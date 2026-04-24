@@ -7,8 +7,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { yearsKnownLabel } from "@/lib/trust/years-known-labels";
 
 const VOUCH_LABEL: Record<string, string> = {
-  standard: "Standard vouch",
-  inner_circle: "Inner circle vouch",
+  standard: "Vouch",
+  inner_circle: "Vouch+",
 };
 
 interface Props {

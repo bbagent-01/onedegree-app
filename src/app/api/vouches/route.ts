@@ -87,6 +87,17 @@ export async function POST(req: Request) {
     );
   }
 
+  // Capture prior vouch state (used for close-the-loop detection below).
+  // If there's no outgoing vouch yet AND the target has already vouched
+  // the current user, this upsert is a "vouch-back" and we should write
+  // a notification row for the original voucher.
+  const { data: priorOutgoing } = await supabase
+    .from("vouches")
+    .select("id")
+    .eq("voucher_id", currentUser.id)
+    .eq("vouchee_id", targetUserId)
+    .maybeSingle();
+
   const { data: vouch, error: upsertError } = await supabase
     .from("vouches")
     .upsert(
@@ -107,6 +118,31 @@ export async function POST(req: Request) {
   if (upsertError) {
     console.error("Vouch upsert error:", upsertError);
     return new Response("Failed to save vouch", { status: 500 });
+  }
+
+  // Close-the-loop detection. Only fire on *new* outgoing vouches, not
+  // edits. The target is only notified once per reciprocal pair.
+  if (!priorOutgoing) {
+    const { data: reciprocal } = await supabase
+      .from("vouches")
+      .select("id")
+      .eq("voucher_id", targetUserId)
+      .eq("vouchee_id", currentUser.id)
+      .maybeSingle();
+
+    if (reciprocal) {
+      await supabase.from("vouch_back_notifications").insert({
+        user_id: targetUserId,
+        vouched_back_by_id: currentUser.id,
+      });
+      // Tear down any stale "not yet" dismissal the current user had
+      // against this voucher — the loop is closed.
+      await supabase
+        .from("vouch_back_dismissals")
+        .delete()
+        .eq("user_id", currentUser.id)
+        .eq("voucher_id", targetUserId);
+    }
   }
 
   // Read voucher's current vouch_power so the confirmation screen can

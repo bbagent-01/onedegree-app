@@ -496,10 +496,8 @@ export default function InvitePage() {
                 <div className="my-2 h-px bg-border" />
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Vouch type</span>
-                  <span className="font-medium capitalize">
-                    {vouchType === "inner_circle"
-                      ? "Inner Circle"
-                      : "Standard"}
+                  <span className="font-medium">
+                    {vouchType === "inner_circle" ? "Vouch+" : "Vouch"}
                   </span>
                 </div>
                 <div className="flex justify-between">

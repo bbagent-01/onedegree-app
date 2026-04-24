@@ -13,7 +13,20 @@ interface TestUserRow {
   avatar_url: string | null;
   phone_last4: string | null;
   one_degree_score: number;
+  /** Hop count from the real signed-in admin to this test user over
+   *  the vouch graph. 0 = self (not listed). 1 = direct vouch.
+   *  4 = cap. null = no path within 4 hops. */
+  degrees_from_viewer: number | null;
   tags: string[];
+}
+
+function degreeLabel(d: number | null | undefined): string {
+  if (d === 1) return "1°";
+  if (d === 2) return "2°";
+  if (d === 3) return "3°";
+  if (d === 4) return "4°";
+  // 0 (self) shouldn't appear in the switcher list; fall through as "—".
+  return "—";
 }
 
 interface Props {
@@ -290,7 +303,18 @@ export function ImpersonationSwitcher({
                         {u.name}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-zinc-500">
-                        <span>1° {Math.round(u.one_degree_score)}</span>
+                        <span
+                          title="Degrees of separation from you (the signed-in admin)"
+                          className="inline-flex items-center rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-700"
+                        >
+                          {degreeLabel(u.degrees_from_viewer)}
+                        </span>
+                        <span
+                          title="1° vouch score (viewer → user)"
+                          className="tabular-nums"
+                        >
+                          {Math.round(u.one_degree_score)} pts
+                        </span>
                         {u.phone_last4 && <span>····{u.phone_last4}</span>}
                         {u.tags.length > 0 && (
                           <span className="capitalize">{u.tags.join(" · ")}</span>

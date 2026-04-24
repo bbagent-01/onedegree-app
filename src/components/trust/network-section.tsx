@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { NetworkEmptyState } from "@/components/trust/network-empty-state";
+import { VouchBackSection } from "@/components/trust/vouch-back-section";
 import type { NetworkData, NetworkPerson, PendingInvite } from "@/lib/network-data";
 import { yearsKnownLabel } from "@/lib/trust/years-known-labels";
 import {
@@ -110,6 +111,12 @@ export function NetworkSection({
           Vouch for a member
         </Link>
       </div>
+
+      {/* Vouch-back candidates: people who vouched for you but whom
+          you haven't reciprocated (or dismissed). Placed above the
+          outgoing list so an unanswered incoming vouch is the first
+          thing the user sees after the summary. */}
+      <VouchBackSection candidates={data.vouchBackCandidates} />
 
       {/* People you've vouched for */}
       {data.vouchedFor.length > 0 && (
@@ -231,7 +238,7 @@ function PersonRow({
           ) : (
             <Shield className="mr-1 h-3 w-3" />
           )}
-          {isInnerCircle ? "Inner Circle" : "Standard"}
+          {isInnerCircle ? "Vouch+" : "Vouch"}
         </Badge>
         {person.vouch_score != null && (
           <span className="text-xs font-medium text-muted-foreground">

@@ -25,10 +25,21 @@ export interface PendingInvite {
   created_at: string;
 }
 
+export interface VouchBackCandidate {
+  voucher_id: string;
+  voucher_name: string;
+  voucher_avatar: string | null;
+  created_at: string;
+}
+
 export interface NetworkData {
   vouchedFor: NetworkPerson[];
   vouchedBy: NetworkPerson[];
   pendingInvites: PendingInvite[];
+  /** Incoming vouches that the current user has NOT reciprocated and
+   *  has NOT dismissed (or whose dismissal has expired). Surfaces as
+   *  the "People who vouched for you" vouch-back section. */
+  vouchBackCandidates: VouchBackCandidate[];
   stats: {
     vouchPower: number;
     avgGuestRatingOfVouchees: number | null;
@@ -143,10 +154,13 @@ export async function getNetworkData(): Promise<NetworkData | null> {
     .order("created_at", { ascending: false })
     .limit(20);
 
+  const vouchBackCandidates = await getVouchBackCandidates(user.id);
+
   return {
     vouchedFor,
     vouchedBy,
     pendingInvites: (invites ?? []) as PendingInvite[],
+    vouchBackCandidates,
     stats: {
       vouchPower: correctVouchPower,
       avgGuestRatingOfVouchees,
@@ -154,4 +168,94 @@ export async function getNetworkData(): Promise<NetworkData | null> {
       vouchesReceived: user.vouch_count_received ?? 0,
     },
   };
+}
+
+/**
+ * Returns the list of users who have vouched for `userId` but whom
+ * `userId` has NOT yet vouched back AND has NOT dismissed (or whose
+ * dismissal is expired). Drives the "People who vouched for you"
+ * section + the Network nav count badge.
+ *
+ * `minAgeDays` filters to incoming vouches at least N days old — used
+ * by the nav badge so freshly-received vouches don't nag the user.
+ * Default 0 (no age filter) → full list for the section UI.
+ */
+export async function getVouchBackCandidates(
+  userId: string,
+  opts: { minAgeDays?: number } = {}
+): Promise<VouchBackCandidate[]> {
+  const supabase = getSupabaseAdmin();
+  const { minAgeDays = 0 } = opts;
+
+  // Incoming vouches targeted at userId.
+  let incomingQuery = supabase
+    .from("vouches")
+    .select("voucher_id, created_at")
+    .eq("vouchee_id", userId)
+    .order("created_at", { ascending: false });
+  if (minAgeDays > 0) {
+    const cutoff = new Date(Date.now() - minAgeDays * 24 * 60 * 60 * 1000);
+    incomingQuery = incomingQuery.lte("created_at", cutoff.toISOString());
+  }
+  const { data: incoming } = await incomingQuery;
+  if (!incoming || incoming.length === 0) return [];
+
+  const incomingVoucherIds = (incoming as Array<{
+    voucher_id: string;
+    created_at: string;
+  }>).map((v) => v.voucher_id);
+
+  // Outgoing vouches from userId — we'll skip anyone already vouched.
+  const { data: outgoing } = await supabase
+    .from("vouches")
+    .select("vouchee_id")
+    .eq("voucher_id", userId)
+    .in("vouchee_id", incomingVoucherIds);
+  const alreadyReciprocated = new Set(
+    (outgoing ?? []).map((v) => v.vouchee_id as string)
+  );
+
+  // Active dismissals (expires_at in the future).
+  const nowIso = new Date().toISOString();
+  const { data: dismissals } = await supabase
+    .from("vouch_back_dismissals")
+    .select("voucher_id")
+    .eq("user_id", userId)
+    .in("voucher_id", incomingVoucherIds)
+    .gt("expires_at", nowIso);
+  const dismissed = new Set(
+    (dismissals ?? []).map((d) => d.voucher_id as string)
+  );
+
+  const candidateIds = incomingVoucherIds.filter(
+    (id) => !alreadyReciprocated.has(id) && !dismissed.has(id)
+  );
+  if (candidateIds.length === 0) return [];
+
+  // Fetch display data for the candidates.
+  const { data: voucherRows } = await supabase
+    .from("users")
+    .select("id, name, avatar_url")
+    .in("id", candidateIds);
+  const voucherById = new Map(
+    (voucherRows ?? []).map((u) => [
+      u.id as string,
+      {
+        name: (u.name as string | null) ?? "",
+        avatar_url: (u.avatar_url as string | null) ?? null,
+      },
+    ])
+  );
+
+  return (incoming as Array<{ voucher_id: string; created_at: string }>)
+    .filter((v) => candidateIds.includes(v.voucher_id))
+    .map((v) => {
+      const details = voucherById.get(v.voucher_id);
+      return {
+        voucher_id: v.voucher_id,
+        voucher_name: details?.name ?? "",
+        voucher_avatar: details?.avatar_url ?? null,
+        created_at: v.created_at,
+      };
+    });
 }

@@ -6,6 +6,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { compute1DegreeScores } from "@/lib/trust";
+import { computeDegreesOfSeparationBatch } from "@/lib/trust/degrees";
 import {
   isImpersonationEnabled,
   isAdmin,
@@ -92,10 +93,17 @@ export async function GET() {
   // 1° scores from admin → each test user. If admin row not found
   // (shouldn't happen), score stays 0 for everyone.
   let scores = new Map<string, number>();
+  let degrees = new Map<string, number | null>();
   if (adminUserId && ids.length > 0) {
-    const scoreMap = await compute1DegreeScores(adminUserId, ids);
+    const [scoreMap, degreeRows] = await Promise.all([
+      compute1DegreeScores(adminUserId, ids),
+      computeDegreesOfSeparationBatch(adminUserId, ids),
+    ]);
     scores = new Map(
       Array.from(scoreMap.entries()).map(([id, r]) => [id, r.score])
+    );
+    degrees = new Map(
+      degreeRows.map((r) => [r.target_id, r.degrees])
     );
   }
 
@@ -105,6 +113,12 @@ export async function GET() {
     avatar_url: u.avatar_url,
     phone_last4: u.phone_number ? u.phone_number.slice(-4) : null,
     one_degree_score: scores.get(u.id) ?? 0,
+    // Actual hop count from the real signed-in admin to this test user
+    // over the vouch graph. 0 = self, 1 = direct vouch, 4+ capped.
+    // null = no path within 4 hops. Shown in the switcher as "1°" /
+    // "2°" / "3°" / "4°" / "—" so Loren can pick a real 2° user to
+    // test trust gating instead of guessing.
+    degrees_from_viewer: degrees.get(u.id) ?? null,
     tags: roleTags(u as TestUserRow, hostIds),
   }));
 

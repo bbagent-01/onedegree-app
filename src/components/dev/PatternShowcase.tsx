@@ -98,14 +98,14 @@ export function PatternShowcase() {
                 id="vouch-dialog-desc"
                 className="mt-1 text-sm text-muted-foreground"
               >
-                Standard or inner circle? You can change this later.
+                Vouch or Vouch+? You can change this later.
               </p>
               <div className="mt-4 flex flex-col gap-2">
                 <Button variant="outline" className="justify-start">
-                  Standard vouch · 15 base points
+                  Vouch · 15 base points
                 </Button>
                 <Button variant="outline" className="justify-start">
-                  Inner circle · 25 base points
+                  Vouch+ · 25 base points
                 </Button>
               </div>
               <div className="mt-5 flex justify-end gap-2">

@@ -17,17 +17,22 @@ import {
   type YearsKnownBucketAny,
 } from "@/lib/trust/years-known-labels";
 
+// Display labels were reworded in S8 ("Vouch"/"Vouch+") — the internal
+// enum values stay `standard` / `inner_circle` everywhere (migrations,
+// queries, RPC params) because a full rename would touch ~50+ sites
+// with no functional change. All user-facing copy flows through these
+// `label` + `description` fields.
 export const VOUCH_TYPES = [
   {
     value: "standard" as const,
-    label: "Standard",
-    description: "I know them and would trust them in my home",
+    label: "Vouch",
+    description: "I know them",
     basePoints: 15,
   },
   {
     value: "inner_circle" as const,
-    label: "Inner Circle",
-    description: "They're basically family",
+    label: "Vouch+",
+    description: "I know them very well",
     basePoints: 25,
   },
 ] as const;

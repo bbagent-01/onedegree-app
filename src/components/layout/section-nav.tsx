@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Home, Luggage, Users, MessageCircle, Sparkles } from "lucide-react";
@@ -77,6 +78,25 @@ const items: NavItem[] = [
 export function SectionNav() {
   const pathname = usePathname() || "/";
   const sp = useSearchParams();
+  // Network-item vouch-back nudge count. Fetched client-side so we
+  // don't tax every server render on this shared-nav component.
+  // Refreshes on route change so landing on /dashboard?tab=network
+  // (which clears or updates the set) reflects immediately.
+  const [vouchBackCount, setVouchBackCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/vouch-back/count", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { count: 0 }))
+      .then((d) => {
+        if (!cancelled) setVouchBackCount(Number(d?.count ?? 0));
+      })
+      .catch(() => {
+        if (!cancelled) setVouchBackCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, sp]);
 
   return (
     <nav
@@ -87,6 +107,10 @@ export function SectionNav() {
         {items.map((item) => {
           const active = item.isActive(pathname, sp);
           const Icon = item.icon;
+          const showNetworkBadge =
+            item.key === "network" &&
+            typeof vouchBackCount === "number" &&
+            vouchBackCount > 0;
           return (
             <li key={item.key}>
               <Link
@@ -100,6 +124,21 @@ export function SectionNav() {
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
+                {showNetworkBadge && (
+                  <span
+                    aria-label={`${vouchBackCount} unanswered ${
+                      vouchBackCount === 1 ? "vouch" : "vouches"
+                    }`}
+                    className={cn(
+                      "inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none tabular-nums",
+                      active
+                        ? "bg-background text-foreground"
+                        : "bg-brand text-white"
+                    )}
+                  >
+                    {vouchBackCount}
+                  </span>
+                )}
               </Link>
             </li>
           );

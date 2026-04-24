@@ -1,6 +1,7 @@
 import { DesktopNav } from "@/components/layout/desktop-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Footer } from "@/components/layout/footer";
+import { VouchBackToaster } from "@/components/trust/vouch-back-toaster";
 
 // ALPHA ONLY (CC-Dev1): compile-time gate. `NEXT_PUBLIC_*` env vars
 // are inlined by Next.js at build time, so when this evaluates to
@@ -50,6 +51,7 @@ export default async function AppLayout({
       </main>
       <Footer />
       <MobileNav />
+      <VouchBackToaster />
       {impersonationMount}
       {sandboxMount}
     </div>

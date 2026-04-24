@@ -467,8 +467,8 @@ export function VouchModal({
             </Link>
           </h3>
           <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-sm">
-            <span className="capitalize">
-              {vouchType === "inner_circle" ? "Inner Circle" : "Standard"}
+            <span>
+              {vouchType === "inner_circle" ? "Vouch+" : "Vouch"}
             </span>
             <span className="text-muted-foreground">&middot;</span>
             <span>{yearsKnownLabel(yearsKnown)}</span>

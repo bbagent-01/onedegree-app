@@ -663,7 +663,7 @@ function FormsSection() {
           <State label="disabled">
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <input type="checkbox" disabled className="h-4 w-4 rounded border-2" />
-              Requires Inner Circle
+              Requires Vouch+
             </label>
           </State>
           <State label="error">
@@ -685,8 +685,8 @@ function FormsSection() {
         <State label="vouch type">
           <fieldset className="w-full space-y-2">
             {[
-              ["standard", "Standard", "15 base points"],
-              ["inner_circle", "Inner circle", "25 base points"],
+              ["standard", "Vouch", "15 base points"],
+              ["inner_circle", "Vouch+", "25 base points"],
               ["platform_met", "Platform-met", "0.4× multiplier (post-stay)"],
             ].map(([val, label, blurb], i) => (
               <label
