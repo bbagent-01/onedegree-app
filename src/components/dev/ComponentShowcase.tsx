@@ -963,7 +963,7 @@ function TripsSection() {
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {([
             ["Pending", "amber", "Confirm with host on Venmo"],
-            ["Accepted", "emerald", "Trip Jun 12–18 · Confirmed"],
+            ["Accepted", "emerald", "Trip Jun 12–18 · Connected"],
             ["Declined", "zinc", "Host wasn't available — try other dates"],
             ["Completed", "brand", "Leave a review for Sarah"],
           ] as const).map(([label, tone, sub]) => (
@@ -1196,7 +1196,7 @@ function TermsOfferedCardMock({
             </div>
             <div className="min-w-0">
               <div className="text-sm font-semibold text-emerald-900">
-                Reservation confirmed
+                You&rsquo;re connected
               </div>
               <div className="text-xs text-emerald-800/80">
                 You accepted these terms on Apr 20, 2026.
@@ -1210,7 +1210,7 @@ function TermsOfferedCardMock({
             </p>
             <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm">
               <Check className="h-4 w-4" />
-              Accept terms &amp; confirm reservation
+              Accept terms &amp; connect
             </button>
           </div>
         ))}
@@ -1232,7 +1232,7 @@ function TermsAcceptedCardMock() {
         </div>
         <div className="min-w-0">
           <div className="text-sm font-semibold text-emerald-900">
-            Reservation confirmed
+            You&rsquo;re connected
           </div>
           <div className="text-xs text-emerald-800/80">
             Loren accepted these terms on Apr 20, 2026 · Jun 12–15 · 2 guests
@@ -1483,7 +1483,7 @@ function TimelineSection() {
       label: "Terms accepted",
       status: "done",
       at: "2026-04-13T17:40:00Z",
-      detail: "Reservation confirmed · $545",
+      detail: "You're connected · $545",
     },
     {
       key: "payment",

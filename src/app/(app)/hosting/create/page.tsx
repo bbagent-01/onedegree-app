@@ -1449,7 +1449,7 @@ function Step7Preview({
   }[] = [
     { key: "previewShowTitle", label: "Listing title", desc: "If off, shows a generic label like \u201CPrivate listing in [area]\u201D" },
     { key: "previewShowPriceRange", label: "Price range", desc: "$min–$max / night" },
-    { key: "previewShowHostFirstName", label: "Your first name", desc: "If off, shows \"a verified member\"" },
+    { key: "previewShowHostFirstName", label: "Your first name", desc: "If off, shows \"a 1\u00b0 B&B member\"" },
     { key: "previewShowProfilePhoto", label: "Profile photo", desc: "Your avatar next to the listing" },
     { key: "previewShowNeighborhood", label: "Neighborhood", desc: "City and area name" },
     { key: "previewShowMapArea", label: "Approximate map area", desc: "Blurred radius, no exact pin" },
@@ -1831,7 +1831,7 @@ function ListingTileMock({
       ? viewer.firstName
         ? `Hosted by ${viewer.firstName}`
         : "Hosted by you"
-      : "Hosted by a verified member"
+      : "Hosted by a 1\u00b0 B&B member"
     : viewer.fullName
       ? `Hosted by ${viewer.fullName}`
       : "Hosted by you";
@@ -2029,7 +2029,7 @@ function ListingDetailMock({
                       ? viewer.firstName
                         ? `Hosted by ${viewer.firstName}`
                         : "Hosted by you"
-                      : "Hosted by a verified member"
+                      : "Hosted by a 1\u00b0 B&B member"
                     : viewer.fullName
                       ? `Hosted by ${viewer.fullName}`
                       : "Hosted by you"}
@@ -2276,7 +2276,7 @@ function ListingDetailMock({
                   {isPreview
                     ? show("previewShowHostFirstName")
                       ? viewer.firstName || "You"
-                      : "Verified member"
+                      : "1\u00b0 B&B member"
                     : viewer.fullName || "You"}
                 </div>
               </div>

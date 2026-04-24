@@ -30,7 +30,7 @@ interface PageProps {
 function statusBadge(status: string) {
   const map: Record<string, { label: string; className: string }> = {
     pending: { label: "Pending", className: "bg-amber-100 text-amber-800 hover:bg-amber-100" },
-    accepted: { label: "Confirmed", className: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" },
+    accepted: { label: "Connected", className: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" },
     declined: { label: "Declined", className: "bg-red-100 text-red-800 hover:bg-red-100" },
     cancelled: { label: "Cancelled", className: "bg-zinc-100 text-zinc-700 hover:bg-zinc-100" },
   };

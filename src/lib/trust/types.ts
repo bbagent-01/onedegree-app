@@ -91,7 +91,7 @@ export interface PreviewContentSettings {
   show_price_range?: boolean;
   /** Show preview description (or truncated full description) */
   show_description?: boolean;
-  /** Show host first name (otherwise "Hosted by a verified member") */
+  /** Show host first name (otherwise "Hosted by a 1° B&B member") */
   show_host_first_name?: boolean;
   /** Show host profile photo (otherwise a silhouette placeholder) */
   show_profile_photo?: boolean;

@@ -14,7 +14,7 @@ export function EarningsSection({
     <section>
       <h2 className="text-xl font-semibold text-foreground">Earnings</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Estimated from confirmed stays. Final payouts depend on your payment method.
+        Estimated from connected stays. Final payouts depend on your payment method.
       </p>
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-white p-5 shadow-sm">
@@ -56,7 +56,7 @@ export function EarningsSection({
             {fmt(earnings.pending)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Upcoming confirmed stays
+            Upcoming connected stays
           </p>
         </div>
       </div>

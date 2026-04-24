@@ -16,7 +16,7 @@ export const FAQS: FaqItem[] = [
   },
   {
     q: "How do bookings work?",
-    a: "Guests send a booking request with their dates and guest count. Hosts review the request and either accept, decline, or message the guest first. Once accepted, the stay is confirmed.",
+    a: "Guests send a request with their dates and guest count. Hosts review the request and either accept, decline, or message the guest first. Once both sides accept the terms, you're connected for the stay and coordinate check-in directly.",
   },
   {
     q: "How do I contact a host?",

@@ -220,7 +220,7 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
         : "upcoming",
     at: terms_accepted_at ?? null,
     detail: termsAccepted
-      ? "Reservation confirmed"
+      ? "You're connected"
       : isAccepted
         ? viewer_role === "guest"
           ? "Your turn — accept the offered terms"
@@ -251,7 +251,7 @@ export function resolveStages(input: ResolveInput): TimelineStage[] {
       let detail: string | null;
       if (ev.status === "confirmed") {
         status = "done";
-        detail = "Confirmed";
+        detail = "Received";
       } else if (ev.status === "waived") {
         status = "done";
         detail = "Waived";

@@ -1100,7 +1100,7 @@ export function EditListingForm({
                 ["show_title", "Listing title", "Full title of your listing"],
                 ["show_price_range", "Price range", "$min–$max / night"],
                 ["show_description", "Description", "Your preview description (or first 100 chars)"],
-                ["show_host_first_name", "Your first name", "If off, shows \"a verified member\""],
+                ["show_host_first_name", "Your first name", "If off, shows \"a 1\u00b0 B&B member\""],
                 ["show_profile_photo", "Profile photo", "Your avatar next to the listing"],
                 ["show_neighborhood", "Neighborhood", "City and area name"],
                 ["show_map_area", "Approximate map area", "Blurred radius, no exact pin"],

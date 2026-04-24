@@ -301,7 +301,7 @@ export function AvailabilityEditor({ listingId, defaultPrice }: Props) {
                 )}
                 {status === "booked" && (
                   <span className="text-[9px] font-semibold uppercase text-brand">
-                    Booked
+                    Stay
                   </span>
                 )}
               </button>
@@ -342,7 +342,7 @@ export function AvailabilityEditor({ listingId, defaultPrice }: Props) {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-3.5 w-3.5 rounded border border-brand/30 bg-brand/10" />
-                  Booked
+                  Stay
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-3.5 w-3.5 rounded border border-brand bg-brand/20" />

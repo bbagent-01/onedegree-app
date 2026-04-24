@@ -214,7 +214,7 @@ export function GatedListingView({
               />
               <div className="min-w-0 flex-1">
                 <div className="text-lg font-semibold">
-                  Hosted by a verified member
+                  Hosted by a 1&deg; B&amp;B member
                 </div>
                 {trust && listing.host?.id && (
                   <div className="mt-1">

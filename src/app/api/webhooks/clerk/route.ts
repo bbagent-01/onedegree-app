@@ -4,6 +4,34 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { computeAge } from "@/lib/age";
+
+/**
+ * Delete a Clerk user via the Backend API. Used as a belt-and-suspenders
+ * age gate: if the signup UI was bypassed and a user without a valid
+ * 18+ DOB landed in Clerk, we wipe the account here so it never gets
+ * mirrored into our DB.
+ */
+async function deleteClerkUser(userId: string): Promise<void> {
+  const secret = process.env.CLERK_SECRET_KEY;
+  if (!secret) {
+    console.error("[clerk-webhook] missing CLERK_SECRET_KEY; cannot delete user", userId);
+    return;
+  }
+  try {
+    const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    if (!res.ok) {
+      console.error(
+        `[clerk-webhook] failed to delete user ${userId}: ${res.status} ${await res.text()}`
+      );
+    }
+  } catch (e) {
+    console.error(`[clerk-webhook] exception deleting user ${userId}:`, e);
+  }
+}
 
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -38,6 +66,39 @@ export async function POST(req: Request) {
 
   if (evt.type === "user.created" || evt.type === "user.updated") {
     const { id, email_addresses, first_name, last_name, image_url, phone_numbers } = evt.data;
+
+    // Legal pack §04.7 belt-and-suspenders age gate. The signup UI
+    // enforces the same check client-side, but if someone got a raw
+    // Clerk account created (e.g. Clerk dashboard, API call) with an
+    // under-18 DOB we refuse to mirror them and delete the Clerk row
+    // outright. Legacy users without DOB metadata (pre-S9b) pass
+    // through — we don't retroactively deny them.
+    if (evt.type === "user.created") {
+      const unsafeMetadata = (evt.data as { unsafe_metadata?: Record<string, unknown> })
+        .unsafe_metadata;
+      const dobYear =
+        typeof unsafeMetadata?.dob_year === "number" ? unsafeMetadata.dob_year : null;
+      const dobMonth =
+        typeof unsafeMetadata?.dob_month === "number" ? unsafeMetadata.dob_month : null;
+      if (dobYear !== null && dobMonth !== null) {
+        const age = computeAge(dobYear, dobMonth);
+        if (age < 13) {
+          console.warn(
+            `[clerk-webhook] COPPA block: deleting user ${id} with age ${age} (DOB ${dobYear}-${dobMonth})`
+          );
+          await deleteClerkUser(id);
+          return new Response("Under 13 — user deleted (COPPA)", { status: 200 });
+        }
+        if (age < 18) {
+          console.warn(
+            `[clerk-webhook] age gate: deleting user ${id} with age ${age} (DOB ${dobYear}-${dobMonth})`
+          );
+          await deleteClerkUser(id);
+          return new Response("Under 18 — user deleted", { status: 200 });
+        }
+      }
+    }
+
     const email = email_addresses?.[0]?.email_address;
     const name = [first_name, last_name].filter(Boolean).join(" ") || "User";
     // Only mirror phones that are actually verified. An unverified

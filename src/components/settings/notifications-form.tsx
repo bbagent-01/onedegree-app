@@ -22,8 +22,8 @@ const ITEMS: { key: keyof Prefs; title: string; description: string }[] = [
   },
   {
     key: "booking_confirmed",
-    title: "Booking confirmed",
-    description: "When a host accepts your reservation request.",
+    title: "You're connected",
+    description: "When a host accepts your request and you're connected for a stay.",
   },
   {
     key: "booking_declined",

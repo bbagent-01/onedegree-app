@@ -84,7 +84,7 @@ function statusLabel(
   // awaiting guest confirmation).
   if (s === "accepted") {
     return termsAcceptedAt
-      ? { label: "Confirmed", tone: "accepted" }
+      ? { label: "Connected", tone: "accepted" }
       : { label: "Pending", tone: "pending" };
   }
   if (s === "declined") return { label: "Declined", tone: "declined" };

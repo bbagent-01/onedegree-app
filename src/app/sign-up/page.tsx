@@ -7,9 +7,10 @@ import { useSignUp } from "@clerk/nextjs/legacy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, LockKeyhole, Phone } from "lucide-react";
+import { ShieldCheck, LockKeyhole, Phone, Cake } from "lucide-react";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { computeAge } from "@/lib/age";
 
 const BIG_INPUT =
   "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
@@ -17,6 +18,7 @@ const XL_INPUT =
   "h-16 rounded-2xl border-2 border-border !bg-white px-5 text-xl font-semibold shadow-sm focus-visible:border-brand";
 
 type Step =
+  | "dob"
   | "phone"
   | "otp"
   | "account"
@@ -24,6 +26,13 @@ type Step =
   | "email_otp"
   | "email_phone"
   | "email_phone_otp";
+
+type BlockedReason = "under13" | "under18";
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
 // Suspense wrapper: useSearchParams() forces Next.js to either
 // dynamically render or wrap in Suspense. The build fails otherwise
@@ -48,7 +57,10 @@ function SignUpInner() {
   const params = useSearchParams();
   const redirectUrl = params.get("redirect_url") || "/browse";
 
-  const [step, setStep] = useState<Step>("phone");
+  const [step, setStep] = useState<Step>("dob");
+  const [dobMonth, setDobMonth] = useState<string>("");
+  const [dobYear, setDobYear] = useState<string>("");
+  const [blocked, setBlocked] = useState<BlockedReason | null>(null);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -63,11 +75,41 @@ function SignUpInner() {
   const phoneValid = parsed?.isValid() ?? false;
   const e164 = parsed?.format("E.164") ?? "";
 
+  const dobYearNum = Number(dobYear);
+  const dobMonthNum = Number(dobMonth);
+  const dobFilled = Boolean(dobYear) && Boolean(dobMonth);
+  const dobMetadata =
+    dobFilled && dobYearNum > 1900 && dobMonthNum >= 1 && dobMonthNum <= 12
+      ? { dob_year: dobYearNum, dob_month: dobMonthNum }
+      : null;
+
+  // Legal pack §04.7: signup is gated on a client-side age check. The
+  // webhook re-runs the check server-side (belt-and-suspenders) and
+  // deletes any Clerk user that slipped through without a qualifying
+  // age, so the data model stays consistent even if a determined
+  // attacker bypasses the client gate.
+  const proceedFromDob = () => {
+    if (!dobMetadata) return;
+    const age = computeAge(dobYearNum, dobMonthNum);
+    if (age < 13) {
+      setBlocked("under13");
+      return;
+    }
+    if (age < 18) {
+      setBlocked("under18");
+      return;
+    }
+    setStep("phone");
+  };
+
   const startPhone = async () => {
-    if (!isLoaded || !phoneValid) return;
+    if (!isLoaded || !phoneValid || !dobMetadata) return;
     setSaving(true);
     try {
-      await signUp.create({ phoneNumber: e164 });
+      await signUp.create({
+        phoneNumber: e164,
+        unsafeMetadata: dobMetadata,
+      });
       await signUp.preparePhoneNumberVerification();
       setStep("otp");
       toast.success("Code sent to " + parsed!.formatNational());
@@ -156,17 +198,20 @@ function SignUpInner() {
   // to the phone step).
   const [googleLoading, setGoogleLoading] = useState(false);
   const signUpWithGoogle = () => {
-    if (!isLoaded || googleLoading) return;
+    if (!isLoaded || googleLoading || !dobMetadata) return;
     setGoogleLoading(true);
     // rAF so React commits the spinner state before Clerk's
     // authenticateWithRedirect fires. Without it, the redirect can
     // start inside the same task and the spinner never paints.
+    // DOB survives the OAuth bounce via unsafeMetadata so the Clerk
+    // webhook can re-run the age check after the provider returns.
     requestAnimationFrame(() => {
       signUp
         .authenticateWithRedirect({
           strategy: "oauth_google",
           redirectUrl: "/sso-callback",
           redirectUrlComplete: redirectUrl,
+          unsafeMetadata: dobMetadata,
         })
         .catch((e: unknown) => {
           setGoogleLoading(false);
@@ -201,6 +246,7 @@ function SignUpInner() {
   const startEmailSignup = async () => {
     if (!isLoaded) return;
     if (!email.trim() || password.length < 8) return;
+    if (!dobMetadata) return;
     setSaving(true);
     try {
       await signUp.create({
@@ -208,6 +254,7 @@ function SignUpInner() {
         password,
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
+        unsafeMetadata: dobMetadata,
       });
       await signUp.prepareEmailAddressVerification({
         strategy: "email_code",
@@ -353,10 +400,20 @@ function SignUpInner() {
     );
   }
 
+  if (blocked) {
+    return <AgeBlocked reason={blocked} />;
+  }
+
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col px-4 py-8 md:py-16">
       <header className="text-center">
         <h1 className="text-3xl font-bold md:text-4xl">Create your account</h1>
+        {step === "dob" && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Before we start, we need to confirm you&rsquo;re old enough to use
+            1&deg; B&amp;B.
+          </p>
+        )}
         {step === "phone" && (
           <p className="mt-2 text-sm text-muted-foreground">
             1&deg; B&amp;B is invite-only and phone-first. One account per
@@ -366,6 +423,67 @@ function SignUpInner() {
       </header>
 
       <div className="mt-10 rounded-2xl border border-border bg-white p-6 md:p-8 shadow-sm">
+        {step === "dob" && (
+          <div>
+            <Label className="text-base font-semibold">Date of birth</Label>
+            <p className="mt-1 text-sm text-muted-foreground">
+              You must be 18 or older to use 1&deg; B&amp;B. We use your date
+              of birth solely to verify your age.
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="dob-month" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Month
+                </Label>
+                <select
+                  id="dob-month"
+                  value={dobMonth}
+                  onChange={(e) => setDobMonth(e.target.value)}
+                  className={`${BIG_INPUT} mt-1 appearance-none`}
+                >
+                  <option value="">Select month</option>
+                  {MONTHS.map((m, i) => (
+                    <option key={m} value={i + 1}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="dob-year" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Year
+                </Label>
+                <select
+                  id="dob-year"
+                  value={dobYear}
+                  onChange={(e) => setDobYear(e.target.value)}
+                  className={`${BIG_INPUT} mt-1 appearance-none`}
+                >
+                  <option value="">Select year</option>
+                  {yearOptions().map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mt-5 flex items-start gap-2 text-xs text-muted-foreground">
+              <Cake className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Day is not required and not stored.</span>
+            </div>
+            <Button
+              size="lg"
+              onClick={proceedFromDob}
+              disabled={!dobMetadata}
+              className="mt-6 h-14 w-full text-base"
+            >
+              Continue
+            </Button>
+            <SignInWrap />
+          </div>
+        )}
+
         {step === "phone" && (
           <div>
             <Label htmlFor="phone" className="text-base font-semibold">
@@ -815,6 +933,54 @@ function SignUpInner() {
           Sign in
         </Link>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Year dropdown covers roughly 13 to 120 years old so the gate still
+ * works for realistic ages without pre-filtering under-13 users. The
+ * age-check runs AFTER they pick — so a determined 10-year-old can
+ * still pick 2015 and land on the COPPA block message.
+ */
+function yearOptions(): number[] {
+  const now = new Date().getFullYear();
+  const earliest = now - 120;
+  const years: number[] = [];
+  for (let y = now; y >= earliest; y--) years.push(y);
+  return years;
+}
+
+/**
+ * Legal pack §04.7 hard-block. Rendered when the client-side age check
+ * fails (under 13 for COPPA; under 18 for the general age gate).
+ * Deliberately has no retry affordance — the user must reload the
+ * page or leave the tab. That matches the "no retry coaching" rule:
+ * we never hint at the age that would let them through.
+ */
+function AgeBlocked({ reason }: { reason: BlockedReason }) {
+  const [copy, heading] =
+    reason === "under13"
+      ? [
+          "1\u00b0 B&B is not available to children under 13. We will not collect further information from you.",
+          "We can\u2019t create an account for you",
+        ]
+      : [
+          "We\u2019re sorry \u2014 1\u00b0 B&B is only available to people 18 and older.",
+          "We can\u2019t create an account for you",
+        ];
+  return (
+    <div className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col items-center justify-center px-4 py-16 text-center">
+      <div className="w-full rounded-2xl border border-border bg-white p-8 shadow-sm">
+        <h1 className="text-2xl font-bold text-foreground">{heading}</h1>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          {copy}
+        </p>
+      </div>
+      <p className="mt-6 text-xs text-muted-foreground">
+        If you believe this is a mistake, close this tab and reach out to
+        support from another device.
+      </p>
     </div>
   );
 }

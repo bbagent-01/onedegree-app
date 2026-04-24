@@ -233,7 +233,7 @@ export async function emailBookingConfirmed(p: BookingPayload) {
     detailRow("Host", escapeHtml(p.hostName)) +
     detailRow("Listing", escapeHtml(p.listingTitle));
   const body = `
-    ${para(`Great news — <strong>${escapeHtml(p.hostName)}</strong> accepted your request to stay at <strong>${escapeHtml(p.listingTitle)}</strong>.`)}
+    ${para(`You&rsquo;re connected with <strong>${escapeHtml(p.hostName)}</strong> for a stay at <strong>${escapeHtml(p.listingTitle)}</strong>.`)}
     ${detailsTable(rows)}
     ${p.hostResponseMessage ? quoteBox(p.hostResponseMessage) : ""}
     ${para("You can message your host any time from your inbox to coordinate check-in details. Payment is handled directly between you and the host.")}
@@ -242,7 +242,7 @@ export async function emailBookingConfirmed(p: BookingPayload) {
   return send({
     to: guest,
     kind: "booking_confirmed",
-    subject: `Your stay at ${p.listingTitle} is confirmed`,
+    subject: `You're connected with ${p.hostName}`,
     html: wrap(`Hi ${firstName(guest.name)}!`, body),
   });
 }

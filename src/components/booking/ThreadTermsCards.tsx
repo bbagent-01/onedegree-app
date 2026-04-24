@@ -292,7 +292,7 @@ export function TermsOfferedCard({
       };
       if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`);
       setAcceptedAt(data.terms_accepted_at ?? new Date().toISOString());
-      toast.success("Terms accepted — reservation confirmed");
+      toast.success("Terms accepted — you're connected");
       router.refresh();
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
@@ -508,7 +508,7 @@ export function TermsOfferedCard({
             </div>
             <div className="min-w-0">
               <div className="text-sm font-semibold text-emerald-900">
-                Reservation confirmed
+                You&rsquo;re connected
               </div>
               <div className="text-xs text-emerald-800/80">
                 You accepted these terms on{" "}
@@ -569,12 +569,12 @@ export function TermsOfferedCard({
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Confirming…
+                    <Loader2 className="h-4 w-4 animate-spin" /> Connecting…
                   </>
                 ) : (
                   <>
                     <Check className="h-4 w-4" />
-                    Accept terms &amp; confirm reservation
+                    Accept terms &amp; connect
                   </>
                 )}
               </button>
@@ -625,7 +625,7 @@ export function TermsOfferedCard({
           </div>
           <div className="min-w-0">
             <div className="text-sm font-semibold text-emerald-900">
-              Reservation confirmed
+              You&rsquo;re connected
             </div>
             <div className="text-xs text-emerald-800/80">
               {guestFirstName} accepted these terms on{" "}
@@ -787,7 +787,7 @@ export function TermsAcceptedCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-emerald-900">
-            Reservation confirmed
+            You&rsquo;re connected
           </div>
           <div className="mt-0.5 text-xs text-emerald-800/80">
             {guestFirstName} accepted the terms on{" "}
