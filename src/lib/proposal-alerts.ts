@@ -326,7 +326,7 @@ async function sendAlertEmail(
         <p style="margin:0 0 24px;padding:16px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;color:#1A1D21;font-size:15px;">
           <strong>${escapeHtml(args.authorName)}</strong> posted: ${escapeHtml(args.title)}
         </p>
-        <p style="margin:0;"><a href="${args.link}" style="display:inline-block;padding:12px 20px;background:#1A1D21;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View on 1° B&amp;B</a></p>
+        <p style="margin:0;"><a href="${args.link}" style="display:inline-block;padding:12px 20px;background:#1A1D21;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">View on Trustead</a></p>
       </td></tr>
     </table>
   </td></tr>

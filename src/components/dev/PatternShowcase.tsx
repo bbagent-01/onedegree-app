@@ -250,7 +250,7 @@ export function PatternShowcase() {
             You&apos;re the first in your network
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            1° B&amp;B works by personal trust. Start by inviting two people who
+            Trustead works by personal trust. Start by inviting two people who
             know you well — they&apos;ll vouch for you and your network opens up.
           </p>
           <div className="mt-4 flex justify-center gap-2">

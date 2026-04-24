@@ -169,7 +169,7 @@ export function ReserveReviewDialog({
             </dl>
             <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
               Payment arranged directly with {hostFirstName} after they
-              confirm — 1&deg; B&amp;B doesn&rsquo;t process payments.
+              confirm — Trustead doesn&rsquo;t process payments.
             </p>
           </div>
 

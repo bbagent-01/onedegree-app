@@ -411,12 +411,12 @@ function SignUpInner() {
         {step === "dob" && (
           <p className="mt-2 text-sm text-muted-foreground">
             Before we start, we need to confirm you&rsquo;re old enough to use
-            1&deg; B&amp;B.
+            Trustead.
           </p>
         )}
         {step === "phone" && (
           <p className="mt-2 text-sm text-muted-foreground">
-            1&deg; B&amp;B is invite-only and phone-first. One account per
+            Trustead is invite-only and phone-first. One account per
             number.
           </p>
         )}
@@ -427,7 +427,7 @@ function SignUpInner() {
           <div>
             <Label className="text-base font-semibold">Date of birth</Label>
             <p className="mt-1 text-sm text-muted-foreground">
-              You must be 18 or older to use 1&deg; B&amp;B. We use your date
+              You must be 18 or older to use Trustead. We use your date
               of birth solely to verify your age.
             </p>
             <div className="mt-4 grid grid-cols-2 gap-3">
@@ -521,7 +521,7 @@ function SignUpInner() {
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
               <div>
                 <strong className="block text-base">
-                  Your phone is your identity on 1&deg; B&amp;B.
+                  Your phone is your identity on Trustead.
                 </strong>
                 <span className="text-sm leading-snug">
                   We&rsquo;ll never share or sell it, or send marketing
@@ -822,7 +822,7 @@ function SignUpInner() {
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
               <div>
                 <strong className="block text-base">
-                  Your phone is your identity on 1&deg; B&amp;B.
+                  Your phone is your identity on Trustead.
                 </strong>
                 <span className="text-sm leading-snug">
                   We&rsquo;ll never share or sell it, or send marketing
@@ -962,11 +962,11 @@ function AgeBlocked({ reason }: { reason: BlockedReason }) {
   const [copy, heading] =
     reason === "under13"
       ? [
-          "1\u00b0 B&B is not available to children under 13. We will not collect further information from you.",
+          "Trustead is not available to children under 13. We will not collect further information from you.",
           "We can\u2019t create an account for you",
         ]
       : [
-          "We\u2019re sorry \u2014 1\u00b0 B&B is only available to people 18 and older.",
+          "We\u2019re sorry \u2014 Trustead is only available to people 18 and older.",
           "We can\u2019t create an account for you",
         ];
   return (

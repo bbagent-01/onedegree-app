@@ -471,7 +471,7 @@
       },
       "entry_points": [
         "Nav link from (app) layout ('Invite')",
-        "Button from /vouch ('Invite them to 1\u00b0 B&B')",
+        "Button from /vouch ('Invite them to Trustead')",
         "Direct /invite URL",
         "Dashboard network tab ('Invite someone')"
       ],

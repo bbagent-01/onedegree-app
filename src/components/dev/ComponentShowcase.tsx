@@ -818,7 +818,7 @@ function NavSection() {
       >
         <div className="w-full rounded-xl border bg-white p-4">
           <div className="flex items-center gap-6">
-            <div className="text-lg font-semibold text-brand">1° BNB</div>
+            <div className="text-lg font-semibold text-brand">Trustead</div>
             <nav className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className="cursor-pointer hover:text-foreground">Browse</span>
               <span className="cursor-pointer hover:text-foreground">Inbox</span>
@@ -2386,7 +2386,7 @@ function ListingDetailMock({
               {isGated ? "Request intro" : "Contact host"}
             </Button>
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
-              1° B&amp;B doesn&apos;t process payments.
+              Trustead doesn&apos;t process payments.
             </p>
           </div>
         </div>
@@ -2771,7 +2771,7 @@ function PageShell({
           mobile ? "px-4 py-3" : "px-20 py-3"
         }`}
       >
-        <div className="text-sm font-semibold text-brand">1° B&amp;B</div>
+        <div className="text-sm font-semibold text-brand">Trustead</div>
         {!mobile ? (
           <nav className="flex items-center gap-6 text-sm text-muted-foreground">
             <span>Browse</span>

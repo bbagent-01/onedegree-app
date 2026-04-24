@@ -115,7 +115,7 @@ export function CancelTripDialog({
             )}
 
             <p className="mt-2 text-[11px] leading-relaxed text-amber-900/70">
-              1° B&amp;B doesn&apos;t process payments or manage refunds.
+              Trustead doesn&apos;t process payments or manage refunds.
               Final amount is settled directly between you and your host.
             </p>
           </div>

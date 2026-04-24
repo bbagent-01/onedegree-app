@@ -24,7 +24,7 @@ export default function ErrorPage({
             href="/browse"
             className="text-sm font-semibold tracking-tight text-foreground"
           >
-            1&deg; B&amp;B
+            Trustead
           </Link>
         </div>
       </header>

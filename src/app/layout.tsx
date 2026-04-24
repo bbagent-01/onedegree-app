@@ -9,7 +9,15 @@ const SITE_DESCRIPTION =
   "Stay with people you trust. Private home stays through trusted personal networks.";
 const OG_IMAGE = "/trustead-og.svg";
 
+// Absolute base for metadata URL resolution so social unfurls (og:image,
+// twitter:image) don't fall back to the build-time localhost. Prefer the
+// NEXT_PUBLIC_APP_URL the rest of the app uses; fall back to the live
+// alpha-c host so previews still resolve in dev.
+const SITE_URL =
+  process.env.NEXT_PUBLIC_APP_URL || "https://alpha-c.onedegreebnb.com";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: SITE_NAME,
   description: SITE_DESCRIPTION,
   icons: {

@@ -464,7 +464,7 @@ export default async function ListingPage({
               <div className="rounded-xl border border-border p-4">
                 <p className="mb-3 text-sm text-muted-foreground">
                   Once your stay is approved, you&apos;ll see the host&apos;s
-                  handle to pay directly. 1° B&amp;B doesn&apos;t process
+                  handle to pay directly. Trustead doesn&apos;t process
                   payments.
                 </p>
                 <div className="flex flex-wrap gap-2">

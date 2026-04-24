@@ -47,7 +47,7 @@ export function LegalPageShell({
             href="/browse"
             className="text-sm font-semibold tracking-tight text-foreground"
           >
-            1&deg; B&amp;B
+            Trustead
           </Link>
           <Link
             href="/browse"

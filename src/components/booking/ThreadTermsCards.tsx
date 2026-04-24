@@ -431,7 +431,7 @@ export function TermsOfferedCard({
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
             Payment happens directly between you and {hostFirstName}.
-            1° B&amp;B doesn&apos;t process payments.
+            Trustead doesn&apos;t process payments.
           </p>
         </div>
       )}
@@ -526,7 +526,7 @@ export function TermsOfferedCard({
             <p className="text-xs text-muted-foreground">
               Accepting confirms you&apos;ve read and agree to these terms.
               Payment and refunds happen directly with {hostFirstName} —
-              1° B&amp;B doesn&apos;t process payments.
+              Trustead doesn&apos;t process payments.
             </p>
             {/* Guest actions — two secondary buttons on top (Decline
                 + Request edits) with the primary Accept button on its

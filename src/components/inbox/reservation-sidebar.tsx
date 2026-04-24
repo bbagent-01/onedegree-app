@@ -345,7 +345,7 @@ export function ReservationSidebar({ thread, onClose }: Props) {
               </div>
               <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                 Payment happens directly between you and{" "}
-                {other_user.name.split(" ")[0]}. 1° B&amp;B doesn&apos;t
+                {other_user.name.split(" ")[0]}. Trustead doesn&apos;t
                 process payments.
               </p>
             </div>

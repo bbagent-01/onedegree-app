@@ -91,7 +91,7 @@ export function ListingCancellationOverride({
     <div className="space-y-6">
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm font-semibold text-amber-900">
-          1° B&amp;B doesn&apos;t process payments or manage refunds.
+          Trustead doesn&apos;t process payments or manage refunds.
         </p>
         <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
           This listing can use your host default, or an override that

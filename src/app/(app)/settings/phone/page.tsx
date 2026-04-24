@@ -140,7 +140,7 @@ export default function PhoneSettingsPage() {
         <h1 className="text-2xl font-semibold md:text-3xl">Phone number</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Your phone is how friends find you when they vouch or send an intro.
-          It&rsquo;s also your primary identifier on 1° B&amp;B — one account
+          It&rsquo;s also your primary identifier on Trustead — one account
           per number.
         </p>
       </header>

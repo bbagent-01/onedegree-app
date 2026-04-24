@@ -149,7 +149,7 @@ function ReservationCard({
                 {reservation.guest_name.split(" ")[0]}
               </div>
               <div className="mt-0.5 text-muted-foreground">
-                1° B&amp;B doesn&rsquo;t process payments. Collect via your
+                Trustead doesn&rsquo;t process payments. Collect via your
                 preferred method.
               </div>
             </div>
