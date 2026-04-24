@@ -592,7 +592,7 @@ export function ThreadView({
                         tone="amber"
                         emphasizeBody
                         title={`${asker} requested edits to the stay terms`}
-                        subtitle="See the reply below for what they want changed."
+                        subtitle="See below for changes requested."
                       />
                     </div>
                   );

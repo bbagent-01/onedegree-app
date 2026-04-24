@@ -518,39 +518,43 @@ export function TermsOfferedCard({
               Payment and refunds happen directly with {hostFirstName} —
               1° B&amp;B doesn&apos;t process payments.
             </p>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setDeclineOpen(true)}
-                disabled={submitting}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60 sm:w-auto"
-              >
-                <X className="h-4 w-4" />
-                Decline
-              </button>
-              {/* S7 Task 4 — middle secondary action. Opens a free-
-                  text reply prefilled with "Requested edits on terms: "
-                  and flags edits_requested_* so the host sees the ask
-                  on their Edit button. */}
-              <button
-                type="button"
-                onClick={requestEdits}
-                disabled={submitting || requestingEdits}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-amber-300 bg-white px-4 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-50 disabled:opacity-60 sm:w-auto"
-              >
-                {requestingEdits ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <MessageSquare className="h-4 w-4" />
-                )}
-                Request edits
-              </button>
+            {/* Guest actions — two secondary buttons on top (Decline
+                + Request edits) with the primary Accept button on its
+                own row below, full-width. Keeps "Accept terms &
+                confirm reservation" on one line instead of wrapping
+                when it has to share a row with two siblings. */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeclineOpen(true)}
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                >
+                  <X className="h-4 w-4" />
+                  Decline
+                </button>
+                {/* S7 Task 4 — secondary ask-for-edits action. */}
+                <button
+                  type="button"
+                  onClick={requestEdits}
+                  disabled={submitting || requestingEdits}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-amber-300 bg-white px-4 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-50 disabled:opacity-60"
+                >
+                  {requestingEdits ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MessageSquare className="h-4 w-4" />
+                  )}
+                  Request edits
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={accept}
                 disabled={submitting}
                 className={cn(
-                  "inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-60"
+                  "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:opacity-60"
                 )}
               >
                 {submitting ? (

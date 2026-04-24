@@ -7,8 +7,7 @@ import {
   getThreadDetail,
 } from "@/lib/messaging-data";
 import { InboxList } from "@/components/inbox/inbox-list";
-import { ThreadView } from "@/components/inbox/thread-view";
-import { ReservationSidebar } from "@/components/inbox/reservation-sidebar";
+import { ThreadDetailShell } from "@/components/inbox/thread-detail-shell";
 import { SectionNav } from "@/components/layout/section-nav";
 
 export const runtime = "edge";
@@ -68,19 +67,16 @@ export default async function ThreadPage({ params }: PageProps) {
             selectedId={threadId}
           />
         </div>
-        {/* Thread — full width on mobile, middle column on desktop */}
-        <div className="flex flex-col overflow-hidden">
-          <ThreadView
-            thread={thread}
-            currentUserId={currentUser.id}
-            currentUserName={currentUser.name || ""}
-            currentUserAvatar={currentUser.avatar_url}
-          />
-        </div>
-        {/* Reservation sidebar — xl+ only. */}
-        <div className="hidden xl:flex xl:flex-col xl:overflow-hidden">
-          <ReservationSidebar thread={thread} currentUserId={currentUser.id} />
-        </div>
+        {/* Thread + reservation sidebar live inside a client shell so
+            nested cards' `inbox:thread-refresh` event re-fetches the
+            thread and the sidebar/header chips catch up without a
+            manual page reload. */}
+        <ThreadDetailShell
+          initialThread={thread}
+          currentUserId={currentUser.id}
+          currentUserName={currentUser.name || ""}
+          currentUserAvatar={currentUser.avatar_url}
+        />
       </div>
       </div>
     </>

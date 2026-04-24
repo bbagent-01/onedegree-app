@@ -344,25 +344,25 @@ export function HostReviewTermsInline({
               />
             </FieldLabel>
             <FieldLabel label="Guests">
-              <div className="flex h-11 items-center gap-2 rounded-lg border-2 border-border bg-white px-2 shadow-sm">
+              <div className="flex h-14 items-center gap-2 rounded-xl border-2 border-border bg-white px-3 shadow-sm">
                 <button
                   type="button"
                   onClick={() => setLocalGuests((g) => Math.max(1, g - 1))}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-muted"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
                   aria-label="Decrease guests"
                 >
-                  <Minus className="h-3.5 w-3.5" />
+                  <Minus className="h-4 w-4" />
                 </button>
-                <span className="flex-1 text-center text-sm font-semibold">
+                <span className="flex-1 text-center text-base font-semibold">
                   {localGuests}
                 </span>
                 <button
                   type="button"
                   onClick={() => setLocalGuests((g) => g + 1)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-muted"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
                   aria-label="Increase guests"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-4 w-4" />
                 </button>
               </div>
             </FieldLabel>
@@ -651,8 +651,12 @@ export function HostReviewTermsInline({
 
 // ── Local primitives ────────────────────────────────────────────
 
+// Matches the listing-creation form-field pattern (h-14, rounded-xl,
+// border-2, !bg-white, px-4, shadow-sm, font-medium) so the Trip /
+// Total edit fields don't stick out vs the rest of the app's forms.
+// Loren's memory: all form fields follow this shape.
 const INPUT_CLS =
-  "h-11 w-full rounded-lg border-2 border-border !bg-white px-3 text-sm font-medium shadow-sm focus:border-foreground focus:outline-none";
+  "h-14 w-full rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus:border-foreground focus:outline-none";
 
 function Section({
   icon: Icon,
@@ -734,7 +738,7 @@ function PriceInput({
 }) {
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base font-medium text-muted-foreground">
         $
       </span>
       <input
@@ -743,7 +747,7 @@ function PriceInput({
         step="1"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`${INPUT_CLS} pl-7`}
+        className={`${INPUT_CLS} pl-8`}
       />
     </div>
   );
