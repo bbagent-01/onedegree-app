@@ -234,6 +234,13 @@ export function IntroRequestCard({
       else if (action === "decline") toast.success("Intro declined");
       else if (action === "reopen") toast.success("Intro reopened");
       router.refresh();
+      // Fire the shared inbox refresh event so InboxShell (list view)
+      // and ThreadDetailShell (/inbox/[id] route) re-fetch the thread.
+      // Without this the card still shows the pre-action state until
+      // the user reloads or clicks away.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+      }
     } catch {
       toast.error("Network error");
     } finally {
@@ -290,6 +297,9 @@ export function IntroRequestCard({
       setRevokeDialogOpen(false);
       setRevokeReason("");
       router.refresh();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("inbox:thread-refresh"));
+      }
     } catch {
       toast.error("Network error");
     } finally {
