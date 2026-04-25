@@ -13,11 +13,11 @@ import { getSupabaseAdmin } from "./supabase";
 // onedegreebnb.com sending domain until staytrustead.com is verified
 // with Resend (infra task — see S9 backlog). Recipients see
 // "Trustead" in their inbox sender column regardless.
-const FROM = "Trustead <notifications@onedegreebnb.com>";
+const FROM = "Trustead <hello@staytrustead.com>";
 // Replies route back to a real mailbox so anyone hitting Reply still
 // reaches a human while we're in alpha. Future: parse inbound replies via
 // Resend's Inbound API and post them as messages into the originating thread.
-const REPLY_TO = "loren@onedegreebnb.com";
+const REPLY_TO = "hello@staytrustead.com";
 const APP_BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL || "https://alpha-b.onedegreebnb.com";
 
