@@ -243,16 +243,59 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
     proposal.row.flexible_month ||
     "Anywhere";
 
-  // Deterministic gradient from the proposal id so each wish has its
-  // own visual identity but doesn't flicker across renders. Six palettes
-  // cover warm / cool / tropical / city vibes.
+  const thumb = proposal.row.thumbnail_url;
+  const fromUnsplash =
+    proposal.row.thumbnail_source === "unsplash_auto" ||
+    proposal.row.thumbnail_source === "unsplash_picked";
+
+  if (thumb) {
+    return (
+      <div className="relative flex h-56 w-full items-end overflow-hidden md:h-full md:min-h-[260px]">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${thumb})` }}
+        />
+        {/* Sky-blue tint matches the picker preview so the card and form
+            stay WYSIWYG. Tuned to sit above the photo without losing the
+            destination's color identity. */}
+        <div
+          className="absolute inset-0"
+          style={{ backgroundColor: "rgba(56, 139, 253, 0.22)" }}
+        />
+        <div className="relative z-[1] w-full p-5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/80">
+            Trip Wish
+          </div>
+          <div className="mt-2 line-clamp-2 text-2xl font-semibold leading-tight text-white drop-shadow-sm md:text-3xl">
+            {primary}
+          </div>
+          {proposal.row.destinations.length > 1 && (
+            <div className="mt-1 text-xs text-white/90">
+              {proposal.row.destinations.slice(1, 3).join(" · ")}
+              {proposal.row.destinations.length > 3
+                ? ` +${proposal.row.destinations.length - 3}`
+                : ""}
+            </div>
+          )}
+        </div>
+        {fromUnsplash && (
+          <div className="absolute bottom-1.5 right-2 text-[11px] font-medium text-white/70">
+            Destination photo · Unsplash
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Fallback: deterministic gradient when no thumbnail was set
+  // (legacy proposals + the env where UNSPLASH_ACCESS_KEY is missing).
   const palettes = [
-    "from-amber-300 via-orange-400 to-rose-500", // sunset
-    "from-sky-300 via-blue-500 to-indigo-600", // sky
-    "from-emerald-300 via-teal-500 to-cyan-600", // tropical
-    "from-fuchsia-300 via-pink-500 to-rose-500", // summer
-    "from-violet-300 via-purple-500 to-indigo-600", // dusk
-    "from-lime-300 via-green-500 to-emerald-600", // garden
+    "from-amber-300 via-orange-400 to-rose-500",
+    "from-sky-300 via-blue-500 to-indigo-600",
+    "from-emerald-300 via-teal-500 to-cyan-600",
+    "from-fuchsia-300 via-pink-500 to-rose-500",
+    "from-violet-300 via-purple-500 to-indigo-600",
+    "from-lime-300 via-green-500 to-emerald-600",
   ];
   const hashed = hashString(proposal.row.id);
   const palette = palettes[hashed % palettes.length];
@@ -261,9 +304,7 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
     <div
       className={`relative flex h-56 w-full items-end overflow-hidden bg-gradient-to-br ${palette} md:h-full md:min-h-[260px]`}
     >
-      {/* Subtle texture */}
       <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,white_0,transparent_40%),radial-gradient(circle_at_80%_80%,white_0,transparent_40%)]" />
-      {/* Label */}
       <div className="relative z-[1] w-full p-5">
         <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/80">
           Trip Wish

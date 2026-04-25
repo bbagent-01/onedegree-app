@@ -38,6 +38,11 @@ export type ProposalStatus = "active" | "expired" | "closed";
 export type ProposalVisibilityMode = "inherit" | "custom";
 export type ProposalHookType = "discount" | "trade" | "none";
 
+export type ProposalThumbnailSource =
+  | "unsplash_auto"
+  | "unsplash_picked"
+  | "user_upload";
+
 export interface ProposalRow {
   id: string;
   author_id: string;
@@ -58,6 +63,8 @@ export interface ProposalRow {
   created_at: string;
   updated_at: string;
   expires_at: string;
+  thumbnail_url: string | null;
+  thumbnail_source: ProposalThumbnailSource | null;
 }
 
 export interface ProposalAuthor {

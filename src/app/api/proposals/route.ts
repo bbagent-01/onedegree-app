@@ -35,7 +35,19 @@ interface CreateBody {
   hook_details?: string | null;
   visibility_mode?: "inherit" | "custom";
   access_settings?: AccessSettings | null;
+  thumbnail_url?: string | null;
+  thumbnail_source?:
+    | "unsplash_auto"
+    | "unsplash_picked"
+    | "user_upload"
+    | null;
 }
+
+const THUMBNAIL_SOURCES = new Set([
+  "unsplash_auto",
+  "unsplash_picked",
+  "user_upload",
+]);
 
 /**
  * GET /api/proposals
@@ -174,6 +186,17 @@ export async function POST(req: Request) {
         : null,
     visibility_mode: body.visibility_mode ?? "inherit",
     access_settings: accessSettings,
+    // Thumbnails are Trip Wish only — Host Offers reuse the listing's
+    // photo carousel. Reject mismatches at the boundary so we don't
+    // accidentally render a stale thumbnail on an offer card.
+    thumbnail_url:
+      body.kind === "trip_wish" ? body.thumbnail_url ?? null : null,
+    thumbnail_source:
+      body.kind === "trip_wish" &&
+      body.thumbnail_source &&
+      THUMBNAIL_SOURCES.has(body.thumbnail_source)
+        ? body.thumbnail_source
+        : null,
   };
 
   const { data: created, error } = await supabase
@@ -246,6 +269,15 @@ function validateCreate(body: CreateBody): string | null {
     !body.access_settings?.see_preview
   ) {
     return "Custom visibility requires access_settings.see_preview";
+  }
+  // Proposals don't expose a "specific people" picker, so the rule type
+  // is rejected at the API as well as the form. Listings still allow it
+  // via the listing access controls.
+  if (
+    body.visibility_mode === "custom" &&
+    body.access_settings?.see_preview?.type === "specific_people"
+  ) {
+    return "Specific-people audiences aren't supported on proposals";
   }
   return null;
 }

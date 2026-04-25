@@ -13,6 +13,13 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export interface AlertRow {
   id: string;
@@ -24,6 +31,27 @@ export interface AlertRow {
   status: "active" | "paused";
   created_at: string;
   last_notified_at: string | null;
+}
+
+function formatRelative(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return iso;
+  const diffSec = Math.round((Date.now() - then) / 1000);
+  if (diffSec < 45) return "just now";
+  if (diffSec < 90) return "1 minute ago";
+  const diffMin = Math.round(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} minutes ago`;
+  if (diffMin < 90) return "1 hour ago";
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} hours ago`;
+  if (diffHr < 36) return "yesterday";
+  const diffDay = Math.round(diffHr / 24);
+  if (diffDay < 7) return `${diffDay} days ago`;
+  if (diffDay < 14) return "1 week ago";
+  if (diffDay < 30) return `${Math.round(diffDay / 7)} weeks ago`;
+  if (diffDay < 60) return "1 month ago";
+  if (diffDay < 365) return `${Math.round(diffDay / 30)} months ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
 interface Props {
@@ -58,6 +86,7 @@ export function AlertsManager({
   const [delivery, setDelivery] = useState<"email" | "sms" | "both">("email");
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AlertRow | null>(null);
 
   const addDest = (raw: string) => {
     const v = raw.trim();
@@ -70,22 +99,41 @@ export function AlertsManager({
     if (creating) return;
     setCreating(true);
     try {
+      const payload = {
+        kind,
+        destinations,
+        start_window: startWindow || null,
+        end_window: endWindow || null,
+        delivery,
+      };
       const res = await fetch("/api/alerts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind,
-          destinations,
-          start_window: startWindow || null,
-          end_window: endWindow || null,
-          delivery,
-        }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const d = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(d.error || "Couldn't create alert");
+      const data = (await res.json().catch(() => ({}))) as {
+        id?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.id) {
+        toast.error(data.error || "Couldn't create alert");
         return;
       }
+      // Optimistically prepend the new alert so the list updates without
+      // waiting on a re-fetch. router.refresh() runs in parallel so
+      // server-derived fields (created_at) can replace our local stub.
+      const optimistic: AlertRow = {
+        id: data.id,
+        kind: payload.kind,
+        destinations: payload.destinations,
+        start_window: payload.start_window,
+        end_window: payload.end_window,
+        delivery: payload.delivery,
+        status: "active",
+        created_at: new Date().toISOString(),
+        last_notified_at: null,
+      };
+      setAlerts((prev) => [optimistic, ...prev]);
       toast.success("Alert created");
       setShowCreate(false);
       setDestinations([]);
@@ -120,9 +168,14 @@ export function AlertsManager({
     }
   };
 
-  const del = async (a: AlertRow) => {
+  const requestDelete = (a: AlertRow) => {
     if (busyId) return;
-    if (!confirm("Delete this alert?")) return;
+    setConfirmDelete(a);
+  };
+
+  const confirmDeleteNow = async () => {
+    const a = confirmDelete;
+    if (!a) return;
     setBusyId(a.id);
     try {
       const res = await fetch(`/api/alerts/${a.id}`, { method: "DELETE" });
@@ -131,6 +184,7 @@ export function AlertsManager({
         return;
       }
       setAlerts((prev) => prev.filter((x) => x.id !== a.id));
+      setConfirmDelete(null);
     } finally {
       setBusyId(null);
     }
@@ -342,12 +396,20 @@ export function AlertsManager({
                     {a.start_window ?? "…"} – {a.end_window ?? "…"}
                   </div>
                 )}
-                {a.last_notified_at && (
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    Last notified{" "}
-                    {new Date(a.last_notified_at).toLocaleDateString()}
-                  </div>
-                )}
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {a.last_notified_at ? (
+                    <>
+                      Last notified{" "}
+                      <span title={a.last_notified_at}>
+                        {formatRelative(a.last_notified_at)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground/70">
+                      Last notified: Never
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <button
@@ -370,7 +432,7 @@ export function AlertsManager({
                 </button>
                 <button
                   type="button"
-                  onClick={() => del(a)}
+                  onClick={() => requestDelete(a)}
                   disabled={busyId === a.id}
                   className="inline-flex h-9 items-center gap-1 rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                 >
@@ -382,6 +444,46 @@ export function AlertsManager({
           ))}
         </ul>
       )}
+
+      <Dialog
+        open={confirmDelete !== null}
+        onOpenChange={(o) => {
+          if (!o) setConfirmDelete(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete this alert?</DialogTitle>
+            <DialogDescription>
+              You won&apos;t be notified about new proposals that match
+              {confirmDelete && confirmDelete.destinations.length > 0
+                ? ` "${confirmDelete.destinations.join(", ")}"`
+                : " these criteria"}{" "}
+              again. This can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(null)}
+              disabled={busyId !== null}
+              className="rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-foreground shadow-sm hover:bg-muted/50 disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDeleteNow}
+              disabled={busyId !== null}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
+            >
+              {busyId !== null && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Trash2 className="h-4 w-4" />
+              Delete alert
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { Plus, BellRing } from "lucide-react";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
 import { fetchVisibleProposals } from "@/lib/proposals-data";
-import { ProposalCard } from "@/components/proposals/proposal-card";
+import { ProposalsFeedWithFilters } from "@/components/proposals/feed-with-filters";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -30,6 +30,14 @@ export default async function ProposalsFeedPage({
   // posts without exposing their UUID in the URL.
   const authorRaw = typeof sp.author === "string" ? sp.author : undefined;
   const authorParam = authorRaw === "me" ? viewerId : authorRaw;
+  // Carry client-side filter params across tab switches so toggling
+  // kind doesn't silently wipe a search the user just typed.
+  const carryFilters = {
+    q: typeof sp.q === "string" ? sp.q : "",
+    dest: typeof sp.dest === "string" ? sp.dest : "",
+    from: typeof sp.from === "string" ? sp.from : "",
+    to: typeof sp.to === "string" ? sp.to : "",
+  };
   // Always include the viewer's own posts — seeing "what does my post
   // look like in the feed" is part of the onboarding loop for alpha.
   // The old discovery-only behavior can return later if the feed gets
@@ -79,43 +87,49 @@ export default async function ProposalsFeedPage({
 
       {/* Filter tabs */}
       <div className="mt-6 flex flex-wrap gap-2">
-        <TabLink label="All" href={tabHref(authorParam, "all")} active={kind === "all"} />
+        <TabLink
+          label="All"
+          href={tabHref(authorParam, "all", carryFilters)}
+          active={kind === "all"}
+        />
         <TabLink
           label="Trip Wishes"
-          href={tabHref(authorParam, "trip_wish")}
+          href={tabHref(authorParam, "trip_wish", carryFilters)}
           active={kind === "trip_wish"}
         />
         <TabLink
           label="Host Offers"
-          href={tabHref(authorParam, "host_offer")}
+          href={tabHref(authorParam, "host_offer", carryFilters)}
           active={kind === "host_offer"}
         />
       </div>
 
       <Suspense fallback={null}>
-        <div className="mt-6">
-          {items.length === 0 ? (
+        {items.length === 0 ? (
+          <div className="mt-6">
             <EmptyState kind={kind} />
-          ) : (
-            <ul className="flex flex-col gap-4">
-              {items.map((p) => (
-                <li key={p.row.id}>
-                  <ProposalCard proposal={p} viewerId={viewerId} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+          </div>
+        ) : (
+          <ProposalsFeedWithFilters proposals={items} viewerId={viewerId} />
+        )}
       </Suspense>
     </div>
   );
 }
 
-function tabHref(author: string | undefined, kind: string) {
-  const q = new URLSearchParams();
-  if (author) q.set("author", author);
-  if (kind !== "all") q.set("kind", kind);
-  const s = q.toString();
+function tabHref(
+  author: string | undefined,
+  kind: string,
+  carry: { q: string; dest: string; from: string; to: string }
+) {
+  const params = new URLSearchParams();
+  if (author) params.set("author", author);
+  if (kind !== "all") params.set("kind", kind);
+  if (carry.q) params.set("q", carry.q);
+  if (carry.dest) params.set("dest", carry.dest);
+  if (carry.from) params.set("from", carry.from);
+  if (carry.to) params.set("to", carry.to);
+  const s = params.toString();
   return s ? `/proposals?${s}` : "/proposals";
 }
 

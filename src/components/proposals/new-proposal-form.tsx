@@ -17,6 +17,10 @@ import {
 } from "lucide-react";
 import { AvailabilityCalendar } from "@/components/listing/availability-calendar";
 import type { AccessRule, AccessSettings } from "@/lib/trust/types";
+import {
+  ThumbnailPicker,
+  type ThumbnailValue,
+} from "./thumbnail-picker";
 
 export interface MyListingOption {
   id: string;
@@ -46,8 +50,7 @@ type CustomRuleType =
   | "anyone_anywhere"
   | "anyone"
   | "min_score"
-  | "max_degrees"
-  | "specific_people";
+  | "max_degrees";
 
 const fieldCls =
   "h-14 rounded-xl border-2 border-border !bg-white px-4 font-medium shadow-sm focus:border-foreground/60 focus:outline-none";
@@ -87,6 +90,12 @@ export function NewProposalForm({
     useState<CustomRuleType>("anyone");
   const [customMinScore, setCustomMinScore] = useState("15");
   const [customMaxDegrees, setCustomMaxDegrees] = useState("2");
+
+  const [thumbnail, setThumbnail] = useState<ThumbnailValue>({
+    url: null,
+    source: null,
+    attribution: null,
+  });
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -152,7 +161,10 @@ export function NewProposalForm({
                 customMinScore,
                 customMaxDegrees
               ),
-              full_listing_contact: { type: "specific_people", user_ids: [] },
+              // Proposals don't expose a separate full-listing-contact gate
+              // — keep this default narrow so downstream normalization is
+              // unambiguous if ever read.
+              full_listing_contact: { type: "anyone" },
               allow_intro_requests: true,
             }
           : null;
@@ -176,6 +188,8 @@ export function NewProposalForm({
             : null,
         visibility_mode: visibilityMode,
         access_settings: accessSettings,
+        thumbnail_url: kind === "trip_wish" ? thumbnail.url : null,
+        thumbnail_source: kind === "trip_wish" ? thumbnail.source : null,
       };
 
       const res = await fetch("/api/proposals", {
@@ -354,6 +368,22 @@ export function NewProposalForm({
           )}
         </div>
       </Field>
+
+      {/* Trip Wish thumbnail — Unsplash auto-fetch with manual override.
+          Hidden for Host Offers since those use the linked listing's
+          photo carousel instead. */}
+      {kind === "trip_wish" && (
+        <Field
+          label="Thumbnail"
+          hint="Auto-pulled from Unsplash · change or upload your own"
+        >
+          <ThumbnailPicker
+            destination={destinations[0] ?? destinationInput}
+            value={thumbnail}
+            onChange={setThumbnail}
+          />
+        </Field>
+      )}
 
       {/* Dates */}
       <Field label="Dates">
@@ -574,9 +604,6 @@ export function NewProposalForm({
                   <option value="anyone">Anyone signed in</option>
                   <option value="min_score">Min 1° score</option>
                   <option value="max_degrees">Within N degrees of me</option>
-                  <option value="specific_people">
-                    Specific people (none yet)
-                  </option>
                 </select>
                 {customRuleType === "min_score" && (
                   <input
@@ -599,13 +626,6 @@ export function NewProposalForm({
                   </select>
                 )}
               </div>
-              {customRuleType === "specific_people" && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Specific-people picker ships in a later session. For now
-                  this selects no one — useful as a &quot;draft&quot; audience
-                  that only you can see.
-                </p>
-              )}
             </div>
           )}
         </div>
@@ -805,7 +825,5 @@ function buildCustomRule(
           Math.min(3, parseInt(maxDegrees || "2", 10) || 2)
         ),
       };
-    case "specific_people":
-      return { type: "specific_people", user_ids: [] };
   }
 }
