@@ -174,6 +174,7 @@ function makeProposal(
       expires_at: "2026-06-18T10:00:00Z",
       thumbnail_url: null,
       thumbnail_source: null,
+      thumbnail_attribution: null,
     },
     author: {
       id: overrides.authorId ?? `author-${overrides.id}`,

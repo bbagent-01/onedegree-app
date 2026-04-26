@@ -22,14 +22,31 @@ export type ThumbnailSource =
   | "user_upload"
   | null;
 
+/**
+ * Full attribution blob persisted alongside the proposal. Includes the
+ * pieces required by Unsplash's production-tier guidelines:
+ *   - photographer_name + photographer_url → rendered credit + link
+ *   - unsplash_url                         → "on Unsplash" link target
+ *   - download_location                    → endpoint we ping when the
+ *                                            photo is "used" (proposal
+ *                                            create/update). Server-side.
+ *   - photo_id                             → useful for support/debug
+ *
+ * Null when the photo isn't from Unsplash (user upload) or the picker
+ * is empty.
+ */
+export interface ThumbnailAttribution {
+  photographer_name: string;
+  photographer_url: string;
+  unsplash_url: string;
+  download_location: string;
+  photo_id: string;
+}
+
 export interface ThumbnailValue {
   url: string | null;
   source: ThumbnailSource;
-  attribution: {
-    photographer_name: string;
-    photographer_url: string;
-    unsplash_url: string;
-  } | null;
+  attribution: ThumbnailAttribution | null;
 }
 
 interface UnsplashPhoto {
@@ -39,6 +56,7 @@ interface UnsplashPhoto {
   photographer_name: string;
   photographer_url: string;
   unsplash_url: string;
+  download_location: string;
   alt: string;
 }
 
@@ -102,6 +120,8 @@ export function ThumbnailPicker({ destination, value, onChange }: Props) {
               photographer_name: first.photographer_name,
               photographer_url: first.photographer_url,
               unsplash_url: first.unsplash_url,
+              download_location: first.download_location,
+              photo_id: first.id,
             },
           });
           setAlternatives(data.photos);
@@ -143,6 +163,8 @@ export function ThumbnailPicker({ destination, value, onChange }: Props) {
         photographer_name: p.photographer_name,
         photographer_url: p.photographer_url,
         unsplash_url: p.unsplash_url,
+        download_location: p.download_location,
+        photo_id: p.id,
       },
     });
     setShowGrid(false);
@@ -205,14 +227,31 @@ export function ThumbnailPicker({ destination, value, onChange }: Props) {
               style={{ backgroundColor: "rgba(56, 139, 253, 0.22)" }}
             />
             {value.attribution && (
-              <a
-                href={`${value.attribution.unsplash_url}?utm_source=trustead&utm_medium=referral`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute bottom-1.5 right-2 text-[11px] font-medium text-white/80 hover:text-white hover:underline"
-              >
-                Photo · {value.attribution.photographer_name} / Unsplash
-              </a>
+              // Production-tier compliant credit: "Photo by {linked
+              // photographer} on {linked Unsplash}". Both links carry
+              // the required ?utm_source=trustead&utm_medium=referral
+              // query and target="_blank". Same content as the
+              // rendered card so the picker stays WYSIWYG.
+              <div className="absolute bottom-1.5 right-2 text-[11px] font-medium text-white/85">
+                Photo by{" "}
+                <a
+                  href={`${value.attribution.photographer_url}?utm_source=trustead&utm_medium=referral`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline-offset-2 hover:underline"
+                >
+                  {value.attribution.photographer_name}
+                </a>{" "}
+                on{" "}
+                <a
+                  href="https://unsplash.com/?utm_source=trustead&utm_medium=referral"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline-offset-2 hover:underline"
+                >
+                  Unsplash
+                </a>
+              </div>
             )}
             <button
               type="button"

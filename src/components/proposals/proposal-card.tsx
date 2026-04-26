@@ -247,6 +247,7 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
   const fromUnsplash =
     proposal.row.thumbnail_source === "unsplash_auto" ||
     proposal.row.thumbnail_source === "unsplash_picked";
+  const attribution = proposal.row.thumbnail_attribution;
 
   if (thumb) {
     return (
@@ -278,11 +279,51 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
             </div>
           )}
         </div>
-        {fromUnsplash && (
-          <div className="absolute bottom-1.5 right-2 text-[11px] font-medium text-white/70">
-            Destination photo · Unsplash
+        {fromUnsplash && attribution ? (
+          // Production-tier compliant credit: "Photo by {linked
+          // photographer} on {linked Unsplash}". Both links carry the
+          // ?utm_source=trustead&utm_medium=referral query required by
+          // Unsplash's hotlinking policy. Click-through is opt-in
+          // (target=_blank + rel=noopener,noreferrer) so we never
+          // hijack the user's tab.
+          <div className="absolute bottom-1.5 right-2 max-w-[90%] truncate text-right text-[11px] font-medium text-white/85">
+            Photo by{" "}
+            <a
+              href={`${attribution.photographer_url}?utm_source=trustead&utm_medium=referral`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline-offset-2 hover:underline"
+            >
+              {attribution.photographer_name}
+            </a>{" "}
+            on{" "}
+            <a
+              href="https://unsplash.com/?utm_source=trustead&utm_medium=referral"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline-offset-2 hover:underline"
+            >
+              Unsplash
+            </a>
           </div>
-        )}
+        ) : fromUnsplash ? (
+          // Legacy Trip Wishes (pre-043) carry thumbnail_source =
+          // unsplash_* but no attribution blob. Fall back to the
+          // generic credit so the photo still shows the source —
+          // legacy rows don't carry the photographer name we'd need
+          // for the full credit.
+          <div className="absolute bottom-1.5 right-2 text-[11px] font-medium text-white/70">
+            Destination photo ·{" "}
+            <a
+              href="https://unsplash.com/?utm_source=trustead&utm_medium=referral"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline-offset-2 hover:underline"
+            >
+              Unsplash
+            </a>
+          </div>
+        ) : null}
       </div>
     );
   }

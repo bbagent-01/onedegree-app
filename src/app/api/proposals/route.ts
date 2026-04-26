@@ -14,6 +14,7 @@ import {
   type AccessSettings,
 } from "@/lib/trust/types";
 import { fanOutAlerts } from "@/lib/proposal-alerts";
+import { triggerUnsplashDownload } from "@/lib/unsplash";
 
 // Trip Wishes are uncapped — we want guests to post freely and have hosts
 // respond. Host Offers are capped at 5 active per author to keep the feed
@@ -41,6 +42,15 @@ interface CreateBody {
     | "unsplash_picked"
     | "user_upload"
     | null;
+  thumbnail_attribution?: ThumbnailAttribution | null;
+}
+
+interface ThumbnailAttribution {
+  photographer_name: string;
+  photographer_url: string;
+  unsplash_url: string;
+  download_location: string;
+  photo_id: string;
 }
 
 const THUMBNAIL_SOURCES = new Set([
@@ -48,6 +58,38 @@ const THUMBNAIL_SOURCES = new Set([
   "unsplash_picked",
   "user_upload",
 ]);
+
+/**
+ * Validate the client-supplied attribution blob. We never trust this
+ * shape blindly — the server enforces every required field is present
+ * and a string before the row hits Postgres so a bad client can't
+ * leave us with a half-populated JSON column. Returns null when any
+ * field is missing or wrong type.
+ */
+function sanitizeThumbnailAttribution(
+  raw: unknown
+): ThumbnailAttribution | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const isStr = (v: unknown): v is string =>
+    typeof v === "string" && v.trim().length > 0;
+  if (
+    !isStr(r.photographer_name) ||
+    !isStr(r.photographer_url) ||
+    !isStr(r.unsplash_url) ||
+    !isStr(r.download_location) ||
+    !isStr(r.photo_id)
+  ) {
+    return null;
+  }
+  return {
+    photographer_name: r.photographer_name,
+    photographer_url: r.photographer_url,
+    unsplash_url: r.unsplash_url,
+    download_location: r.download_location,
+    photo_id: r.photo_id,
+  };
+}
 
 /**
  * GET /api/proposals
@@ -197,6 +239,14 @@ export async function POST(req: Request) {
       THUMBNAIL_SOURCES.has(body.thumbnail_source)
         ? body.thumbnail_source
         : null,
+    // Only persist the attribution blob when the source is one of the
+    // Unsplash variants — user_upload + null sources never carry one.
+    thumbnail_attribution:
+      body.kind === "trip_wish" &&
+      typeof body.thumbnail_source === "string" &&
+      body.thumbnail_source.startsWith("unsplash_")
+        ? sanitizeThumbnailAttribution(body.thumbnail_attribution)
+        : null,
   };
 
   const { data: created, error } = await supabase
@@ -210,6 +260,24 @@ export async function POST(req: Request) {
       { error: "Couldn't create proposal" },
       { status: 500 }
     );
+  }
+
+  // Per Unsplash production-tier guidelines, hit the photo's
+  // download_location whenever the photo is "used" — we treat creating
+  // the proposal as that event. Fire-and-forget inside try/catch so a
+  // Unsplash hiccup never blocks the POST response.
+  if (
+    insert.thumbnail_source &&
+    insert.thumbnail_source.startsWith("unsplash_") &&
+    insert.thumbnail_attribution
+  ) {
+    try {
+      await triggerUnsplashDownload(
+        insert.thumbnail_attribution.download_location
+      );
+    } catch (e) {
+      console.error("[proposals] unsplash download trigger failed:", e);
+    }
   }
 
   // Fire-and-forget alert fan-out. We intentionally await inside a

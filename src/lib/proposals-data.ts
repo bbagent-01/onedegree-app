@@ -43,6 +43,21 @@ export type ProposalThumbnailSource =
   | "unsplash_picked"
   | "user_upload";
 
+/**
+ * Attribution blob persisted on each Trip Wish proposal whose photo
+ * came from Unsplash. Required to render the "Photo by {photographer}
+ * on Unsplash" credit on the card per Unsplash's production-tier
+ * guidelines. Null on legacy proposals (predates migration 043) and
+ * on user-uploaded thumbnails.
+ */
+export interface ProposalThumbnailAttribution {
+  photographer_name: string;
+  photographer_url: string;
+  unsplash_url: string;
+  download_location: string;
+  photo_id: string;
+}
+
 export interface ProposalRow {
   id: string;
   author_id: string;
@@ -65,6 +80,7 @@ export interface ProposalRow {
   expires_at: string;
   thumbnail_url: string | null;
   thumbnail_source: ProposalThumbnailSource | null;
+  thumbnail_attribution: ProposalThumbnailAttribution | null;
 }
 
 export interface ProposalAuthor {

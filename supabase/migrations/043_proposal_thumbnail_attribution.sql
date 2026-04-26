@@ -1,0 +1,31 @@
+-- Migration 043 — proposal thumbnail attribution (S9c+ · Unsplash production-tier).
+--
+-- Additive: nullable JSONB column on proposals storing the full Unsplash
+-- attribution blob for the photo currently set on the row. Required for
+-- Unsplash production-tier compliance:
+--
+--   1. We can render "Photo by {linked photographer} on {linked Unsplash}"
+--      on every card where the photo appears (not just on the picker).
+--   2. We can fire the photo's `download_location` endpoint after the
+--      proposal is created or updated, satisfying the API guideline that
+--      apps must trigger a download when a photo is "used".
+--
+-- Shape (when set):
+--   {
+--     "photographer_name": "Jane Doe",
+--     "photographer_url":  "https://unsplash.com/@janedoe",
+--     "unsplash_url":      "https://unsplash.com/photos/abc123",
+--     "download_location": "https://api.unsplash.com/photos/abc123/download?ixid=...",
+--     "photo_id":          "abc123"
+--   }
+--
+-- Legacy proposals are NOT backfilled — the column is nullable and
+-- TripWishVisual falls back to "no attribution → don't render the
+-- credit line" so old rows still display, just without the photographer
+-- name. This is acceptable per Unsplash's policy because legacy rows
+-- predate the production tier; new submissions all carry attribution.
+--
+-- Idempotent: ADD COLUMN IF NOT EXISTS.
+
+ALTER TABLE proposals
+  ADD COLUMN IF NOT EXISTS thumbnail_attribution jsonb;

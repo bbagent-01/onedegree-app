@@ -190,6 +190,12 @@ export function NewProposalForm({
         access_settings: accessSettings,
         thumbnail_url: kind === "trip_wish" ? thumbnail.url : null,
         thumbnail_source: kind === "trip_wish" ? thumbnail.source : null,
+        // Full attribution blob (photographer, unsplash url, download
+        // tracking endpoint, photo id). Persisted on the proposal so
+        // the card can render the production-tier-compliant credit and
+        // the API can ping Unsplash's download_location after insert.
+        thumbnail_attribution:
+          kind === "trip_wish" ? thumbnail.attribution : null,
       };
 
       const res = await fetch("/api/proposals", {
