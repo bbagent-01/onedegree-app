@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -45,7 +45,21 @@ const BIG_INPUT =
 
 type Step = "info" | "vouch" | "years" | "preview" | "done";
 
+/**
+ * Suspense wrapper required by Next 15: useSearchParams() inside a
+ * client page bails out of static prerendering unless the consumer is
+ * inside a Suspense boundary. Without this wrap the build fails with
+ * "useSearchParams() should be wrapped in a suspense boundary".
+ */
 export default function InvitePage() {
+  return (
+    <Suspense fallback={null}>
+      <InvitePageContent />
+    </Suspense>
+  );
+}
+
+function InvitePageContent() {
   const searchParams = useSearchParams();
   // S9e: when the share-with-friend modal can't find a recipient and
   // the search looked like a phone number, it links here with the
