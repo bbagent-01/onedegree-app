@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,9 +46,20 @@ const BIG_INPUT =
 type Step = "info" | "vouch" | "years" | "preview" | "done";
 
 export default function InvitePage() {
+  const searchParams = useSearchParams();
+  // S9e: when the share-with-friend modal can't find a recipient and
+  // the search looked like a phone number, it links here with the
+  // E.164 number prefilled so the user doesn't have to retype.
+  const phonePrefill = searchParams?.get("phone") ?? "";
   const [step, setStep] = useState<Step>("info");
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(phonePrefill);
+  useEffect(() => {
+    if (phonePrefill && !phone) setPhone(phonePrefill);
+    // Run once on mount; ignore subsequent param changes — once the
+    // user starts editing we don't want a navigation to clobber input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [email, setEmail] = useState("");
   const [vouchType, setVouchType] = useState<VouchType | null>(null);
   const [yearsKnown, setYearsKnown] = useState<YearsKnownBucket | null>(null);

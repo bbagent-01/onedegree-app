@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TrustTag } from "@/components/trust/trust-tag";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { MessageAuthorButton } from "@/components/proposals/message-author-button";
+import { ShareToFriendButton } from "@/components/proposals/share-to-friend-button";
 import { AuthorActions } from "@/components/proposals/author-actions";
 
 export const runtime = "edge";
@@ -155,16 +156,23 @@ export default async function ProposalDetailPage({
               </div>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-col items-stretch gap-2">
             {!isAuthor && (
-              <MessageAuthorButton
-                proposalId={row.id}
-                authorId={author.id}
-                authorFirstName={firstName}
-                listingId={listing?.id ?? null}
-                kindLabel={kindLabel}
-                title={row.title}
-              />
+              <>
+                <MessageAuthorButton
+                  proposalId={row.id}
+                  authorId={author.id}
+                  authorFirstName={firstName}
+                  listingId={listing?.id ?? null}
+                  kindLabel={kindLabel}
+                  title={row.title}
+                />
+                <ShareToFriendButton
+                  proposalId={row.id}
+                  proposalTitle={row.title}
+                  kindLabel={kindLabel}
+                />
+              </>
             )}
           </div>
         </div>

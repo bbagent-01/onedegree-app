@@ -138,20 +138,22 @@ export function ThreadView({
   currentUserId,
 }: Props) {
   const [messages, setMessages] = useState<ThreadMessage[]>(thread.messages);
-  // Proposal "Message [name]" CTA redirects here with ?prefill=... so the
-  // user lands with context already typed into the composer. They can edit
-  // before sending. The effect below one-shot seeds the draft on mount
-  // when the thread has no messages yet; we don't clobber an in-progress
-  // reply on an active thread.
+  // Proposal "Message [name]" and "Share with a friend" CTAs redirect
+  // here with ?prefill=... so the user lands with context already
+  // typed into the composer. They can edit before sending. The effect
+  // below one-shot seeds the draft on mount whenever the local draft
+  // is still empty — covers both new threads (S9d author message) and
+  // existing threads (S9e share-with-friend, where the user has likely
+  // DM'd the recipient before).
   const searchParams = useSearchParams();
   const prefillParam = searchParams?.get("prefill") ?? null;
   const [draft, setDraft] = useState("");
   useEffect(() => {
-    if (prefillParam && thread.messages.length === 0) {
+    if (prefillParam && draft === "") {
       setDraft(prefillParam);
     }
     // Intentionally only react to prefillParam/thread id — avoid re-seeding
-    // on every messages update.
+    // on every messages update or as the user types.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillParam, thread.id]);
   const [sending, setSending] = useState(false);
