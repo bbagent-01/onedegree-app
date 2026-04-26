@@ -30,6 +30,10 @@ export async function POST(req: Request) {
     listingId?: string;
     otherUserId?: string;
     contactRequestId?: string;
+    /** S9d: opaque pass-through to getOrCreateThread so a thread
+     *  opened from /proposals/[id] stamps origin_proposal_id on
+     *  first insert. */
+    proposalId?: string;
   } | null;
 
   if (!body?.listingId) {
@@ -66,6 +70,7 @@ export async function POST(req: Request) {
       guestId,
       hostId,
       contactRequestId: body.contactRequestId ?? null,
+      originProposalId: body.proposalId ?? null,
     });
     return Response.json({ threadId });
   } catch (e) {

@@ -23,6 +23,11 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => null)) as {
     otherUserId?: string;
+    /** S9d: when this DM was opened from /proposals/[id] (e.g. a TW
+     *  with no listing), stamp origin_proposal_id on insert so the
+     *  thread surface can render the OriginProposalCard + Send-stay-
+     *  terms bridge. Backfilled (not overwritten) on existing rows. */
+    proposalId?: string;
   } | null;
   if (!body?.otherUserId) {
     return Response.json(
@@ -68,13 +73,22 @@ export async function POST(req: Request) {
 
   const { data: existing } = await supabase
     .from("message_threads")
-    .select("id")
+    .select("id, origin_proposal_id")
     .eq("guest_id", guestId)
     .eq("host_id", hostId)
     .is("listing_id", null)
     .maybeSingle();
 
   if (existing) {
+    // Backfill origin_proposal_id when this re-open arrives from a
+    // proposal AND the row doesn't already carry one. Don't overwrite
+    // a different existing origin — first-contact reason wins.
+    if (body.proposalId && !existing.origin_proposal_id) {
+      await supabase
+        .from("message_threads")
+        .update({ origin_proposal_id: body.proposalId })
+        .eq("id", existing.id);
+    }
     return Response.json({ threadId: existing.id });
   }
 
@@ -84,6 +98,7 @@ export async function POST(req: Request) {
       listing_id: null,
       guest_id: guestId,
       host_id: hostId,
+      origin_proposal_id: body.proposalId ?? null,
     })
     .select("id")
     .single();

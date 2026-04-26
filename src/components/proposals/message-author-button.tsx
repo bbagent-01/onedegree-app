@@ -6,8 +6,9 @@ import { Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
-  /** Reserved for future analytics / deep-link threading on the
-   *  recipient side — we send the viewer to their own inbox for now. */
+  /** S9d: stamps message_threads.origin_proposal_id when this CTA
+   *  creates a new thread. The thread surface uses it to render the
+   *  OriginProposalCard + the Send-terms / Request-terms bridge. */
   proposalId?: string;
   authorId: string;
   authorFirstName: string;
@@ -31,6 +32,7 @@ interface Props {
  * can edit it before actually sending.
  */
 export function MessageAuthorButton({
+  proposalId,
   authorId,
   authorFirstName,
   listingId,
@@ -51,7 +53,7 @@ export function MessageAuthorButton({
         const res = await fetch("/api/message-threads", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ listingId }),
+          body: JSON.stringify({ listingId, proposalId }),
         });
         const data = (await res.json().catch(() => ({}))) as {
           threadId?: string;
@@ -67,7 +69,7 @@ export function MessageAuthorButton({
         const res = await fetch("/api/dm/open-thread", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ otherUserId: authorId }),
+          body: JSON.stringify({ otherUserId: authorId, proposalId }),
         });
         const data = (await res.json().catch(() => ({}))) as {
           threadId?: string;

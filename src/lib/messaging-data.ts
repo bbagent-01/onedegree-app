@@ -78,6 +78,13 @@ export interface InboxThread {
     status: IntroStatus;
     decided_at: string | null;
   } | null;
+  /** S9d: proposal this thread originated from (Trip Wish or Host
+   *  Offer). Null on legacy threads + threads not opened from a
+   *  proposal. Drives the OriginProposalCard at the top of the
+   *  thread + the bridge action buttons (Send stay terms / Request
+   *  these terms). Hydrated by getThreadDetail; the inbox list
+   *  doesn't need it. */
+  origin_proposal_id?: string | null;
 }
 
 export interface ThreadMessage {
@@ -103,6 +110,21 @@ export interface ThreadDetail extends InboxThread {
     decided_at: string | null;
     sender_profile: IntroSenderProfile;
     sender_listings: IntroSenderListing[];
+  } | null;
+  /** S9d: hydrated proposal slice for the OriginProposalCard.
+   *  Null when the thread has no origin_proposal_id, or when the
+   *  referenced proposal was deleted (FK ON DELETE SET NULL). The
+   *  `isAvailable` flag drops to false once the proposal expires or
+   *  closes — the card stays visible but the link is suppressed. */
+  origin_proposal: {
+    id: string;
+    kind: "trip_wish" | "host_offer";
+    title: string;
+    listing_id: string | null;
+    status: "active" | "expired" | "closed";
+    /** Convenience: row-status==='active' AND not past expires_at.
+     *  Mirrors the visibility gate the feed uses. */
+    isAvailable: boolean;
   } | null;
   booking: {
     id: string;
@@ -389,7 +411,7 @@ export async function getThreadDetail(
   const { data: thread } = await supabase
     .from("message_threads")
     .select(
-      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_sender_id, intro_recipient_id, intro_status, intro_message, intro_start_date, intro_end_date, intro_decided_at"
+      "id, listing_id, guest_id, host_id, contact_request_id, last_message_at, last_message_preview, guest_unread_count, host_unread_count, is_intro_request, intro_sender_id, intro_recipient_id, intro_status, intro_message, intro_start_date, intro_end_date, intro_decided_at, origin_proposal_id"
     )
     .eq("id", threadId)
     .single();
@@ -656,6 +678,40 @@ export async function getThreadDetail(
     };
   }
 
+  // S9d: hydrate the origin proposal slice if this thread was opened
+  // from /proposals/[id]. Fail-soft: if the row was deleted (FK SET
+  // NULL) or otherwise missing, the card just doesn't render — the
+  // rest of the thread still works. We only need a tiny slice; full
+  // visibility re-check is handled when the user clicks through to
+  // the detail page.
+  let originProposal: ThreadDetail["origin_proposal"] = null;
+  const originProposalId = (thread as { origin_proposal_id?: string | null })
+    .origin_proposal_id ?? null;
+  if (originProposalId) {
+    const { data: opRow } = await supabase
+      .from("proposals")
+      .select("id, kind, title, listing_id, status, expires_at")
+      .eq("id", originProposalId)
+      .maybeSingle();
+    if (opRow) {
+      const status = (opRow as { status: "active" | "expired" | "closed" })
+        .status;
+      const expiresAt =
+        (opRow as { expires_at?: string | null }).expires_at ?? null;
+      const expired =
+        expiresAt != null && new Date(expiresAt).getTime() < Date.now();
+      originProposal = {
+        id: (opRow as { id: string }).id,
+        kind: (opRow as { kind: "trip_wish" | "host_offer" }).kind,
+        title: (opRow as { title: string }).title,
+        listing_id:
+          (opRow as { listing_id?: string | null }).listing_id ?? null,
+        status,
+        isAvailable: status === "active" && !expired,
+      };
+    }
+  }
+
   // Thread detail follows the same direction rule as the inbox list:
   // guest side sees host→me (incoming), host side sees me→guest
   // (outgoing / current direction).
@@ -704,6 +760,8 @@ export async function getThreadDetail(
         }
       : null,
     intro_detail: introDetail,
+    origin_proposal_id: originProposalId,
+    origin_proposal: originProposal,
     messages: (messages || []) as ThreadMessage[],
     booking: booking
       ? {
@@ -839,11 +897,15 @@ export async function getOrCreateThread(opts: {
   guestId: string;
   hostId: string;
   contactRequestId?: string | null;
+  /** S9d: stamp origin_proposal_id on insert. Existing threads keep
+   *  whatever origin they already have — provenance is "first
+   *  contact reason," not "latest click." */
+  originProposalId?: string | null;
 }): Promise<string> {
   const supabase = getSupabaseAdmin();
   const { data: existing } = await supabase
     .from("message_threads")
-    .select("id, contact_request_id")
+    .select("id, contact_request_id, origin_proposal_id")
     .eq("listing_id", opts.listingId)
     .eq("guest_id", opts.guestId)
     .maybeSingle();
@@ -858,6 +920,18 @@ export async function getOrCreateThread(opts: {
         .update({ contact_request_id: opts.contactRequestId })
         .eq("id", existing.id);
     }
+    // Backfill origin_proposal_id only when the row has none yet —
+    // never overwrite a different origin already attached to this
+    // thread.
+    if (
+      opts.originProposalId &&
+      !existing.origin_proposal_id
+    ) {
+      await supabase
+        .from("message_threads")
+        .update({ origin_proposal_id: opts.originProposalId })
+        .eq("id", existing.id);
+    }
     return existing.id;
   }
 
@@ -868,6 +942,7 @@ export async function getOrCreateThread(opts: {
       guest_id: opts.guestId,
       host_id: opts.hostId,
       contact_request_id: opts.contactRequestId ?? null,
+      origin_proposal_id: opts.originProposalId ?? null,
     })
     .select("id")
     .single();

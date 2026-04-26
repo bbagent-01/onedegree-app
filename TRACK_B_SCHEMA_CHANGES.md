@@ -2,6 +2,45 @@
 
 Schema changes introduced by Track B sessions. Each entry documents what was added and why.
 
+## S9d — Origin proposal on threads (migration 044)
+
+**Migration:** `supabase/migrations/044_threads_origin_proposal.sql`
+
+### Schema Changes
+
+| Table | Column | Type | Purpose |
+|-------|--------|------|---------|
+| `message_threads` | `origin_proposal_id` | UUID NULL · FK → proposals(id) ON DELETE SET NULL | Records the proposal a thread was opened from (Trip Wish or Host Offer). Drives the OriginProposalCard at the top of the thread + the "Send stay terms" / "Request these terms" bridge buttons. |
+
+Index: `idx_message_threads_origin_proposal_id` — partial on `WHERE origin_proposal_id IS NOT NULL` (vast majority of threads stay null).
+
+### Why this shape
+
+- **Nullable + ON DELETE SET NULL.** Legacy threads keep null and behave as before. If a proposal is deleted later, the thread stays alive — the card flips to a static "no longer available" row.
+- **Additive.** No data migration; no RLS change (thread participants already control visibility on `message_threads`).
+- **First-contact wins.** When a thread is re-opened from a different proposal, the existing `origin_proposal_id` is preserved (provenance, not "latest click").
+
+### New components
+
+| Component | Purpose |
+|-----------|---------|
+| `src/components/inbox/origin-proposal-card.tsx` | Compact thread-header card linking back to the originating proposal. |
+| `src/components/inbox/proposal-bridge-actions.tsx` | Decides which CTA to render (TW host → Send stay terms; HO guest → Request these terms). |
+| `src/components/proposals/host-listing-picker.tsx` | Modal listing the host's active listings (used by the TW path to pick which property to send terms about). |
+
+### New API routes
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/me/listings` | Lists current viewer's active listings minimally (id, title, area_name, price_min, thumbnail_url). Powers the picker. |
+| `POST /api/contact-requests/from-proposal/[threadId]` | Creates a pending `contact_request` prefilled from the originating proposal. Branches by proposal kind (TW vs HO) and routes the user to the canonical listing-scoped thread. |
+
+### Updated touchpoints
+
+- `getOrCreateThread` + `/api/message-threads` + `/api/dm/open-thread` accept an optional `originProposalId` / `proposalId` and stamp it on insert. Existing rows are backfilled only when the column is null.
+- `MessageAuthorButton` passes `proposalId` through both create paths so the resulting thread carries the link forward.
+- `getThreadDetail` selects `origin_proposal_id` and hydrates a small `origin_proposal` slice (`{id, kind, title, listing_id, status, isAvailable}`) for the inbox surface.
+
 ## CC-C2.1 — Formula + Phone + Transparency
 
 **Migration:** `supabase/migrations/016_invite_delivery_tracking.sql`

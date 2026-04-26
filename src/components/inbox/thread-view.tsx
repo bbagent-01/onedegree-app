@@ -44,6 +44,8 @@ import { IssueReportCard } from "@/components/stay/IssueReportCard";
 import { PhotoRequestCard } from "@/components/stay/PhotoRequestCard";
 import { ReportIssueButton } from "@/components/stay/ReportIssueButton";
 import { RequestPhotoButton } from "@/components/stay/RequestPhotoButton";
+import { OriginProposalCard } from "@/components/inbox/origin-proposal-card";
+import { ProposalBridgeActions } from "@/components/inbox/proposal-bridge-actions";
 
 interface Props {
   thread: ThreadDetail;
@@ -298,6 +300,15 @@ export function ThreadView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      {/* S9d: origin proposal card — sits above the thread header
+          when this thread was opened from /proposals/[id]. Compact
+          row, sky-blue (TW) or emerald (HO) badge, link back to the
+          proposal. Stays visible (no link) when the proposal is
+          gone so the conversation never feels orphaned. */}
+      {thread.origin_proposal && (
+        <OriginProposalCard proposal={thread.origin_proposal} />
+      )}
+
       {/* Thread header — S5 click-model rule: avatar + name navigate
           to the counterparty's profile. Each gets its own Link so
           the hover affordance tells the viewer they're a navigation
@@ -396,6 +407,21 @@ export function ThreadView({
             )}
           </Link>
         </div>
+      )}
+
+      {/* S9d proposal-bridge action row — only renders when the
+          thread has an origin proposal AND the viewer's role lines
+          up with the bridge action (TW host → Send terms, HO guest
+          → Request terms). Hidden otherwise. */}
+      {thread.origin_proposal && (
+        <ProposalBridgeActions
+          threadId={thread.id}
+          currentUserId={currentUserId}
+          hostId={thread.host_id}
+          guestId={thread.guest_id}
+          proposal={thread.origin_proposal}
+          hasActiveTermsFlow={Boolean(thread.contact_request_id)}
+        />
       )}
 
       {/* Messages. `min-h-0` is load-bearing — without it, the
