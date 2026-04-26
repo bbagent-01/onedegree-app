@@ -9,25 +9,23 @@ import { HostListingPicker } from "@/components/proposals/host-listing-picker";
 interface Props {
   threadId: string;
   currentUserId: string;
-  /** Thread participants (from ThreadDetail). Used to gate which side
-   *  sees which button. */
-  hostId: string;
-  guestId: string;
   /** From thread.origin_proposal hydrated by getThreadDetail. */
   proposal: {
     id: string;
     kind: "trip_wish" | "host_offer";
     title: string;
     listing_id: string | null;
+    /** Author of the proposal — TW author = guest, HO author = host.
+     *  This is the only stable side-of-the-conversation identifier
+     *  for TW threads, which are listing-less DMs whose host/guest
+     *  ids are UUID-canonicalized and therefore meaningless. */
+    author_id: string;
     status: "active" | "expired" | "closed";
     isAvailable: boolean;
   };
   /** Drives the "thread already has an active terms flow" guard.
    *  Mirrors thread.contact_request_id from getThreadDetail. */
   hasActiveTermsFlow: boolean;
-  /** When false, the listing-scoped thread already exists between
-   *  these parties about the picked listing OR the host has zero
-   *  active listings — the picker handles its own empty state. */
 }
 
 /**
@@ -48,8 +46,6 @@ interface Props {
 export function ProposalBridgeActions({
   threadId,
   currentUserId,
-  hostId,
-  guestId,
   proposal,
   hasActiveTermsFlow,
 }: Props) {
@@ -57,16 +53,21 @@ export function ProposalBridgeActions({
   const [busy, setBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const isHost = currentUserId === hostId;
-  const isGuest = currentUserId === guestId;
   const isTW = proposal.kind === "trip_wish";
   const isHO = proposal.kind === "host_offer";
+  const isAuthor = currentUserId === proposal.author_id;
 
-  // Role/kind gating — only the actor whose action makes sense gets
-  // the button. Wrong-side viewers (e.g. TW author looking at their
-  // own thread) see nothing here.
-  const showSendTerms = isTW && isHost;
-  const showRequestTerms = isHO && isGuest;
+  // Role/kind gating — only the non-author side gets the bridge
+  // CTA. For TW threads (listing-less DMs) thread.host_id /
+  // guest_id are UUID-canonicalized and don't track the host/guest
+  // intent, so we can't gate on those — proposal.author_id is the
+  // only stable identifier of which side initiated.
+  //
+  // The picker / from-proposal endpoint enforce the actual ownership
+  // checks (TW path: viewer must own the picked listing). Here we
+  // just decide whether to surface the entry point at all.
+  const showSendTerms = isTW && !isAuthor;
+  const showRequestTerms = isHO && !isAuthor;
   if (!showSendTerms && !showRequestTerms) return null;
 
   const callFromProposal = async (listingId: string) => {

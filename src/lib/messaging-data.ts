@@ -121,6 +121,12 @@ export interface ThreadDetail extends InboxThread {
     kind: "trip_wish" | "host_offer";
     title: string;
     listing_id: string | null;
+    /** Author of the proposal. For TW the author is the guest seeking
+     *  a stay; for HO the author is the host. The bridge action row
+     *  uses this (not thread.host_id) to gate which side sees the
+     *  CTA — TW threads are listing-less DMs whose guest_id/host_id
+     *  are UUID-canonicalized and therefore meaningless for role. */
+    author_id: string;
     status: "active" | "expired" | "closed";
     /** Convenience: row-status==='active' AND not past expires_at.
      *  Mirrors the visibility gate the feed uses. */
@@ -690,7 +696,7 @@ export async function getThreadDetail(
   if (originProposalId) {
     const { data: opRow } = await supabase
       .from("proposals")
-      .select("id, kind, title, listing_id, status, expires_at")
+      .select("id, kind, title, listing_id, author_id, status, expires_at")
       .eq("id", originProposalId)
       .maybeSingle();
     if (opRow) {
@@ -706,6 +712,7 @@ export async function getThreadDetail(
         title: (opRow as { title: string }).title,
         listing_id:
           (opRow as { listing_id?: string | null }).listing_id ?? null,
+        author_id: (opRow as { author_id: string }).author_id,
         status,
         isAvailable: status === "active" && !expired,
       };

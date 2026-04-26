@@ -417,8 +417,6 @@ export function ThreadView({
         <ProposalBridgeActions
           threadId={thread.id}
           currentUserId={currentUserId}
-          hostId={thread.host_id}
-          guestId={thread.guest_id}
           proposal={thread.origin_proposal}
           hasActiveTermsFlow={Boolean(thread.contact_request_id)}
         />
