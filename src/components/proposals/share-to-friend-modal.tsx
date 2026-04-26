@@ -165,11 +165,19 @@ export function ShareToFriendModal({
 
   // Phone-invite fallback: when the search looks like a phone number
   // and we got zero matches, offer to invite that number.
+  //
+  // Use isPossible() (length/format-based) rather than isValid()
+  // (carrier/area-code-based). The share modal just needs to detect
+  // "the user is typing a phone-y thing" so it can offer the invite
+  // bridge — strict carrier validity belongs on the /invite page,
+  // which already enforces it before sending the SMS. Reserved test
+  // numbers like 555-555-XXXX are valid-shape but invalid-carrier;
+  // isPossible accepts them, isValid rejects them.
   const phoneFallback = useMemo(() => {
     if (debouncedQuery.length < 4) return null;
     if (results.length > 0) return null;
     const parsed = parsePhoneNumberFromString(debouncedQuery, "US");
-    if (!parsed?.isValid()) return null;
+    if (!parsed?.isPossible()) return null;
     return {
       e164: parsed.format("E.164"),
       display: parsed.formatNational(),
