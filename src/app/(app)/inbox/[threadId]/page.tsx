@@ -58,7 +58,20 @@ export default async function ThreadPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div className="grid h-[calc(100vh-160px)] grid-cols-1 overflow-hidden md:h-[calc(100vh-180px)] md:grid-cols-[360px_1fr] md:rounded-xl md:border md:border-border md:bg-white xl:grid-cols-[320px_1fr_340px]">
+      {/*
+        Heights match inbox-shell.tsx so the per-thread page doesn't
+        overshoot the viewport. The S6 addendum fix (a9df1ca) only
+        updated /inbox; this page was on the older 100vh-180px calc
+        and the gap got newly visible once S9d added the origin
+        proposal card + bridge action row at the top of the thread.
+        - Desktop: 80 (nav) + 44 (section nav) + 48 (page py-6) + 52
+          (h1 + mb-4) + 4 (buffer) = 228.
+        - Mobile: no h1, but a 52px back bar replaces it; the
+          original -160px figure remains close enough. Switch the
+          unit to dvh so the iOS URL-bar collapse doesn't push the
+          composer below the visible area.
+      */}
+      <div className="grid h-[calc(100dvh-160px)] max-h-[calc(100dvh-160px)] grid-cols-1 overflow-hidden md:h-[calc(100dvh-228px)] md:max-h-[calc(100dvh-228px)] md:grid-cols-[360px_1fr] md:rounded-xl md:border md:border-border md:bg-white xl:grid-cols-[320px_1fr_340px]">
         {/* Sidebar — hidden on mobile, visible on desktop */}
         <div className="hidden border-r border-border md:block md:overflow-y-auto">
           <InboxList
