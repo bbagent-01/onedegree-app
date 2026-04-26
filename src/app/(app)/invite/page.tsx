@@ -86,11 +86,18 @@ function InvitePageContent() {
   const score =
     vouchType && yearsKnown ? computeVouchScore(vouchType, yearsKnown) : null;
 
-  // Phone is now required (primary), email is optional
+  // Phone is now required (primary), email is optional.
+  //
+  // Use isPossible() (length/format-based) rather than isValid()
+  // (carrier/area-code-based) for the UX gate — matches the share
+  // modal's phone detector and lets reserved test numbers (555-555-
+  // XXXX) through to QA the round-trip. The downstream /api/invites
+  // POST still goes through Twilio at send time, which is the true
+  // boundary for "is this number actually reachable".
   const parsedPhone = phone.trim()
     ? parsePhoneNumberFromString(phone.trim(), "US")
     : null;
-  const phoneValid = parsedPhone?.isValid() ?? false;
+  const phoneValid = parsedPhone?.isPossible() ?? false;
   const phoneE164 = parsedPhone?.format("E.164") ?? "";
   const phoneFormatted = parsedPhone?.formatNational() ?? phone;
   const canProceedInfo = name.trim() && phone.trim() && phoneValid;
@@ -257,10 +264,12 @@ function InvitePageContent() {
                     if (existing.kind !== "none") setExisting({ kind: "none" });
                   }}
                   onBlur={() => {
-                    // Format on blur so typing isn't disrupted
+                    // Format on blur so typing isn't disrupted. Use
+                    // isPossible() to match the gate above so blur-
+                    // formatting still applies to test numbers.
                     if (phone.trim()) {
                       const parsed = parsePhoneNumberFromString(phone.trim(), "US");
-                      if (parsed?.isValid()) {
+                      if (parsed?.isPossible()) {
                         setPhone(parsed.formatNational());
                       }
                     }
