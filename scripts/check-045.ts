@@ -4,6 +4,8 @@
  *
  * Usage: npx tsx --env-file=.env.local scripts/check-045.ts
  */
+export {};
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN!;
 const REF = SUPABASE_URL.match(/https?:\/\/([^.]+)\.supabase\.co/)![1];

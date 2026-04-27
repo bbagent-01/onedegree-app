@@ -8,11 +8,17 @@
  * — this worker is just the trigger.
  *
  * Currently fans out to:
- *   /api/cron/check-reminders   — hourly check-in + review sweep
- *   /api/cron/payment-due       — daily payment_due window opener
+ *   /api/cron/check-reminders     — hourly check-in + review sweep
+ *   /api/cron/payment-due         — daily payment_due window opener
+ *   /api/cron/expire-proposals    — flips lapsed proposals to expired
+ *   /api/cron/recompute-trust-v2  — Trust v2 user-score recompute
+ *                                   (self-throttles to ~once/day via
+ *                                   last_score_computed_at staleness)
  *
- * Both are safe to fire hourly; the payment-due endpoint is idempotent
- * against already-posted `payment_due` messages.
+ * All endpoints are safe to fire hourly: payment-due is idempotent,
+ * expire-proposals is filtered by status+expires_at, and
+ * recompute-trust-v2 short-circuits when last_score_computed_at is
+ * fresher than TRUST_RECOMPUTE_STALE_HOURS.
  *
  * Bound vars (set in wrangler.toml [vars]):
  *   - TARGET_URL: base URL of the Pages app (e.g. https://alpha-b.onedegreebnb.com)
@@ -30,6 +36,7 @@ const CRON_PATHS = [
   "/api/cron/check-reminders",
   "/api/cron/payment-due",
   "/api/cron/expire-proposals",
+  "/api/cron/recompute-trust-v2",
 ];
 
 export default {

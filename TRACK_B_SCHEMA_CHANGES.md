@@ -2,6 +2,131 @@
 
 Schema changes introduced by Track B sessions. Each entry documents what was added and why.
 
+## S10.7 — Trust v2 compute layer (migration 046)
+
+**Migration:** `supabase/migrations/046_trust_v2_compute.sql`
+**Compute module:** `src/lib/trust/v2-compute.ts`
+**Config:** `src/lib/trust/config.ts` (`TRUST_VOUCH_K = 30`)
+**Cron route:** `src/app/api/cron/recompute-trust-v2/route.ts`
+**One-off invoker:** `scripts/recompute-trust-v2-now.ts`
+**Spec:** Trust v2 spec (inlined in S10.7 task brief) — see §03 (formulas), §04 (bootstrap), §08 (schema), §09 (Phase 1).
+
+### Goal
+
+Phase 1 of the Trust v2 model: schema + nightly recompute for the new
+`vouch_signal` / `vouch_score` / `rating_avg` / `rating_count` user
+columns plus the cron that maintains them. **Display layer is untouched
+this session** — `TrustTag`, `MultiHopView`, `compute1DegreeScore`, and
+every reader of the legacy 1° connection score continues to render
+exactly as before. Alpha 1 Cluster 4.5 will switch the display layer
+to read `users.vouch_score`.
+
+Strictly additive. No drops, no type changes on existing columns.
+
+### Schema additions — users (six columns total, five new)
+
+| Column | Type | Default | Source |
+|--------|------|---------|--------|
+| `vouch_signal` | NUMERIC(10,4) | `0` | new — mig 046 |
+| `vouch_score` | NUMERIC(4,1) | `0` | new — mig 046 (user-level 0–10; distinct from `vouches.vouch_score`) |
+| `rating_avg` | NUMERIC(3,2) | NULL | new — mig 046 |
+| `rating_count` | INTEGER | `0` | new — mig 046 |
+| `last_score_computed_at` | TIMESTAMPTZ | NULL | new — mig 046 |
+| `vouch_power` | DECIMAL(3,2) | `1.0` | already existed (mig 014b) — re-used |
+
+**Why `vouch_power` wasn't re-added.** Spec §08 lists six columns including
+`vouch_power NUMERIC(4,3) DEFAULT 1.000`. The column was already on `users`
+from mig 014b (DECIMAL(3,2), default 1.0) with the same semantics — average
+of guest_ratings of users this user has vouched for, clamped to [0.5, 1.5].
+The "no type changes on existing columns" constraint forbids re-typing it,
+so the cron writes the existing column. The spec's [0.0, 2.0] range guidance
+is satisfied — [0.5, 1.5] is a subset — and we picked [0.5, 1.5] specifically
+to keep the legacy `trg_vouch_power` trigger (mig 014b) and the cron in lockstep.
+
+### Combined rating trigger
+
+| Trigger | Table | Fires On | Purpose |
+|---------|-------|----------|---------|
+| `trg_update_user_combined_ratings` | stay_confirmations | INSERT / UPDATE OF guest_rating, host_rating, guest_id, host_id / DELETE | Maintains `users.rating_avg` + `users.rating_count` for the affected guest_id and host_id. |
+
+`rating_avg` is the **combined** average across both roles: every
+non-null `stay_confirmations.guest_rating` where `guest_id = u` plus
+every non-null `stay_confirmations.host_rating` where `host_id = u`,
+averaged. `rating_count` is the count of those rows. The legacy
+`trg_update_user_ratings` (mig 014b) keeps `users.guest_rating` /
+`users.host_rating` split-by-role values current — both triggers run;
+neither replaces the other.
+
+The migration also runs a one-shot backfill so existing rows have the
+correct `rating_avg` / `rating_count` immediately. (At the time of
+S10.7, no `stay_confirmations` rows had star ratings, so the backfill
+left every user with NULL rating_avg + 0 rating_count — expected.)
+
+### Recompute math (spec §03)
+
+```
+weight(j → i) = vouch_power(j) × log(1 + vouch_signal(j) + 1)
+              = vouch_power(j) × log(2 + vouch_signal(j))
+vouch_signal(i) = Σ weight(j → i)               (over inbound vouches)
+vouch_score(i)  = 10 × (1 − e^(−vouch_signal(i) / TRUST_VOUCH_K))
+vouch_power(i)  = avg(rating_avg of users i has vouched for)
+                  clamped [0.5, 1.5]; 1.0 default
+```
+
+`TRUST_VOUCH_K = 30` (spec §03; tunable via env var of the same name).
+The +1 inside the log is the bootstrap floor (spec §04) so brand-new
+users with signal=0 still contribute log(2)≈0.69 per vouch.
+
+### Recompute orchestrator (`recomputeAllTrustV2`)
+
+Pulls all users + all vouches in two queries, then iterates a fixed
+point until `max delta < 0.01` or 12 passes. Each pass:
+
+1. Refreshes `vouch_power` from current `rating_avg` of vouchees.
+2. Refreshes `vouch_signal` using updated power + previous-pass signal.
+
+Final pass derives `vouch_score` from `vouch_signal` and persists all
+four columns + `last_score_computed_at = now()` for every user.
+
+**Initial backfill (live alpha-c run, 2026-04-27):** 51 users · 10
+passes · converged · max Δ = 0.0033 · 1.5s. Score range 0.0–6.3
+(Loren: 6.3 with 13 inbound vouches; bottom of populated graph: 0.4
+for users with 1 inbound vouch; 13 zero-inbound users at 0.0).
+
+### Cron wiring
+
+The hourly Cloudflare Worker (`cron-worker/`) was extended with
+`/api/cron/recompute-trust-v2` in its fan-out. The route is a no-op
+when the most recent `users.last_score_computed_at` is younger than
+`TRUST_RECOMPUTE_STALE_HOURS = 20` hours, so the hourly trigger
+effectively runs once a day. `?force=1` overrides the staleness check
+for one-off invocations.
+
+### What was NOT done (deferred to Alpha 1 Cluster 4.5)
+
+- Spec §09 Phase 1 line item: "rescale existing connection_score output
+  to 0–10." Skipped this session because the legacy display reads
+  `compute1DegreeScore` directly, and rescaling without simultaneously
+  updating the display would render 1° scores incorrectly. Display swap
+  + connection-score rescale ship together in Alpha 1.
+- TrustTag / MultiHopView / any visual change. Not touched.
+
+### Backwards compat
+
+- Existing `vouches.vouch_score` (per-vouch points, 15–25 in legacy
+  model) is unrelated to the new `users.vouch_score` (user-level 0–10).
+  Both columns coexist on different tables; readers were never confused
+  because they always reference the qualified column.
+- `users.vouch_power` is now written by both `trg_vouch_power` (mig 014b,
+  fires on `users.guest_rating` UPDATE) and the v2 cron — both produce
+  identical values because they use the same formula and bounds.
+- `users.guest_rating` / `users.host_rating` / `users.guest_review_count`
+  / `users.host_review_count` continue to be maintained by the legacy
+  `trg_update_user_ratings` trigger; readers of those columns are
+  unaffected.
+
+---
+
 ## S10.5 — Listing schema forward-look (migration 045)
 
 **Migration:** `supabase/migrations/045_listing_schema_forward_look.sql`
