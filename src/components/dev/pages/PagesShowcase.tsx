@@ -227,10 +227,12 @@ export function PagesShowcase({ route }: Props) {
         <p className="text-xs text-muted-foreground">{variant.blurb}</p>
       )}
 
-      {/* Full-bleed live page — children render at the natural width
-       *  of the design-system content area (which is itself full-window
-       *  when on a pages-* section per DesignSystemRoot). */}
-      <div className="-mx-6 overflow-x-hidden border-y-2 border-border bg-white md:-mx-10">
+      {/* Live page preview — full-bleed under the default preset
+       *  (-mx-6 / md:-mx-10 cancels the design-system content-area
+       *  padding). Under Guesty Forest the preset's CSS catches
+       *  .page-frame and turns this into a rounded-3xl forest screen
+       *  with a heavy outset shadow, sitting on the deeper page bg. */}
+      <div className="page-frame -mx-6 overflow-x-hidden border-y-2 border-border bg-white md:-mx-10">
         {variant.render()}
       </div>
     </section>

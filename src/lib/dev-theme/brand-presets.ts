@@ -53,13 +53,15 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "color/brand-600": "#154C3B",
       "color/brand-700": "#103A2E",
 
-      // CTA / brand → MINT (lighter than forest 600 so a "Search"
-      // pill pops against the dark green page bg with high contrast).
-      "color/brand": "#4FB191",
+      // CTA / brand → PALE MINT pill (matches the Guesty "Search"
+      // button — almost cream, dark green text, very high contrast
+      // against the deep forest page bg).
+      "color/brand": "#BFE2D4",
       "color/brand-foreground": "#0B2E25",
 
-      // ── Page surfaces → DARK forest takeover ────────────────
-      "color/background": "#0B2E25",
+      // ── Page surfaces → DEEPEST forest (one shade darker than
+      //    forest-900 so the screen frames sit visibly on top) ─
+      "color/background": "#07221B",
       "color/foreground": "#F5F1E6",
 
       // ── Card / popover → GLASS (translucent cream over green) ─
@@ -81,7 +83,7 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "color/ring": "#4FB191",
 
       // ── Primary / secondary / accent ─────────────────────────
-      "color/primary": "#4FB191",
+      "color/primary": "#BFE2D4",
       "color/primary-foreground": "#0B2E25",
       "color/secondary": "rgba(245, 241, 230, 0.06)",
       "color/secondary-foreground": "#F5F1E6",
@@ -100,14 +102,35 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "Instrument+Serif:ital@0;1",
     ],
     extraCss: `
-      /* ── DARK PAGE TAKEOVER ─────────────────────────────────
-         Forest forest — every page background, the design-system
-         shell, and the body itself flip to deep green. Cards become
-         translucent glass overlays on top. */
+      /* ── DEEPEST FOREST PAGE BG ──────────────────────────────
+         The body / html flip to the deepest green — one notch
+         darker than the screen frames so they visibly float. */
       html[data-theme="sandbox"],
       html[data-theme="sandbox"] body {
-        background: #0B2E25 !important;
+        background: #07221B !important;
         color: #F5F1E6 !important;
+      }
+
+      /* ── SCREEN FRAME ────────────────────────────────────────
+         Each Page preview sits in a rounded forest-900 panel with
+         a heavy outset shadow and a subtle cream rim — the exact
+         floating-screen treatment from the Guesty mock. PagesShowcase
+         wraps every preview in a .page-frame element so the hook is
+         stable. */
+      html[data-theme="sandbox"] .page-frame {
+        margin: 24px 0 48px !important;
+        border-radius: 24px !important;
+        overflow: hidden !important;
+        background: #0B2E25 !important;
+        border: 1px solid rgba(245, 241, 230, 0.08) !important;
+        box-shadow:
+          0 30px 80px -20px rgba(0, 0, 0, 0.6),
+          inset 0 0 0 1px rgba(245, 241, 230, 0.04) !important;
+      }
+      /* Inside the frame, the chrome's border-bottom (between nav
+         and content) becomes a faint cream rule. */
+      html[data-theme="sandbox"] .page-frame [class~="border-b"] {
+        border-bottom-color: rgba(245, 241, 230, 0.10) !important;
       }
 
       /* Common surface utility classes — every card / panel / row
@@ -168,24 +191,28 @@ export const BRAND_PRESETS: BrandPreset[] = [
       }
 
       /* ── BIG SERIF HEADLINES ─────────────────────────────────
-         Every h1 / h2 picks up the Guesty hero treatment: DM Serif
-         Display, generous size, italic Instrument Serif accents in
-         mint for <em>-wrapped words. */
+         The hero treatment from the Guesty mock: DM Serif Display,
+         tight tracking, italic Instrument Serif accent words in mint
+         for <em>-wrapped phrases. h1 scales up to 72px on wide
+         viewports — the design-system page reads as an editorial
+         spread once Guesty is on. */
       html[data-theme="sandbox"] h1 {
         font-family: 'DM Serif Display', Georgia, serif !important;
         font-weight: 400 !important;
-        font-size: 56px !important;
+        font-size: clamp(40px, 6vw, 72px) !important;
         letter-spacing: -0.025em !important;
-        line-height: 1.05 !important;
+        line-height: 1.02 !important;
         color: #F5F1E6 !important;
+        max-width: 18ch;
       }
       html[data-theme="sandbox"] h2 {
         font-family: 'DM Serif Display', Georgia, serif !important;
         font-weight: 400 !important;
-        font-size: 32px !important;
+        font-size: clamp(28px, 3.5vw, 44px) !important;
         letter-spacing: -0.02em !important;
-        line-height: 1.1 !important;
+        line-height: 1.05 !important;
         color: #F5F1E6 !important;
+        max-width: 24ch;
       }
       html[data-theme="sandbox"] h3 {
         font-family: 'DM Sans', system-ui, sans-serif !important;
@@ -217,11 +244,39 @@ export const BRAND_PRESETS: BrandPreset[] = [
       }
 
       /* ── PILL CONTROLS ───────────────────────────────────────
-         Search controls + filter chips inherit a glass-pill look. */
+         Search controls + filter chips inherit a glass-pill look.
+         The mint brand button stays rounded-lg per token but every
+         existing rounded-full pill gets the glass treatment. */
       html[data-theme="sandbox"] .rounded-full,
       html[data-theme="sandbox"] [data-radix-pill] {
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
+      }
+
+      /* ── BRAND BUTTON (the mint pill) ────────────────────────
+         Main CTA inherits the pale mint #BFE2D4 from the brand token
+         but should also lean into a generous rounded-pill shape so
+         it reads like the Guesty "Search" affordance. */
+      html[data-theme="sandbox"] button[class*="bg-brand"] {
+        border-radius: 999px !important;
+        padding-left: 1.25rem !important;
+        padding-right: 1.25rem !important;
+        font-weight: 600 !important;
+        background-color: #BFE2D4 !important;
+        color: #0B2E25 !important;
+        border-color: transparent !important;
+      }
+      html[data-theme="sandbox"] button[class*="bg-brand"]:hover {
+        background-color: #4FB191 !important;
+      }
+
+      /* ── FILTER CHIPS / TAB-LIKE PILLS ──────────────────────
+         Active state = full cream pill with dark text; inactive =
+         glass with cream text. */
+      html[data-theme="sandbox"] [class*="bg-brand"][class*="border-brand"] {
+        background-color: #F5F1E6 !important;
+        color: #0B2E25 !important;
+        border-color: transparent !important;
       }
 
       /* ── BRAND LOGO COLOR FLIP ───────────────────────────────
