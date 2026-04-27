@@ -9,7 +9,7 @@ crons = ["7 * * * *"]
 # Two non-secret env vars. The CRON_SECRET secret is set separately via
 # `wrangler secret put` so it never lands in a committed file.
 [vars]
-TARGET_URL = "https://alpha-b.onedegreebnb.com/api/cron/check-reminders"
+TARGET_URL = "https://alpha-c.onedegreebnb.com"
 
 [observability]
 enabled = true

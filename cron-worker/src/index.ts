@@ -21,7 +21,7 @@
  * fresher than TRUST_RECOMPUTE_STALE_HOURS.
  *
  * Bound vars (set in wrangler.toml [vars]):
- *   - TARGET_URL: base URL of the Pages app (e.g. https://alpha-b.onedegreebnb.com)
+ *   - TARGET_URL: base URL of the Pages app (e.g. https://alpha-c.onedegreebnb.com)
  *
  * Bound secrets (set with `wrangler secret put`):
  *   - CRON_SECRET: shared with the Pages app's CRON_SECRET env var
