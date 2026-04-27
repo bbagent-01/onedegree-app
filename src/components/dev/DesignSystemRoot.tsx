@@ -20,12 +20,16 @@ interface Props {
   usage: Record<string, number>;
 }
 
+// Order goes from highest-level (whole pages) → mid-level
+// (composed components) → lowest-level (atomic tokens), so refreshing
+// drops you straight into the most product-shaped surfaces and you
+// drill down toward primitives as you scroll.
 const SECTIONS: Array<{ id: Section; label: string; group: string }> = [
-  { id: "tokens-color", label: "Colors", group: "Tokens" },
-  { id: "tokens-typography", label: "Typography", group: "Tokens" },
-  { id: "tokens-spacing", label: "Spacing", group: "Tokens" },
-  { id: "tokens-radius", label: "Radius", group: "Tokens" },
-  { id: "tokens-shadow", label: "Shadows", group: "Tokens" },
+  { id: "pages-browse", label: "/browse", group: "Pages" },
+  { id: "pages-listing", label: "/listings/[id]", group: "Pages" },
+  { id: "pages-profile", label: "/profile/[id]", group: "Pages" },
+  { id: "pages-inbox", label: "/inbox", group: "Pages" },
+  { id: "pages-proposals", label: "/proposals", group: "Pages" },
   { id: "components-trust", label: "Trust components", group: "Components" },
   { id: "components-profile", label: "Profile badges", group: "Components" },
   { id: "components-listing", label: "Listing card (simple)", group: "Components" },
@@ -37,17 +41,20 @@ const SECTIONS: Array<{ id: Section; label: string; group: string }> = [
   { id: "components-threads", label: "Thread structured cards", group: "Components" },
   { id: "components-timeline", label: "Trip timeline", group: "Components" },
   { id: "components-trips", label: "Trips & reviews", group: "Components" },
-  { id: "pages-browse", label: "/browse", group: "Pages" },
-  { id: "pages-listing", label: "/listings/[id]", group: "Pages" },
-  { id: "pages-profile", label: "/profile/[id]", group: "Pages" },
-  { id: "pages-inbox", label: "/inbox", group: "Pages" },
-  { id: "pages-proposals", label: "/proposals", group: "Pages" },
   { id: "patterns", label: "Patterns", group: "Patterns" },
+  { id: "tokens-color", label: "Colors", group: "Tokens" },
+  { id: "tokens-typography", label: "Typography", group: "Tokens" },
+  { id: "tokens-spacing", label: "Spacing", group: "Tokens" },
+  { id: "tokens-radius", label: "Radius", group: "Tokens" },
+  { id: "tokens-shadow", label: "Shadows", group: "Tokens" },
   { id: "sandbox", label: "Sandbox theme", group: "Sandbox" },
 ];
 
 export function DesignSystemRoot({ tokens, usage }: Props) {
-  const [active, setActive] = useState<Section>("tokens-color");
+  // Default to /browse so refresh lands on the most product-shaped
+  // surface, matching the new sidebar order (Pages → Components →
+  // Tokens). Loren wants to start at the top of the funnel.
+  const [active, setActive] = useState<Section>("pages-browse");
   const allTokens = [
     ...tokens.color,
     ...tokens.fontFamily,

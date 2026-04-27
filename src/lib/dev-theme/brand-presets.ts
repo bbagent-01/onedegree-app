@@ -59,9 +59,12 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "color/brand": "#BFE2D4",
       "color/brand-foreground": "#0B2E25",
 
-      // ── Page surfaces → DEEPEST forest (one shade darker than
-      //    forest-900 so the screen frames sit visibly on top) ─
-      "color/background": "#07221B",
+      // ── Page surfaces → very deep, high-saturation forest. We
+      //    push beyond the source mock's #07221B because it reads
+      //    medium / desaturated against a real screen — #04231A has
+      //    the same hue but ~15% more chroma + slightly darker, so
+      //    the page reads as a rich pigment instead of a wash. ──
+      "color/background": "#04231A",
       "color/foreground": "#F5F1E6",
 
       // ── Card / popover → GLASS (translucent cream over green).
@@ -106,33 +109,27 @@ export const BRAND_PRESETS: BrandPreset[] = [
     ],
     extraCss: `
       /* ── DEEPEST FOREST PAGE BG ──────────────────────────────
-         Body flips to a dark forest with a very subtle radial
-         gradient from top-left so the bg has depth instead of being
-         flat black-green. The base color matches the Guesty
-         standalone (body { background: #07221B }); the gradient
-         layer adds richness without breaking the deepest-color
-         mood. */
+         Flat deep saturated forest. Earlier we layered a radial
+         gradient for "richness" but it actually washed the bg out
+         to a medium tone. A single solid color reads richer +
+         deeper than any gradient on a screen — the depth comes
+         from the contrast between body, frame interior, and glass
+         cards, not from per-pixel hue variation. */
       html[data-theme="sandbox"],
       html[data-theme="sandbox"] body {
-        background:
-          radial-gradient(at 0% 0%, rgba(31, 107, 83, 0.18), transparent 55%),
-          radial-gradient(at 100% 100%, rgba(15, 60, 45, 0.20), transparent 50%),
-          #07221B !important;
-        background-attachment: fixed !important;
+        background: #04231A !important;
         color: #F5F1E6 !important;
       }
 
       /* ── SCREEN FRAME ────────────────────────────────────────
-         Each Page preview sits in a rounded forest-800 panel with
-         a heavy outset shadow + subtle cream rim. Forest-800 (one
-         step lighter than forest-900) gives the frames a richer,
-         more saturated tonal layer above the body bg — they read as
-         lit volumes instead of flat panels. */
+         Forest-800 #0E3325 — slightly punchier than the previous
+         #103A2E, more saturated, sits visibly over the body color.
+         Heavier outset shadow + cream inner rim makes it float. */
       html[data-theme="sandbox"] .page-frame {
         margin: 24px 0 48px !important;
         border-radius: 24px !important;
         overflow: hidden !important;
-        background: #103A2E !important;
+        background: #0E3325 !important;
         border: 1px solid rgba(245, 241, 230, 0.10) !important;
         box-shadow:
           0 40px 90px -22px rgba(0, 0, 0, 0.75),
@@ -149,16 +146,36 @@ export const BRAND_PRESETS: BrandPreset[] = [
          rather than another glass card. */
       html[data-theme="sandbox"] .page-frame nav,
       html[data-theme="sandbox"] .page-frame aside {
-        background: rgba(7, 34, 27, 0.55) !important;
+        background: rgba(4, 35, 26, 0.55) !important;
+      }
+
+      /* ── PAGE-CHROME NAV BAR ────────────────────────────────
+         The mock global nav inside each page preview uses
+         bg-white/95. Tailwind compiles that to a fixed-opacity
+         RGBA which my .bg-white selector below doesn't catch — so
+         the nav was sitting cream-on-cream with a near-invisible
+         wordmark. Catch the common opacity variants explicitly. */
+      html[data-theme="sandbox"] .bg-white\\/95,
+      html[data-theme="sandbox"] .bg-white\\/90,
+      html[data-theme="sandbox"] .bg-white\\/80,
+      html[data-theme="sandbox"] .bg-white\\/70,
+      html[data-theme="sandbox"] .bg-white\\/60 {
+        background-color: rgba(4, 35, 26, 0.78) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
       }
 
       /* Common surface utility classes — every card / panel / row
-         that hardcodes bg-white falls back to glass. */
+         that hardcodes bg-white falls back to glass with a thin
+         cream rim so the tile edges are explicit (the alpha-only
+         glass without a border was nearly invisible on the lighter
+         frame interior). */
       html[data-theme="sandbox"] .bg-white,
       html[data-theme="sandbox"] .bg-card,
       html[data-theme="sandbox"] .bg-popover,
       html[data-theme="sandbox"] .bg-background {
         background-color: rgba(245, 241, 230, 0.06) !important;
+        border: 1px solid rgba(245, 241, 230, 0.12) !important;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
       }
