@@ -276,45 +276,43 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
               : 0
           }
         />
-        {/* Photographer credit — runs the full bottom of the visual.
-            With the inverted rings, the outermost ring is the most
-            opaque white-veil, which gives this strip enough contrast
-            on its own without an extra background pill. The text gets
-            a soft drop-shadow as belt-and-suspenders for sky/snow
-            photos. Production-tier compliant: linked photographer +
-            linked Unsplash, both carrying the utm_source query. */}
+        {/* Photographer credit — bottom-right, riding the rim of the
+            outermost ring veil. Drop-shadow on the text keeps the
+            white legible on bright photos; we don't add a background
+            pill anymore because the outer ring already supplies the
+            contrast.
+            Production-tier compliant: linked photographer + linked
+            Unsplash, both carrying the utm_source query. */}
         {fromUnsplash && attribution ? (
           <div
-            className="absolute inset-x-0 bottom-0 px-4 pb-2 pt-6 text-center text-[11px] font-medium text-white"
-            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.45)" }}
+            className="absolute bottom-2 right-3 max-w-[92%] truncate text-right text-[11px] font-medium text-white"
+            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.55)" }}
           >
-            <span className="truncate">
-              Photo by{" "}
-              <a
-                href={`${attribution.photographer_url}?utm_source=trustead&utm_medium=referral`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline-offset-2 hover:underline"
-              >
-                {attribution.photographer_name}
-              </a>{" "}
-              on{" "}
-              <a
-                href="https://unsplash.com/?utm_source=trustead&utm_medium=referral"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline-offset-2 hover:underline"
-              >
-                Unsplash
-              </a>
-            </span>
+            Photo by{" "}
+            <a
+              href={`${attribution.photographer_url}?utm_source=trustead&utm_medium=referral`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline-offset-2 hover:underline"
+            >
+              {attribution.photographer_name}
+            </a>{" "}
+            on{" "}
+            <a
+              href="https://unsplash.com/?utm_source=trustead&utm_medium=referral"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline-offset-2 hover:underline"
+            >
+              Unsplash
+            </a>
           </div>
         ) : fromUnsplash ? (
           <div
-            className="absolute inset-x-0 bottom-0 px-4 pb-2 pt-6 text-center text-[11px] font-medium text-white"
-            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.45)" }}
+            className="absolute bottom-2 right-3 text-[11px] font-medium text-white"
+            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.55)" }}
           >
-            Destination photo ·{" "}
+            Photo ·{" "}
             <a
               href="https://unsplash.com/?utm_source=trustead&utm_medium=referral"
               target="_blank"
@@ -361,36 +359,46 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
 }
 
 /**
- * Concentric white rings radiating outward from the destination label —
- * the inner rings are nearly transparent (so the photo + type read
- * cleanly), and each successive ring out gets MORE opaque. The outer
- * rings are intentionally drawn well past the visual's edge so the
- * effect feels like it bleeds off the frame, not a contained vignette.
+ * Concentric white rings radiating outward like ripples — center near-
+ * transparent, each successive ring more opaque, outermost rings
+ * deliberately drawn past the visual frame so the parent's
+ * `overflow-hidden` clips them and the effect bleeds off the card.
  *
- * Implemented as a stack of `box-shadow` rings on a tiny centered
- * element. The parent's `overflow-hidden` clips the outermost rings,
- * which is what produces the "extends past the card" look at any
- * card height.
+ * Implementation: nine independent absolutely-positioned ring elements
+ * with `border` strokes only (no fill). Because they're strokes — not
+ * stacked `box-shadow`s on filled discs — they don't accumulate
+ * opacity at the center, so the inversion (transparent → opaque
+ * outward) actually renders the way it reads.
  */
 function ConcentricRings() {
+  // Diameters in px. The card visual is 340w × min-260h on desktop,
+  // so anything past ~400 starts bleeding meaningfully off the frame
+  // on most breakpoints.
+  const rings: { d: number; opacity: number; thickness: number }[] = [
+    { d: 60, opacity: 0.05, thickness: 1 },
+    { d: 110, opacity: 0.08, thickness: 1 },
+    { d: 170, opacity: 0.12, thickness: 1 },
+    { d: 240, opacity: 0.16, thickness: 1.5 },
+    { d: 320, opacity: 0.2, thickness: 1.5 },
+    { d: 410, opacity: 0.25, thickness: 2 },
+    { d: 510, opacity: 0.3, thickness: 2 },
+    { d: 620, opacity: 0.35, thickness: 2 },
+    { d: 740, opacity: 0.4, thickness: 2 },
+  ];
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-      <div
-        className="h-2 w-2 rounded-full"
-        style={{
-          boxShadow: [
-            "0 0 0 28px rgba(255,255,255,0.03)",
-            "0 0 0 56px rgba(255,255,255,0.05)",
-            "0 0 0 88px rgba(255,255,255,0.07)",
-            "0 0 0 124px rgba(255,255,255,0.10)",
-            "0 0 0 164px rgba(255,255,255,0.14)",
-            "0 0 0 208px rgba(255,255,255,0.18)",
-            "0 0 0 256px rgba(255,255,255,0.22)",
-            "0 0 0 308px rgba(255,255,255,0.26)",
-            "0 0 0 364px rgba(255,255,255,0.30)",
-          ].join(", "),
-        }}
-      />
+      {rings.map((r) => (
+        <div
+          key={r.d}
+          className="absolute rounded-full border-white"
+          style={{
+            width: `${r.d}px`,
+            height: `${r.d}px`,
+            borderWidth: `${r.thickness}px`,
+            opacity: r.opacity,
+          }}
+        />
+      ))}
     </div>
   );
 }
