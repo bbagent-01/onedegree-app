@@ -59,28 +59,31 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "color/brand": "#BFE2D4",
       "color/brand-foreground": "#0B2E25",
 
-      // ── Page surfaces → very deep, high-saturation forest. We
-      //    push beyond the source mock's #07221B because it reads
-      //    medium / desaturated against a real screen — #04231A has
-      //    the same hue but ~15% more chroma + slightly darker, so
-      //    the page reads as a rich pigment instead of a wash. ──
-      "color/background": "#04231A",
+      // ── Page surfaces → very deep, high-saturation forest.
+      //    #03241A: HSL(155, 80%, 8%) — same hue as the source mock
+      //    but pushed to maximum saturation at the same lightness.
+      //    The deep + saturated combo reads as rich pigment, not a
+      //    flat wash. ──────────────────────────────────────────
+      "color/background": "#03241A",
       "color/foreground": "#F5F1E6",
 
-      // ── Card / popover → GLASS (translucent cream over green).
-      //    Alpha bumped to 0.08 so glass cards sit visibly on top of
-      //    the richer forest-800 frame interior — at 0.06 they were
-      //    almost invisible against the lighter inner bg. ────────
-      "color/card": "rgba(245, 241, 230, 0.08)",
+      // ── Card / popover → DARK GREEN-TINTED GLASS.
+      //    Cream-tinted glass on every .bg-white was painting a
+      //    white wash over the frame interior — the visual average
+      //    came out gray-green and washed-out. Swapping to a
+      //    semi-transparent dark forest tint inverts the depth:
+      //    cards now read as scooped darker wells in the frame,
+      //    and the saturation stays rich. ──────────────────────
+      "color/card": "rgba(4, 25, 18, 0.55)",
       "color/card-foreground": "#F5F1E6",
-      "color/popover": "#154C3B",
+      "color/popover": "#0B2E25",
       "color/popover-foreground": "#F5F1E6",
 
-      // ── Muted surfaces → glass-er glass + dim cream text ────
-      "color/muted": "rgba(245, 241, 230, 0.08)",
+      // ── Muted surfaces → dark green tint ────────────────────
+      "color/muted": "rgba(4, 25, 18, 0.55)",
       "color/muted-foreground": "rgba(245, 241, 230, 0.62)",
-      "color/surface": "rgba(245, 241, 230, 0.08)",
-      "color/surface-alt": "rgba(245, 241, 230, 0.12)",
+      "color/surface": "rgba(4, 25, 18, 0.55)",
+      "color/surface-alt": "rgba(4, 25, 18, 0.7)",
       "color/subtle": "rgba(245, 241, 230, 0.55)",
 
       // ── Borders / inputs → faint cream rule on dark ─────────
@@ -109,75 +112,72 @@ export const BRAND_PRESETS: BrandPreset[] = [
     ],
     extraCss: `
       /* ── DEEPEST FOREST PAGE BG ──────────────────────────────
-         Flat deep saturated forest. Earlier we layered a radial
-         gradient for "richness" but it actually washed the bg out
-         to a medium tone. A single solid color reads richer +
-         deeper than any gradient on a screen — the depth comes
-         from the contrast between body, frame interior, and glass
-         cards, not from per-pixel hue variation. */
+         #03241A · HSL(155, 80%, 8%). Maximum saturation at this
+         lightness — anything deeper goes black, anything lighter
+         goes gray. */
       html[data-theme="sandbox"],
       html[data-theme="sandbox"] body {
-        background: #04231A !important;
+        background: #03241A !important;
         color: #F5F1E6 !important;
       }
 
       /* ── SCREEN FRAME ────────────────────────────────────────
-         Forest-800 #0E3325 — slightly punchier than the previous
-         #103A2E, more saturated, sits visibly over the body color.
-         Heavier outset shadow + cream inner rim makes it float. */
+         #082E22 — same hue + saturation as body, just barely
+         lifted in lightness (10% vs 8%). The depth is in the
+         body→frame layer, not chroma loss. Earlier #0E3325 had
+         lower saturation than the body so the frame interior was
+         reading gray-green by comparison. */
       html[data-theme="sandbox"] .page-frame {
         margin: 24px 0 48px !important;
         border-radius: 24px !important;
         overflow: hidden !important;
-        background: #0E3325 !important;
+        background: #082E22 !important;
         border: 1px solid rgba(245, 241, 230, 0.10) !important;
         box-shadow:
-          0 40px 90px -22px rgba(0, 0, 0, 0.75),
+          0 40px 90px -22px rgba(0, 0, 0, 0.78),
           0 8px 24px -8px rgba(0, 0, 0, 0.45),
           inset 0 0 0 1px rgba(245, 241, 230, 0.05) !important;
       }
-      /* Inside the frame, the chrome's border-bottom (between nav
-         and content) becomes a faint cream rule. */
       html[data-theme="sandbox"] .page-frame [class~="border-b"] {
         border-bottom-color: rgba(245, 241, 230, 0.10) !important;
       }
-      /* Sidebar / nav surfaces inside the frame get a slightly
-         darker forest tone so they read as a structural layer
-         rather than another glass card. */
+      /* Sidebar / nav surfaces inside the frame go DARKER than the
+         frame interior so they read as the structural ground, not
+         another glass tile. */
       html[data-theme="sandbox"] .page-frame nav,
       html[data-theme="sandbox"] .page-frame aside {
-        background: rgba(4, 35, 26, 0.55) !important;
+        background: rgba(3, 36, 26, 0.65) !important;
       }
 
       /* ── PAGE-CHROME NAV BAR ────────────────────────────────
-         The mock global nav inside each page preview uses
-         bg-white/95. Tailwind compiles that to a fixed-opacity
-         RGBA which my .bg-white selector below doesn't catch — so
-         the nav was sitting cream-on-cream with a near-invisible
-         wordmark. Catch the common opacity variants explicitly. */
+         The mock nav uses bg-white/95. Catch the common opacity
+         variants and flip to near-opaque dark forest so the
+         cream wordmark on top reads correctly. */
       html[data-theme="sandbox"] .bg-white\\/95,
       html[data-theme="sandbox"] .bg-white\\/90,
       html[data-theme="sandbox"] .bg-white\\/80,
       html[data-theme="sandbox"] .bg-white\\/70,
       html[data-theme="sandbox"] .bg-white\\/60 {
-        background-color: rgba(4, 35, 26, 0.78) !important;
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
+        background-color: rgba(3, 36, 26, 0.85) !important;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
       }
 
-      /* Common surface utility classes — every card / panel / row
-         that hardcodes bg-white falls back to glass with a thin
-         cream rim so the tile edges are explicit (the alpha-only
-         glass without a border was nearly invisible on the lighter
-         frame interior). */
+      /* ── GLASS TILES ─────────────────────────────────────────
+         CRITICAL: cream-tinted glass on every .bg-white was
+         painting white over green, which visually averaged the
+         whole content area to gray-green. Flipped to a semi-
+         transparent darker forest tint — cards now read as
+         scooped wells in the frame interior, the saturation
+         stays rich, and the thin cream rim still defines edges. */
       html[data-theme="sandbox"] .bg-white,
       html[data-theme="sandbox"] .bg-card,
       html[data-theme="sandbox"] .bg-popover,
       html[data-theme="sandbox"] .bg-background {
-        background-color: rgba(245, 241, 230, 0.06) !important;
-        border: 1px solid rgba(245, 241, 230, 0.12) !important;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        background-color: rgba(4, 25, 18, 0.55) !important;
+        border: 1px solid rgba(245, 241, 230, 0.10) !important;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
       }
 
       /* Translucent overlays (modal backdrops, hover scrims) get
@@ -204,13 +204,13 @@ export const BRAND_PRESETS: BrandPreset[] = [
         color: rgba(245, 241, 230, 0.62) !important;
       }
 
-      /* Form fields → glass on dark */
+      /* Form fields → dark green tinted glass on dark */
       html[data-theme="sandbox"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
       html[data-theme="sandbox"] textarea,
       html[data-theme="sandbox"] select,
       html[data-theme="sandbox"] [role="combobox"],
       html[data-theme="sandbox"] [class*="!bg-white"] {
-        background-color: rgba(245, 241, 230, 0.06) !important;
+        background-color: rgba(4, 25, 18, 0.55) !important;
         color: #F5F1E6 !important;
         border-color: rgba(245, 241, 230, 0.14) !important;
       }
@@ -338,9 +338,9 @@ export const BRAND_PRESETS: BrandPreset[] = [
           inset 0 0 0 1px rgba(245, 241, 230, 0.08) !important;
       }
 
-      /* ── OUTLINE BUTTONS get glass look ──────────────────── */
+      /* ── OUTLINE BUTTONS — match the dark-glass card treatment */
       html[data-theme="sandbox"] button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([class*="bg-emerald"]) {
-        background-color: rgba(245, 241, 230, 0.06) !important;
+        background-color: rgba(4, 25, 18, 0.45) !important;
         border-color: rgba(245, 241, 230, 0.14) !important;
         color: #F5F1E6 !important;
       }
