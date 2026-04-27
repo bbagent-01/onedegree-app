@@ -276,34 +276,44 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
               : 0
           }
         />
-        {/* Photographer credit. Wrapped in a small dark pill so it
-            stays legible regardless of what's behind it (sky, snow,
-            light food shots all destroyed the previous all-white
-            credit). Production-tier compliant: linked photographer
-            + linked Unsplash, both carrying the utm_source query. */}
+        {/* Photographer credit — runs the full bottom of the visual.
+            With the inverted rings, the outermost ring is the most
+            opaque white-veil, which gives this strip enough contrast
+            on its own without an extra background pill. The text gets
+            a soft drop-shadow as belt-and-suspenders for sky/snow
+            photos. Production-tier compliant: linked photographer +
+            linked Unsplash, both carrying the utm_source query. */}
         {fromUnsplash && attribution ? (
-          <div className="absolute bottom-2 right-2 max-w-[92%] truncate rounded-md bg-black/55 px-2 py-1 text-right text-[11px] font-medium text-white">
-            Photo by{" "}
-            <a
-              href={`${attribution.photographer_url}?utm_source=trustead&utm_medium=referral`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline-offset-2 hover:underline"
-            >
-              {attribution.photographer_name}
-            </a>{" "}
-            on{" "}
-            <a
-              href="https://unsplash.com/?utm_source=trustead&utm_medium=referral"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline-offset-2 hover:underline"
-            >
-              Unsplash
-            </a>
+          <div
+            className="absolute inset-x-0 bottom-0 px-4 pb-2 pt-6 text-center text-[11px] font-medium text-white"
+            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.45)" }}
+          >
+            <span className="truncate">
+              Photo by{" "}
+              <a
+                href={`${attribution.photographer_url}?utm_source=trustead&utm_medium=referral`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline-offset-2 hover:underline"
+              >
+                {attribution.photographer_name}
+              </a>{" "}
+              on{" "}
+              <a
+                href="https://unsplash.com/?utm_source=trustead&utm_medium=referral"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline-offset-2 hover:underline"
+              >
+                Unsplash
+              </a>
+            </span>
           </div>
         ) : fromUnsplash ? (
-          <div className="absolute bottom-2 right-2 rounded-md bg-black/55 px-2 py-1 text-[11px] font-medium text-white">
+          <div
+            className="absolute inset-x-0 bottom-0 px-4 pb-2 pt-6 text-center text-[11px] font-medium text-white"
+            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.45)" }}
+          >
             Destination photo ·{" "}
             <a
               href="https://unsplash.com/?utm_source=trustead&utm_medium=referral"
@@ -351,19 +361,34 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
 }
 
 /**
- * Three concentric white rings, less opaque the farther out they go.
- * Pure CSS — `box-shadow` rings on a fixed-size centered element so the
- * effect scales with the visual pane and stays sharp at any density.
- * Decorative only; pointer-events disabled.
+ * Concentric white rings radiating outward from the destination label —
+ * the inner rings are nearly transparent (so the photo + type read
+ * cleanly), and each successive ring out gets MORE opaque. The outer
+ * rings are intentionally drawn well past the visual's edge so the
+ * effect feels like it bleeds off the frame, not a contained vignette.
+ *
+ * Implemented as a stack of `box-shadow` rings on a tiny centered
+ * element. The parent's `overflow-hidden` clips the outermost rings,
+ * which is what produces the "extends past the card" look at any
+ * card height.
  */
 function ConcentricRings() {
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
       <div
-        className="h-32 w-32 rounded-full border border-white/35"
+        className="h-2 w-2 rounded-full"
         style={{
-          boxShadow:
-            "0 0 0 22px rgba(255,255,255,0.16), 0 0 0 44px rgba(255,255,255,0.10), 0 0 0 70px rgba(255,255,255,0.05)",
+          boxShadow: [
+            "0 0 0 28px rgba(255,255,255,0.03)",
+            "0 0 0 56px rgba(255,255,255,0.05)",
+            "0 0 0 88px rgba(255,255,255,0.07)",
+            "0 0 0 124px rgba(255,255,255,0.10)",
+            "0 0 0 164px rgba(255,255,255,0.14)",
+            "0 0 0 208px rgba(255,255,255,0.18)",
+            "0 0 0 256px rgba(255,255,255,0.22)",
+            "0 0 0 308px rgba(255,255,255,0.26)",
+            "0 0 0 364px rgba(255,255,255,0.30)",
+          ].join(", "),
         }}
       />
     </div>
