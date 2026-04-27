@@ -17,7 +17,11 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { recomputeAllTrustV2 } from "@/lib/trust/v2-compute";
 import { TRUST_RECOMPUTE_STALE_HOURS } from "@/lib/trust/config";
 
-export const runtime = "nodejs"; // Math.exp + Map heavy; not edge-critical
+// Cloudflare Pages requires edge runtime for API routes; nodejs
+// routes silently 404 on deploy. Math.exp / Map / Promise.all all
+// work in V8 edge — and the recompute clears in <2s at alpha scale,
+// well under the 30s CPU limit.
+export const runtime = "edge";
 
 async function handle(req: Request): Promise<Response> {
   const expected = process.env.CRON_SECRET;
