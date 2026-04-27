@@ -12,10 +12,13 @@
 // sandbox is on between days and reading false positives.
 
 import type { TokenSpec, TokenCategory } from "./tokens";
+import { getActivePresetId, getPresetById } from "./brand-presets";
 
 export const SANDBOX_STORAGE_KEY = "dev2.sandbox.overrides.v1";
 export const SANDBOX_ENABLED_KEY = "dev2.sandbox.enabled.v1";
 export const SANDBOX_STYLE_ID = "dev2-sandbox-style";
+export const SANDBOX_FONTS_ID = "dev2-sandbox-fonts";
+export const SANDBOX_EXTRA_ID = "dev2-sandbox-extra";
 export const SANDBOX_EVENT = "dev2:sandbox-changed";
 
 export type SandboxOverrides = Record<string, string>;
@@ -192,8 +195,9 @@ export function applySandbox(tokens: TokenSpec[]) {
   const root = document.documentElement;
   if (!isEnabled()) {
     root.removeAttribute("data-theme");
-    const existing = document.getElementById(SANDBOX_STYLE_ID);
-    if (existing) existing.remove();
+    document.getElementById(SANDBOX_STYLE_ID)?.remove();
+    document.getElementById(SANDBOX_FONTS_ID)?.remove();
+    document.getElementById(SANDBOX_EXTRA_ID)?.remove();
     return;
   }
   root.setAttribute("data-theme", "sandbox");
@@ -205,6 +209,42 @@ export function applySandbox(tokens: TokenSpec[]) {
     document.head.appendChild(style);
   }
   style.textContent = css;
+
+  // ── Brand preset side-effects (fonts + extra CSS) ──────────
+  const preset = getPresetById(getActivePresetId());
+
+  // Google Fonts <link>. We use a single idempotent <link> tag —
+  // updating its href is cheap and the browser dedupes already-
+  // cached families.
+  if (preset?.googleFonts && preset.googleFonts.length > 0) {
+    const families = preset.googleFonts
+      .map((f) => `family=${f}`)
+      .join("&");
+    const href = `https://fonts.googleapis.com/css2?${families}&display=swap`;
+    let link = document.getElementById(SANDBOX_FONTS_ID) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.id = SANDBOX_FONTS_ID;
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
+    }
+    if (link.href !== href) link.href = href;
+  } else {
+    document.getElementById(SANDBOX_FONTS_ID)?.remove();
+  }
+
+  // Preset extra CSS (typography rules, etc.).
+  if (preset?.extraCss) {
+    let extra = document.getElementById(SANDBOX_EXTRA_ID) as HTMLStyleElement | null;
+    if (!extra) {
+      extra = document.createElement("style");
+      extra.id = SANDBOX_EXTRA_ID;
+      document.head.appendChild(extra);
+    }
+    extra.textContent = preset.extraCss;
+  } else {
+    document.getElementById(SANDBOX_EXTRA_ID)?.remove();
+  }
 }
 
 // ── Export helpers ────────────────────────────────────────────────────

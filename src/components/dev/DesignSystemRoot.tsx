@@ -12,6 +12,7 @@ import { ComponentShowcase } from "./ComponentShowcase";
 import { PatternShowcase } from "./PatternShowcase";
 import { SandboxControls } from "./SandboxControls";
 import { SandboxIndicator } from "./SandboxIndicator";
+import { BrandPresetSwitcher } from "./BrandPresetSwitcher";
 
 interface Props {
   tokens: Record<TokenCategory, TokenSpec[]>;
@@ -97,16 +98,21 @@ export function DesignSystemRoot({ tokens, usage }: Props) {
                 : "mx-auto max-w-5xl p-6 md:p-10 space-y-12"
             }
           >
-            <header className="border-b pb-6">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Dev · alpha-only · admin
-              </p>
-              <h1 className="mt-1 text-3xl font-semibold">Trustead Design System</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Live tokens, components, and patterns. Edit tokens in the
-                Sandbox section to preview overrides without touching
-                canonical theme files.
-              </p>
+            <header className="space-y-4 border-b pb-6">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Dev · alpha-only · admin
+                </p>
+                <h1 className="mt-1 text-3xl font-semibold">
+                  Trustead Design System
+                </h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Live tokens, components, and patterns. Pick a brand
+                  preset below to re-skin every preview at once, or edit
+                  individual tokens in the Sandbox section.
+                </p>
+              </div>
+              <BrandPresetSwitcher />
             </header>
 
             {active === "tokens-color" && (

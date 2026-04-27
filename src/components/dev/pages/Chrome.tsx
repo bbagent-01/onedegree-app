@@ -33,8 +33,20 @@ function NavStub({ variant }: { variant: "desktop" | "mobile" }) {
           : "flex items-center justify-between border-b bg-white/95 px-4 py-3 backdrop-blur md:px-10 lg:px-20"
       }
     >
-      <Link href="#" className="text-base font-semibold text-brand">
-        Trustead
+      <Link
+        href="#"
+        className="flex items-center"
+        aria-label="Trustead home"
+      >
+        {/* Real Trustead wordmark from public/. Plum fill is hard-
+            coded in the SVG; under brand-preset re-skins it stays
+            plum which works as an accent. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/trustead-wordmark.svg"
+          alt="Trustead"
+          className="h-5 w-auto md:h-6"
+        />
       </Link>
       {variant === "desktop" && (
         <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
@@ -62,8 +74,16 @@ function NavStub({ variant }: { variant: "desktop" | "mobile" }) {
 function FooterStub() {
   return (
     <div className="mt-12 border-t bg-muted/30 px-4 py-8 text-xs text-muted-foreground md:px-10 lg:px-20">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span>© 2026 Trustead</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/trustead-wordmark.svg"
+            alt="Trustead"
+            className="h-4 w-auto opacity-70"
+          />
+          <span>© 2026</span>
+        </div>
         <div className="flex gap-4">
           <span className="cursor-pointer hover:text-foreground">About</span>
           <span className="cursor-pointer hover:text-foreground">Help</span>
