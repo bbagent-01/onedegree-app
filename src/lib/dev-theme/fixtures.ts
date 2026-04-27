@@ -491,3 +491,227 @@ export const sampleTrustGated: BrowseListingTrust = {
   canRequestIntro: false,
   mutualConnections: [],
 };
+
+// ── Listing detail (full + gated) ─────────────────────────────────────
+import type { ListingDetail } from "@/lib/listing-detail-data";
+import type { TrustResult } from "@/lib/trust-data";
+import type { ListingAccessResult } from "@/lib/trust/types";
+
+const listingPhotos = [
+  "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=1200&q=70",
+  "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=1200&q=70",
+  "https://images.unsplash.com/photo-1502672023488-70e25813eb80?w=1200&q=70",
+  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200&q=70",
+  "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=70",
+].map((url, i) => ({
+  id: `photo-${i}`,
+  listing_id: "fixture-detail",
+  storage_path: null,
+  public_url: url,
+  is_cover: i === 0,
+  is_preview: i < 3,
+  sort_order: i,
+}));
+
+const sampleReviews = [
+  {
+    id: "rev-1",
+    rating: 5,
+    text: "Wonderful spot — Sarah was incredibly welcoming + responsive. The studio is exactly as described and the garden access is a treat.",
+    created_at: "2026-02-14T10:00:00Z",
+    guest: {
+      id: "g1",
+      name: "Loren Polster",
+      avatar_url: fakeAvatar("loren"),
+    },
+  },
+  {
+    id: "rev-2",
+    rating: 5,
+    text: "Perfect Mission base for a long weekend. Walkable to everything we wanted.",
+    created_at: "2025-11-22T10:00:00Z",
+    guest: {
+      id: "g2",
+      name: "Mike Tran",
+      avatar_url: fakeAvatar("mike"),
+    },
+  },
+  {
+    id: "rev-3",
+    rating: 4,
+    text: "Lovely space. A little noisy at night but otherwise great.",
+    created_at: "2025-09-08T10:00:00Z",
+    guest: {
+      id: "g3",
+      name: "Priya Shah",
+      avatar_url: fakeAvatar("priya"),
+    },
+  },
+];
+
+import type { CancellationPolicy } from "@/lib/cancellation";
+
+const moderatePolicy: CancellationPolicy = {
+  approach: "refunds",
+  preset: "moderate",
+  payment_schedule: [
+    { due_at: "booking", amount_type: "percentage", amount: 100 },
+  ],
+  refund_schedule: [
+    { cutoff_days_before_checkin: 5, refund_pct: 100 },
+    { cutoff_days_before_checkin: 1, refund_pct: 50 },
+    { cutoff_days_before_checkin: 0, refund_pct: 0 },
+  ],
+  security_deposit: [],
+  custom_note: null,
+};
+
+export const sampleListingDetail: ListingDetail = {
+  id: "fixture-detail",
+  title: "Sun-drenched studio with garden access",
+  description:
+    "Bright studio with a private patio, walkable to Mission restaurants and Dolores Park. Dedicated workspace + quiet residential block. Sleeps 2 comfortably; the queen bed is in an alcove that gets morning light.",
+  area_name: "Mission District, San Francisco",
+  property_type: "Apartment",
+  price_min: 140,
+  price_max: 185,
+  cleaning_fee: 50,
+  amenities: [
+    "wifi",
+    "kitchen",
+    "washer",
+    "dryer",
+    "dedicated_workspace",
+    "tv",
+    "heating",
+    "ac",
+  ],
+  house_rules: "No parties or smoking. Quiet hours after 10pm.",
+  checkin_time: "15:00",
+  checkout_time: "11:00",
+  min_nights: 2,
+  max_nights: 14,
+  availability_start: "2026-01-01",
+  availability_end: "2027-01-01",
+  photos: listingPhotos,
+  host: {
+    id: "host-1",
+    name: "Sarah Mendel",
+    avatar_url: fakeAvatar("sarah"),
+    bio: "Architect. Love hosting people who appreciate small spaces.",
+    created_at: "2023-06-12T10:00:00Z",
+    host_rating: 4.92,
+    host_review_count: 47,
+  },
+  host_id: "host-1",
+  min_trust_gate: 0,
+  bedrooms: 1,
+  beds: 1,
+  bathrooms: 1,
+  max_guests: 2,
+  place_kind: "entire",
+  property_label: "apartment",
+  latitude: 37.758,
+  longitude: -122.419,
+  avg_rating: 4.92,
+  review_count: 47,
+  reviews: sampleReviews,
+  blockedRanges: [
+    { start: "2026-05-01", end: "2026-05-04" },
+    { start: "2026-05-22", end: "2026-05-26" },
+  ],
+  visibility_mode: "public",
+  preview_description: null,
+  access_settings: sampleAccessSettings,
+  cancellation_policy: moderatePolicy,
+  host_payment_method_types: ["venmo", "zelle"],
+};
+
+export const sampleListingDetailGated: ListingDetail = {
+  ...sampleListingDetail,
+  id: "fixture-detail-gated",
+  title: "Hidden hillside cabin · Stinson Beach",
+  description:
+    "Three-bedroom cabin perched above the beach with a private deck and outdoor shower. Full details revealed once you're introduced to the host.",
+  area_name: "Stinson Beach, California",
+  price_min: 240,
+  price_max: 320,
+  cleaning_fee: 120,
+  bedrooms: 3,
+  beds: 4,
+  bathrooms: 2,
+  max_guests: 6,
+  place_kind: "entire",
+  property_label: "cabin",
+  latitude: 37.901,
+  longitude: -122.643,
+  visibility_mode: "preview_gated",
+  preview_description:
+    "Tucked into the hillside with ocean views. Private deck + hot tub. Details shared with introduced guests.",
+  access_settings: {
+    see_preview: { type: "anyone" },
+    full_listing_contact: { type: "min_score", threshold: 50 },
+    allow_intro_requests: true,
+  },
+};
+
+export const sampleTrustResultFull: TrustResult = {
+  score: 88,
+  degree: 1,
+  hasDirectVouch: true,
+  path: [],
+  mutualConnections: [],
+  connectionCount: 2,
+  connectorPaths: [
+    {
+      id: "c1",
+      name: "Sarah Mendel",
+      avatar_url: fakeAvatar("sarah"),
+      strength: 78,
+      viewer_knows: true,
+    },
+    {
+      id: "c2",
+      name: "Mike Tran",
+      avatar_url: fakeAvatar("mike"),
+      strength: 64,
+      viewer_knows: true,
+    },
+  ],
+};
+
+export const sampleTrustResultGatedPreview: TrustResult = {
+  score: 42,
+  degree: 3,
+  hasDirectVouch: false,
+  path: [],
+  mutualConnections: [],
+  connectionCount: 1,
+  connectorPaths: [
+    {
+      id: "b1",
+      name: "Priya Shah",
+      avatar_url: fakeAvatar("priya"),
+      strength: 70,
+      viewer_knows: true,
+    },
+  ],
+};
+
+export const sampleListingAccessFull: ListingAccessResult = {
+  can_see_preview: true,
+  can_see_full: true,
+  can_request_book: true,
+  can_message: true,
+  can_request_intro: true,
+  can_view_host_profile: true,
+};
+
+export const sampleListingAccessGated: ListingAccessResult = {
+  can_see_preview: true,
+  can_see_full: false,
+  can_request_book: false,
+  can_message: false,
+  can_request_intro: true,
+  can_view_host_profile: false,
+};
