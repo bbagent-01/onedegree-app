@@ -251,42 +251,38 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
 
   if (thumb) {
     return (
-      <div className="relative flex h-56 w-full items-end overflow-hidden md:h-full md:min-h-[260px]">
+      <div className="relative h-56 w-full overflow-hidden md:h-full md:min-h-[260px]">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${thumb})` }}
         />
-        {/* Sky-blue tint matches the picker preview so the card and form
-            stay WYSIWYG. Tuned to sit above the photo without losing the
-            destination's color identity. */}
+        {/* Soft dark vignette so the destination type stays legible
+            on every photo — sky, beach, snow, food. Sits between the
+            photo and the concentric rings. */}
         <div
           className="absolute inset-0"
-          style={{ backgroundColor: "rgba(56, 139, 253, 0.22)" }}
+          style={{
+            backgroundImage:
+              "radial-gradient(ellipse at center, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.42) 75%)",
+          }}
         />
-        <div className="relative z-[1] w-full p-5">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/80">
-            Trip Wish
-          </div>
-          <div className="mt-2 line-clamp-2 text-2xl font-semibold leading-tight text-white drop-shadow-sm md:text-3xl">
-            {primary}
-          </div>
-          {proposal.row.destinations.length > 1 && (
-            <div className="mt-1 text-xs text-white/90">
-              {proposal.row.destinations.slice(1, 3).join(" · ")}
-              {proposal.row.destinations.length > 3
-                ? ` +${proposal.row.destinations.length - 3}`
-                : ""}
-            </div>
-          )}
-        </div>
+        <ConcentricRings />
+        <CenteredDestinationLabel
+          primary={primary}
+          subdest={proposal.row.destinations.slice(1, 3)}
+          extraCount={
+            proposal.row.destinations.length > 3
+              ? proposal.row.destinations.length - 3
+              : 0
+          }
+        />
+        {/* Photographer credit. Wrapped in a small dark pill so it
+            stays legible regardless of what's behind it (sky, snow,
+            light food shots all destroyed the previous all-white
+            credit). Production-tier compliant: linked photographer
+            + linked Unsplash, both carrying the utm_source query. */}
         {fromUnsplash && attribution ? (
-          // Production-tier compliant credit: "Photo by {linked
-          // photographer} on {linked Unsplash}". Both links carry the
-          // ?utm_source=trustead&utm_medium=referral query required by
-          // Unsplash's hotlinking policy. Click-through is opt-in
-          // (target=_blank + rel=noopener,noreferrer) so we never
-          // hijack the user's tab.
-          <div className="absolute bottom-1.5 right-2 max-w-[90%] truncate text-right text-[11px] font-medium text-white/85">
+          <div className="absolute bottom-2 right-2 max-w-[92%] truncate rounded-md bg-black/55 px-2 py-1 text-right text-[11px] font-medium text-white">
             Photo by{" "}
             <a
               href={`${attribution.photographer_url}?utm_source=trustead&utm_medium=referral`}
@@ -307,12 +303,7 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
             </a>
           </div>
         ) : fromUnsplash ? (
-          // Legacy Trip Wishes (pre-043) carry thumbnail_source =
-          // unsplash_* but no attribution blob. Fall back to the
-          // generic credit so the photo still shows the source —
-          // legacy rows don't carry the photographer name we'd need
-          // for the full credit.
-          <div className="absolute bottom-1.5 right-2 text-[11px] font-medium text-white/70">
+          <div className="absolute bottom-2 right-2 rounded-md bg-black/55 px-2 py-1 text-[11px] font-medium text-white">
             Destination photo ·{" "}
             <a
               href="https://unsplash.com/?utm_source=trustead&utm_medium=referral"
@@ -343,25 +334,80 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
 
   return (
     <div
-      className={`relative flex h-56 w-full items-end overflow-hidden bg-gradient-to-br ${palette} md:h-full md:min-h-[260px]`}
+      className={`relative h-56 w-full overflow-hidden bg-gradient-to-br ${palette} md:h-full md:min-h-[260px]`}
     >
-      <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_20%_20%,white_0,transparent_40%),radial-gradient(circle_at_80%_80%,white_0,transparent_40%)]" />
-      <div className="relative z-[1] w-full p-5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/80">
-          Trip Wish
-        </div>
-        <div className="mt-2 line-clamp-2 text-2xl font-semibold leading-tight text-white drop-shadow-sm md:text-3xl">
-          {primary}
-        </div>
-        {proposal.row.destinations.length > 1 && (
-          <div className="mt-1 text-xs text-white/90">
-            {proposal.row.destinations.slice(1, 3).join(" · ")}
-            {proposal.row.destinations.length > 3
-              ? ` +${proposal.row.destinations.length - 3}`
-              : ""}
-          </div>
-        )}
+      <ConcentricRings />
+      <CenteredDestinationLabel
+        primary={primary}
+        subdest={proposal.row.destinations.slice(1, 3)}
+        extraCount={
+          proposal.row.destinations.length > 3
+            ? proposal.row.destinations.length - 3
+            : 0
+        }
+      />
+    </div>
+  );
+}
+
+/**
+ * Three concentric white rings, less opaque the farther out they go.
+ * Pure CSS — `box-shadow` rings on a fixed-size centered element so the
+ * effect scales with the visual pane and stays sharp at any density.
+ * Decorative only; pointer-events disabled.
+ */
+function ConcentricRings() {
+  return (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      <div
+        className="h-32 w-32 rounded-full border border-white/35"
+        style={{
+          boxShadow:
+            "0 0 0 22px rgba(255,255,255,0.16), 0 0 0 44px rgba(255,255,255,0.10), 0 0 0 70px rgba(255,255,255,0.05)",
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Big centered destination label. Sits in the middle of the visual,
+ * vertically + horizontally. Heavy drop-shadow so the white text stays
+ * readable on every photo (sky, snow, beach, food). The "TRIP WISH"
+ * eyebrow is rendered above; secondary destinations sit below.
+ */
+function CenteredDestinationLabel({
+  primary,
+  subdest,
+  extraCount,
+}: {
+  primary: string;
+  subdest: string[];
+  extraCount: number;
+}) {
+  return (
+    <div className="relative z-[1] flex h-full w-full flex-col items-center justify-center px-5 text-center">
+      <div
+        className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white"
+        style={{ textShadow: "0 1px 6px rgba(0,0,0,0.45)" }}
+      >
+        Trip Wish
       </div>
+      <div
+        className="mt-2 line-clamp-2 text-2xl font-semibold leading-tight text-white md:text-3xl"
+        style={{ textShadow: "0 2px 10px rgba(0,0,0,0.55)" }}
+      >
+        {primary}
+      </div>
+      {subdest.length > 0 && (
+        <div
+          className="mt-1.5 text-xs font-medium text-white/95"
+          style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}
+        >
+          {subdest.join(" · ")}
+          {extraCount > 0 ? ` +${extraCount}` : ""}
+        </div>
+      )}
     </div>
   );
 }
