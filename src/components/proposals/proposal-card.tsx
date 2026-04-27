@@ -359,47 +359,43 @@ function TripWishVisual({ proposal }: { proposal: HydratedProposal }) {
 }
 
 /**
- * Concentric white rings radiating outward like ripples — center near-
- * transparent, each successive ring more opaque, outermost rings
- * deliberately drawn past the visual frame so the parent's
- * `overflow-hidden` clips them and the effect bleeds off the card.
+ * Concentric white bands radiating outward — center fully transparent,
+ * each successive band fills the area between two radii at a higher
+ * opacity than the one inside it. Outermost band continues past 100%
+ * with the same color, so the area beyond the gradient circle stays
+ * filled, producing a "the rings keep going past the frame" feel
+ * (the parent's overflow-hidden clips it).
  *
- * Implementation: nine independent absolutely-positioned ring elements
- * with `border` strokes only (no fill). Because they're strokes — not
- * stacked `box-shadow`s on filled discs — they don't accumulate
- * opacity at the center, so the inversion (transparent → opaque
- * outward) actually renders the way it reads.
+ * Implementation: a single radial-gradient with hard-stop pairs
+ * (start% = end% on each band edge) so each band is a flat fill
+ * rather than a smooth blend. This is the inverse of the original
+ * box-shadow approach — there, every shadow was a filled disc that
+ * stacked on top of the inner ones, accumulating opacity in the
+ * center; here, each band only paints in its own annulus.
  */
 function ConcentricRings() {
-  // Diameters in px. The card visual is 340w × min-260h on desktop,
-  // so anything past ~400 starts bleeding meaningfully off the frame
-  // on most breakpoints.
-  const rings: { d: number; opacity: number; thickness: number }[] = [
-    { d: 60, opacity: 0.05, thickness: 1 },
-    { d: 110, opacity: 0.08, thickness: 1 },
-    { d: 170, opacity: 0.12, thickness: 1 },
-    { d: 240, opacity: 0.16, thickness: 1.5 },
-    { d: 320, opacity: 0.2, thickness: 1.5 },
-    { d: 410, opacity: 0.25, thickness: 2 },
-    { d: 510, opacity: 0.3, thickness: 2 },
-    { d: 620, opacity: 0.35, thickness: 2 },
-    { d: 740, opacity: 0.4, thickness: 2 },
-  ];
   return (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-      {rings.map((r) => (
-        <div
-          key={r.d}
-          className="absolute rounded-full border-white"
-          style={{
-            width: `${r.d}px`,
-            height: `${r.d}px`,
-            borderWidth: `${r.thickness}px`,
-            opacity: r.opacity,
-          }}
-        />
-      ))}
-    </div>
+    <div
+      className="pointer-events-none absolute inset-0"
+      style={{
+        backgroundImage: [
+          "radial-gradient(circle at center,",
+          "  transparent 0%,",
+          "  transparent 13%,",
+          "  rgba(255,255,255,0.05) 13%,",
+          "  rgba(255,255,255,0.05) 25%,",
+          "  rgba(255,255,255,0.10) 25%,",
+          "  rgba(255,255,255,0.10) 40%,",
+          "  rgba(255,255,255,0.18) 40%,",
+          "  rgba(255,255,255,0.18) 55%,",
+          "  rgba(255,255,255,0.27) 55%,",
+          "  rgba(255,255,255,0.27) 75%,",
+          "  rgba(255,255,255,0.40) 75%,",
+          "  rgba(255,255,255,0.40) 100%",
+          ")",
+        ].join(" "),
+      }}
+    />
   );
 }
 
