@@ -40,6 +40,14 @@ interface RouteSpec {
   routeLabel: string;
   filePath: string;
   blurb: string;
+  /** Numbered eyebrow ("01", "02"…) + big serif page headline shown
+   *  above the preview frame. Picks up Guesty styling under the
+   *  Guesty Forest preset; reads as a normal section label under the
+   *  default preset. <em>-wrapped phrases get an italic mint accent
+   *  in Guesty mode. */
+  num: string;
+  headline: React.ReactNode;
+  tagline?: string;
   variants: VariantSpec[];
 }
 
@@ -47,6 +55,13 @@ const ROUTES: Record<PageRouteId, RouteSpec> = {
   "pages-browse": {
     routeLabel: "/browse",
     filePath: "src/app/(app)/browse/page.tsx",
+    num: "01",
+    headline: (
+      <>
+        Stays from the people <em>you trust</em>.
+      </>
+    ),
+    tagline: "Glass tiles over the green ground, with circle-vouch counts and 1°/2° badges.",
     blurb:
       "Renders the live BrowseLayout client component with fixture listings + per-listing trust. Sandbox theme overrides flow through. Heart icon will fail (no signed-in flow).",
     variants: [
@@ -61,6 +76,13 @@ const ROUTES: Record<PageRouteId, RouteSpec> = {
   "pages-listing": {
     routeLabel: "/listings/[id]",
     filePath: "src/app/(app)/listings/[id]/page.tsx",
+    num: "02",
+    headline: (
+      <>
+        A place <em>worth the trip</em>.
+      </>
+    ),
+    tagline: "Photo gallery + glass booking card. Gated state when trust isn't there yet.",
     blurb:
       "Two access states. FULL composes the real PhotoGallery, host card, BookingSidebar, ReviewsSection, and policy block live. GATED renders the real GatedListingView component with a preview-only fixture.",
     variants: [
@@ -79,6 +101,13 @@ const ROUTES: Record<PageRouteId, RouteSpec> = {
   "pages-profile": {
     routeLabel: "/profile/[id]",
     filePath: "src/app/(app)/profile/[id]/page.tsx",
+    num: "03",
+    headline: (
+      <>
+        The <em>human</em> behind the home.
+      </>
+    ),
+    tagline: "Hero badge, vouch surfaces, listings + proposals from the same person.",
     blurb:
       "Composes the real header card (avatar + name + ConnectionPopover + VouchButton placeholder), bio, listings grid, proposals grid (live ProposalCard × N), and ProfileReviews tabbed surface.",
     variants: [
@@ -97,6 +126,13 @@ const ROUTES: Record<PageRouteId, RouteSpec> = {
   "pages-inbox": {
     routeLabel: "/inbox",
     filePath: "src/app/(app)/inbox/page.tsx",
+    num: "04",
+    headline: (
+      <>
+        Conversations that <em>matter</em>.
+      </>
+    ),
+    tagline: "Split-pane thread view. Inline structured cards for terms, payments, intros.",
     blurb:
       "Live InboxShell client component with fixture threads. Selecting a thread on desktop opens the live ThreadView; mobile pushes to /inbox/[threadId] (would-be navigation; preview is read-only).",
     variants: [
@@ -110,6 +146,13 @@ const ROUTES: Record<PageRouteId, RouteSpec> = {
   "pages-proposals": {
     routeLabel: "/proposals",
     filePath: "src/app/(app)/proposals/page.tsx",
+    num: "05",
+    headline: (
+      <>
+        Trips and offers <em>from your circle</em>.
+      </>
+    ),
+    tagline: "Trip Wishes + Host Offers visible only through trust paths.",
     blurb:
       "Live ProposalsFeedWithFilters client component over the fixture proposals. Tab links + URL-synced filters fire — clicking a tab will push to /proposals?kind=... in this preview frame.",
     variants: [
@@ -134,8 +177,25 @@ export function PagesShowcase({ route }: Props) {
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold">Page · {spec.routeLabel}</h2>
+      {/* Eyebrow + big serif page headline. Plain styling under
+          default; under Guesty the preset's CSS gives this the
+          dramatic forest-hero treatment with italic mint accents. */}
+      <div className="space-y-3 pt-4">
+        <p className="eyebrow text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+          <span className="num text-foreground">{spec.num}</span> —{" "}
+          {spec.routeLabel.replace(/^\//, "").toUpperCase().replace(/\[ID\]/, "")}
+        </p>
+        <h1 className="max-w-[18ch] text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
+          {spec.headline}
+        </h1>
+        {spec.tagline && (
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            {spec.tagline}
+          </p>
+        )}
+      </div>
+
+      <div className="border-t border-border pt-3">
         <code className="font-mono text-[11px] text-muted-foreground">
           {spec.filePath}
         </code>

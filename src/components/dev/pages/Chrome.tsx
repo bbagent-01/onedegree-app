@@ -35,9 +35,11 @@ function NavStub({ variant }: { variant: "desktop" | "mobile" }) {
       }
     >
       <Link href="#" className="flex items-center" aria-label="Trustead home">
-        {/* Inlined r2 wordmark + mark. fill=currentColor → flips with
-         *  the brand preset (plum on default, forest green on Guesty). */}
-        <TrusteadLogo className="h-6 w-auto text-brand md:h-7" />
+        {/* Inlined r2 wordmark + mark. fill=currentColor → text-brand
+         *  resolves to plum on default. The .brand-logo class is
+         *  targeted by the Guesty preset to force a cream override
+         *  (plum-on-dark would be illegible). */}
+        <TrusteadLogo className="brand-logo h-6 w-auto text-brand md:h-7" />
       </Link>
       {variant === "desktop" && (
         <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
@@ -67,7 +69,7 @@ function FooterStub() {
     <div className="mt-12 border-t bg-muted/30 px-4 py-8 text-xs text-muted-foreground md:px-10 lg:px-20">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <TrusteadLogo className="h-4 w-auto text-foreground/60" />
+          <TrusteadLogo className="brand-logo h-4 w-auto text-foreground/60" />
           <span>© 2026</span>
         </div>
         <div className="flex gap-4">

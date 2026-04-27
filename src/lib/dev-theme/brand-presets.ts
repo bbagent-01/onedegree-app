@@ -40,9 +40,10 @@ export const BRAND_PRESETS: BrandPreset[] = [
     id: "guesty-forest",
     label: "Guesty Forest",
     blurb:
-      "Deep forest greens, cream paper surfaces, DM Serif Display headlines with italic accents — inspired by guesty.com.",
+      "Deep forest takeover with glass card surfaces, mint accents, and DM Serif Display headlines — full re-skin inspired by guesty.com.",
     overrides: {
-      // ── Brand → Forest greens ────────────────────────────────
+      // ── Brand scale → Forest greens (used by trust pills, badges,
+      //    score chips that read brand-500 / brand-100 etc.) ─────
       "color/brand-50": "#EAF4EE",
       "color/brand-100": "#BFE2D4",
       "color/brand-200": "#BFE2D4",
@@ -51,43 +52,47 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "color/brand-500": "#1F6B53",
       "color/brand-600": "#154C3B",
       "color/brand-700": "#103A2E",
-      "color/brand": "#1F6B53",
-      "color/brand-foreground": "#F5F1E6",
 
-      // ── Surfaces → Cream / paper ────────────────────────────
-      "color/background": "#FBF8EF",
-      "color/surface": "#ECE6D4",
-      "color/surface-alt": "#ECE6D4",
-      "color/muted": "#ECE6D4",
-      "color/muted-foreground": "#6B7B73",
-      "color/card": "#FBF8EF",
-      "color/card-foreground": "#0F1614",
-      "color/popover": "#FBF8EF",
-      "color/popover-foreground": "#0F1614",
+      // CTA / brand → MINT (lighter than forest 600 so a "Search"
+      // pill pops against the dark green page bg with high contrast).
+      "color/brand": "#4FB191",
+      "color/brand-foreground": "#0B2E25",
 
-      // ── Foreground → ink ─────────────────────────────────────
-      "color/foreground": "#0F1614",
-      "color/subtle": "#6B7B73",
+      // ── Page surfaces → DARK forest takeover ────────────────
+      "color/background": "#0B2E25",
+      "color/foreground": "#F5F1E6",
 
-      // ── Borders + rings ──────────────────────────────────────
-      "color/border": "#E5DFCC",
-      "color/input": "#E5DFCC",
-      "color/ring": "#1F6B53",
+      // ── Card / popover → GLASS (translucent cream over green) ─
+      "color/card": "rgba(245, 241, 230, 0.06)",
+      "color/card-foreground": "#F5F1E6",
+      "color/popover": "#103A2E",
+      "color/popover-foreground": "#F5F1E6",
 
-      // ── Primary / Secondary / Accent ─────────────────────────
-      "color/primary": "#1F6B53",
-      "color/primary-foreground": "#F5F1E6",
-      "color/secondary": "#ECE6D4",
-      "color/secondary-foreground": "#0F1614",
-      "color/accent": "#ECE6D4",
-      "color/accent-foreground": "#103A2E",
+      // ── Muted surfaces → glass-er glass + dim cream text ────
+      "color/muted": "rgba(245, 241, 230, 0.06)",
+      "color/muted-foreground": "rgba(245, 241, 230, 0.62)",
+      "color/surface": "rgba(245, 241, 230, 0.06)",
+      "color/surface-alt": "rgba(245, 241, 230, 0.10)",
+      "color/subtle": "rgba(245, 241, 230, 0.55)",
 
-      // ── Trust palette tilt (still color-distinct so the trust
-      //    grades are legible against the cream surface) ──────
-      "color/trust-low": "#C2410C", // burnt sienna instead of red
-      "color/trust-building": "#B45309", // amber-700
-      "color/trust-solid": "#1F6B53", // forest CTA
-      "color/trust-exceptional": "#7C3AED", // keep Trustead plum heritage as exceptional accent
+      // ── Borders / inputs → faint cream rule on dark ─────────
+      "color/border": "rgba(245, 241, 230, 0.14)",
+      "color/input": "rgba(245, 241, 230, 0.14)",
+      "color/ring": "#4FB191",
+
+      // ── Primary / secondary / accent ─────────────────────────
+      "color/primary": "#4FB191",
+      "color/primary-foreground": "#0B2E25",
+      "color/secondary": "rgba(245, 241, 230, 0.06)",
+      "color/secondary-foreground": "#F5F1E6",
+      "color/accent": "rgba(245, 241, 230, 0.10)",
+      "color/accent-foreground": "#BFE2D4",
+
+      // ── Trust palette tilt for legibility on dark ──────────
+      "color/trust-low": "#FB923C", // bright orange — pops on dark
+      "color/trust-building": "#FBBF24", // amber-400
+      "color/trust-solid": "#4FB191", // mint
+      "color/trust-exceptional": "#C4B5FD", // violet-300, plum heritage but bright
     },
     googleFonts: [
       "DM+Sans:wght@400;500;600;700",
@@ -95,42 +100,158 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "Instrument+Serif:ital@0;1",
     ],
     extraCss: `
-      /* Headline serif — applied while Guesty Forest preset is on */
-      html[data-theme="sandbox"] h1,
+      /* ── DARK PAGE TAKEOVER ─────────────────────────────────
+         Forest forest — every page background, the design-system
+         shell, and the body itself flip to deep green. Cards become
+         translucent glass overlays on top. */
+      html[data-theme="sandbox"],
+      html[data-theme="sandbox"] body {
+        background: #0B2E25 !important;
+        color: #F5F1E6 !important;
+      }
+
+      /* Common surface utility classes — every card / panel / row
+         that hardcodes bg-white falls back to glass. */
+      html[data-theme="sandbox"] .bg-white,
+      html[data-theme="sandbox"] .bg-card,
+      html[data-theme="sandbox"] .bg-popover,
+      html[data-theme="sandbox"] .bg-background {
+        background-color: rgba(245, 241, 230, 0.06) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+
+      /* Translucent overlays (modal backdrops, hover scrims) get
+         a slightly darker tint so the glass cards still read on top. */
+      html[data-theme="sandbox"] .bg-black\\/40,
+      html[data-theme="sandbox"] .bg-black\\/50,
+      html[data-theme="sandbox"] .bg-black\\/60 {
+        background-color: rgba(11, 46, 37, 0.7) !important;
+      }
+
+      /* Borders → faint cream */
+      html[data-theme="sandbox"] [class~="border"]:not([class*="border-brand"]):not([class*="border-danger"]):not([class*="border-emerald"]):not([class*="border-amber"]):not([class*="border-rose"]) {
+        border-color: rgba(245, 241, 230, 0.14) !important;
+      }
+
+      /* Default paragraph + span text → cream (the foreground token
+         already does most of this; this catches text-foreground/90,
+         text-foreground/80 etc. that bypass the token). */
+      html[data-theme="sandbox"] .text-foreground,
+      html[data-theme="sandbox"] [class*="text-foreground/"] {
+        color: #F5F1E6 !important;
+      }
+      html[data-theme="sandbox"] .text-muted-foreground {
+        color: rgba(245, 241, 230, 0.62) !important;
+      }
+
+      /* Form fields → glass on dark */
+      html[data-theme="sandbox"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+      html[data-theme="sandbox"] textarea,
+      html[data-theme="sandbox"] select,
+      html[data-theme="sandbox"] [role="combobox"],
+      html[data-theme="sandbox"] [class*="!bg-white"] {
+        background-color: rgba(245, 241, 230, 0.06) !important;
+        color: #F5F1E6 !important;
+        border-color: rgba(245, 241, 230, 0.14) !important;
+      }
+      html[data-theme="sandbox"] input::placeholder,
+      html[data-theme="sandbox"] textarea::placeholder {
+        color: rgba(245, 241, 230, 0.40) !important;
+      }
+
+      /* Divider / separator lines → faint cream */
+      html[data-theme="sandbox"] hr,
+      html[data-theme="sandbox"] [data-orientation="horizontal"][role="separator"] {
+        background-color: rgba(245, 241, 230, 0.14) !important;
+        border-color: rgba(245, 241, 230, 0.14) !important;
+      }
+
+      /* ── BIG SERIF HEADLINES ─────────────────────────────────
+         Every h1 / h2 picks up the Guesty hero treatment: DM Serif
+         Display, generous size, italic Instrument Serif accents in
+         mint for <em>-wrapped words. */
+      html[data-theme="sandbox"] h1 {
+        font-family: 'DM Serif Display', Georgia, serif !important;
+        font-weight: 400 !important;
+        font-size: 56px !important;
+        letter-spacing: -0.025em !important;
+        line-height: 1.05 !important;
+        color: #F5F1E6 !important;
+      }
       html[data-theme="sandbox"] h2 {
         font-family: 'DM Serif Display', Georgia, serif !important;
         font-weight: 400 !important;
+        font-size: 32px !important;
         letter-spacing: -0.02em !important;
-        line-height: 1.05 !important;
+        line-height: 1.1 !important;
+        color: #F5F1E6 !important;
       }
       html[data-theme="sandbox"] h3 {
         font-family: 'DM Sans', system-ui, sans-serif !important;
         letter-spacing: -0.01em !important;
+        color: #F5F1E6 !important;
       }
-      /* Italic accent treatment — wrap a phrase in <em> inside an
-         h1/h2 to get the green serif italic Guesty hero look. */
       html[data-theme="sandbox"] h1 em,
-      html[data-theme="sandbox"] h2 em {
+      html[data-theme="sandbox"] h2 em,
+      html[data-theme="sandbox"] em.accent {
         font-family: 'Instrument Serif', 'DM Serif Display', serif !important;
         font-style: italic !important;
-        color: #2A8A6B !important;
+        color: #BFE2D4 !important;
+        font-weight: 400 !important;
       }
-      /* Eyebrow micro-label utility — opt-in via .eyebrow class */
+
+      /* Eyebrow utility — small caps tracked label
+         (use .eyebrow on any element) */
       html[data-theme="sandbox"] .eyebrow {
+        font-family: 'DM Sans', sans-serif !important;
         font-size: 11px !important;
         font-weight: 600 !important;
         letter-spacing: 0.22em !important;
         text-transform: uppercase !important;
-        color: #6B7B73 !important;
+        color: rgba(245, 241, 230, 0.55) !important;
       }
-      /* Paper-textured surface tilt for body bg — slightly warmer */
-      html[data-theme="sandbox"] body {
-        background: #FBF8EF !important;
+      html[data-theme="sandbox"] .eyebrow .num {
+        color: #F5F1E6 !important;
+        margin-right: 10px !important;
       }
-      /* Heavier shadow on cards to match Guesty's floating-card feel */
-      html[data-theme="sandbox"] .shadow-card {
-        box-shadow: 0 12px 32px -8px rgba(15, 22, 20, 0.08),
-                    0 2px 4px rgba(15, 22, 20, 0.04) !important;
+
+      /* ── PILL CONTROLS ───────────────────────────────────────
+         Search controls + filter chips inherit a glass-pill look. */
+      html[data-theme="sandbox"] .rounded-full,
+      html[data-theme="sandbox"] [data-radix-pill] {
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+
+      /* ── BRAND LOGO COLOR FLIP ───────────────────────────────
+         The wordmark uses text-brand by default (plum). On Guesty
+         dark forest, plum-on-dark would be illegible. Force cream
+         when the logo is wrapped in .brand-logo. */
+      html[data-theme="sandbox"] .brand-logo {
+        color: #F5F1E6 !important;
+      }
+
+      /* ── SHADOWS ─────────────────────────────────────────────
+         Heavy floating-card shadow + subtle inset glass highlight. */
+      html[data-theme="sandbox"] .shadow-card,
+      html[data-theme="sandbox"] .shadow-sm,
+      html[data-theme="sandbox"] .shadow-md {
+        box-shadow:
+          0 30px 80px -20px rgba(0, 0, 0, 0.5),
+          inset 0 0 0 1px rgba(245, 241, 230, 0.06) !important;
+      }
+      html[data-theme="sandbox"] .shadow-modal {
+        box-shadow:
+          0 40px 100px -20px rgba(0, 0, 0, 0.65),
+          inset 0 0 0 1px rgba(245, 241, 230, 0.08) !important;
+      }
+
+      /* ── OUTLINE BUTTONS get glass look ──────────────────── */
+      html[data-theme="sandbox"] button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([class*="bg-emerald"]) {
+        background-color: rgba(245, 241, 230, 0.06) !important;
+        border-color: rgba(245, 241, 230, 0.14) !important;
+        color: #F5F1E6 !important;
       }
     `,
   },
