@@ -18,6 +18,10 @@ const nextConfig = {
         destination: "/listings/:id",
         permanent: true,
       },
+      // Stale URLs surfaced during S10.5 retest.
+      { source: "/messages", destination: "/inbox", permanent: true },
+      { source: "/messages/:path*", destination: "/inbox", permanent: true },
+      { source: "/hosting/listings", destination: "/hosting", permanent: true },
     ];
   },
 };

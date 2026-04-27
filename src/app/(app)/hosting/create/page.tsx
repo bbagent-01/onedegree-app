@@ -181,10 +181,11 @@ const STORAGE_KEY = "track-b:create-listing-draft";
 const TOTAL_STEPS = 9;
 
 // Shared big-input style — matches House Rules checkmark buttons (px-3 py-2.5, border-2, rounded-lg)
+// Placeholder is italic + lighter (#9CA3AF) so it's unmistakably distinct from a typed value.
 const BIG_INPUT =
-  "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
+  "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand placeholder:font-normal placeholder:italic placeholder:text-subtle";
 const BIG_TEXTAREA =
-  "rounded-xl border-2 border-border !bg-white px-4 py-3 text-base shadow-sm focus-visible:border-brand";
+  "rounded-xl border-2 border-border !bg-white px-4 py-3 text-base shadow-sm focus-visible:border-brand placeholder:font-normal placeholder:italic placeholder:text-subtle";
 const BIG_BUTTON =
   "!h-14 !rounded-xl !px-7 !text-base !font-semibold";
 const BIG_BUTTON_PRIMARY = BIG_BUTTON + " bg-brand hover:bg-brand-600";
