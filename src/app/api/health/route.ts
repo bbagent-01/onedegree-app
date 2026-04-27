@@ -29,33 +29,47 @@ type HealthResponse = {
   providers: Record<ProviderName, ProviderResult>;
 };
 
-const REQUIRED_ENV = [
-  "RESEND_API_KEY",
-  "CLERK_SECRET_KEY",
-  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
-  "TWILIO_ACCOUNT_SID",
-  "TWILIO_AUTH_TOKEN",
-  "TWILIO_PHONE_NUMBER",
-  "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-  "SUPABASE_SERVICE_ROLE_KEY",
-  "CRON_SECRET",
-] as const;
+// Each entry MUST reference process.env.FOO with a static literal name.
+// Next.js inlines NEXT_PUBLIC_* vars at build time only when statically
+// referenced — `process.env[dynamicName]` returns undefined at runtime
+// on Cloudflare Pages edge for those keys, so a dynamic loop would
+// produce false "missing" reports for vars that are actually present
+// (the providers ping fine using the same vars below).
+const REQUIRED_ENV: Array<readonly [string, string | undefined]> = [
+  ["RESEND_API_KEY", process.env.RESEND_API_KEY],
+  ["CLERK_SECRET_KEY", process.env.CLERK_SECRET_KEY],
+  [
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  ],
+  ["TWILIO_ACCOUNT_SID", process.env.TWILIO_ACCOUNT_SID],
+  ["TWILIO_AUTH_TOKEN", process.env.TWILIO_AUTH_TOKEN],
+  ["TWILIO_PHONE_NUMBER", process.env.TWILIO_PHONE_NUMBER],
+  ["NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL],
+  [
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  ],
+  ["SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY],
+  ["CRON_SECRET", process.env.CRON_SECRET],
+];
 
 // TRUST_VOUCH_K is the only trust-config var actually read from env
 // (config.ts line 14). The other TRUST_* constants are hardcoded in
 // code — including them would always read "missing" and produce false
 // alarms. If they ever become env-configurable, add them here.
-const OPTIONAL_ENV_WITH_DEFAULT = ["TRUST_VOUCH_K"] as const;
+const OPTIONAL_ENV_WITH_DEFAULT: Array<readonly [string, string | undefined]> = [
+  ["TRUST_VOUCH_K", process.env.TRUST_VOUCH_K],
+];
 
-function envStatus(name: string): EnvStatus {
-  const v = process.env[name];
-  return v != null && v.length > 0 ? "present" : "missing";
+function statusOf(value: string | undefined): "present" | "missing" {
+  return value != null && value.length > 0 ? "present" : "missing";
 }
 
-function optionalEnvStatus(name: string): EnvStatus {
-  const v = process.env[name];
-  return v != null && v.length > 0 ? "present" : "using-default";
+function optionalStatusOf(
+  value: string | undefined
+): "present" | "using-default" {
+  return value != null && value.length > 0 ? "present" : "using-default";
 }
 
 async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
@@ -176,9 +190,9 @@ function errorMessage(e: unknown): string {
 
 export async function GET(): Promise<Response> {
   const env: Record<string, EnvStatus> = {};
-  for (const name of REQUIRED_ENV) env[name] = envStatus(name);
-  for (const name of OPTIONAL_ENV_WITH_DEFAULT) {
-    env[name] = optionalEnvStatus(name);
+  for (const [name, value] of REQUIRED_ENV) env[name] = statusOf(value);
+  for (const [name, value] of OPTIONAL_ENV_WITH_DEFAULT) {
+    env[name] = optionalStatusOf(value);
   }
 
   const [resend, clerk, twilio, supabase] = await Promise.all([
