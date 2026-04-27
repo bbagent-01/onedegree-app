@@ -64,17 +64,20 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "color/background": "#07221B",
       "color/foreground": "#F5F1E6",
 
-      // ── Card / popover → GLASS (translucent cream over green) ─
-      "color/card": "rgba(245, 241, 230, 0.06)",
+      // ── Card / popover → GLASS (translucent cream over green).
+      //    Alpha bumped to 0.08 so glass cards sit visibly on top of
+      //    the richer forest-800 frame interior — at 0.06 they were
+      //    almost invisible against the lighter inner bg. ────────
+      "color/card": "rgba(245, 241, 230, 0.08)",
       "color/card-foreground": "#F5F1E6",
-      "color/popover": "#103A2E",
+      "color/popover": "#154C3B",
       "color/popover-foreground": "#F5F1E6",
 
       // ── Muted surfaces → glass-er glass + dim cream text ────
-      "color/muted": "rgba(245, 241, 230, 0.06)",
+      "color/muted": "rgba(245, 241, 230, 0.08)",
       "color/muted-foreground": "rgba(245, 241, 230, 0.62)",
-      "color/surface": "rgba(245, 241, 230, 0.06)",
-      "color/surface-alt": "rgba(245, 241, 230, 0.10)",
+      "color/surface": "rgba(245, 241, 230, 0.08)",
+      "color/surface-alt": "rgba(245, 241, 230, 0.12)",
       "color/subtle": "rgba(245, 241, 230, 0.55)",
 
       // ── Borders / inputs → faint cream rule on dark ─────────
@@ -103,34 +106,50 @@ export const BRAND_PRESETS: BrandPreset[] = [
     ],
     extraCss: `
       /* ── DEEPEST FOREST PAGE BG ──────────────────────────────
-         The body / html flip to the deepest green — one notch
-         darker than the screen frames so they visibly float. */
+         Body flips to a dark forest with a very subtle radial
+         gradient from top-left so the bg has depth instead of being
+         flat black-green. The base color matches the Guesty
+         standalone (body { background: #07221B }); the gradient
+         layer adds richness without breaking the deepest-color
+         mood. */
       html[data-theme="sandbox"],
       html[data-theme="sandbox"] body {
-        background: #07221B !important;
+        background:
+          radial-gradient(at 0% 0%, rgba(31, 107, 83, 0.18), transparent 55%),
+          radial-gradient(at 100% 100%, rgba(15, 60, 45, 0.20), transparent 50%),
+          #07221B !important;
+        background-attachment: fixed !important;
         color: #F5F1E6 !important;
       }
 
       /* ── SCREEN FRAME ────────────────────────────────────────
-         Each Page preview sits in a rounded forest-900 panel with
-         a heavy outset shadow and a subtle cream rim — the exact
-         floating-screen treatment from the Guesty mock. PagesShowcase
-         wraps every preview in a .page-frame element so the hook is
-         stable. */
+         Each Page preview sits in a rounded forest-800 panel with
+         a heavy outset shadow + subtle cream rim. Forest-800 (one
+         step lighter than forest-900) gives the frames a richer,
+         more saturated tonal layer above the body bg — they read as
+         lit volumes instead of flat panels. */
       html[data-theme="sandbox"] .page-frame {
         margin: 24px 0 48px !important;
         border-radius: 24px !important;
         overflow: hidden !important;
-        background: #0B2E25 !important;
-        border: 1px solid rgba(245, 241, 230, 0.08) !important;
+        background: #103A2E !important;
+        border: 1px solid rgba(245, 241, 230, 0.10) !important;
         box-shadow:
-          0 30px 80px -20px rgba(0, 0, 0, 0.6),
-          inset 0 0 0 1px rgba(245, 241, 230, 0.04) !important;
+          0 40px 90px -22px rgba(0, 0, 0, 0.75),
+          0 8px 24px -8px rgba(0, 0, 0, 0.45),
+          inset 0 0 0 1px rgba(245, 241, 230, 0.05) !important;
       }
       /* Inside the frame, the chrome's border-bottom (between nav
          and content) becomes a faint cream rule. */
       html[data-theme="sandbox"] .page-frame [class~="border-b"] {
         border-bottom-color: rgba(245, 241, 230, 0.10) !important;
+      }
+      /* Sidebar / nav surfaces inside the frame get a slightly
+         darker forest tone so they read as a structural layer
+         rather than another glass card. */
+      html[data-theme="sandbox"] .page-frame nav,
+      html[data-theme="sandbox"] .page-frame aside {
+        background: rgba(7, 34, 27, 0.55) !important;
       }
 
       /* Common surface utility classes — every card / panel / row

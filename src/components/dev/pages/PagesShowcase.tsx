@@ -213,7 +213,7 @@ export function PagesShowcase({ route }: Props) {
               className={cn(
                 "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
                 activeVariant === v.id
-                  ? "border-brand bg-brand text-white"
+                  ? "border-brand bg-brand text-brand-foreground"
                   : "border-border bg-white hover:bg-muted"
               )}
             >

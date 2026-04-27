@@ -13,6 +13,7 @@ import { PatternShowcase } from "./PatternShowcase";
 import { SandboxControls } from "./SandboxControls";
 import { SandboxIndicator } from "./SandboxIndicator";
 import { BrandPresetSwitcher } from "./BrandPresetSwitcher";
+import { TrusteadLogo } from "./pages/Logo";
 
 interface Props {
   tokens: Record<TokenCategory, TokenSpec[]>;
@@ -99,14 +100,15 @@ export function DesignSystemRoot({ tokens, usage }: Props) {
             }
           >
             <header className="space-y-4 border-b pb-6">
-              <div>
+              <div className="space-y-3">
+                <TrusteadLogo className="brand-logo h-7 w-auto text-brand md:h-8" />
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Dev · alpha-only · admin
+                  Design System · Dev · alpha-only · admin
                 </p>
                 <h1 className="mt-1 text-3xl font-semibold">
-                  Trustead Design System
+                  A common language for <em className="accent">every screen</em>.
                 </h1>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
                   Live tokens, components, and patterns. Pick a brand
                   preset below to re-skin every preview at once, or edit
                   individual tokens in the Sandbox section.

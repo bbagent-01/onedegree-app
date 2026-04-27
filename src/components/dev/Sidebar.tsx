@@ -66,7 +66,7 @@ export function Sidebar({ sections, active, onSelect }: Props) {
                 className={cn(
                   "block w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors",
                   active === it.id
-                    ? "bg-brand text-white"
+                    ? "bg-brand text-brand-foreground"
                     : "text-foreground hover:bg-muted"
                 )}
               >
