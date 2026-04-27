@@ -79,13 +79,24 @@ export function DesignSystemRoot({ tokens, usage }: Props) {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, []);
 
+  // Pages-* sections render at the full width of the browser window
+  // so layout, type scale, and grids match the real route exactly.
+  // Every other section keeps the readable centered column.
+  const isPageSection = active.startsWith("pages-");
+
   return (
     <>
       <SandboxIndicator />
       <div className="flex min-h-screen">
         <Sidebar sections={SECTIONS} active={active} onSelect={setActive} />
         <main className="flex-1 min-w-0 overflow-x-hidden">
-          <div className="mx-auto max-w-5xl p-6 md:p-10 space-y-12">
+          <div
+            className={
+              isPageSection
+                ? "p-6 md:p-10 space-y-12"
+                : "mx-auto max-w-5xl p-6 md:p-10 space-y-12"
+            }
+          >
             <header className="border-b pb-6">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">
                 Dev · alpha-only · admin

@@ -2024,9 +2024,30 @@ function PagePreview({
   children,
 }: {
   label: string;
-  width: number;
+  /** "desktop" → renders at full width of the available window so the
+   *  responsive layout matches the real route 1:1. "mobile" → fixed
+   *  375px column centered so the mobile breakpoints fire naturally. */
+  width: "desktop" | number;
   children: React.ReactNode;
 }) {
+  if (width === "desktop") {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {label}
+          </span>
+          <span className="text-[11px] font-mono text-muted-foreground">
+            full window width
+          </span>
+        </div>
+        <div className="-mx-6 overflow-hidden border-y-2 border-border bg-white md:-mx-10">
+          {children}
+        </div>
+      </div>
+    );
+  }
+  // Mobile — 375 px frame, centered, with a phone-ish chrome.
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
@@ -2037,28 +2058,12 @@ function PagePreview({
           {width}px
         </span>
       </div>
-      <div className="overflow-hidden rounded-2xl border-2 border-border bg-surface/60 shadow-sm">
+      <div className="flex justify-center">
         <div
-          className="origin-top-left"
-          style={{
-            width,
-            // Scale 1440 down to fit common container widths; leave
-            // mobile 1:1 so the real responsive rules fire.
-            transform: width > 900 ? "scale(0.6)" : "none",
-            transformOrigin: "top left",
-            height: width > 900 ? 900 * 0.6 : undefined,
-          }}
+          style={{ width }}
+          className="overflow-hidden rounded-[2rem] border-[6px] border-zinc-800 bg-white shadow-xl"
         >
-          <div
-            style={{
-              width,
-              height: width > 900 ? 900 : undefined,
-              overflow: "auto",
-            }}
-            className="bg-white"
-          >
-            {children}
-          </div>
+          {children}
         </div>
       </div>
     </div>
@@ -2072,10 +2077,10 @@ function PageBrowseSection() {
       blurb="Global nav (with portaled search + filters) over a 4-column grid of LiveListingCard on desktop; sticky search pill + 1-col stack on mobile."
     >
       <Group name="/browse · desktop (1440)" file="src/app/(app)/browse/page.tsx">
-        <PagePreview label="desktop" width={1440}>
+        <PagePreview label="desktop" width="desktop">
           <PageShell>
-            <div className="px-20 py-6">
-              <div className="grid grid-cols-4 gap-4">
+            <div className="px-4 py-6 md:px-10 lg:px-20">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 <LiveListingCard
                   listing={sampleBrowseListingFull}
                   trust={sampleTrustFull}
@@ -2172,7 +2177,7 @@ function PageListingSection() {
         name="/listings/[id] · FULL access · desktop (1440)"
         file="src/app/(app)/listings/[id]/page.tsx"
       >
-        <PagePreview label="full, desktop" width={1440}>
+        <PagePreview label="full, desktop" width="desktop">
           <PageShell>
             <ListingDetailMock access="full" />
           </PageShell>
@@ -2182,7 +2187,7 @@ function PageListingSection() {
         name="/listings/[id] · GATED preview · desktop (1440)"
         file="src/components/listing/gated-listing-view.tsx"
       >
-        <PagePreview label="gated, desktop" width={1440}>
+        <PagePreview label="gated, desktop" width="desktop">
           <PageShell>
             <ListingDetailMock access="gated" />
           </PageShell>
@@ -2226,7 +2231,7 @@ function ListingDetailMock({
   ];
   const isGated = access === "gated";
   return (
-    <div className={mobile ? "pb-24" : "px-20 py-6"}>
+    <div className={mobile ? "pb-24" : "mx-auto max-w-[1280px] px-4 py-6 md:px-6"}>
       {!mobile && (
         <div className="mb-4">
           <h1 className="text-2xl font-semibold">
@@ -2288,10 +2293,10 @@ function ListingDetailMock({
         className={
           mobile
             ? "space-y-5 px-4 pt-4"
-            : "mt-8 grid grid-cols-3 gap-10"
+            : "mt-8 grid grid-cols-1 gap-10 md:grid-cols-3"
         }
       >
-        <div className={mobile ? "" : "col-span-2 space-y-6"}>
+        <div className={mobile ? "" : "space-y-6 md:col-span-2"}>
           <div className="flex items-center gap-3 rounded-2xl border p-3">
             <Avatar className="h-10 w-10">
               <AvatarImage src={fakeAvatar("sarah")} alt="host" />
@@ -2349,7 +2354,7 @@ function ListingDetailMock({
           )}
         </div>
 
-        <div className={mobile ? "" : "col-span-1"}>
+        <div className={mobile ? "" : "md:col-span-1"}>
           <div
             className={
               mobile
@@ -2405,7 +2410,7 @@ function PageProfileSection() {
         name="/profile/[id] · 1° direct (full view) · desktop"
         file="src/app/(app)/profile/[id]/page.tsx"
       >
-        <PagePreview label="desktop" width={1440}>
+        <PagePreview label="desktop" width="desktop">
           <PageShell>
             <div className="mx-auto max-w-[1040px] px-6 py-10 space-y-8">
               <ProfileBadgeFull
@@ -2461,7 +2466,7 @@ function PageProfileSection() {
         name="/profile/[id] · 0° preview · desktop"
         file="src/app/(app)/profile/[id]/page.tsx"
       >
-        <PagePreview label="preview, desktop" width={1440}>
+        <PagePreview label="preview, desktop" width="desktop">
           <PageShell>
             <div className="mx-auto max-w-[1040px] px-6 py-10 space-y-8">
               <ProfileBadgeFull
@@ -2543,11 +2548,11 @@ function PageInboxSection() {
       blurb="Split-pane layout on desktop (list left, thread right). Mobile shows the list first; tapping a row navigates to /inbox/[threadId]."
     >
       <Group name="/inbox · desktop (1440)" file="src/app/(app)/inbox/page.tsx">
-        <PagePreview label="desktop" width={1440}>
+        <PagePreview label="desktop" width="desktop">
           <PageShell>
             <div className="mx-auto max-w-[1600px] px-6 py-6">
               <h1 className="mb-4 text-2xl font-semibold">Messages</h1>
-              <div className="grid grid-cols-[350px_1fr] gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-[300px_1fr] lg:grid-cols-[350px_1fr]">
                 <div className="space-y-2 rounded-2xl border bg-white p-3">
                   {[
                     ["Sarah Mendel", "Sounds good — let me check…", true],
@@ -2674,7 +2679,7 @@ function PageProposalsSection() {
       blurb="Header + filter tabs + 2-col grid of ProposalCard. Max-width 960px container. Same component is reused on /profile/[id] under the 'Their proposals' section."
     >
       <Group name="/proposals · desktop (1440)" file="src/app/(app)/proposals/page.tsx">
-        <PagePreview label="desktop" width={1440}>
+        <PagePreview label="desktop" width="desktop">
           <PageShell>
             <div className="mx-auto max-w-[960px] px-6 py-10">
               <div className="flex flex-wrap items-end justify-between gap-4">
@@ -2768,7 +2773,7 @@ function PageShell({
     <div className="bg-white">
       <div
         className={`flex items-center justify-between border-b bg-white/90 ${
-          mobile ? "px-4 py-3" : "px-20 py-3"
+          mobile ? "px-4 py-3" : "px-4 py-3 md:px-10 lg:px-20"
         }`}
       >
         <div className="text-sm font-semibold text-brand">Trustead</div>
