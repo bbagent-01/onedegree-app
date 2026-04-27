@@ -46,7 +46,32 @@ function yearsSince(iso: string | undefined | null) {
   return Math.max(0, Math.floor(years));
 }
 
-function subtitle(propertyType: string, areaName: string) {
+/** S10.5: prefer the precise place_kind + property_label pair (mig 045);
+ *  fall back to the coarse property_type bucket on pre-backfill rows. */
+function subtitle(
+  propertyType: string,
+  areaName: string,
+  placeKind: string | null,
+  propertyLabel: string | null
+) {
+  const labelMap: Record<string, string> = {
+    house: "house",
+    apartment: "apartment",
+    condo: "condo",
+    townhouse: "townhouse",
+    cabin: "cabin",
+    loft: "loft",
+    other: "place",
+  };
+  const label = propertyLabel ? labelMap[propertyLabel] ?? "place" : null;
+
+  if (placeKind === "private") return `Private room in ${areaName}`;
+  if (placeKind === "shared") return `Shared room in ${areaName}`;
+  if (placeKind === "entire" && label) {
+    return `Entire ${label} in ${areaName}`;
+  }
+
+  // Legacy fallback for pre-backfill rows.
   const type =
     propertyType === "room"
       ? "Private room"
@@ -236,11 +261,17 @@ export default async function ListingPage({
           {/* Header subtitle + stats */}
           <div>
             <h2 className="text-xl font-semibold md:text-2xl">
-              {subtitle(listing.property_type, listing.area_name)}
+              {subtitle(
+                listing.property_type,
+                listing.area_name,
+                listing.place_kind,
+                listing.property_label
+              )}
             </h2>
             <p className="mt-1 text-muted-foreground">
-              {Math.max(listing.beds, 1) * 2} guests · {listing.bedrooms}{" "}
-              bedroom{listing.bedrooms !== 1 ? "s" : ""} · {listing.beds} bed
+              {listing.max_guests} guest{listing.max_guests !== 1 ? "s" : ""} ·{" "}
+              {listing.bedrooms} bedroom
+              {listing.bedrooms !== 1 ? "s" : ""} · {listing.beds} bed
               {listing.beds !== 1 ? "s" : ""} · {listing.bathrooms} bath
               {listing.bathrooms !== 1 ? "s" : ""}
             </p>

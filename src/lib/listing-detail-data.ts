@@ -60,6 +60,13 @@ export interface ListingDetail {
   bedrooms: number;
   beds: number;
   bathrooms: number;
+  /** S10.5 (mig 045): real max guests, promoted from meta.guests. */
+  max_guests: number;
+  /** S10.5: precise UI place kind ('entire'|'private'|'shared'). */
+  place_kind: string | null;
+  /** S10.5: precise UI property label ('cabin'|'loft'|...). Prefer
+   *  this over the coarse 4-value `property_type` for display. */
+  property_label: string | null;
   latitude: number;
   longitude: number;
   avg_rating: number | null;
@@ -201,13 +208,25 @@ export async function getListingDetail(
     .filter((r) => r.text.trim().length > 0);
 
   const { meta } = parseListingMeta(row.description);
+  // S10.5: prefer the new real columns, fall back to the legacy
+  // meta-blob for any pre-backfill row that slipped through.
+  const r = row as unknown as Record<string, unknown>;
+  const colNum = (k: string) =>
+    typeof r[k] === "number" ? (r[k] as number) : null;
   const derived = derivedExtras(row.id, row.area_name, {
-    bedrooms: meta.bedrooms,
-    beds: meta.beds,
-    bathrooms: meta.bathrooms,
-    lat: meta.address?.lat,
-    lng: meta.address?.lng,
+    bedrooms: colNum("bedrooms") ?? meta.bedrooms,
+    beds: colNum("beds") ?? meta.beds,
+    bathrooms:
+      colNum("bathrooms") ??
+      (typeof r.bathrooms === "string" ? Number(r.bathrooms) : undefined) ??
+      meta.bathrooms,
+    lat: colNum("lat") ?? meta.address?.lat,
+    lng: colNum("lng") ?? meta.address?.lng,
   });
+  const maxGuests =
+    colNum("max_guests") ??
+    meta.guests ??
+    Math.max((derived.beds ?? 1) * 2, 1);
 
   return {
     id: row.id,
@@ -247,6 +266,10 @@ export async function getListingDetail(
       reservationSnapshot: null,
     }),
     host_payment_method_types: hostPaymentMethodTypes,
+    max_guests: maxGuests,
+    place_kind: (row as { place_kind?: string | null }).place_kind ?? null,
+    property_label:
+      (row as { property_label?: string | null }).property_label ?? null,
     ...derived,
   };
 }

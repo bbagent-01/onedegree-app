@@ -195,12 +195,20 @@ export async function getBrowseListings(
 
   let results: BrowseListing[] = filtered.map((l) => {
     const { meta } = parseListingMeta(l.description);
+    // S10.5 (mig 045): prefer the new real columns, fall back to meta.
+    const lr = l as unknown as Record<string, unknown>;
+    const num = (k: string) =>
+      typeof lr[k] === "number"
+        ? (lr[k] as number)
+        : typeof lr[k] === "string"
+          ? Number(lr[k])
+          : undefined;
     const derived = derivedExtras(l.id, l.area_name, {
-      bedrooms: meta.bedrooms,
-      beds: meta.beds,
-      bathrooms: meta.bathrooms,
-      lat: meta.address?.lat,
-      lng: meta.address?.lng,
+      bedrooms: num("bedrooms") ?? meta.bedrooms,
+      beds: num("beds") ?? meta.beds,
+      bathrooms: num("bathrooms") ?? meta.bathrooms,
+      lat: num("lat") ?? meta.address?.lat,
+      lng: num("lng") ?? meta.address?.lng,
     });
     const extras = l as unknown as {
       avg_listing_rating: number | null;

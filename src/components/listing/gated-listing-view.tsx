@@ -35,14 +35,32 @@ export function GatedListingView({
   isSignedIn,
   pendingIntro,
 }: Props) {
-  const propertyLabel =
-    listing.property_type === "room"
+  // S10.5 (mig 045): prefer the precise place_kind + property_label
+  // pair; fall back to the coarse property_type bucket on
+  // pre-backfill rows.
+  const labelMap: Record<string, string> = {
+    house: "house",
+    apartment: "apartment",
+    condo: "condo",
+    townhouse: "townhouse",
+    cabin: "cabin",
+    loft: "loft",
+    other: "place",
+  };
+  const propertyLabel = (() => {
+    if (listing.place_kind === "private") return "Private room";
+    if (listing.place_kind === "shared") return "Shared room";
+    if (listing.place_kind === "entire" && listing.property_label) {
+      return `Entire ${labelMap[listing.property_label] ?? "place"}`;
+    }
+    return listing.property_type === "room"
       ? "Private room"
       : listing.property_type === "apartment"
         ? "Entire apartment"
         : listing.property_type === "house"
           ? "Entire home"
           : "Entire place";
+  })();
 
   const score = trust?.score ?? 0;
   const mutuals = trust?.mutualConnections ?? [];
