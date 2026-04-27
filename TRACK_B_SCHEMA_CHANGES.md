@@ -2,6 +2,137 @@
 
 Schema changes introduced by Track B sessions. Each entry documents what was added and why.
 
+## S10.5 — Listing schema forward-look (migration 045)
+
+**Migration:** `supabase/migrations/045_listing_schema_forward_look.sql`
+**Backfill:** `scripts/backfill-045-listing-meta.ts`
+**Audit input:** `docs/S10.4_LISTING_SCHEMA_AUDIT.md`
+
+### Goal
+
+Promote wizard fields out of the `<!--meta:{...}-->` description blob into real columns, add the new product fields the Build Plan calls for (tags · stay_style · service_discounts · accessibility · structured pet/children policy · check-in/out instructions · house manual), split preview-content toggles out of `access_settings` into a dedicated `preview_settings` column, and correct the stale `access_settings` DEFAULT.
+
+**Strictly additive.** No drops, no type changes on existing columns. The S10.4 audit identified ~10 drop candidates (price_per_night, address text, preview_photos, the four legacy access columns, …); they are deferred to a cleanup migration after Alpha 0 ships.
+
+### Schema changes — listings
+
+#### Promoted-from-meta scalar columns (all NULLable)
+
+| Column | Type | CHECK |
+|--------|------|-------|
+| `place_kind` | TEXT | `IN ('entire','private','shared')` |
+| `property_label` | TEXT | `IN ('house','apartment','condo','townhouse','cabin','loft','other')` |
+| `max_guests` | INTEGER | `>= 1` |
+| `bedrooms` | INTEGER | `>= 0` |
+| `beds` | INTEGER | `>= 0` |
+| `bathrooms` | NUMERIC(3,1) | `>= 0` |
+| `street` | TEXT | — |
+| `city` | TEXT | — |
+| `state` | TEXT | — |
+| `postal_code` | TEXT | — |
+| `lat` | NUMERIC(9,6) | — |
+| `lng` | NUMERIC(9,6) | — |
+| `weekly_discount_pct` | INTEGER | `BETWEEN 0 AND 99` |
+| `monthly_discount_pct` | INTEGER | `BETWEEN 0 AND 99` |
+| `extended_overview` | TEXT | — |
+| `guest_access_text` | TEXT | — |
+| `interaction_text` | TEXT | — |
+| `other_details_text` | TEXT | — |
+
+#### New product fields
+
+| Column | Type | Default / NULL? | CHECK |
+|--------|------|-----------------|-------|
+| `tags` | TEXT[] | `'{}'` · NOT NULL | (none — vocab locked app-side) |
+| `stay_style` | TEXT | NULL | `IN ('vacation_rental','lived_in_home','partial_prep')` |
+| `service_discounts` | JSONB | `'[]'` · NOT NULL | shape: `[{service, discount_amount, discount_type, notes}]` (app-side) |
+| `checkin_instructions` | TEXT | NULL | — |
+| `checkout_instructions` | TEXT | NULL | — |
+| `house_manual` | TEXT | NULL | — |
+| `pets_allowed` | BOOLEAN | NULL | — |
+| `children_allowed` | BOOLEAN | NULL | — |
+| `pets_on_property` | BOOLEAN | NULL | — (host-has-pets, distinct from pets_allowed) |
+| `accessibility_features` | TEXT[] | `'{}'` · NOT NULL | — |
+
+#### House-rules booleans (promoted from `house_rules` text blob)
+
+| Column | Type | NULL? |
+|--------|------|-------|
+| `no_smoking` | BOOLEAN | NULL |
+| `no_parties` | BOOLEAN | NULL |
+| `quiet_hours` | BOOLEAN | NULL |
+
+`house_rules` (text) stays as the canonical home for the host's free-form custom rules.
+
+#### Preview-settings split
+
+| Column | Type | Default / NULL? |
+|--------|------|-----------------|
+| `preview_settings` | JSONB | all-true shape · NOT NULL |
+
+`access_settings` keeps the WHO (gates), `preview_settings` is the WHAT (which fields show in preview). Wizard now writes to **both** during the transitional period — readers still go through `access_settings.preview_content`. The duplicate sub-key is removed in the cleanup migration once readers are switched over.
+
+#### `access_settings` DEFAULT — corrected
+
+Was the pre-mig-019 6-key shape (`see_full`/`message`/`request_book`/`request_intro`/`view_host_profile`); now the post-mig-020 4-key shape **minus `preview_content`** (now lives in `preview_settings`):
+
+```json
+{
+  "see_preview":           {"type": "anyone"},
+  "full_listing_contact":  {"type": "min_score", "threshold": 15},
+  "allow_intro_requests":  true
+}
+```
+
+This only affects future inserts that omit the column; existing rows are untouched.
+
+#### Indexes
+
+- `idx_listings_max_guests` (partial, NOT NULL) — guest-count filter
+- `idx_listings_bedrooms` (partial, NOT NULL) — bedroom filter
+- `idx_listings_property_label` (partial, NOT NULL) — precise property-type filter
+- `idx_listings_tags` (GIN) — tag containment filter
+- `idx_listings_stay_style` (partial, NOT NULL) — stay-style filter
+
+### Decision: `property_type` vs `property_label`
+
+Two options surfaced in S10.4 §9 q6: **(a)** widen the `property_type` CHECK to include condo/townhouse/cabin/loft (so `propertyTypeToDb()` stops collapsing) or **(b)** keep `property_type` as the 4-value coarse bucket (`apartment`/`house`/`room`/`other`) and rely on `property_label` for the precise UI value. **Picked (b)** — `propertyTypeToDb()` and the existing `property_type` CHECK stay unchanged; new `property_label` column carries the lossless 7-value vocabulary (the 6 wizard labels + `loft` for forward compat). Less code churn, no risk of breaking any reader that branched on the 4 values.
+
+### Decision: `default_availability_status` mapping
+
+Wizard collects `available`/`unavailable`/`possibly`; column CHECK is `available`/`possibly_available`/`blocked` (S10.4 §7.4). **Picked: rename in submit handler** (no DB change). The wizard's `publish()` now sends the mapped value through the existing `calendar-settings` PATCH route.
+
+### Backfill
+
+`scripts/backfill-045-listing-meta.ts` runs once after the migration. For every existing listing it:
+
+1. Parses `<!--meta:{...}-->` from `description` via `parseListingMeta()` (with a one-level unwrap for the seed-script `{"meta":{...}}` shape).
+2. Populates new columns from meta JSON — never overwriting non-null values.
+3. Maps `house_rules` text blob → `no_smoking` / `no_parties` / `quiet_hours` / `pets_allowed` booleans.
+4. Copies `meta.cleaningFee` → `cleaning_fee` (the column existed but was never written by listing CRUD).
+5. Maps `meta.defaultAvailability` → `default_availability_status` (with the value-set rename above).
+6. Mirrors `access_settings.preview_content` → `preview_settings`.
+7. Strips the meta-comment from `description` after a successful read.
+
+**Live-DB run:** 61/61 listings updated; 0 parse failures; 0 leftover meta-comments. 20-21 rows received structured columns (the rest had no meta blob to extract from).
+
+### Wizard + API rewires
+
+- `POST /api/listings` body whitelist extended to all new columns (`route.ts`).
+- `PATCH /api/listings/[id]` passthrough whitelist extended to the same columns; arrays (`tags`, `accessibility_features`) and JSONB (`preview_settings`, `service_discounts`) handled separately (`[id]/route.ts`).
+- `src/app/(app)/hosting/create/page.tsx` `publish()` now writes the new columns directly. The legacy `encodeListingMeta()` blob is still emitted on `description` so legacy readers stay functional during the transition; cleanup migration deletes it.
+- `src/lib/listing-meta.ts` is left intact as a read-only fallback for any pre-backfill rows that slip through; not deleted yet.
+
+### RLS
+
+No new policies. The new columns are public attributes that inherit existing listing visibility (`visibility_mode` + `access_settings`). They do not introduce new authority and don't need their own RLS.
+
+### Trust v2 schema deltas (deferred)
+
+Per FT-1 spec, Trust v2 Phase 1 (compute + schema) was scoped into this session. Display layer (Phase 2/3) is deferred to Alpha 1 Cluster 4.5. **Phase 1 schema deltas are not landed in this migration** because the FT-1 spec is not present in the repo as of this session — adding speculative columns is worse than waiting one session for the spec to land. Tracked as follow-up.
+
+---
+
 ## S9d — Origin proposal on threads (migration 044)
 
 **Migration:** `supabase/migrations/044_threads_origin_proposal.sql`

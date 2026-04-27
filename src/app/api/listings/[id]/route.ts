@@ -58,6 +58,36 @@ export async function PATCH(
     // CC-C3 visibility fields
     "visibility_mode",
     "preview_description",
+    // S10.5 (mig 045): promoted-from-meta + new product fields
+    "place_kind",
+    "property_label",
+    "max_guests",
+    "bedrooms",
+    "beds",
+    "bathrooms",
+    "street",
+    "city",
+    "state",
+    "postal_code",
+    "lat",
+    "lng",
+    "weekly_discount_pct",
+    "monthly_discount_pct",
+    "extended_overview",
+    "guest_access_text",
+    "interaction_text",
+    "other_details_text",
+    "cleaning_fee",
+    "stay_style",
+    "checkin_instructions",
+    "checkout_instructions",
+    "house_manual",
+    "pets_allowed",
+    "children_allowed",
+    "pets_on_property",
+    "no_smoking",
+    "no_parties",
+    "quiet_hours",
   ];
   for (const k of passthrough) {
     if (k in body) update[k] = body[k];
@@ -65,9 +95,20 @@ export async function PATCH(
   if (Array.isArray(body.amenities)) update.amenities = body.amenities;
   if (Array.isArray(body.specific_user_ids))
     update.specific_user_ids = body.specific_user_ids;
+  if (Array.isArray(body.tags)) update.tags = body.tags;
+  if (Array.isArray(body.accessibility_features))
+    update.accessibility_features = body.accessibility_features;
   // access_settings is a JSONB object
   if (body.access_settings && typeof body.access_settings === "object") {
     update.access_settings = body.access_settings;
+  }
+  // preview_settings is a JSONB object (S10.5)
+  if (body.preview_settings && typeof body.preview_settings === "object") {
+    update.preview_settings = body.preview_settings;
+  }
+  // service_discounts is a JSONB array (S10.5)
+  if (Array.isArray(body.service_discounts)) {
+    update.service_discounts = body.service_discounts;
   }
 
   if (Object.keys(update).length === 0) {

@@ -423,6 +423,10 @@ export default function CreateListingPage() {
   const publish = async () => {
     setSubmitting(true);
     try {
+      // Mig 045 promoted these out of the description meta-blob into real
+      // columns. We keep encoding a (mostly redundant) meta-blob during the
+      // transitional period so any legacy reader still functions on a row
+      // that lands here mid-deploy. Cleanup migration will delete this.
       const meta: ListingMeta = {
         placeKind: state.placeKind ?? undefined,
         propertyLabel: state.propertyLabel ?? undefined,
@@ -456,6 +460,25 @@ export default function CreateListingPage() {
         ...(state.customRules ? [state.customRules] : []),
       ].join("\n");
 
+      const previewSettings = {
+        show_title: state.previewShowTitle,
+        show_price_range: state.previewShowPriceRange,
+        show_description: state.previewShowDescription,
+        show_host_first_name: state.previewShowHostFirstName,
+        show_profile_photo: state.previewShowProfilePhoto,
+        show_neighborhood: state.previewShowNeighborhood,
+        show_map_area: state.previewShowMapArea,
+        show_rating: state.previewShowRating,
+        show_amenities: state.previewShowAmenities,
+        show_bed_counts: state.previewShowBedCounts,
+        show_house_rules: state.previewShowHouseRules,
+        use_preview_specific_description: state.usePreviewSpecificDescription,
+      };
+
+      const propertyLabelLower = state.propertyLabel
+        ? state.propertyLabel.toLowerCase()
+        : null;
+
       const body = {
         property_type: propertyTypeToDb(
           state.propertyLabel || "Other",
@@ -483,21 +506,41 @@ export default function CreateListingPage() {
               ? buildAccessRule(state.accessSeePreview)
               : buildAccessRule(state.accessFullListingContact),
           allow_intro_requests: state.allowIntroRequests,
-          preview_content: {
-            show_title: state.previewShowTitle,
-            show_price_range: state.previewShowPriceRange,
-            show_description: state.previewShowDescription,
-            show_host_first_name: state.previewShowHostFirstName,
-            show_profile_photo: state.previewShowProfilePhoto,
-            show_neighborhood: state.previewShowNeighborhood,
-            show_map_area: state.previewShowMapArea,
-            show_rating: state.previewShowRating,
-            show_amenities: state.previewShowAmenities,
-            show_bed_counts: state.previewShowBedCounts,
-            show_house_rules: state.previewShowHouseRules,
-            use_preview_specific_description: state.usePreviewSpecificDescription,
-          },
+          // Keep preview_content nested for back-compat readers; canonical
+          // source is the new preview_settings column below.
+          preview_content: previewSettings,
         },
+        // S10.5 (mig 045): promoted-from-meta columns
+        place_kind: state.placeKind,
+        property_label: propertyLabelLower,
+        max_guests: state.guests,
+        bedrooms: state.bedrooms,
+        beds: state.beds,
+        bathrooms: state.bathrooms,
+        street: state.street || null,
+        city: state.city || null,
+        state: state.state || null,
+        postal_code: state.zip || null,
+        lat: Number.isFinite(state.lat) ? state.lat : null,
+        lng: Number.isFinite(state.lng) ? state.lng : null,
+        weekly_discount_pct: state.weeklyDiscount
+          ? Number(state.weeklyDiscount)
+          : null,
+        monthly_discount_pct: state.monthlyDiscount
+          ? Number(state.monthlyDiscount)
+          : null,
+        extended_overview: state.propertyOverview || null,
+        guest_access_text: state.guestAccess || null,
+        interaction_text: state.interactionWithGuests || null,
+        other_details_text: state.otherDetails || null,
+        cleaning_fee: state.cleaningFee ? Number(state.cleaningFee) : null,
+        // S10.5: house-rules booleans promoted from text blob
+        no_smoking: state.houseRules.includes("No smoking"),
+        no_parties: state.houseRules.includes("No parties or events"),
+        quiet_hours: state.houseRules.includes("Quiet hours after 10pm"),
+        pets_allowed: state.houseRules.includes("No pets") ? false : null,
+        // S10.5: preview-settings split
+        preview_settings: previewSettings,
         photos: state.photos.map((p, i) => ({
           public_url: p.public_url,
           storage_path: p.storage_path,
@@ -518,6 +561,14 @@ export default function CreateListingPage() {
       if (!res.ok) throw new Error(await res.text());
       const data = (await res.json()) as { id: string };
 
+      // Map wizard 'available'/'unavailable'/'possibly' to the column's
+      // CHECK constraint values ('available'/'blocked'/'possibly_available').
+      const dasMap: Record<typeof state.defaultAvailability, string> = {
+        available: "available",
+        unavailable: "blocked",
+        possibly: "possibly_available",
+      };
+
       // Update stay rules via calendar-settings route
       await fetch(`/api/listings/${data.id}/calendar-settings`, {
         method: "PATCH",
@@ -528,6 +579,7 @@ export default function CreateListingPage() {
           prep_days: Number(state.prepDays) || 0,
           checkin_time: state.checkIn,
           checkout_time: state.checkOut,
+          default_availability_status: dasMap[state.defaultAvailability],
         }),
       });
 
