@@ -176,11 +176,68 @@ export const BRAND_PRESETS: BrandPreset[] = [
       html[data-theme="sandbox"] .bg-white:not(.page-frame):not([role="dialog"]),
       html[data-theme="sandbox"] .bg-card:not(.page-frame):not([role="dialog"]),
       html[data-theme="sandbox"] .bg-popover:not(.page-frame):not([role="dialog"]),
-      html[data-theme="sandbox"] .bg-background:not(.page-frame):not([role="dialog"]) {
+      html[data-theme="sandbox"] .bg-background:not(.page-frame):not([role="dialog"]),
+      html[data-theme="sandbox"] .bg-surface:not(.page-frame):not([role="dialog"]) {
         background-color: rgba(7, 34, 27, 0.55) !important;
         border: 1px solid rgba(245, 241, 230, 0.10) !important;
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
+      }
+
+      /* ── INTERACTIVE STATES — hover/focus/selected ───────────
+         Tailwind compiles `hover:bg-white` to `.hover\:bg-white:hover`,
+         which the static .bg-white rule above does NOT match. Without
+         this, list rows hover to pure white with cream text → invisible
+         (the exact issue Loren caught on /inbox thread list and
+         /browse listing card chevrons). Mirror the rule for muted
+         states so footer strips and selected list rows also flip. */
+      html[data-theme="sandbox"] [class*="hover\\:bg-white"]:hover,
+      html[data-theme="sandbox"] [class*="focus\\:bg-white"]:focus,
+      html[data-theme="sandbox"] [class*="hover\\:bg-card"]:hover,
+      html[data-theme="sandbox"] [class*="hover\\:bg-popover"]:hover {
+        background-color: rgba(245, 241, 230, 0.08) !important;
+      }
+      /* Selected / muted backgrounds outside dialogs (the in-dialog
+         rule below handles bg-muted there). bg-muted is the inbox
+         list "selected thread" indicator and various subtle panels. */
+      html[data-theme="sandbox"] .bg-muted:not([class*="bg-muted-foreground"]) {
+        background-color: rgba(245, 241, 230, 0.06) !important;
+      }
+      html[data-theme="sandbox"] [class*="hover\\:bg-muted"]:hover,
+      html[data-theme="sandbox"] [class*="hover\\:bg-accent"]:hover {
+        background-color: rgba(245, 241, 230, 0.08) !important;
+      }
+      /* bg-muted/40, bg-muted/30 etc. — inbox search input + thread
+         header bg. Tint very faintly so they read as lighter
+         structure, not filled blocks. */
+      html[data-theme="sandbox"] [class*="bg-muted/"] {
+        background-color: rgba(245, 241, 230, 0.04) !important;
+      }
+
+      /* ── AMBER ALERT / SYSTEM-MILESTONE CARDS ────────────────
+         inbox + reservation use bg-amber-50 / bg-amber-100 for the
+         "stay terms updated" / "edits requested" alert cards. On
+         forest green these read as out-of-system cream-yellow blocks;
+         flip to dark glass with an amber accent border so the warm
+         tone carries via accent, not as a slab fill. */
+      html[data-theme="sandbox"] .bg-amber-50,
+      html[data-theme="sandbox"] [class*="bg-amber-50/"] {
+        background-color: rgba(7, 34, 27, 0.55) !important;
+        border-color: rgba(251, 191, 36, 0.30) !important;
+      }
+      /* bg-amber-100 is also used for the small icon badge inside
+         those cards — tint to translucent amber so the icon still
+         reads as a warm pill, just on dark. */
+      html[data-theme="sandbox"] .bg-amber-100 {
+        background-color: rgba(251, 191, 36, 0.20) !important;
+      }
+      html[data-theme="sandbox"] .border-amber-200,
+      html[data-theme="sandbox"] .border-amber-300 {
+        border-color: rgba(251, 191, 36, 0.30) !important;
+      }
+      html[data-theme="sandbox"] .text-amber-700,
+      html[data-theme="sandbox"] .text-amber-800 {
+        color: #FCD34D !important;
       }
 
       /* ── MODALS / DIALOGS ────────────────────────────────────
