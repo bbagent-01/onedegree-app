@@ -31,7 +31,7 @@ export function ImpersonationBar({ currentName, realUserName }: Props) {
 
   return (
     <div
-      className="fixed left-0 right-0 top-0 z-[95] flex items-center justify-center gap-3 bg-purple-600 px-4 py-1 text-xs font-medium text-white shadow-md"
+      className="fixed left-0 right-0 top-0 z-[95] flex items-center justify-center gap-3 bg-purple-600/80 px-4 py-1 text-xs font-medium text-white shadow-md backdrop-blur-sm"
       role="status"
     >
       <span className="truncate">

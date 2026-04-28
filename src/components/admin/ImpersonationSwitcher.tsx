@@ -160,24 +160,28 @@ export function ImpersonationSwitcher({
     }
   }, [spawnName, loadUsers]);
 
+  // Position-free trigger: the pill collapsed to a 40×40 circle (the
+  // ImpersonationBar already announces who's being impersonated, so
+  // the pill's text label was redundant). The parent admin-dock
+  // wrapper in (app)/layout.tsx is what places it bottom-left and
+  // controls the gap to the sibling brand-switcher icon.
+  const triggerLabel = isImpersonating
+    ? `Impersonating: ${currentName}`
+    : `Real: ${realUserName}`;
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`fixed bottom-4 left-4 z-[80] flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium shadow-lg transition ${
+        className={`flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition hover:scale-105 ${
           isImpersonating
             ? "bg-purple-600 text-white hover:bg-purple-700"
             : "bg-white text-zinc-900 ring-1 ring-zinc-300 hover:ring-zinc-400"
         }`}
-        aria-label="Open impersonation switcher"
+        aria-label={`Open impersonation switcher · ${triggerLabel}`}
+        title={triggerLabel}
       >
-        <UserRound className="h-4 w-4" />
-        <span className="max-w-[180px] truncate">
-          {isImpersonating
-            ? `Impersonating: ${currentName}`
-            : `Real: ${realUserName}`}
-        </span>
+        <UserRound className="h-5 w-5" />
       </button>
 
       {open && (

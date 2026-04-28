@@ -52,8 +52,19 @@ export default async function AppLayout({
       <Footer />
       <MobileNav />
       <VouchBackToaster />
-      {impersonationMount}
-      {sandboxMount}
+      {/* Admin floating dock (alpha only) — keeps the impersonation
+          icon and the brand-switcher palette icon on the same plane,
+          so the palette spaces from the impersonation icon via the
+          dock's flex-gap rather than a hardcoded left offset. The
+          ImpersonationBar (top-of-viewport) and the modal/popover
+          children of these mounts use their own fixed positioning
+          and escape this dock visually. */}
+      {(impersonationMount || sandboxMount) && (
+        <div className="fixed bottom-4 left-4 z-[80] flex items-center gap-3">
+          {impersonationMount}
+          {sandboxMount}
+        </div>
+      )}
     </div>
   );
 }
