@@ -229,29 +229,55 @@ export const BRAND_PRESETS: BrandPreset[] = [
       }
 
       /* ── AMBER ALERT / SYSTEM-MILESTONE CARDS ────────────────
-         inbox + reservation use bg-amber-50 / bg-amber-100 for the
-         "stay terms updated" / "edits requested" alert cards. On
-         forest green these read as out-of-system cream-yellow blocks;
-         flip to dark glass with an amber accent border so the warm
-         tone carries via accent, not as a slab fill. */
+         Properly yellow-tinted now (not transparent). Soft warm
+         glow so the alert reads as warm/notification but stays
+         legible on the dark forest bg. Tone-fg vars flip in
+         tandem so amber-tinted text inside reads dark. */
       html[data-theme="sandbox"] .bg-amber-50,
       html[data-theme="sandbox"] [class*="bg-amber-50/"] {
-        background-color: rgba(7, 34, 27, 0.55) !important;
-        border-color: rgba(251, 191, 36, 0.30) !important;
+        background-color: rgba(251, 191, 36, 0.18) !important;
+        border-color: rgba(251, 191, 36, 0.45) !important;
+        --tone-fg: #3A2400;
+        --tone-fg-muted: rgba(58, 36, 0, 0.75);
       }
-      /* bg-amber-100 is also used for the small icon badge inside
-         those cards — tint to translucent amber so the icon still
-         reads as a warm pill, just on dark. */
+      /* bg-amber-100 is the small icon badge inside those cards. */
       html[data-theme="sandbox"] .bg-amber-100 {
-        background-color: rgba(251, 191, 36, 0.20) !important;
+        background-color: rgba(251, 191, 36, 0.55) !important;
       }
       html[data-theme="sandbox"] .border-amber-200,
       html[data-theme="sandbox"] .border-amber-300 {
-        border-color: rgba(251, 191, 36, 0.30) !important;
+        border-color: rgba(251, 191, 36, 0.45) !important;
       }
       html[data-theme="sandbox"] .text-amber-700,
       html[data-theme="sandbox"] .text-amber-800 {
-        color: #FCD34D !important;
+        color: #5A3A00 !important;
+      }
+
+      /* ── SMALL LABELS → PILL EVERYWHERE ──────────────────────
+         Loren's rule: any little label/badge is a pill. Catches
+         small inline elements with rounded-md/sm/no-suffix that
+         have small text + bg + horizontal padding (the Tailwind
+         signature for a label/badge). Buttons, inputs, textareas
+         excluded so we don't pill structural form controls. */
+      html[data-theme="sandbox"] :is([class*="rounded-md"], [class*="rounded-sm"], [class*="rounded "])[class*="text-xs"][class*="px-"]:not(button):not(input):not(textarea):not(label),
+      html[data-theme="sandbox"] :is([class*="rounded-md"], [class*="rounded-sm"], [class*="rounded "])[class*="text-[10"][class*="px-"]:not(button):not(input):not(textarea):not(label),
+      html[data-theme="sandbox"] :is([class*="rounded-md"], [class*="rounded-sm"], [class*="rounded "])[class*="text-[11"][class*="px-"]:not(button):not(input):not(textarea):not(label) {
+        border-radius: 999px !important;
+      }
+
+      /* ── CHAT MESSAGE BUBBLES → WHITE WITH DARK TEXT ─────────
+         Both sides of the conversation become cream cards with
+         dark forest text — pops against the dark glass thread
+         pane. Tone-fg flip propagates so any nested text or
+         metadata inside also reads dark. */
+      html[data-theme="sandbox"] [class*="rounded-bl-sm"][class*="bg-muted"],
+      html[data-theme="sandbox"] [class*="rounded-br-sm"][class*="bg-brand"],
+      html[data-theme="sandbox"] [class*="rounded-bl-sm"][class*="bg-brand"],
+      html[data-theme="sandbox"] [class*="rounded-br-sm"][class*="bg-muted"] {
+        background-color: var(--tt-cream) !important;
+        color: var(--tt-modal-bg) !important;
+        --tone-fg: var(--tt-modal-bg);
+        --tone-fg-muted: rgba(11, 46, 37, 0.65);
       }
 
       /* ── MODALS / DIALOGS ──────────────────────────────────── */
