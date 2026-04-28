@@ -159,15 +159,37 @@ export const BRAND_PRESETS: BrandPreset[] = [
         -webkit-backdrop-filter: blur(8px);
       }
 
-      /* ── MODALS ──────────────────────────────────────────────
-         Solid forest box with generous padding; backdrop overlay
-         gets dark + heavy blur so the page behind soft-fades.
-         Catches shadcn dialog content + any [role="dialog"]
-         element with the shadow-modal token. */
-      html[data-theme="sandbox"] [role="dialog"][aria-modal="true"],
-      html[data-theme="sandbox"] [data-radix-dialog-content],
-      html[data-theme="sandbox"] [data-state="open"][role="dialog"],
-      html[data-theme="sandbox"] .shadow-modal {
+      /* ── BACKDROP DIM (declared early; surface override below
+         overrides nothing here since these are different classes) */
+      html[data-theme="sandbox"] .bg-black\\/40,
+      html[data-theme="sandbox"] .bg-black\\/50,
+      html[data-theme="sandbox"] .bg-black\\/60 {
+        background-color: rgba(7, 34, 27, 0.55) !important;
+        backdrop-filter: blur(14px) !important;
+        -webkit-backdrop-filter: blur(14px) !important;
+      }
+
+      /* ── GLASS TILES ─────────────────────────────────────────
+         :not(.page-frame) — frame keeps its solid #0B2E26 fill.
+         :not([role="dialog"]) — dialogs go through the solid modal
+         block declared after this so they don't get glass-tinted. */
+      html[data-theme="sandbox"] .bg-white:not(.page-frame):not([role="dialog"]),
+      html[data-theme="sandbox"] .bg-card:not(.page-frame):not([role="dialog"]),
+      html[data-theme="sandbox"] .bg-popover:not(.page-frame):not([role="dialog"]),
+      html[data-theme="sandbox"] .bg-background:not(.page-frame):not([role="dialog"]) {
+        background-color: rgba(7, 34, 27, 0.55) !important;
+        border: 1px solid rgba(245, 241, 230, 0.10) !important;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+      }
+
+      /* ── MODALS / DIALOGS ────────────────────────────────────
+         Solid #0B2E25 forest, generous padding (2.5rem), heavy
+         shadow. Catches shadcn DialogContent which renders with
+         role=dialog plus a bg-popover (the most common pattern in
+         this codebase). The :not() above keeps the surface rule
+         from competing on these elements. */
+      html[data-theme="sandbox"] [role="dialog"] {
         background: #0B2E25 !important;
         background-color: #0B2E25 !important;
         border: 1px solid rgba(245, 241, 230, 0.18) !important;
@@ -178,31 +200,16 @@ export const BRAND_PRESETS: BrandPreset[] = [
           0 50px 100px -25px rgba(0, 0, 0, 0.85),
           0 16px 40px -12px rgba(0, 0, 0, 0.55) !important;
       }
-      /* Backdrop dim — heavy blur so the page underneath softens. */
-      html[data-theme="sandbox"] .bg-black\\/40,
-      html[data-theme="sandbox"] .bg-black\\/50,
-      html[data-theme="sandbox"] .bg-black\\/60 {
-        background-color: rgba(7, 34, 27, 0.55) !important;
-        backdrop-filter: blur(14px) !important;
-        -webkit-backdrop-filter: blur(14px) !important;
-      }
-
-      /* ── GLASS TILES ─────────────────────────────────────────
-         CRITICAL: the .page-frame element itself ALSO has the
-         class .bg-white in its className (set by PagesShowcase
-         for the default preset's full-bleed white surface). So
-         this selector would otherwise override the .page-frame's
-         own #0B2E26 forest fill back to glass. The :not()
-         excludes the frame so it keeps its solid forest interior.
-         Same for the popover / dialog selectors handled below. */
-      html[data-theme="sandbox"] .bg-white:not(.page-frame),
-      html[data-theme="sandbox"] .bg-card:not(.page-frame),
-      html[data-theme="sandbox"] .bg-popover:not(.page-frame),
-      html[data-theme="sandbox"] .bg-background:not(.page-frame) {
-        background-color: rgba(7, 34, 27, 0.55) !important;
-        border: 1px solid rgba(245, 241, 230, 0.10) !important;
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
+      /* DialogFooter / action bar inside dialogs uses bg-muted
+         which the surface rule would otherwise glass — match that
+         specifically and force solid so the footer doesn't break
+         the modal's solid feel. */
+      html[data-theme="sandbox"] [role="dialog"] [class*="bg-muted"],
+      html[data-theme="sandbox"] [role="dialog"] .border-t {
+        background: transparent !important;
+        background-color: transparent !important;
+        border-color: rgba(245, 241, 230, 0.14) !important;
+        backdrop-filter: none !important;
       }
 
       /* Translucent overlays (modal backdrops, hover scrims) get
