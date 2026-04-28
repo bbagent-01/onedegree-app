@@ -167,7 +167,11 @@ export const BRAND_PRESETS: BrandPreset[] = [
       html[data-theme="sandbox"] .bg-white\\/90,
       html[data-theme="sandbox"] .bg-white\\/80,
       html[data-theme="sandbox"] .bg-white\\/70,
-      html[data-theme="sandbox"] .bg-white\\/60 {
+      html[data-theme="sandbox"] .bg-white\\/60,
+      html[data-theme="sandbox"] [class*="bg-background/"],
+      html[data-theme="sandbox"] [class*="bg-card/"],
+      html[data-theme="sandbox"] [class*="bg-popover/"],
+      html[data-theme="sandbox"] [class*="bg-surface/"] {
         background-color: rgba(7, 34, 27, 0.85) !important;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
