@@ -153,6 +153,24 @@ export async function getListingsForViewer(viewerId: string): Promise<ListingWit
     }
   }
 
+  // Fallback: if a listing has no explicit ranges but a default status of
+  // available/possibly_available, synthesize a next-available span from today
+  // through the end of its availability window so browse cards show something.
+  for (const l of listings) {
+    if (nextAvailByListing.has(l.id)) continue;
+    const def = l.default_availability_status as string | null;
+    if (def === 'available' || def === 'possibly_available') {
+      const windowMonths = l.availability_window_months ?? 12;
+      const end = new Date();
+      end.setMonth(end.getMonth() + windowMonths);
+      nextAvailByListing.set(l.id, {
+        start_date: today,
+        end_date: end.toISOString().split('T')[0],
+        status: def,
+      });
+    }
+  }
+
   // 6. Host profiles
   const { data: hosts } = await supabase
     .from('users')

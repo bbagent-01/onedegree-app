@@ -4,6 +4,8 @@
 /node_modules
 cron-worker/node_modules
 cron-worker/package-lock.json
+cron-worker-prod/node_modules
+cron-worker-prod/package-lock.json
 /.pnp
 .pnp.js
 .yarn/install-state.gz
