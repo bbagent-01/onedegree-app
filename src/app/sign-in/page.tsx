@@ -55,11 +55,7 @@ function SignInInner() {
     if (!isLoaded || !phoneValid) return;
     setSaving(true);
     try {
-      const res = await signIn.create({
-        identifier: e164,
-        strategy: "phone_code",
-      });
-      // Find the phone_code factor and prepare it
+      const res = await signIn.create({ identifier: e164 });
       const factor = res.supportedFirstFactors?.find(
         (f) => f.strategy === "phone_code"
       );
