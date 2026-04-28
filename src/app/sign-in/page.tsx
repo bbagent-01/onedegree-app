@@ -82,7 +82,11 @@ function SignInInner() {
         code: otp,
       });
       if (res.status === "complete" && res.createdSessionId) {
-        await setActive({ session: res.createdSessionId });
+        // setActive's promise occasionally hangs on Clerk dev cross-origin
+        // (humane-pup-20.clerk.accounts.dev → trustead.app) even though the
+        // session does land. Fire-and-navigate so the button doesn't stick
+        // on "Verifying..." indefinitely.
+        void setActive({ session: res.createdSessionId });
         router.push(redirectUrl);
         return;
       }
@@ -127,7 +131,7 @@ function SignInInner() {
         password,
       });
       if (res.status === "complete" && res.createdSessionId) {
-        await setActive({ session: res.createdSessionId });
+        void setActive({ session: res.createdSessionId });
         router.push(redirectUrl);
       } else {
         toast.error("Additional verification needed.");
