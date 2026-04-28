@@ -185,11 +185,11 @@ export const BRAND_PRESETS: BrandPreset[] = [
       }
 
       /* ── INTERACTIVE STATES — hover/focus/selected ───────────
-         Tailwind compiles `hover:bg-white` to `.hover\:bg-white:hover`,
-         which the static .bg-white rule above does NOT match. Without
-         this, list rows hover to pure white with cream text → invisible
-         (the exact issue Loren caught on /inbox thread list and
-         /browse listing card chevrons). Mirror the rule for muted
+         Tailwind compiles hover:bg-white into a hover-pseudoclass
+         selector that the static .bg-white rule above does NOT match.
+         Without this, list rows hover to pure white with cream text
+         (invisible — the exact bug Loren caught on /inbox thread list
+         and /browse listing card chevrons). Mirror the rule for muted
          states so footer strips and selected list rows also flip. */
       html[data-theme="sandbox"] [class*="hover\\:bg-white"]:hover,
       html[data-theme="sandbox"] [class*="focus\\:bg-white"]:focus,
