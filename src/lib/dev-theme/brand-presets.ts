@@ -467,6 +467,53 @@ export const BRAND_PRESETS: BrandPreset[] = [
         color: var(--tt-cream) !important;
       }
 
+      /* ── RING-WHITE → INVISIBLE ──────────────────────────────
+         The ring-2 ring-white pattern (used on connector dots and
+         vouch-count avatars) reads as a stark white halo on dark
+         forest. Re-route the ring color to body bg so the ring
+         visually matches the surrounding surface. */
+      html[data-theme="sandbox"] .ring-white {
+        --tw-ring-color: var(--tt-body-bg) !important;
+      }
+
+      /* ── TRUST DEGREE PILLS → GREEN SCALE ────────────────────
+         1° brightest, 4° darkest grayish-green, No-connection
+         near-black. White text contrast preserved on every step.
+         Selectors anchor on rounded-full plus the pill-specific bg
+         class so we don't repaint every emerald or zinc element on
+         the page. */
+      html[data-theme="sandbox"] [class*="rounded-full"][class*="bg-brand"][class*="text-white"] {
+        background-color: #2A8A6B !important;
+      }
+      html[data-theme="sandbox"] [class*="rounded-full"][class*="bg-emerald-600"][class*="text-white"] {
+        background-color: #1F6B53 !important;
+      }
+      html[data-theme="sandbox"] [class*="rounded-full"][class*="bg-[#bf8a0d]"][class*="text-white"] {
+        background-color: #154C3B !important;
+      }
+      html[data-theme="sandbox"] [class*="rounded-full"][class*="bg-zinc-500"][class*="text-white"] {
+        background-color: #2C3E36 !important;
+      }
+      html[data-theme="sandbox"] [class*="rounded-full"][class*="bg-zinc-900"][class*="text-white"] {
+        background-color: #000000 !important;
+      }
+      /* Same for the shield + score text colors that mirror the pill */
+      html[data-theme="sandbox"] .text-\\[\\#bf8a0d\\] {
+        color: #4FB191 !important;
+      }
+
+      /* ── LISTING CARD IMAGES — thin border + heavier shadow ──
+         The aspect-[4/3] rounded-xl overflow-hidden combo is the
+         signature class set on listing card image wrappers. Frame
+         them with a hairline cream border and an outset shadow
+         that visually lifts the tile off the forest bg. */
+      html[data-theme="sandbox"] [class*="aspect-[4/3]"][class*="rounded-xl"][class*="overflow-hidden"] {
+        border: 1px solid var(--tt-glass-border) !important;
+        box-shadow:
+          0 24px 60px -15px rgba(0, 0, 0, 0.7),
+          0 8px 20px -8px rgba(0, 0, 0, 0.45) !important;
+      }
+
       /* ── SHADOWS ─────────────────────────────────────────────
          Heavy floating-card shadow + subtle inset glass highlight. */
       html[data-theme="sandbox"] .shadow-card,
