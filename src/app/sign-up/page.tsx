@@ -165,23 +165,27 @@ function SignUpInner() {
         router.push(redirectUrl);
         return;
       }
-      // Email verification still required?
+      // Email verification required — Clerk's prod instance enforces
+      // verify_at_sign_up. Send the code and route the user to the
+      // existing email_otp step to enter it.
       if (res.unverifiedFields.includes("email_address")) {
         await signUp.prepareEmailAddressVerification({
           strategy: "email_code",
         });
-        // For alpha we skip the email verification step — the user is
-        // already in via phone. We'll prompt for email verification on
-        // first login when ready. For now, treat as done.
+        setOtp("");
+        setStep("email_otp");
+        toast.success("Verification code sent to " + email.trim());
+        return;
       }
-      // If Clerk still hasn't flipped to complete, try once more.
+      // No verification needed but Clerk still hasn't flipped to
+      // complete — retry update once before surfacing an error.
       const after = await signUp.update({});
       if (after.status === "complete" && after.createdSessionId) {
         await setActive({ session: after.createdSessionId });
         router.push(redirectUrl);
       } else {
         toast.error(
-          "Email verification pending. Check your inbox, then return here."
+          "Couldn't finish sign-up. Refresh and try again."
         );
       }
     } catch (e) {
