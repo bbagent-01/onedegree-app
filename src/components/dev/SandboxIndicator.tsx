@@ -97,7 +97,7 @@ export function SandboxIndicator() {
           className="pointer-events-none fixed inset-0 z-[80] border-2 border-dashed"
           style={{
             borderColor:
-              active === "green" ? "#4FB191" : "#a855f7",
+              active === "trustead" ? "#4FB191" : "#a855f7",
           }}
         />
       )}
@@ -118,11 +118,11 @@ export function SandboxIndicator() {
           className="flex h-10 w-10 items-center justify-center rounded-full border shadow-lg backdrop-blur transition hover:scale-105"
           style={{
             background:
-              active === "green"
+              active === "trustead"
                 ? "rgba(11, 46, 38, 0.95)"
                 : "rgba(24, 24, 27, 0.95)",
             borderColor:
-              active === "green"
+              active === "trustead"
                 ? "rgba(191, 226, 212, 0.35)"
                 : "rgba(255, 255, 255, 0.18)",
           }}
@@ -131,7 +131,7 @@ export function SandboxIndicator() {
             className="h-4 w-4"
             style={{
               color:
-                active === "green" ? "#BFE2D4" : "#a855f7",
+                active === "trustead" ? "#BFE2D4" : "#a855f7",
             }}
           />
         </button>
@@ -170,7 +170,7 @@ export function SandboxIndicator() {
                       active === p.id ? "opacity-100" : "opacity-0"
                     }`}
                     style={{
-                      color: active === "green" ? "#BFE2D4" : "#a855f7",
+                      color: active === "trustead" ? "#BFE2D4" : "#a855f7",
                     }}
                   />
                   <span className="flex-1">

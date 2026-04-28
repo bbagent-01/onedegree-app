@@ -22,7 +22,7 @@ import {
 } from "@/lib/dev-theme/brand-presets";
 import { SandboxIndicator } from "./SandboxIndicator";
 
-const DEFAULT_PRESET_ID = "green";
+const DEFAULT_PRESET_ID = "trustead";
 
 export default function SandboxClient() {
   useEffect(() => {

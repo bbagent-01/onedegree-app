@@ -25,6 +25,11 @@ import {
 } from "@/lib/dev-theme/sandbox";
 import { tokensByCategory } from "@/lib/dev-theme/tokens";
 import type { TokenSpec, TokenCategory } from "@/lib/dev-theme/tokens";
+import {
+  TRUSTEAD_THEME_VARS,
+  THEME_VAR_GROUPS,
+  type ThemeVar,
+} from "@/lib/dev-theme/theme-vars";
 
 interface Props {
   open: boolean;
@@ -54,7 +59,15 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
 export function BrandEditorDrawer({ open, onClose }: Props) {
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
-    color: true,
+    // Trustead theme is first + open by default — these are the
+    // values that actually control what Loren sees on screen. The
+    // raw Tailwind token categories below are for finer-grained
+    // utility class tweaks.
+    Surfaces: true,
+    Type: true,
+    Accents: true,
+    Effects: false,
+    color: false,
     fontSize: false,
     fontFamily: false,
     spacing: false,
@@ -146,6 +159,85 @@ export function BrandEditorDrawer({ open, onClose }: Props) {
 
         {/* Token list — scrollable */}
         <div className="flex-1 overflow-y-auto">
+          {/* Trustead theme — curated CSS variables that drive the
+              visible look of the theme. Loren edits these to actually
+              move what he sees on screen. */}
+          <div
+            className="border-b"
+            style={{ borderColor: "rgba(245, 241, 230, 0.18)" }}
+          >
+            <div
+              className="px-5 pt-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em]"
+              style={{ color: "#BFE2D4" }}
+            >
+              Trustead theme
+            </div>
+            {THEME_VAR_GROUPS.map((group) => {
+              const items = TRUSTEAD_THEME_VARS.filter(
+                (v) => v.group === group
+              ).filter(
+                (v) =>
+                  !lower ||
+                  v.id.toLowerCase().includes(lower) ||
+                  v.name.toLowerCase().includes(lower) ||
+                  group.toLowerCase().includes(lower)
+              );
+              if (items.length === 0) return null;
+              const isOpen = lower ? true : expanded[group];
+              const overriddenInGroup = items.filter(
+                (v) => v.id in overrides
+              ).length;
+              return (
+                <div
+                  key={group}
+                  className="border-t"
+                  style={{ borderColor: "rgba(245, 241, 230, 0.10)" }}
+                >
+                  <button
+                    onClick={() =>
+                      setExpanded((s) => ({ ...s, [group]: !s[group] }))
+                    }
+                    className="flex w-full items-center justify-between px-5 py-2.5 text-left transition hover:bg-white/5"
+                  >
+                    <span className="flex items-center gap-2 text-[12px] font-medium opacity-80">
+                      {isOpen ? (
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      )}
+                      {group}
+                    </span>
+                    <span className="text-[11px] opacity-50">
+                      {overriddenInGroup > 0
+                        ? `${overriddenInGroup} edited / ${items.length}`
+                        : `${items.length}`}
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="space-y-1 px-3 pb-3">
+                      {items.map((v) => (
+                        <ThemeVarRow
+                          key={v.id}
+                          themeVar={v}
+                          value={overrides[v.id] ?? v.default}
+                          overridden={v.id in overrides}
+                          onChange={(val) => setOverride(v.id, val)}
+                          onClear={() => clearOverride(v.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Tailwind tokens — finer-grained utility-class tweaks */}
+          <div
+            className="px-5 pt-4 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] opacity-50"
+          >
+            Tailwind tokens
+          </div>
           {CATEGORY_ORDER.map((cat) => {
             const items = grouped[cat] ?? [];
             const filtered = lower
@@ -443,4 +535,95 @@ function parseNumericValue(
 
 function normalizeColor(v: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(v) ? v : "#000000";
+}
+
+function ThemeVarRow({
+  themeVar,
+  value,
+  overridden,
+  onChange,
+  onClear,
+}: {
+  themeVar: ThemeVar;
+  value: string;
+  overridden: boolean;
+  onChange: (v: string) => void;
+  onClear: () => void;
+}) {
+  const numeric =
+    themeVar.kind === "size" || themeVar.kind === "blur"
+      ? parseNumericValue(value)
+      : null;
+
+  return (
+    <div
+      className="flex items-start gap-2 rounded-md border px-2 py-1.5"
+      style={{
+        background: overridden
+          ? "rgba(191, 226, 212, 0.10)"
+          : "rgba(7, 34, 27, 0.55)",
+        borderColor: overridden
+          ? "rgba(191, 226, 212, 0.35)"
+          : "rgba(245, 241, 230, 0.08)",
+      }}
+    >
+      {themeVar.kind === "color" && (
+        <input
+          type="color"
+          value={normalizeColor(value)}
+          onChange={(e) => onChange(e.target.value)}
+          className="mt-0.5 h-7 w-9 shrink-0 cursor-pointer rounded border-0"
+          aria-label={`Color picker for ${themeVar.name}`}
+        />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="truncate text-[12px] font-medium">
+            {themeVar.name}
+          </span>
+          {overridden && (
+            <button
+              onClick={onClear}
+              className="text-[10px] underline opacity-70 hover:opacity-100"
+              style={{ color: "#BFE2D4" }}
+            >
+              reset
+            </button>
+          )}
+        </div>
+        {themeVar.hint && (
+          <div className="mt-0.5 text-[10px] opacity-50">{themeVar.hint}</div>
+        )}
+        {numeric ? (
+          <div className="mt-1 flex items-center gap-2">
+            <input
+              type="range"
+              min={0}
+              max={Math.max(48, numeric.num * 3)}
+              step={1}
+              value={numeric.num}
+              onChange={(e) =>
+                onChange(`${parseFloat(e.target.value)}${numeric.unit}`)
+              }
+              className="flex-1 accent-[#BFE2D4]"
+            />
+            <span className="w-14 shrink-0 text-right font-mono text-[10px] opacity-70">
+              {numeric.num}
+              {numeric.unit}
+            </span>
+          </div>
+        ) : null}
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="mt-0.5 w-full rounded border bg-transparent px-1.5 py-0.5 font-mono text-[11px] focus:outline-none focus:ring-1"
+          style={{
+            borderColor: "rgba(245, 241, 230, 0.10)",
+            color: "#F5F1E6",
+          }}
+        />
+      </div>
+    </div>
+  );
 }

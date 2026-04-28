@@ -189,17 +189,32 @@ export function generateCss(
 ): string {
   const byId = new Map(tokens.map((t) => [t.id, t]));
   const blocks: string[] = [];
+  // Theme-var overrides collect into a single :root assignment block
+  // since they're all CSS custom properties — emitting one rule per
+  // var keeps the cascade deterministic regardless of declaration
+  // order in the JS object.
+  const themeVarAssignments: string[] = [];
   for (const [id, value] of Object.entries(overrides)) {
+    if (id.startsWith("themevar/")) {
+      const cssVar = `--tt-${id.slice("themevar/".length)}`;
+      themeVarAssignments.push(`  ${cssVar}: ${value};`);
+      continue;
+    }
     const t = byId.get(id);
     if (!t) continue;
     const block = tokenCss(t, value);
-    // Scope every rule under html[data-theme="sandbox"] so that
-    // flipping the attribute off instantly reverts every override.
     const scoped = block
       .split("\n")
       .map((line) => (line.trim() ? `html[data-theme="sandbox"] ${line}` : ""))
       .join("\n");
     blocks.push(`/* ${id} */\n${scoped}`);
+  }
+  if (themeVarAssignments.length > 0) {
+    blocks.unshift(
+      `/* theme vars */\nhtml[data-theme="sandbox"] {\n${themeVarAssignments.join(
+        "\n"
+      )}\n}`
+    );
   }
   return blocks.join("\n\n");
 }
