@@ -21,7 +21,7 @@
 
 **Why:** Most complete card with rating display, hover animation, favorite toggle, price, country flag, and text truncation. Clean 54-line component with good separation of concerns.
 
-**1DB Adaptations:**
+**Trustead Adaptations:**
 - Add trust score badge (replaces Superhost concept)
 - Add connection indicator ("2nd degree" / "friend of X")
 - Add image carousel (none of the repos have this — will need custom implementation)
@@ -44,7 +44,7 @@
 
 **Why:** Cleanest implementation with dark mode support, Clerk auth (closest to our stack), and responsive flex layout. The search is inline and debounced rather than modal-based.
 
-**1DB Adaptations:**
+**Trustead Adaptations:**
 - Replace Clerk with our existing auth system
 - Add notification bell icon
 - Add connection request indicator
@@ -67,7 +67,7 @@
 
 **Why:** Most Airbnb-like with the pill trigger ("Anywhere | Any Week | Add Guests") and multi-step search modal with country selection + map preview + guest/room counters.
 
-**1DB Adaptations:**
+**Trustead Adaptations:**
 - Replace "Anywhere" with community/network scope filter
 - Add "Trust level" filter option
 - Date picker integration (combine with ski's calendar)
@@ -90,8 +90,8 @@
 
 **Why:** Most Airbnb-faithful with bottom-border active state, clean horizontal scroll, and URL-based filtering. The hidden scrollbar CSS is a nice touch for cleaner mobile UX.
 
-**1DB Adaptations:**
-- Replace Airbnb categories with 1DB listing types (whole home, private room, shared space, etc.)
+**Trustead Adaptations:**
+- Replace Airbnb categories with Trustead listing types (whole home, private room, shared space, etc.)
 - Add "Verified hosts" and "High trust" as filter categories
 - Keep horizontal scroll + active underline pattern
 - Use Lucide icons instead of images for consistency
@@ -111,7 +111,7 @@
 
 **Why:** Best of a weak field. Uses responsive height (300px mobile, 500px desktop), Next Image with priority loading, and proper alt text. None have a gallery — this is a gap we'll need to fill custom.
 
-**1DB Adaptations:**
+**Trustead Adaptations:**
 - Build a proper Airbnb-style 5-image grid (1 large + 4 small)
 - Add lightbox with left/right navigation
 - Add "Show all photos" button
@@ -134,7 +134,7 @@
 
 **Why:** Best date blocking logic with Zustand state management, toast notifications for invalid dates, and clean integration with the booking flow. Uses shadcn Calendar (react-day-picker) which matches our existing component library.
 
-**1DB Adaptations:**
+**Trustead Adaptations:**
 - Already using similar pattern in Track A calendar system
 - Add minimum/maximum stay enforcement
 - Add availability "heat map" (green = available, red = booked)
@@ -157,7 +157,7 @@
 
 **Why:** Only implementation with proper Airbnb-style price breakdown (nightly rate, cleaning fee, service fee, tax, total). Dynamic calculation from Zustand state. Stripe payment integration.
 
-**1DB Adaptations:**
+**Trustead Adaptations:**
 - Replace Stripe with our payment flow (or keep Stripe)
 - Add trust score display ("Host verified by 12 community members")
 - Add "Contact host first" option for low-trust connections
@@ -181,7 +181,7 @@
 
 **Why:** Most complete with separate pages for listings management, incoming reservations, booking history, and admin analytics with Recharts charts. Proper stats (properties, bookings, revenue).
 
-**1DB Adaptations:**
+**Trustead Adaptations:**
 - Add trust score dashboard (your trust rating, vouch count)
 - Add community activity feed
 - Add booking request queue (with trust-level indicators)
@@ -204,7 +204,7 @@
 
 **Why:** True multi-step wizard with dedicated pages per step, fixed bottom navigation bar, and progressive disclosure. Most Airbnb-like pattern (step 1: what, step 2: details, step 3: where).
 
-**1DB Adaptations:**
+**Trustead Adaptations:**
 - Add step for "Trust & Visibility" settings (who can see, who can book)
 - Add step for stay rules (min/max nights, check-in/out times)
 - Add step for community preferences (guest requirements, vouch minimum)
@@ -226,7 +226,7 @@
 
 **Why:** Only repo with any message-like UI. The ReviewCard has user avatar, name, rating, and comment text. While not a messaging system, the card pattern is a good starting point for message thread UI.
 
-**1DB Adaptations:**
+**Trustead Adaptations:**
 - Build a proper messaging system from scratch (none of the repos have one)
 - Use the ReviewCard pattern as inspiration for message bubbles
 - Add: inbox list, thread view, real-time updates, read receipts

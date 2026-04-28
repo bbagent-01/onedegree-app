@@ -1,295 +1,208 @@
-# One Degree BNB — Project Plan
+# Trustead — Project Plan
 
-> Last updated: April 12, 2026
+> Last updated: April 24, 2026 · Alpha-C phase (renamed from "One Degree B&B / 1DB" in S8)
 
-## What This Is
+## Overview
 
-One Degree BNB is a private rental network where every guest is vouched for by someone the host trusts. People already rent their homes to friends of friends — over text, email, Facebook groups. This is the platform for that behavior.
+Trustead is a trust-based short-term rental platform — "Airbnb meets Hinge." Listings are private and only visible through personal networks and vouches. Guests must be vouched for by someone the host trusts. Payments happen off-platform (Venmo/Zelle). The platform facilitates introductions, not transactions.
 
-- Private listings invisible to the public
-- Guests vetted through personal vouching
-- Hosts control exactly who sees their home
-- Payments handled directly between host and guest (Venmo/Zelle) — platform never touches rental money
+> **Note on naming:** real infrastructure (GitHub repo names, Cloudflare project names, Supabase project names, Clerk instance, branch names, deploy URLs like `alpha-c.onedegreebnb.com`) intentionally still use the pre-rename identifiers. Don't swap those unless the underlying infra is also migrated.
 
-This is not for vacation rentals or commercial hosting. It's for monetizing primary homes that sit empty while the owner travels.
+## Domains & URLs
 
-## Who It's For
-
-**ICP 1: The Reluctant Host** — Owns a primary home (apartment or weekend house). Would rent it when traveling but won't put it on Airbnb because it's their real home with their stuff and neighbors. Would say yes to a friend's friend in a heartbeat.
-
-**ICP 2: The Under-the-Radar Renter** — Has an apartment where the lease or local regulations make public listing risky or impossible. STR rules (e.g., NYC 30-day minimum) target public platforms. Private arrangements between trusted people are different. Guest is vetted, listing is invisible, no public record.
-
-Both groups are aged 25–45, travel regularly, and are already doing this informally.
-
-## URLs & Repos
-
-| Component | URL / Location |
-|-----------|---------------|
+| Resource | URL |
+|---|---|
 | Landing page | https://onedegreebnb.com |
-| MVP app | https://app.onedegreebnb.com |
-| Landing repo | bbagent-01/onedegree-bnb (Cloudflare Pages, auto-deploy on push to main) |
-| App repo | bbagent-01/onedegree-app (GitHub Actions → Cloudflare Pages) |
-| Landing local | ~/Dropbox/Claude/Projects/onedegree-bnb |
-| Notion SOT | Page ID 33384c6b-0fdc-811b-8ff1-c7d49dc71b79 |
-| Domains | onedegreebnb.com (primary), 1degreebnb.com (redirect), app.onedegreebnb.com (app) |
+| Clean Airbnb clone (rollback) | https://alpha-b.onedegreebnb.com |
+| Trustead overlay (Alpha-C testing) | https://alpha-c.onedegreebnb.com |
+| Production (after CC-C8) | https://app.onedegreebnb.com |
+| GitHub repo (app) | https://github.com/bbagent-01/onedegree-app |
+| GitHub repo (landing) | https://github.com/bbagent-01/onedegree-bnb |
 
-## Tech Stack
+## Local Folders
 
-| Layer | Choice |
-|-------|--------|
-| Framework | Next.js 15 (App Router) |
-| Database | Supabase (PostgreSQL) |
-| Auth | Clerk v7 (Google + email) |
-| Storage | Supabase Storage |
-| Email | Resend (from loren@onedegreebnb.com) |
-| Styling | Tailwind CSS + shadcn/ui |
-| Deploy (landing) | Cloudflare Pages (direct) |
-| Deploy (app) | GitHub Actions → Cloudflare Pages |
-| Waitlist backend | Cloudflare Worker → CF KV |
-| Analytics | Cloudflare Web Analytics |
-| Ads tracking | GTM (GTM-K54LNGVF) + gtag.js |
+| Folder | Branch | Purpose |
+|---|---|---|
+| `~/Claude/Projects/onedegree-app-track-b` | `track-b/1db-overlay` | Primary build (Alpha-C) |
+| `~/Claude/Projects/onedegree-app` | `main` | Track A (abandoned) |
+| `~/Claude/Projects/onedegree-bnb` | `main` | Landing page |
 
-## Locked Decisions (Phase 2)
+## Branch Safety
 
-These are final. All CC sessions build to this spec.
+**Run `git branch --show-current` before writing any code in every CC session.**
 
-### 1. Invite-only platform (feature flag for open signup)
-- Users can only join if invited by an existing member
-- When you invite someone, you vouch for them — same 3-question flow, your reputation on the line
-- No way to bring someone onto the platform without putting your name behind them
-- Env var `SIGNUP_MODE` (default: `invite-only`) allows flipping to open signup without code changes
-- When open: anyone can sign up but needs vouches to access listings, inviting and vouching separate
+| Folder | Expected Branch | If Wrong |
+|---|---|---|
+| onedegree-app-track-b | `track-b/1db-overlay` | STOP — wrong branch. Never checkout main. |
 
-### 2. Vouch or nothing
-- No "connected" tier below vouch
-- No mass-import of contacts as weak signals
-- Every edge in the trust graph is a deliberate vouch
+**Never run `git checkout main` from the Track B folder.**
+**Never commit to `main` from the Track B folder.**
 
-### 3. Two-tier vouching: standard (15 pts) + inner circle (25 pts)
-- Standard vouch = 15 base points
-- Inner circle = 25 base points
-- Two radio buttons in the vouch flow
+## Stack
 
-### 4. Incidents recorded, not auto-scored
-- Incidents are recorded (severity + handling) for data collection
-- No automatic penalties on scores from incidents
-- Guest rating moves only from post-stay star reviews (1–5)
-- Vouch power auto-derives from guest ratings of vouchees and acts as multiplier on connector vouch scores
+- Next.js 15 (App Router) on Cloudflare Pages
+- Supabase (Postgres + Auth helpers + Realtime + Storage)
+- Clerk v7 (auth)
+- shadcn/ui + Tailwind CSS
+- Resend (transactional email via Cloudflare Worker)
+- TypeScript throughout
 
-### 5. Phone number as identity anchor
-- Every account requires a verified phone number (SMS code via Clerk)
-- One phone = one person — prevents mass fake accounts
-- Enables pre-vouch by phone: vouch for someone's number before they sign up, vouch attaches when they create an account
-- Beta enhancement: Twilio Lookup API to flag VoIP/burner numbers (not blocking for alpha)
+## Trust Mechanics (Alpha-C Model)
 
-## Trust System — Three Metrics
+### Vouch Score
+`vouch_score = base_points × years_known_multiplier`
 
-Every user has three independent scores that together create a trust composite.
+| Vouch Type | Base Points |
+|---|---|
+| Standard | 15 |
+| Inner Circle | 25 |
 
-### 1° Score (e.g., 72 (3))
-- How connected a guest is to you, through your network
-- Viewer-relative — calculated from shared connections between you and the guest
-- For each shared connection: path = avg(your vouch of connector, connector's vouch of guest × vouch power factor)
-- The "(3)" means 3 of your connections vouch for this person
-- A host sees the score, WHO connects them, and the strength of each link
-- Changes only from vouches — never reviews or incidents
-
-### Guest Rating (e.g., 4.2★ (5 stays))
-- 1–5 star average from post-stay reviews as a guest
-- Only changes via reviews — nothing else
-
-### Host Rating (e.g., 4.6★ (3 stays))
-- 1–5 star average from post-stay reviews as a host
-- Separate from guest rating — someone can be a great guest but mediocre host
-
-### Listing Rating (e.g., 4.0★)
-- 1–5 star review of the place itself, per-listing
-- A great host can have an average listing
-
-### Vouch Power (e.g., 4.1)
-- Average guest rating of everyone you've vouched for
-- Auto-derived — nobody rates your vouching directly
-- Acts as a multiplier on connector's vouch score: VP / 4.0 (so 4.0 = 1.0× baseline)
-- Self-regulating: vouch for bad guests, your vouch power drops, your endorsements carry less weight
-
-### Post-Stay Vouch (Optional)
-- A completed stay is NOT an automatic vouch — review and vouch are separate actions
-- Post-stay flow: (1) rate the stay (required, 1–5 stars) then (2) optionally vouch for the guest
-- If host vouches post-stay, years known auto-sets to <1 year (0.6× multiplier)
-- A guest can have a strong guest rating but low 1° score if hosts aren't vouching after stays
-
-## The 3-Question Vouch Flow
-
-Each vouch assigns a point value to a specific connection between two people.
-Formula: `vouch points = base points × years multiplier`
-
-### Step 1: Vouch Type
-- Standard vouch → 15 base points
-- Inner circle ★ → 25 base points
-
-### Step 2: Years Known
-| Bucket | Multiplier |
-|--------|-----------|
+| Years Known | Multiplier |
+|---|---|
 | <1 year | 0.6× |
-| 1–3 years | 0.8× |
-| 4–7 years | 1.0× |
-| 8–15 years | 1.4× |
-| 15+ years | 1.8× |
+| 1–3 years | 1.0× |
+| 3–5 years | 1.2× |
+| 5–10 years | 1.5× |
+| 10+ years | 1.8× |
 
-### Step 3: Reputation Stake
-Checkbox: "I understand my vouch power will be affected if this person causes problems for a host." Must check to submit.
+### Vouch Power
+Auto-derived from the average guest_rating of everyone a user has vouched for.
+- Baseline: 4.0 = 1.0× (neutral)
+- Scale: rating / 4.0, clamped to [0.5, 1.5]
+- No data = 1.0× (benefit of doubt)
 
-### How Trust Flows: The 1° Chain
-Trust is always contextual to the viewer. When a host evaluates a guest, the signal comes from the chain:
+### 1° Vouch Score (between two users)
+For each mutual connector: `path_strength = avg(your_vouch_score_for_connector, connector_vouch_score_for_target × connector_vouch_power)`
+Sort all path strengths descending: p1 ≥ p2 ≥ p3 ≥ … ≥ pN
+`1° vouch score = Σ (pi / i) for i = 1 to N` (harmonic dampening)
+Weights: P1 = 1.0, P2 = 0.5, P3 = 0.333, P4 = 0.25, etc.
+One strong connection outweighs many weak ones.
 
-**You (host) → Connectors (your friends) → Guest (person you don't know)**
+### 3° and 4° Dampened Scores (CC-C5 Revisit, v2 2026-04-20)
+For a multi-hop chain `[viewer, ..., target]` with hop strengths `h1..hN`:
+- `3° score = avg(h1, h2, h3) × 0.66` (rounded, clamped [0, 100])
+- `4° score = avg(h1, h2, h3, h4) × 0.5` (rounded, clamped [0, 100])
 
-What the host sees for a guest:
-- **1° score** — calculated from averaged vouch scores on both sides of each connection path, with vouch power applied
-- **Who connects them** — which of the host's connections vouch for this guest
-- **How much the host trusts each connector** — the host's own vouch type + years for each connector
-- **How much each connector trusts the guest** — the connector's vouch type + years for the guest
-- **Each connector's vouch power** — how reliable are this connector's endorsements historically
+Rationale: the mean captures the overall quality of the chain rather than being hostage to a single weak link; the dampening factors stay modest at 3° (0.66) and heavier at 4° (0.5) so more hops translate into a visibly lower score. Each hop strength is the directional `vouch_score` (or the reverse if only that exists). Badges: 3° mustard pill + shield + score, 4° zinc pill + shield + score.
 
-A stranger on Airbnb has 50 reviews from people you'll never meet. A 1° guest has 3 vouches from people you personally know and trust.
+### Three Rating Types (post-stay)
+- Guest Rating (1–5★) — host rates guest behavior → feeds vouch power
+- Host Rating (1–5★) — guest rates host behavior
+- Listing Rating (1–5★) — guest rates the place
 
-### Example Values
-| You vouch for… | Type (base pts) | Years known | Points |
-|----------------|----------------|-------------|--------|
-| College friend Jake | Standard (15) | 8 yr (1.4×) | 21 pts |
-| Best friend Maya | Inner circle (25) | 20 yr (1.8×) | 45 pts |
-| Coworker David | Standard (15) | 2 yr (0.8×) | 12 pts |
-| Close new friend Priya | Inner circle (25) | <1 yr (0.6×) | 15 pts |
+### Listing Visibility
+Three modes: public, preview_gated (default), hidden.
+Per-action access_settings JSON controls: see_preview, see_full, request_book, message, request_intro, view_host_profile.
+Alpha access types: "anyone", "min_score" (threshold), "max_degrees" (hop count), "specific_people" (user_ids).
 
-## Listing Visibility
+### Platform Posture
+Trustead facilitates introductions. It does NOT process payments, is NOT party to rental agreements, and does NOT operate as a booking service. All financial arrangements happen directly between parties off-platform.
 
-Every listing has two layers. Hosts control who sees each one independently.
+## Schema (Alpha-C)
 
-### Preview (Anonymous)
-- General neighborhood (not exact location)
-- Price range per night
-- Availability window
-- 2–3 curated photos
-- Host trust metrics — degree score, guest rating (anonymous — no name or photo)
+### Core tables (from Airbnb clone)
+users, listings, bookings, reviews, messages, message_threads, wishlists, listing_photos, listing_amenities
 
-### Full Listing (Gated by Trust)
-- Specific location + cross streets
-- Host identity (name, photo, bio)
-- Full photo gallery
-- House rules + amenities
-- Exact price + calendar
-- Contact / request-to-book button
+### Trust tables (Alpha-C additions)
+- **vouches** — voucher_id, vouchee_id, vouch_type (standard/inner_circle), years_known_bucket, vouch_score (computed), is_post_stay, is_staked, source_booking_id
+- **invites** — inviter_id, invitee_phone, invitee_email, invitee_name, pre_vouch_data (jsonb), status, claimed_by
 
-### Host Controls
-Hosts set access requirements independently for each action. Options for each:
-- Anyone on platform (even unvouched)
-- Any vouched user (has ≥1 vouch)
-- Minimum degree score (host sets threshold)
-- Minimum guest rating (host sets threshold)
-- Inner circle only
-- Specific people (hand-picked)
+### Column extensions (Alpha-C)
+- **users**: phone_number, vouch_power, guest_rating_avg, host_rating_avg, vouch_count_given, vouch_count_received
+- **listings**: visibility_mode, preview_photos (jsonb), preview_description, access_settings (jsonb)
+- **reviews**: guest_rating, host_rating, listing_rating
 
-Actions hosts control:
-- **See preview** — can this person see the listing exists?
-- **See full listing** — can they see host identity, full photos, exact location?
-- **Request to book** — can they send a booking request?
-- **Send a message** — can they message the host directly?
-- **Request an intro** — can they ask a mutual connection for an introduction?
+## Alpha-C Session Sequence
+CC-C0 (smoke test agent, deferred) → CC-C1a (schema + core computation) → CC-C1b (degrees + seed data) → CC-C2 (vouch + invite flows) → CC-C3 (listing visibility + host controls) → CC-C4 (trust UI integration) → CC-C5 (contact flow + reviews) → CC-C6 (branding + polish) → CC-C7 (legal) → CC-C8 (smoke test + ship)
 
-## On-Platform Tools
+---
 
-- **House Manual** — Digital guide (wifi, lockbox, appliance instructions, neighborhood recs). Shared with confirmed guests only.
-- **Rental Agreement** — AI-generated contract from property details, dates, terms. Downloadable PDF.
-- **Security Deposit** — Agreement template with suggested amounts. Host/guest handle transfer directly.
-- **Before & After Photos** — Timestamped photo documentation of property condition at check-in/check-out.
-- **Listing Photo Touch-Up** — Auto-enhance user-submitted photos (brightness, color, straightening).
-- **Insurance Options** — DIY templates for coverage gaps, or opt-in platform-managed coverage for a fee.
+# Standing Rules — Read Before Every Session
 
-## Revenue Model
+## 1. Autonomous Execution (NON-NEGOTIABLE)
 
-**Key Decision: Payment Handling** — Handling payments creates liability, especially for under-the-radar hosts. Three models:
-- No payment handling (subscription/paid tools only) — cleanest liability
-- Light payment handling (flat fee per booking) — platform touches money minimally  
-- Full payment handling (Airbnb model) — max revenue, max liability
+Loren is non-technical. Claude must ALWAYS attempt to complete tasks autonomously. Asking Loren to do something is the exception, not the norm.
 
-Free during beta. Payments off-platform (Venmo/Zelle). Revenue options under consideration:
+**Always attempt first:**
+- Running migrations (use Supabase CLI, MCP, or credentials in .env.local)
+- Installing packages, running scripts, executing commands
+- Reading files, searching the codebase, inspecting the database
+- Deploying code (git push triggers deploy)
+- Debugging by reading logs, testing endpoints, inspecting schema
 
-- **Flat fee per booking** ($10–25 when a stay is confirmed) — likely
-- **Paid tools** (AI contract generator, deposit template, before/after photo tools, check-in checklist) — likely
-- **Optional stay insurance** (Airbnb-style damage coverage, opt-in, platform takes a fee) — likely
-- **Subscription / pro tier** (monthly/annual for frequent hosts) — maybe
-- **Freemium with ads** — unlikely, misaligned with brand
+**Only ask Loren when genuinely blocked:**
+- Personal account credentials Claude cannot access
+- Manual approval in a third-party UI Claude cannot automate (DNS settings, billing, OAuth consent screens)
+- Product decisions requiring Loren's judgment (copy tone, feature choices)
 
-## Platform Posture
+**When asking is unavoidable, EVERY request must include:**
+- A clickable hyperlink to the EXACT page (not "go to Cloudflare" — link to https://dash.cloudflare.com/[account_id]/pages/view/[project]/settings)
+- Numbered or bulleted steps assuming zero prior context and zero technical knowledge
+- A copy-block for EVERY piece of text Loren needs to enter anywhere — form field values, search terms, button labels, config keys, commit messages, URLs, everything
+- Visual landmarks when useful ("the button is top-right, blue, labeled 'Deploy'")
 
-One Degree BNB facilitates introductions between people who already trust each other. It does not process payments, is not party to rental agreements, and does not maintain public listings. Hosts and guests make their own arrangements.
+**Never say:** "Go to X and do Y."
+**Always say:** "Click [this exact URL](https://...). You'll land on a page with a field labeled `Name` — paste this value: `[copy block]`. Then click the button labeled `Save` in the top-right corner."
 
-Listings are private and invitation-only — invisible to search engines and to anyone outside the host's trust network. This doesn't make any rental arrangement legal or illegal. Hosts should understand their own lease and local rules.
+Every time Claude is about to ask Loren to do something, pause and ask: can I do this myself? If the answer is even possibly yes, try first.
 
-Designed for real homes, not commercial rentals. Legal consultation scheduled pre-Phase 3.
+## 2. End-of-Session Recap (Required Output)
 
-## Incident Recording (Phase 2 — Data Only)
+Every session ends with a structured recap in ONE copy-block in this exact format:
 
-Incidents are recorded but do not affect scores. Reviews are what move the guest rating.
+## CC-[ID] — [Name]
+**Date:** [YYYY-MM-DD]
+**Branch:** [branch name]
+**Commits:** [hash, hash, ...]
 
-Severity levels: minor / moderate / serious
-Handling levels: excellent / responsive / poor / terrible
+### What was done
+- [bullets]
 
-The incident form is accessible from the post-stay review flow. Data stored in `incidents` table for future Phase 3 analysis.
+### What was preserved
+- [backward-compat items kept intact, deprecated-but-not-deleted files, etc.]
 
-## Database Schema (8 Tables + planned: listing_availability, messages, message_threads)
+### Corrections made during session
+- [Bugs in the spec, wrong expected values, missed edge cases, mid-session changes Loren requested. Each correction includes a one-line "lesson" for future sessions. If no corrections were needed, write "None."]
 
-Full SQL in `supabase/schema.sql`.
+### What's needed next
+- [Explicit handoff to next session — blockers, prerequisites, open questions]
 
-- **users** — synced from Clerk via webhook. `guest_rating` DECIMAL(2,1), `host_rating` DECIMAL(2,1), `vouch_power` DECIMAL(2,1), `bio` TEXT, `phone_number` TEXT UNIQUE (verified mobile, identity anchor)
-- **vouches** — directed edges. `vouch_type` ENUM (standard, inner_circle), `years_known_bucket` ENUM, `reputation_stake_confirmed` BOOLEAN. UNIQUE on (voucher_id, vouchee_id)
-- **invites** — invite tokens for invite-only signup. Token, inviter_id, invitee_email or phone, redeemed_at
-- **listings** — `preview_visibility` + `full_visibility` enums, `min_trust_score`, `area_name`, `property_type`, prices, dates, amenities JSONB
-- **listing_photos** — `is_preview` flag, `sort_order`. Supabase Storage URLs
-- **contact_requests** — guest → host with message, dates, status (pending/accepted/declined)
-- **stay_confirmations** — mutual confirmation + guest rating + host rating + listing rating (all 1–5★) + review text. Both confirm = completed stay
-- **incidents** — reporter_id, reported_user_id, stay_id, severity ENUM, handling ENUM, description. Data collection only
+The recap must be wrapped in a single copy-paste-ready block. No markdown tables, no split sections.
 
-RPC functions: `calculate_one_degree_score(viewer_id, target_id)`, `calculate_vouch_power(user_id)`, `check_listing_visibility`
+## 3. Branch Safety
 
-RLS enabled on all tables.
+**Run `git branch --show-current` before writing any code in every CC session.**
 
-## Build Phases
+| Folder | Expected Branch | If Wrong |
+|---|---|---|
+| onedegree-app-track-b | `track-b/1db-overlay` | STOP — wrong branch. Never checkout main. |
 
-### Alpha — Build + Validate Demand (active)
-Build the full V1 app with seed data, test every workflow internally. Run Google Ads in parallel to validate demand (signup volume, survey completion, host/guest split).
+**Never run `git checkout main` from the Track B folder.**
+**Never commit to `main` from the Track B folder.**
 
-CC sessions:
-- **CC-5** ✅ App scaffold + auth + schema + deploy
-- **CC-5.5** ✅ Scaffold validation (Clerk, webhook, Supabase, env vars)
-- **CC-6a** ✅ Schema migration + trust RPCs + vouch_power trigger
-- **CC-6b** ✅ Vouch flow UI — 3-question modal
-- **CC-6c** ✅ Listings + photo upload + visibility system (app-layer)
-- **CC-6d** ✅ Browse page + profiles + nav + seed data + smoke test
-- **CC-6.5** ✅ shadcn/ui component library adoption (migration, no new features)
-- **CC-7** ✅ Invite-only signup + invite links + pre-vouch (non-member)
-- **CC-8** 🚀 Contact flow + 3-rating reviews + stay tools (stubs) + dashboard — deployed, smoke testing
-- **CC-9a** 📋 Calendar system — availability ranges, stay rules, turnover, calendar UI
-- **CC-9b** 📋 Listing enhancements — edit listing, on/off toggle, photo management, amenities, house rules, capacity
-- **CC-9c** 📋 Pricing (custom per range, discounts, cleaning fee) + date-based search
-- **CC-9d** 📋 Communication — in-app messaging, automated messages, email notifications via Resend
+## 4. Testing Handoff (Claude Tells Loren What to Test)
 
-Alpha complete when: all sessions done, core loop works end-to-end, 50+ waitlist signups from ads.
+Before producing the final session recap, Claude tells Loren what to test. Loren does not know the build details and is not reading the code — Claude is responsible for translating the session's output into a concrete test walkthrough.
 
-### Beta — Real Users, Real Stays (after alpha)
-Invite best waitlist signups (hosts first). Real vouches, real listings, real stays. Loren seeds the network by vouching friends.
+**The testing handoff must include:**
+- A short plain-language summary of what was built (1–3 sentences, no jargon)
+- A numbered list of specific things to verify, each with:
+  - The exact URL to visit (clickable hyperlink)
+  - Zero-assumption click-path ("Click the button labeled X in the top-right")
+  - What Loren should see if it's working
+  - What Loren should see if it's broken
+  - Any text to paste provided as a copy-block
 
-Gate: 10 active host listings. At least 3 completed stays. Organic referrals starting.
+Wait for Loren to confirm the tests pass (or report issues) before producing the recap. If Loren reports an issue, fix it in the same session and re-propose the test.
 
-### Launch — Growth + Monetization (after beta)
-Full trust algorithm, revenue model activated, on-platform tools fully built, optional payment processing, mobile app, ID verification. Legal consultation before scaling.
+**Never ask Loren "what do you want to test?" — Claude proposes the tests. Loren executes and confirms.**
 
-## CC Session Naming Convention
+## 5. No Assumptions About Loren's Technical Knowledge
 
-`1DB - P{phase} - CC-{#} - {title}`
+Loren is the founder, not an engineer. Assume zero knowledge of:
+- Git commands, terminal syntax, npm scripts
+- Database schemas, SQL, Supabase internals
+- Cloudflare, Clerk, deployment pipelines
+- React component structure, TypeScript types, file paths
 
-First line of every CC prompt = session name. This master chat tracks status, updates the Project Hub and this file, and generates handoff prompts.
-
-## Workflow
-
-There is a Project Hub (HTML file, tabbed) that holds the master plan, all CC session prompts, and mechanics decisions. A master chat in Claude.ai tracks session status, generates new prompts, and updates the hub and this file after each session. Claude Code (CC) sessions are where code gets built — each session receives a self-contained prompt from the hub. At the end of each CC session, produce a completion report (what was built, files changed, notes for future sessions) so the master chat can update the hub and this file. This file (PROJECT_PLAN.md) lives in both repos (landing + app) so every CC session can read it.
+If any instruction or test step requires technical knowledge, rewrite it in plain language with the exact steps and copy-blocks needed.

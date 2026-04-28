@@ -80,7 +80,7 @@ Modal Step 2:
 }
 ```
 
-## 1DB Adaptation Notes
+## Trustead Adaptation Notes
 - **Add:** "Trust Level" filter (step 3 or integrated toggle)
 - **Add:** "My Network" / "All" scope toggle
 - **Modify:** Pill text → "Location | Dates | Guests | Trust"

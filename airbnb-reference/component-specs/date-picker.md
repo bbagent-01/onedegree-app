@@ -89,7 +89,7 @@ type PropertyState = {
 };
 ```
 
-## 1DB Adaptation Notes
+## Trustead Adaptation Notes
 - **Extend:** We already have an availability calendar system from Track A (CC-9a)
 - **Add:** Minimum/maximum stay enforcement (from stay rules)
 - **Add:** Availability "heat map" coloring (available vs. booked vs. blocked)

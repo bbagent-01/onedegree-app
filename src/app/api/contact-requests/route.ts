@@ -3,10 +3,11 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { validateBookingDates } from "@/lib/validate-booking-dates";
+import { effectiveAuth } from "@/lib/impersonation/session";
 
 // GET: fetch contact requests for current user (as host or guest)
 export async function GET(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const supabase = getSupabaseAdmin();
@@ -72,7 +73,7 @@ export async function GET(req: Request) {
 
 // POST: guest creates a contact request
 export async function POST(req: Request) {
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const supabase = getSupabaseAdmin();

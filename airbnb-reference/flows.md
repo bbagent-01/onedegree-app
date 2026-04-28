@@ -1,6 +1,6 @@
 # User Flow Inventory
 
-> Documenting user flows from the best reference repos, mapped to One Degree BNB's trust-based model.
+> Documenting user flows from the best reference repos, mapped to Trustead's trust-based model.
 > Primary reference: aumsoni2002 (most complete flows) | Secondary: ski043 (wizard pattern)
 
 ---
@@ -8,76 +8,76 @@
 ## 1. Guest Flow: Browse → Book → Vouch
 
 ### Step 1: Browse Listings
-| Aspect | Reference | 1DB Adaptation |
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | `/` | `/` or `/explore` |
 | Components | PropertiesContainer, PropertiesList, PropertyCard, CategoriesList | Same + TrustBadge, ConnectionIndicator |
 | Data | Fetch all properties with search/category filters | Add trust-level filter, connection-degree filter |
 | Flow | Load page → See grid of listings → Scroll/filter | Same + default to "My Network" view, option for "All Listings" |
 
-**1DB trust mechanics:**
+**Trustead trust mechanics:**
 - Default view shows listings from 1st and 2nd degree connections
 - "Explore" mode shows all listings with trust scores visible
 - Listings from unconnected hosts show reduced info (no exact address until booking confirmed)
 - Trust score badge on each card (green/amber/red tier)
 
 ### Step 2: Filter & Search
-| Aspect | Reference | 1DB Adaptation |
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | `/?search=X&category=Y` | `/?q=X&type=Y&trust=Z&network=1` |
 | Components | NavSearch (debounced), CategoriesList, URL params | Same + TrustFilter, NetworkScope toggle |
 | Data | Text search + category filter via server action | Add: trust level filter, network degree filter, date availability |
 | Flow | Type in search → See filtered results → Click category | Same + toggle "My Network" / "All" / "Verified Only" |
 
-**1DB trust mechanics:**
+**Trustead trust mechanics:**
 - "My Network" = only hosts you're connected to (1st/2nd degree)
 - "Verified" = hosts with 3+ vouches from your network
 - Trust filter: Minimum trust score slider
 
 ### Step 3: View Listing Detail
-| Aspect | Reference | 1DB Adaptation |
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | `/properties/[id]` | `/listing/[id]` |
 | Components | ImageContainer, PropertyDetails, BookingCalendar, BookingForm, PropertyMap, Amenities, Reviews | Same + TrustPanel, ConnectionPath, VouchList, HostProfile |
 | Data | Property details, bookings (for calendar), reviews | Add: host trust score, mutual connections, vouch history |
 | Flow | See hero image → Read details → Check calendar → See price → Book | Same + See trust score → View connection path → Read vouches → Contact or Book |
 
-**1DB trust mechanics:**
+**Trustead trust mechanics:**
 - Trust panel shows: host trust score, # of vouches, connection degree
 - Connection path: "You → Sarah → John (Host)" visualization
 - Vouch list: Recent vouches with vouch text
 - If unconnected: Show "Request Introduction" button instead of direct booking
 - Exact address revealed only after booking confirmation
 
-### Step 4: Contact Host (1DB-specific)
-| Aspect | Reference | 1DB Adaptation |
+### Step 4: Contact Host (Trustead-specific)
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | N/A (no messaging in refs) | `/messages/new?listing=[id]&host=[id]` |
 | Components | N/A | MessageComposer, ListingPreview, TrustBadge |
 | Data | N/A | Listing summary, host profile, connection path |
 | Flow | N/A | Click "Contact Host" → Pre-filled message with listing ref → Send → Wait for response |
 
-**1DB trust mechanics:**
+**Trustead trust mechanics:**
 - Required step for 1st-time guests (no instant booking on first stay)
 - Message includes your trust score and mutual connections
 - Host sees guest's vouch history before responding
 
 ### Step 5: Book
-| Aspect | Reference | 1DB Adaptation |
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | `/checkout` (aumsoni) | `/booking/[listingId]/confirm` |
 | Components | BookingCalendar, BookingForm, ConfirmBooking, Stripe | Same + TrustVerification, CommunityFeeBreakdown |
 | Data | Date range, price calculation, payment | Add: trust verification status, community fee details |
 | Flow | Select dates → See price breakdown → Pay → Confirmation | Select dates → See breakdown → Trust check → Pay → Confirmation |
 
-**1DB trust mechanics:**
+**Trustead trust mechanics:**
 - Trust verification check before payment (minimum trust score met?)
 - Price breakdown includes transparent community fee
 - Cancellation policy displayed with trust-based flexibility
 - High-trust guests may get flexible cancellation; new guests get strict
 
 ### Step 6: Stay (post-booking)
-| Aspect | Reference | 1DB Adaptation |
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | `/bookings` (aumsoni) | `/my-trips/[bookingId]` |
 | Components | Booking history table | TripDetail, HostContact, CheckInGuide, EmergencyContacts |
@@ -85,15 +85,15 @@
 | Flow | View upcoming booking → See dates | View trip → Get check-in details → Access host contact → See house rules |
 
 ### Step 7: Review
-| Aspect | Reference | 1DB Adaptation |
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | `/reviews` (aumsoni) | `/my-trips/[bookingId]/review` |
 | Components | SubmitReview, RatingInput, Comment | ReviewForm, TrustRating, StayFeedback |
 | Data | Rating (1-5), comment text | Add: trust rating, would-you-vouch prompt |
 | Flow | Rate → Comment → Submit | Rate stay → Rate trust → Comment → Optionally vouch |
 
-### Step 8: Vouch (1DB-specific)
-| Aspect | Reference | 1DB Adaptation |
+### Step 8: Vouch (Trustead-specific)
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | N/A | `/profile/[hostId]/vouch` |
 | Components | N/A | VouchForm, TrustScorePreview, ConnectionStrength |
@@ -105,14 +105,14 @@
 ## 2. Host Flow: Create → Manage → Review
 
 ### Step 1: Create Listing
-| Aspect | Reference | 1DB Adaptation |
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | `/rentals/create` (aumsoni) or `/create/[id]/structure` (ski) | `/host/create` (multi-step wizard) |
 | Components | FormContainer, form inputs (aumsoni) OR multi-step pages (ski) | ListingWizard with 5-6 steps |
 | Data | Title, description, price, images, amenities, location | Same + trust/visibility settings, stay rules, community preferences |
 | Flow | Fill single form → Upload image → Submit (aumsoni) OR Step 1: Category → Step 2: Details → Step 3: Location (ski) | Step-by-step wizard pattern from ski043 |
 
-**1DB wizard steps:**
+**Trustead wizard steps:**
 1. **Basics** — Title, description, listing type (whole home, room, shared)
 2. **Details** — Bedrooms, beds, baths, amenities, guests capacity
 3. **Photos** — Image upload (gallery, not single image)
@@ -122,31 +122,31 @@
 7. **Preview & Publish** — Review all, preview listing card, publish
 
 ### Step 2: Set Availability
-| Aspect | Reference | 1DB Adaptation |
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | N/A (basic in aumsoni) | `/host/listings/[id]/calendar` |
 | Components | BookingCalendar (read-only in listing view) | AvailabilityCalendar, BulkDatePicker, StayRulesEditor |
 | Data | Existing bookings block dates | Full availability ranges, stay rules, seasonal pricing |
 | Flow | Dates auto-blocked by bookings | Host sets available ranges → Sets min/max stay → Sets seasonal pricing |
 
-**1DB adaptation:** We already have an availability calendar system from Track A (CC-9a). Extend with trust-gated availability.
+**Trustead adaptation:** We already have an availability calendar system from Track A (CC-9a). Extend with trust-gated availability.
 
 ### Step 3: Manage Bookings
-| Aspect | Reference | 1DB Adaptation |
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | `/reservations` (aumsoni) | `/host/bookings` |
 | Components | Reservations table with stats | BookingQueue, GuestTrustCard, ApprovalActions |
 | Data | Incoming bookings list | Add: guest trust score, mutual connections, vouch history |
 | Flow | View reservations → See dates/guest | View requests → Check guest trust → Approve/decline → Manage stay |
 
-**1DB trust mechanics:**
+**Trustead trust mechanics:**
 - Booking requests show guest's trust score prominently
 - Mutual connections displayed ("You both know Sarah and Mike")
 - Auto-approve option for high-trust guests (trust score > threshold)
 - Manual review required for new/low-trust guests
 
 ### Step 4: Review Guest
-| Aspect | Reference | 1DB Adaptation |
+| Aspect | Reference | Trustead Adaptation |
 |--------|-----------|----------------|
 | Route | N/A (no host→guest reviews in refs) | `/host/bookings/[id]/review` |
 | Components | N/A | GuestReviewForm, TrustRating |
@@ -157,7 +157,7 @@
 
 ## 3. Social Flow: Profile → Vouch → Invite
 
-> **Entirely 1DB-specific** — no equivalent in any reference repo.
+> **Entirely Trustead-specific** — no equivalent in any reference repo.
 
 ### Step 1: View Profile
 | Route | `/profile/[userId]` |
@@ -216,7 +216,7 @@
 /admin                      → Admin dashboard (aumsoni)
 ```
 
-### 1DB Proposed Routes
+### Trustead Proposed Routes
 ```
 /                           → Homepage / Explore (listing grid with network filter)
 /explore                    → All listings (no network filter)

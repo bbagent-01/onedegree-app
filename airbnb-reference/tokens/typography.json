@@ -3,7 +3,7 @@
     "description": "Typography tokens from Airbnb clone reference repos — SIZE and WEIGHT values only",
     "source": "aumsoni2002, ski043, krgyaan component analysis",
     "date": "2026-04-13",
-    "note": "1DB uses DM Sans + JetBrains Mono. These are structural values only."
+    "note": "Trustead uses DM Sans + JetBrains Mono. These are structural values only."
   },
   "font_families": {
     "_reference_only": {

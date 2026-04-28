@@ -115,7 +115,7 @@ Screen 2: Thread view (full width, back button)
 }
 ```
 
-## 1DB Adaptation Notes
+## Trustead Adaptation Notes
 - **Build from scratch** — highest complexity component, no reference implementation
 - **Priority:** Low (CC-B4) — use simple contact form for CC-B2/B3
 - **Add:** Trust badge next to user name in thread header

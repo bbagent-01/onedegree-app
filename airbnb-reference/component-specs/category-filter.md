@@ -59,8 +59,8 @@ type Category = {
 };
 ```
 
-## 1DB Adaptation Notes
-- **Replace categories:** Airbnb's (Beach, Trending, Luxe) → 1DB types:
+## Trustead Adaptation Notes
+- **Replace categories:** Airbnb's (Beach, Trending, Luxe) → Trustead types:
   - Whole Home, Private Room, Shared Space, Unique Stays
   - Verified Hosts, High Trust, Instant Book, New Listings
 - **Keep:** Horizontal scroll, active underline, URL-based filtering

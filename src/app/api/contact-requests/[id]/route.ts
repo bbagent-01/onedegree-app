@@ -2,6 +2,20 @@ export const runtime = "edge";
 
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { emailBookingConfirmed, emailBookingDeclined } from "@/lib/email";
+import { effectiveAuth } from "@/lib/impersonation/session";
+import {
+  buildPolicyFromPreset,
+  parsePolicy,
+  resolveEffectivePolicy,
+  type CancellationApproach,
+  type CancellationPolicy,
+  type CancellationPreset,
+} from "@/lib/cancellation";
+import {
+  TERMS_EDITED_PREFIX,
+  TERMS_OFFERED_PREFIX,
+} from "@/lib/structured-messages";
 
 // PATCH: host responds to a contact request (accept/decline)
 export async function PATCH(
@@ -9,7 +23,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { userId } = await auth();
+  const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const supabase = getSupabaseAdmin();
@@ -23,7 +37,9 @@ export async function PATCH(
   // Verify this request belongs to the current user as host
   const { data: request } = await supabase
     .from("contact_requests")
-    .select("id, host_id, status")
+    .select(
+      "id, host_id, guest_id, listing_id, check_in, check_out, status, total_estimate, terms_accepted_at, terms_declined_at, edit_count"
+    )
     .eq("id", id)
     .single();
 
@@ -35,23 +51,215 @@ export async function PATCH(
     return Response.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  if (request.status !== "pending") {
+  // S7: two lifecycle phases land in this PATCH now.
+  //   pending  → host accept/decline (original flow)
+  //   accepted (terms offered but not yet guest-accepted) → host edit
+  //             of the pending offer. Allowed only while the guest
+  //             hasn't locked terms and nobody has declined.
+  const isEditMode =
+    request.status === "accepted" &&
+    !request.terms_accepted_at &&
+    !request.terms_declined_at;
+  if (request.status !== "pending" && !isEditMode) {
     return Response.json({ error: "Request already responded to" }, { status: 400 });
   }
 
-  const body = await req.json();
-  const { status, hostResponseMessage } = body;
+  const body = (await req.json()) as {
+    status?: string;
+    hostResponseMessage?: string;
+    /** Host's final price. Overrides the original total_estimate
+     *  snapshot. Only applied on accept. */
+    total_price?: number;
+    /** Host's edited approach (installments | refunds). Optional
+     *  — defaults to the listing→host inheritance chain. */
+    cancellation_approach?: CancellationApproach;
+    /** Host's edited preset (flexible | moderate | strict | custom).
+     *  For named presets the server rebuilds from the template.
+     *  For "custom" the host must also send `cancellation_policy`
+     *  with the full schedule. */
+    cancellation_preset?: CancellationPreset;
+    /** Full policy payload — required when preset === "custom",
+     *  ignored otherwise. Lets the host send arbitrary row edits
+     *  without the server second-guessing them. */
+    cancellation_policy?: unknown;
+    /** Host-edited trip dates. Treated as a counter-offer — the
+     *  original request's dates get overwritten on the same row.
+     *  Only applied on accept. */
+    check_in?: string;
+    check_out?: string;
+    /** Host-edited guest count. */
+    guest_count?: number;
+    /** S7/040: host-offered per-night rate + cleaning fee. Stored
+     *  alongside total_estimate so the guest-side card can render a
+     *  truthful price breakdown (nightly × nights + cleaning) instead
+     *  of the derived "listing rate minus a mystery discount" view. */
+    nightly_rate?: number;
+    cleaning_fee?: number;
+  };
+  const { status: bodyStatus, hostResponseMessage } = body;
 
-  if (!status || !["accepted", "declined"].includes(status)) {
+  // Edit mode skips the status gate — the request is already
+  // accepted and the host is updating the offer in place. In the
+  // initial accept/decline flow, status is required.
+  const status = isEditMode ? "accepted" : bodyStatus;
+  if (!isEditMode && (!status || !["accepted", "declined"].includes(status))) {
     return Response.json({ error: "Invalid status" }, { status: 400 });
   }
+
+  // On accept, snapshot the effective cancellation policy onto the
+  // contact_request so the terms are locked in at approval time.
+  // Future edits to the host default or listing override won't move
+  // the goalposts on an already-approved reservation.
+  //
+  // Host can also edit the approach + preset in the Review & send
+  // modal; when those are provided, we build a fresh policy from the
+  // preset template instead of walking the inheritance chain.
+  let cancellationSnapshot: CancellationPolicy | null = null;
+  if (status === "accepted") {
+    const isCustomPayload =
+      body.cancellation_preset === "custom" && body.cancellation_policy;
+    const isNamedPreset =
+      body.cancellation_approach &&
+      body.cancellation_preset &&
+      (body.cancellation_approach === "installments" ||
+        body.cancellation_approach === "refunds") &&
+      (body.cancellation_preset === "flexible" ||
+        body.cancellation_preset === "moderate" ||
+        body.cancellation_preset === "strict");
+
+    if (isCustomPayload) {
+      // Host edited rows directly — trust their payload, normalize
+      // it via parsePolicy so the stored JSON is clean.
+      cancellationSnapshot = parsePolicy(body.cancellation_policy);
+    } else if (isNamedPreset) {
+      cancellationSnapshot = buildPolicyFromPreset(
+        body.cancellation_approach!,
+        body.cancellation_preset as Exclude<CancellationPreset, "custom">
+      );
+    } else {
+      const { data: hostRow } = await supabase
+        .from("users")
+        .select("cancellation_policy")
+        .eq("id", request.host_id)
+        .maybeSingle();
+      const { data: listingRow } = await supabase
+        .from("listings")
+        .select("cancellation_policy_override")
+        .eq("id", request.listing_id)
+        .maybeSingle();
+      cancellationSnapshot = resolveEffectivePolicy({
+        hostDefault: hostRow?.cancellation_policy,
+        listingOverride: listingRow?.cancellation_policy_override,
+        reservationSnapshot: null,
+      });
+    }
+  }
+
+  // Host's final price replaces the original total_estimate. This
+  // is the value the guest will confirm when they accept terms.
+  const totalPriceEdit =
+    status === "accepted" &&
+    typeof body.total_price === "number" &&
+    Number.isFinite(body.total_price) &&
+    body.total_price >= 0
+      ? Math.round(body.total_price)
+      : null;
+
+  // Host can counter-offer on dates + guest count during Review &
+  // send. Only applied on accept. Basic validation: dates must be
+  // YYYY-MM-DD strings and check_out must be after check_in.
+  const isDateStr = (s: unknown): s is string =>
+    typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  let checkInEdit: string | null = null;
+  let checkOutEdit: string | null = null;
+  if (
+    status === "accepted" &&
+    isDateStr(body.check_in) &&
+    isDateStr(body.check_out) &&
+    body.check_out > body.check_in
+  ) {
+    checkInEdit = body.check_in;
+    checkOutEdit = body.check_out;
+  }
+  const guestCountEdit =
+    status === "accepted" &&
+    typeof body.guest_count === "number" &&
+    Number.isFinite(body.guest_count) &&
+    body.guest_count >= 1
+      ? Math.floor(body.guest_count)
+      : null;
+
+  // S7/040: persist the offered breakdown alongside the offered total
+  // so the guest-side terms card can render the real breakdown rather
+  // than reverse-engineering a "Discount" row from listing values.
+  const nightlyRateEdit =
+    status === "accepted" &&
+    typeof body.nightly_rate === "number" &&
+    Number.isFinite(body.nightly_rate) &&
+    body.nightly_rate >= 0
+      ? Math.round(body.nightly_rate)
+      : null;
+  const cleaningFeeEdit =
+    status === "accepted" &&
+    typeof body.cleaning_fee === "number" &&
+    Number.isFinite(body.cleaning_fee) &&
+    body.cleaning_fee >= 0
+      ? Math.round(body.cleaning_fee)
+      : null;
+
+  const nowIso = new Date().toISOString();
+  // Edit mode diff — used below to decide whether the TERMS_EDITED
+  // card should render (only when something actually changed).
+  const editChanges = {
+    dates:
+      isEditMode &&
+      checkInEdit !== null &&
+      checkOutEdit !== null &&
+      (checkInEdit !== request.check_in ||
+        checkOutEdit !== request.check_out),
+    total:
+      isEditMode &&
+      totalPriceEdit !== null &&
+      totalPriceEdit !== request.total_estimate,
+    policy: isEditMode && cancellationSnapshot !== null,
+  };
+  const anyEditChange =
+    editChanges.dates || editChanges.total || editChanges.policy;
 
   const { error } = await supabase
     .from("contact_requests")
     .update({
       status,
-      host_response_message: hostResponseMessage || null,
-      responded_at: new Date().toISOString(),
+      ...(isEditMode
+        ? {}
+        : {
+            host_response_message: hostResponseMessage || null,
+            responded_at: nowIso,
+          }),
+      ...(cancellationSnapshot
+        ? { cancellation_policy: cancellationSnapshot }
+        : {}),
+      ...(totalPriceEdit !== null ? { total_estimate: totalPriceEdit } : {}),
+      ...(checkInEdit && checkOutEdit
+        ? { check_in: checkInEdit, check_out: checkOutEdit }
+        : {}),
+      ...(guestCountEdit !== null ? { guest_count: guestCountEdit } : {}),
+      ...(nightlyRateEdit !== null
+        ? { offered_nightly_rate: nightlyRateEdit }
+        : {}),
+      ...(cleaningFeeEdit !== null
+        ? { offered_cleaning_fee: cleaningFeeEdit }
+        : {}),
+      ...(isEditMode
+        ? {
+            last_edited_at: nowIso,
+            edit_count: (request.edit_count ?? 0) + 1,
+            // Close the loop on any guest edit request — the host has
+            // now responded with concrete changes.
+            edits_requested_at: null,
+            edits_requested_by: null,
+          }
+        : {}),
     })
     .eq("id", id);
 
@@ -60,5 +268,160 @@ export async function PATCH(
     return new Response("Failed to update", { status: 500 });
   }
 
-  return Response.json({ ok: true });
+  // Post a system message into the thread (if one exists) so both sides see
+  // the host's response in their inbox.
+  const { data: thread } = await supabase
+    .from("message_threads")
+    .select("id")
+    .eq("listing_id", request.listing_id)
+    .eq("guest_id", request.guest_id)
+    .maybeSingle();
+
+  if (thread) {
+    const { data: hostRow } = await supabase
+      .from("users")
+      .select("name")
+      .eq("id", request.host_id)
+      .maybeSingle();
+    const hostFirst = (hostRow?.name ?? "Host").split(" ")[0];
+
+    if (isEditMode) {
+      // Host edited a pending offer. Only anchor a milestone card
+      // when something actually changed — a no-op save shouldn't
+      // clutter the timeline. The TermsOfferedCard itself re-
+      // renders with the new values automatically.
+      if (anyEditChange) {
+        const { error: msgErr } = await supabase.from("messages").insert({
+          thread_id: thread.id,
+          sender_id: null,
+          content: TERMS_EDITED_PREFIX,
+          is_system: true,
+        });
+        if (msgErr) {
+          console.error(
+            "[contact-requests PATCH] terms_edited insert failed:",
+            msgErr
+          );
+        }
+      }
+    } else if (status === "accepted") {
+      // Structured terms_offered message — the thread renderer
+      // reads live policy + price from thread.booking and draws a
+      // rich card with an Accept button for the guest.
+      const { error: msgErr } = await supabase.from("messages").insert({
+        thread_id: thread.id,
+        sender_id: null,
+        content: TERMS_OFFERED_PREFIX,
+        is_system: true,
+      });
+      if (msgErr) {
+        console.error(
+          "[contact-requests PATCH] terms_offered insert failed:",
+          msgErr
+        );
+      }
+    } else {
+      const { error: msgErr } = await supabase.from("messages").insert({
+        thread_id: thread.id,
+        sender_id: null,
+        content: `${hostFirst} declined the reservation request.`,
+        is_system: true,
+      });
+      if (msgErr) {
+        console.error(
+          "[contact-requests PATCH] decline insert failed:",
+          msgErr
+        );
+      }
+    }
+
+    if (hostResponseMessage && hostResponseMessage.trim()) {
+      const { error: msgErr } = await supabase.from("messages").insert({
+        thread_id: thread.id,
+        sender_id: currentUser.id,
+        content: hostResponseMessage.trim(),
+        is_system: false,
+      });
+      if (msgErr) {
+        console.error(
+          "[contact-requests PATCH] host_response_message insert failed:",
+          msgErr
+        );
+      }
+    }
+  } else {
+    console.warn(
+      `[contact-requests PATCH] no thread found for listing=${request.listing_id} guest=${request.guest_id}`
+    );
+  }
+
+  // Auto-create a stay_confirmation row for accepted bookings so the guest
+  // can leave a review after checkout. Idempotent — does nothing if a row
+  // already exists for this contact_request.
+  if (status === "accepted") {
+    const { data: existingStay } = await supabase
+      .from("stay_confirmations")
+      .select("id")
+      .eq("contact_request_id", id)
+      .maybeSingle();
+    if (!existingStay) {
+      await supabase.from("stay_confirmations").insert({
+        contact_request_id: id,
+        listing_id: request.listing_id,
+        host_id: request.host_id,
+        guest_id: request.guest_id,
+        check_in: request.check_in,
+        check_out: request.check_out,
+        host_confirmed: false,
+        guest_confirmed: false,
+      });
+    }
+  }
+
+  // Fire-and-forget transactional email to the guest. Don't await
+  // Resend — the Edge runtime will sometimes hang on its fetch,
+  // which leaves the client stuck on "Sending…" even though the
+  // DB write already succeeded. We care that the DB is consistent;
+  // email delivery can retry or be resent manually.
+  const [{ data: listingRow }, { data: hostUser }] = await Promise.all([
+    supabase
+      .from("listings")
+      .select("id, title")
+      .eq("id", request.listing_id)
+      .maybeSingle(),
+    supabase
+      .from("users")
+      .select("id, name")
+      .eq("id", request.host_id)
+      .maybeSingle(),
+  ]);
+
+  const emailPayload = {
+    hostId: request.host_id,
+    guestId: request.guest_id,
+    guestName: "Guest",
+    hostName: hostUser?.name || "Host",
+    listingTitle: listingRow?.title || "Your trip",
+    checkIn: request.check_in,
+    checkOut: request.check_out,
+    guestCount: 1,
+    bookingId: id,
+    hostResponseMessage: hostResponseMessage || null,
+  };
+
+  // Detached so the handler returns immediately; Edge occasionally
+  // hangs on the Resend fetch and that leaves the client spinning.
+  // Edit mode skips transactional email — the guest's inbox shouldn't
+  // refire the "Booking confirmed" banner for each host revision.
+  if (!isEditMode && status === "accepted") {
+    emailBookingConfirmed(emailPayload).catch((e) =>
+      console.error("emailBookingConfirmed failed:", e)
+    );
+  } else if (!isEditMode && status === "declined") {
+    emailBookingDeclined(emailPayload).catch((e) =>
+      console.error("emailBookingDeclined failed:", e)
+    );
+  }
+
+  return Response.json({ ok: true, edited: isEditMode });
 }

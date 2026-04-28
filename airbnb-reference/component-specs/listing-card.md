@@ -56,7 +56,7 @@
 }
 ```
 
-## 1DB Adaptation Notes
+## Trustead Adaptation Notes
 - **Add:** Trust score badge (top-left of image, color-coded green/amber/purple)
 - **Add:** Connection degree indicator ("2nd degree" text below host name)
 - **Add:** Vouch count ("4 vouches" next to or replacing star rating)

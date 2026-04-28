@@ -1,0 +1,358 @@
+// REMOVE BEFORE BETA — Dev2 (design system page). Hard-removable
+// alongside Dev1 and Dev3.
+//
+// Live-site theme editor drawer. Slides in from the right, lists every
+// editable token grouped by category, and writes overrides via the
+// existing sandbox machinery (setOverride/clearOverride). Edits flash
+// site-wide instantly because SandboxClient subscribes to SANDBOX_EVENT.
+//
+// Phase 1: text/color inputs only (parity with /dev/design-system
+// SandboxControls). Phase 2 adds slider/shadow widgets.
+"use client";
+
+import { useEffect, useState } from "react";
+import { X, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  clearAll,
+  clearOverride,
+  downloadFile,
+  exportAsCssDiff,
+  exportAsJson,
+  readOverrides,
+  SANDBOX_EVENT,
+  setOverride,
+  writeOverrides,
+} from "@/lib/dev-theme/sandbox";
+import { tokensByCategory } from "@/lib/dev-theme/tokens";
+import type { TokenSpec, TokenCategory } from "@/lib/dev-theme/tokens";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
+
+const CATEGORY_ORDER: TokenCategory[] = [
+  "color",
+  "fontFamily",
+  "fontSize",
+  "spacing",
+  "radius",
+  "shadow",
+  "maxWidth",
+];
+
+const CATEGORY_LABEL: Record<TokenCategory, string> = {
+  color: "Color",
+  fontFamily: "Font family",
+  fontSize: "Font size",
+  spacing: "Spacing",
+  radius: "Radius",
+  shadow: "Shadow",
+  maxWidth: "Max width",
+};
+
+export function BrandEditorDrawer({ open, onClose }: Props) {
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    color: true,
+    fontSize: false,
+    fontFamily: false,
+    spacing: false,
+    radius: false,
+    shadow: false,
+    maxWidth: false,
+  });
+  const [filter, setFilter] = useState("");
+
+  useEffect(() => {
+    setOverrides(readOverrides());
+    const sync = () => setOverrides(readOverrides());
+    window.addEventListener(SANDBOX_EVENT, sync);
+    return () => window.removeEventListener(SANDBOX_EVENT, sync);
+  }, []);
+
+  // Close on Escape.
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const grouped = tokensByCategory();
+  const overriddenIds = Object.keys(overrides);
+  const lower = filter.trim().toLowerCase();
+
+  return (
+    <>
+      {/* Backdrop — clickable to close. Lighter dim so the live site
+          stays mostly visible behind the drawer (the whole point is
+          to edit while seeing the result). */}
+      <div
+        className="fixed inset-0 z-[200] bg-black/30"
+        onClick={onClose}
+        aria-hidden
+      />
+
+      {/* Drawer panel */}
+      <aside
+        role="dialog"
+        aria-label="Theme editor"
+        className="fixed inset-y-0 right-0 z-[201] flex w-[440px] max-w-[100vw] flex-col border-l shadow-2xl"
+        style={{
+          background: "#0B2E26",
+          borderColor: "rgba(245, 241, 230, 0.14)",
+          color: "#F5F1E6",
+          fontFamily:
+            'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex shrink-0 items-center justify-between border-b px-5 py-4"
+          style={{ borderColor: "rgba(245, 241, 230, 0.14)" }}
+        >
+          <div>
+            <h2 className="text-base font-semibold">Theme editor</h2>
+            <p className="mt-0.5 text-[11px] opacity-60">
+              Edits live in this tab only · clears on close
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close theme editor"
+            className="flex h-8 w-8 items-center justify-center rounded-md transition hover:bg-white/10"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Filter input */}
+        <div
+          className="shrink-0 border-b px-5 py-3"
+          style={{ borderColor: "rgba(245, 241, 230, 0.14)" }}
+        >
+          <input
+            type="text"
+            placeholder="Filter tokens (e.g. brand, trust, font)…"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="w-full rounded-md border bg-transparent px-3 py-2 text-sm placeholder:opacity-50 focus:outline-none focus:ring-1"
+            style={{
+              borderColor: "rgba(245, 241, 230, 0.14)",
+              color: "#F5F1E6",
+            }}
+          />
+        </div>
+
+        {/* Token list — scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          {CATEGORY_ORDER.map((cat) => {
+            const items = grouped[cat] ?? [];
+            const filtered = lower
+              ? items.filter(
+                  (t) =>
+                    t.id.toLowerCase().includes(lower) ||
+                    t.name.toLowerCase().includes(lower) ||
+                    t.group.toLowerCase().includes(lower)
+                )
+              : items;
+            if (filtered.length === 0) return null;
+            const isOpen = lower ? true : expanded[cat];
+            const overriddenInCat = filtered.filter(
+              (t) => t.id in overrides
+            ).length;
+            return (
+              <div
+                key={cat}
+                className="border-b"
+                style={{ borderColor: "rgba(245, 241, 230, 0.10)" }}
+              >
+                <button
+                  onClick={() =>
+                    setExpanded((s) => ({ ...s, [cat]: !s[cat] }))
+                  }
+                  className="flex w-full items-center justify-between px-5 py-3 text-left transition hover:bg-white/5"
+                >
+                  <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider opacity-80">
+                    {isOpen ? (
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    )}
+                    {CATEGORY_LABEL[cat]}
+                  </span>
+                  <span className="text-[11px] opacity-50">
+                    {overriddenInCat > 0
+                      ? `${overriddenInCat} edited / ${filtered.length}`
+                      : `${filtered.length}`}
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="space-y-1 px-3 pb-3">
+                    {filtered.map((t) => (
+                      <TokenRow
+                        key={t.id}
+                        token={t}
+                        value={overrides[t.id] ?? t.value}
+                        overridden={t.id in overrides}
+                        onChange={(v) => setOverride(t.id, v)}
+                        onClear={() => clearOverride(t.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer actions */}
+        <div
+          className="shrink-0 border-t px-5 py-3"
+          style={{ borderColor: "rgba(245, 241, 230, 0.14)" }}
+        >
+          <div className="mb-2 flex items-center justify-between text-[11px] opacity-70">
+            <span>
+              {overriddenIds.length} token
+              {overriddenIds.length === 1 ? "" : "s"} edited
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                downloadFile(
+                  "green-overrides.css",
+                  exportAsCssDiff(overrides, [
+                    ...grouped.color,
+                    ...grouped.fontFamily,
+                    ...grouped.fontSize,
+                    ...grouped.spacing,
+                    ...grouped.radius,
+                    ...grouped.shadow,
+                    ...grouped.maxWidth,
+                  ]),
+                  "text/css"
+                );
+              }}
+              disabled={overriddenIds.length === 0}
+              className="rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-white/10 disabled:opacity-40"
+              style={{ borderColor: "rgba(245, 241, 230, 0.20)" }}
+            >
+              Export CSS
+            </button>
+            <button
+              onClick={() => {
+                downloadFile(
+                  "green-overrides.json",
+                  exportAsJson(overrides),
+                  "application/json"
+                );
+              }}
+              disabled={overriddenIds.length === 0}
+              className="rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-white/10 disabled:opacity-40"
+              style={{ borderColor: "rgba(245, 241, 230, 0.20)" }}
+            >
+              Export JSON
+            </button>
+            <button
+              onClick={() => {
+                if (confirm("Clear all edited values?")) writeOverrides({});
+              }}
+              disabled={overriddenIds.length === 0}
+              className="ml-auto rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-white/10 disabled:opacity-40"
+              style={{ borderColor: "rgba(245, 241, 230, 0.20)" }}
+            >
+              Reset values
+            </button>
+            <button
+              onClick={() => {
+                if (confirm("Reset everything and turn sandbox off?")) {
+                  clearAll();
+                  onClose();
+                }
+              }}
+              className="rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-red-500/20"
+              style={{
+                borderColor: "rgba(248, 113, 113, 0.30)",
+                color: "#FCA5A5",
+              }}
+            >
+              Reset all
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function TokenRow({
+  token,
+  value,
+  overridden,
+  onChange,
+  onClear,
+}: {
+  token: TokenSpec;
+  value: string;
+  overridden: boolean;
+  onChange: (v: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div
+      className="flex items-center gap-2 rounded-md border px-2 py-1.5"
+      style={{
+        background: overridden
+          ? "rgba(191, 226, 212, 0.10)"
+          : "rgba(7, 34, 27, 0.55)",
+        borderColor: overridden
+          ? "rgba(191, 226, 212, 0.35)"
+          : "rgba(245, 241, 230, 0.08)",
+      }}
+    >
+      {token.category === "color" && (
+        <input
+          type="color"
+          value={normalizeColor(value)}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-7 w-9 shrink-0 cursor-pointer rounded border-0"
+          aria-label={`Color picker for ${token.name}`}
+        />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="truncate text-[12px] font-medium">{token.name}</span>
+          {overridden && (
+            <button
+              onClick={onClear}
+              className="text-[10px] underline opacity-70 hover:opacity-100"
+              style={{ color: "#BFE2D4" }}
+            >
+              reset
+            </button>
+          )}
+        </div>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="mt-0.5 w-full rounded border bg-transparent px-1.5 py-0.5 font-mono text-[11px] focus:outline-none focus:ring-1"
+          style={{
+            borderColor: "rgba(245, 241, 230, 0.10)",
+            color: "#F5F1E6",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function normalizeColor(v: string): string {
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : "#000000";
+}

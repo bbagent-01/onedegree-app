@@ -1,0 +1,286 @@
+{
+  "_meta": {
+    "description": "Gate-state matrix. Rows = routes. Columns = viewer's trust level to the primary entity on that route (host for listing/profile, thread counterpart for inbox, viewer's own network for dashboard/network). For routes where trust doesn't apply (e.g. /settings, /hosting/create), columns note 'n/a'.",
+    "columns": {
+      "signed_out": "Not authenticated. Middleware redirects protected routes to /sign-in. Public routes render.",
+      "0deg": "Signed in, but NO connection to the primary user (no vouches, no shared connectors, degree=null).",
+      "1deg": "Direct vouch exists between viewer and primary user (either direction).",
+      "2deg": "Connected through shared connectors (degree=2, has score).",
+      "3deg": "3-hop chain (degree=3, score shown in mustard pill, dampened x0.6).",
+      "4deg_plus": "4+ hops or no path within 4. Zinc pill, chain only, NO score."
+    },
+    "gate_engines": [
+      "src/middleware.ts (route-level auth)",
+      "src/lib/trust/check-access.ts (per-listing access rules)",
+      "src/lib/listing-visibility.ts (legacy visibility tiers)",
+      "src/lib/trust-data.ts (trust score + degree computation)"
+    ]
+  },
+  "matrix": {
+    "/": {
+      "signed_out": "Public landing. Renders normally.",
+      "0deg": "Redirects to /browse (server-side).",
+      "1deg": "Redirects to /browse.",
+      "2deg": "Redirects to /browse.",
+      "3deg": "Redirects to /browse.",
+      "4deg_plus": "Redirects to /browse.",
+      "flags": []
+    },
+    "/design": {
+      "signed_out": "Public — dev-only design system preview.",
+      "0deg": "Full access (dev page).",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": ["Orphan / dev-only — should be stripped or gated in production build"]
+    },
+    "/sign-in": {
+      "signed_out": "Phone-first sign-in flow renders.",
+      "0deg": "UNDEFINED: already signed-in user behavior — should redirect to /browse or stay?",
+      "1deg": "UNDEFINED — same",
+      "2deg": "UNDEFINED — same",
+      "3deg": "UNDEFINED — same",
+      "4deg_plus": "UNDEFINED — same",
+      "flags": ["Missing redirect-if-already-signed-in guard — UX gap"]
+    },
+    "/sign-up": {
+      "signed_out": "Phone-first sign-up flow renders.",
+      "0deg": "UNDEFINED — should redirect if already signed in",
+      "1deg": "UNDEFINED",
+      "2deg": "UNDEFINED",
+      "3deg": "UNDEFINED",
+      "4deg_plus": "UNDEFINED",
+      "flags": ["Same redirect-if-already-signed-in gap as /sign-in"]
+    },
+    "/browse": {
+      "signed_out": "Public: listings visible as preview tiles ONLY where host.access_settings.see_preview rule is 'anyone_anywhere'. Others hidden. No trust pills. Save/favorite requires sign-in.",
+      "0deg": "Listings render. Full-access tiles for 'anyone' rule. Preview-only tiles for min_score/max_degrees rules (viewer score=0, degree=null — fails). Gated preview cards open a dialog prompting vouches/intros.",
+      "1deg": "Listings from direct vouchers appear full-access. Others preview based on rule.",
+      "2deg": "Full access when viewer.score_vs_host >= min_score threshold. Else preview.",
+      "3deg": "Mustard 3° pill on tile. Full access if max_degrees >= 3 and other rules pass. Otherwise preview.",
+      "4deg_plus": "Zinc '4°+' chain-only pill. Preview-only (no score). Full access impossible unless host has 'anyone' preview rule and 'anyone' full rule.",
+      "flags": [
+        "Trust pill direction ambiguity: is the score on browse tiles host→viewer or viewer→host? Verify.",
+        "For 0° signed-in user, does a 'grow your network to unlock' CTA surface?"
+      ]
+    },
+    "/dashboard": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Renders with tabs (Hosting, Network, Traveling). Hosting tab likely empty if no listings.",
+      "1deg": "Full access — this is the viewer's own dashboard, trust doesn't gate self-view.",
+      "2deg": "Full access (own data).",
+      "3deg": "Full access (own data).",
+      "4deg_plus": "Full access (own data).",
+      "flags": ["n/a — self-view, no cross-user trust gate applies"]
+    },
+    "/dashboard/network": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Shows viewer's own network state. For a 0-connection user: EMPTY STATE. CTA to invite/vouch.",
+      "1deg": "Lists 1° vouchers and vouchees.",
+      "2deg": "Shows mutual connections.",
+      "3deg": "Shows extended network.",
+      "4deg_plus": "n/a — viewer's own data.",
+      "flags": [
+        "CHECK: does 0-connection empty state actually prompt to invite or vouch? High-impact onboarding moment."
+      ]
+    },
+    "/dashboard/traveling": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Own trips list. Empty if no trips.",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "n/a — own data.",
+      "flags": []
+    },
+    "/help": {
+      "signed_out": "Public help center.",
+      "0deg": "Full access.",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": []
+    },
+    "/hosting": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Renders hosting dashboard. If no listings: empty state with CTA to create.",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": ["n/a — self-owned hosting data"]
+    },
+    "/hosting/create": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Full listing creation form.",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": ["n/a — authoring own content. No trust gate. CHECK: is there a minimum-profile-completeness requirement before a user can host?"]
+    },
+    "/hosting/listings/[id]/edit": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "If viewer is the host: full edit. If not: 403/redirect (need to verify).",
+      "1deg": "Same as 0° — host-only, not gated by trust.",
+      "2deg": "Same.",
+      "3deg": "Same.",
+      "4deg_plus": "Same.",
+      "flags": ["VERIFY: non-owner visiting this route — is it a 404, 403, or redirect?"]
+    },
+    "/inbox": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "List of viewer's threads. If no threads: empty state.",
+      "1deg": "Full access — own inbox.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": []
+    },
+    "/inbox/[threadId]": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Thread renders if viewer is a participant. Otherwise 403/404.",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": [
+        "Intro-request threads: does viewer see counterpart identity or anonymized? Verify.",
+        "VERIFY: non-participant access — redirect or 404?"
+      ]
+    },
+    "/invite": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Full invite flow — this is the onboarding moment for 0° users to grow their network.",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": []
+    },
+    "/listings/[id]": {
+      "signed_out": "Public route. If host.access_settings.see_preview.type = 'anyone_anywhere' → preview card renders (no identity, no message, no intro). Else: preview hidden entirely. Full listing impossible without auth.",
+      "0deg": "Preview if preview_rule.type = 'anyone' (or anyone_anywhere). Else hidden. Can request intro if allow_intro_requests=true. Cannot message, cannot see full listing, cannot see host identity.",
+      "1deg": "If direct vouch exists, viewer_score_vs_host is max(direct_edge, ...). If full_listing_contact rule passes (e.g. 'anyone' or score >= min_score) → full access. Else preview + intro.",
+      "2deg": "If score >= min_score OR degree <= max_degrees rule: full access. Else preview + intro.",
+      "3deg": "Dampened score × 0.6. Full access rare (only if min_score is low or max_degrees=3). Normal outcome: preview + intro.",
+      "4deg_plus": "No score. max_degrees rule always fails at 4+. Preview only, if preview rule permits. Zinc chain pill on host card.",
+      "flags": [
+        "Key gating surface. All five trust states must render cleanly.",
+        "Preview rendering logic for 4°+ heavy users: does the chain of names actually show?",
+        "For 'hidden' visibility_mode: no preview ever, even for 1° — verify."
+      ]
+    },
+    "/listings/[id]/reserve": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "UNDEFINED: route likely should 403 if viewer lacks full_listing_contact. Verify route guard.",
+      "1deg": "If full access: reserve form renders. Else: 403/redirect.",
+      "2deg": "Same as 1°.",
+      "3deg": "Likely blocked unless host has permissive rules.",
+      "4deg_plus": "Blocked.",
+      "flags": [
+        "ROUTE LIKELY ORPHANED: off-platform payments model means 'Reserve' is deprecated. Should be renamed 'Contact Host' or removed.",
+        "Copy drift: page uses both 'Reserve' and 'Contact host' — already flagged in copy-inconsistencies."
+      ]
+    },
+    "/profile/[id]": {
+      "signed_out": "Public route per middleware. Likely shows basic public profile, no trust data.",
+      "0deg": "Name, bio, listings, reviews. Trust section: 'Not connected'. Mutual connections = empty. CTA to invite/vouch. Vouch button disabled or prompts sign-in.",
+      "1deg": "Full trust section: direct vouch card, 'Update vouch' button. Score pill visible.",
+      "2deg": "Strongest path + connectors. 'Vouch' CTA.",
+      "3deg": "Mustard pill + 3-hop path.",
+      "4deg_plus": "Zinc pill + chain only, no score.",
+      "flags": [
+        "Signed-out experience needs verification: does middleware actually allow public profiles? Middleware says /profile/(.*) is public.",
+        "No-bio empty state: different copy for self vs other ('Add a short bio...' vs 'hasn't written a bio yet')"
+      ]
+    },
+    "/profile/edit": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Full edit form — own profile.",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": ["n/a — self-edit"]
+    },
+    "/settings": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Full settings panel.",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": ["n/a"]
+    },
+    "/settings/notifications": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Full access (own prefs).",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": ["n/a"]
+    },
+    "/settings/phone": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Full access (own phone).",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": ["n/a"]
+    },
+    "/trips": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Redirects to /dashboard?tab=traveling (own data).",
+      "1deg": "Redirect.",
+      "2deg": "Redirect.",
+      "3deg": "Redirect.",
+      "4deg_plus": "Redirect.",
+      "flags": ["Orphan redirect; should /trips exist at all? Candidate for removal."]
+    },
+    "/trips/[bookingId]": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "If viewer is guest or host on booking: full trip detail. Payment card, host info, review prompts. Else 403.",
+      "1deg": "Same as 0°.",
+      "2deg": "Same.",
+      "3deg": "Same.",
+      "4deg_plus": "Same.",
+      "flags": [
+        "n/a trust gate — owner/participant only. VERIFY: non-participant → 404 or 403?"
+      ]
+    },
+    "/vouch": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Search UI. If target not on Trustead → invite CTA. Typical entry point for a 0° user growing their network.",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": []
+    },
+    "/wishlists": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Own wishlist index. Empty state if none.",
+      "1deg": "Full access.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": ["n/a"]
+    },
+    "/wishlists/[id]": {
+      "signed_out": "Redirected to /sign-in.",
+      "0deg": "Own wishlist detail. For saved listings the viewer now lacks access to (e.g. vouch revoked): UNDEFINED behavior — verify.",
+      "1deg": "Full access to own list.",
+      "2deg": "Full access.",
+      "3deg": "Full access.",
+      "4deg_plus": "Full access.",
+      "flags": [
+        "Edge case: saved listings that have become gated after vouch revocation — do they render preview or disappear?"
+      ]
+    }
+  }
+}

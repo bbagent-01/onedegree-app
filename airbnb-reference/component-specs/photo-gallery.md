@@ -84,7 +84,7 @@ Mobile:
 }
 ```
 
-## 1DB Adaptation Notes
+## Trustead Adaptation Notes
 - **Build from scratch** — no reference repo has this, but it's essential
 - **Priority:** Medium (CC-B3) — use single hero image for CC-B2 MVP
 - **Consider:** Use a library like `embla-carousel` for mobile carousel

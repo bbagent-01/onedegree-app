@@ -1,4 +1,4 @@
--- One Degree BNB — Full Schema (post CC-8 migration)
+-- Trustead — Full Schema (post CC-8 migration)
 -- This reflects the canonical state of the database.
 -- For migration history, see supabase/migrations/
 

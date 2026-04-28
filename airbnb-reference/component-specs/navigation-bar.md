@@ -48,7 +48,7 @@ Mobile:        [Logo]
 | Search focus | Input ring color (ring-2 ring-ring) |
 | Dropdown open | Menu appears below with shadow-md |
 | Dark mode | bg-background changes, all colors flip via CSS vars |
-| Scroll | Static (no sticky behavior in reference — consider adding for 1DB) |
+| Scroll | Static (no sticky behavior in reference — consider adding for Trustead) |
 
 ## Data Shape
 ```typescript
@@ -62,12 +62,12 @@ Mobile:        [Logo]
 }
 ```
 
-## 1DB Adaptation Notes
+## Trustead Adaptation Notes
 - **Add:** Notification bell icon (between search and menu)
 - **Add:** Connection request count badge
 - **Add:** Sticky navbar on scroll (not in reference but standard for Airbnb)
-- **Modify:** Logo → 1DB brand logo
+- **Modify:** Logo → Trustead brand logo
 - **Modify:** Search → Pill-style trigger (borrow from ski043's SearchComponent)
 - **Keep:** Border-b separator, dropdown menu pattern, responsive stacking
-- **Replace:** Clerk auth → existing 1DB auth system
+- **Replace:** Clerk auth → existing Trustead auth system
 - **Consider:** Dark mode toggle (useful for future, low priority for MVP)

@@ -96,7 +96,7 @@ const orderTotal = subTotal + cleaning + service + tax;
 }
 ```
 
-## 1DB Adaptation Notes
+## Trustead Adaptation Notes
 - **Add:** Trust score display at top of sidebar ("Host verified by 12 community members")
 - **Add:** Connection path ("You → Sarah → Host")
 - **Add:** "Contact Host First" option (for first-time or low-trust connections)

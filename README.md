@@ -1,6 +1,6 @@
-# One Degree BNB
+# Trustead
 
-Private home rentals through trusted connections.
+Stay with people you trust. Private home stays through trusted personal networks.
 
 ## Getting Started
 
