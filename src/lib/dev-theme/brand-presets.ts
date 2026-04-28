@@ -251,11 +251,24 @@ export const BRAND_PRESETS: BrandPreset[] = [
         color: rgba(245, 241, 230, 0.40) !important;
       }
 
-      /* Divider / separator lines → faint cream */
+      /* Divider / separator lines → faint cream rule. The source
+         doc uses --rule: rgba(245,241,230,0.10) for thin structural
+         lines on dark surfaces. */
       html[data-theme="sandbox"] hr,
       html[data-theme="sandbox"] [data-orientation="horizontal"][role="separator"] {
-        background-color: rgba(245, 241, 230, 0.14) !important;
-        border-color: rgba(245, 241, 230, 0.14) !important;
+        background-color: rgba(245, 241, 230, 0.10) !important;
+        border-color: rgba(245, 241, 230, 0.10) !important;
+        height: 1px !important;
+      }
+      /* Section meta border-t (file path / blurb separator) gets
+         the same hair-thin cream. */
+      html[data-theme="sandbox"] section > .border-t,
+      html[data-theme="sandbox"] section .border-t {
+        border-top-color: rgba(245, 241, 230, 0.10) !important;
+      }
+      /* Eyebrow extender bar bg → faint cream rule. */
+      html[data-theme="sandbox"] .eyebrow .bg-border {
+        background-color: rgba(245, 241, 230, 0.18) !important;
       }
 
       /* ── BIG SERIF HEADLINES ─────────────────────────────────
@@ -287,10 +300,15 @@ export const BRAND_PRESETS: BrandPreset[] = [
         letter-spacing: -0.01em !important;
         color: #F5F1E6 !important;
       }
+      /* Italic accent — DM Serif Display italic, mint #BFE2D4.
+         Matches the source standalone (.hero h1 em uses
+         font-family: 'DM Serif Display', serif + font-style: italic +
+         color: var(--green-200)). Earlier Instrument Serif was
+         flowier than the source's cleaner italic. */
       html[data-theme="sandbox"] h1 em,
       html[data-theme="sandbox"] h2 em,
       html[data-theme="sandbox"] em.accent {
-        font-family: 'Instrument Serif', 'DM Serif Display', serif !important;
+        font-family: 'DM Serif Display', 'Instrument Serif', serif !important;
         font-style: italic !important;
         color: #BFE2D4 !important;
         font-weight: 400 !important;

@@ -177,14 +177,17 @@ export function PagesShowcase({ route }: Props) {
 
   return (
     <section className="space-y-8">
-      {/* Eyebrow + big serif page headline. Plain styling under
-          default; under Guesty the preset's CSS gives this the
-          dramatic forest-hero treatment with italic mint accents. */}
+      {/* Eyebrow with structural line extender — matches the
+          Guesty mockup pattern of a tracked label trailing into a
+          thin cream rule across the column. */}
       <div className="space-y-4 pt-6">
-        <p className="eyebrow text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-          <span className="num text-foreground">{spec.num}</span> —{" "}
-          {spec.routeLabel.replace(/^\//, "").toUpperCase().replace(/\[ID\]/, "")}
-        </p>
+        <div className="eyebrow flex items-center gap-4">
+          <p className="shrink-0 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            <span className="num text-foreground">{spec.num}</span> —{" "}
+            {spec.routeLabel.replace(/^\//, "").toUpperCase().replace(/\[ID\]/, "")}
+          </p>
+          <span className="h-px flex-1 bg-border opacity-70" />
+        </div>
         <h1 className="max-w-[18ch] text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
           {spec.headline}
         </h1>
