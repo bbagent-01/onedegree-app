@@ -23,7 +23,7 @@ import { computeIncomingTrustPaths } from "./trust-data";
 import { sendInviteSMS } from "./sms/send-invite";
 
 const APP_BASE_URL =
-  process.env.NEXT_PUBLIC_APP_URL || "https://alpha-b.onedegreebnb.com";
+  process.env.NEXT_PUBLIC_APP_URL || "https://trustead.app";
 
 export type AlertKind = "trip_wish" | "host_offer" | "either";
 export type AlertDelivery = "email" | "sms" | "both";

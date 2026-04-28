@@ -19,7 +19,7 @@ const FROM = "Trustead <hello@staytrustead.com>";
 // Resend's Inbound API and post them as messages into the originating thread.
 const REPLY_TO = "hello@staytrustead.com";
 const APP_BASE_URL =
-  process.env.NEXT_PUBLIC_APP_URL || "https://alpha-b.onedegreebnb.com";
+  process.env.NEXT_PUBLIC_APP_URL || "https://trustead.app";
 
 export type EmailKind =
   | "booking_request"

@@ -146,7 +146,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Failed to create invite" }, { status: 500 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://alpha-c.onedegreebnb.com";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://trustead.app";
   const inviteUrl = `${baseUrl}/join/${invite.token}`;
 
   // Delivery orchestration: SMS primary, email fallback
