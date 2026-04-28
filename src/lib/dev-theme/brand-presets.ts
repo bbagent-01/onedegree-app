@@ -7,7 +7,7 @@
 // needing to know about presets.
 //
 // Add a new preset here → it appears in the BrandPresetSwitcher.
-// Round 1 = Guesty Forest. Round 2 / 3 / etc. just append.
+// Round 1 = Green theme. Round 2 / 3 / etc. just append.
 
 export interface BrandPreset {
   /** Stable id used as sessionStorage key + switcher value. */
@@ -37,10 +37,10 @@ export const BRAND_PRESETS: BrandPreset[] = [
     overrides: {},
   },
   {
-    id: "guesty-forest",
-    label: "Guesty Forest",
+    id: "green",
+    label: "Green theme",
     blurb:
-      "Deep forest takeover with glass card surfaces, mint accents, and DM Serif Display headlines — full re-skin inspired by guesty.com.",
+      "Deep forest takeover with glass card surfaces, mint accents, and DM Serif Display headlines.",
     overrides: {
       // ── Brand scale → Forest greens (used by trust pills, badges,
       //    score chips that read brand-500 / brand-100 etc.) ─────
@@ -53,15 +53,15 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "color/brand-600": "#154C3B",
       "color/brand-700": "#103A2E",
 
-      // CTA / brand → PALE MINT pill (matches the Guesty "Search"
+      // CTA / brand → PALE MINT pill (matches the source mock's "Search"
       // button — almost cream, dark green text, very high contrast
       // against the deep forest page bg).
       "color/brand": "#BFE2D4",
       "color/brand-foreground": "#0B2E25",
 
       // ── Page surfaces → match the source HTML doc exactly.
-      //    body { background: #07221B } in the standalone Guesty
-      //    file, which is THE color the source designer landed on.
+      //    body { background: #07221B } in the standalone source
+      //    mock, which is THE color the source designer landed on.
       //    The earlier #03241A push was too dark — frame + cards
       //    didn't get enough room to layer above it without
       //    looking near-black. ──────────────────────────────────
@@ -329,11 +329,11 @@ export const BRAND_PRESETS: BrandPreset[] = [
       }
 
       /* ── BIG SERIF HEADLINES ─────────────────────────────────
-         The hero treatment from the Guesty mock: DM Serif Display,
+         The hero treatment from the Green mock: DM Serif Display,
          tight tracking, italic Instrument Serif accent words in mint
          for <em>-wrapped phrases. h1 scales up to 72px on wide
          viewports — the design-system page reads as an editorial
-         spread once Guesty is on. */
+         spread once Green is on. */
       html[data-theme="sandbox"] h1 {
         font-family: 'DM Serif Display', Georgia, serif !important;
         font-weight: 400 !important;
@@ -399,7 +399,7 @@ export const BRAND_PRESETS: BrandPreset[] = [
       /* ── BRAND BUTTON (the mint pill) ────────────────────────
          Main CTA inherits the pale mint #BFE2D4 from the brand token
          but should also lean into a generous rounded-pill shape so
-         it reads like the Guesty "Search" affordance. */
+         it reads like the source mock's "Search" affordance. */
       html[data-theme="sandbox"] button[class*="bg-brand"] {
         border-radius: 999px !important;
         padding-left: 1.25rem !important;
@@ -423,7 +423,7 @@ export const BRAND_PRESETS: BrandPreset[] = [
       }
 
       /* ── BRAND LOGO COLOR FLIP ───────────────────────────────
-         The wordmark uses text-brand by default (plum). On Guesty
+         The wordmark uses text-brand by default (plum). On Green
          dark forest, plum-on-dark would be illegible. Force cream
          when the logo is wrapped in .brand-logo. */
       html[data-theme="sandbox"] .brand-logo {

@@ -41,10 +41,10 @@ interface RouteSpec {
   filePath: string;
   blurb: string;
   /** Numbered eyebrow ("01", "02"…) + big serif page headline shown
-   *  above the preview frame. Picks up Guesty styling under the
-   *  Guesty Forest preset; reads as a normal section label under the
+   *  above the preview frame. Picks up Green styling under the
+   *  Green theme preset; reads as a normal section label under the
    *  default preset. <em>-wrapped phrases get an italic mint accent
-   *  in Guesty mode. */
+   *  in Green mode. */
   num: string;
   headline: React.ReactNode;
   tagline?: string;
@@ -178,7 +178,7 @@ export function PagesShowcase({ route }: Props) {
   return (
     <section className="space-y-8">
       {/* Eyebrow with structural line extender — matches the
-          Guesty mockup pattern of a tracked label trailing into a
+          Green mockup pattern of a tracked label trailing into a
           thin cream rule across the column. */}
       <div className="space-y-4 pt-6">
         <div className="eyebrow flex items-center gap-4">
@@ -232,7 +232,7 @@ export function PagesShowcase({ route }: Props) {
 
       {/* Live page preview — full-bleed under the default preset
        *  (-mx-6 / md:-mx-10 cancels the design-system content-area
-       *  padding). Under Guesty Forest the preset's CSS catches
+       *  padding). Under the Green theme the preset's CSS catches
        *  .page-frame and turns this into a rounded-3xl forest screen
        *  with a heavy outset shadow, sitting on the deeper page bg. */}
       <div className="page-frame -mx-6 overflow-x-hidden border-y-2 border-border bg-white md:-mx-10">

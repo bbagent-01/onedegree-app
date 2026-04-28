@@ -35,9 +35,9 @@ function NavStub({ variant }: { variant: "desktop" | "mobile" }) {
       }
     >
       <Link href="#" className="flex items-center" aria-label="Trustead home">
-        {/* Inlined r2 wordmark + mark. fill=currentColor → text-brand
+        {/* Inlined r3 wordmark + mark. fill=currentColor → text-brand
          *  resolves to plum on default. The .brand-logo class is
-         *  targeted by the Guesty preset to force a cream override
+         *  targeted by the Green theme to force a cream override
          *  (plum-on-dark would be illegible). */}
         <TrusteadLogo className="brand-logo h-6 w-auto text-brand md:h-7" />
       </Link>
