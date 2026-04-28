@@ -49,7 +49,7 @@ function initials(name: string | null | undefined) {
 
 export function AccountMenu() {
   const { user, isSignedIn } = useUser();
-  const { signOut } = useClerk();
+  const clerk = useClerk();
   const [open, setOpen] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
 
@@ -79,7 +79,18 @@ export function AccountMenu() {
     } catch {
       // Non-fatal — still continue the Clerk sign-out.
     }
-    await signOut({ redirectUrl: "/" });
+    // clerk.signOut() triggers a Next.js Server Action (POST to the
+    // current page) that returns 503 on Cloudflare Pages edge runtime,
+    // which prevents the Clerk session-end API call from ever firing
+    // and leaves the user signed in. Calling clerk.session.end()
+    // directly bypasses the Server Action and hits Clerk's API
+    // straight; we then do our own hard navigation.
+    try {
+      await clerk.session?.end();
+    } catch {
+      // Non-fatal — fall through to the hard nav anyway.
+    }
+    window.location.replace("/");
   };
   const profileHref = profileId ? `/profile/${profileId}` : "/profile/edit";
 

@@ -75,7 +75,7 @@ export function MobileNav() {
   const pathname = usePathname() || "/";
   const [menuOpen, setMenuOpen] = useState(false);
   const { isSignedIn, user } = useUser();
-  const { signOut } = useClerk();
+  const clerk = useClerk();
 
   // Look up Supabase user-row id so the "Profile" link can deep-link to
   // /profile/:id. Falls back to /profile/edit until it resolves.
@@ -120,7 +120,18 @@ export function MobileNav() {
     } catch {
       // Non-fatal — still continue the Clerk sign-out.
     }
-    await signOut({ redirectUrl: "/" });
+    // clerk.signOut() triggers a Next.js Server Action (POST to the
+    // current page) that returns 503 on Cloudflare Pages edge runtime,
+    // which prevents the Clerk session-end API call from ever firing
+    // and leaves the user signed in. Calling clerk.session.end()
+    // directly bypasses the Server Action and hits Clerk's API
+    // straight; we then do our own hard navigation.
+    try {
+      await clerk.session?.end();
+    } catch {
+      // Non-fatal — fall through to the hard nav anyway.
+    }
+    window.location.replace("/");
   };
 
   return (
