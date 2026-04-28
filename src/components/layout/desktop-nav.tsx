@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "./account-menu";
+import { TrusteadLogo } from "./trustead-logo";
 
 export function DesktopNav() {
   const pathname = usePathname();
@@ -46,12 +47,10 @@ export function DesktopNav() {
             hidePrimaryNarrow ? "hidden min-[1900px]:flex" : "flex"
           )}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/trustead-wordmark.svg"
-            alt="Trustead"
-            className="hidden h-7 w-auto lg:block"
-          />
+          {/* Inline SVG for the wordmark — currentColor cascades from
+              CSS so brand presets can flip the logo color. The .brand-logo
+              class is the hook the dev2 brand-preset CSS targets. */}
+          <TrusteadLogo className="brand-logo hidden h-7 w-auto text-foreground lg:block" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/trustead-favicon.svg"
