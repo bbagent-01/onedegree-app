@@ -1,5 +1,10 @@
 "use client";
 
+// Required by next-on-pages: server layout pulls in /nextjs/server
+// via ImpersonationMount once NEXT_PUBLIC_ENABLE_IMPERSONATION is set,
+// which propagates edge requirement to descendant routes.
+export const runtime = "edge";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
