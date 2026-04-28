@@ -11,7 +11,10 @@ import {
   computeIncomingTrustPaths,
   getInternalUserIdFromClerk,
 } from "@/lib/trust-data";
-import { checkListingAccess } from "@/lib/trust/check-access";
+import {
+  checkListingAccess,
+  getActiveGrantorIds,
+} from "@/lib/trust/check-access";
 import type { AccessSettings } from "@/lib/trust/types";
 import type { BrowseListingTrust } from "@/components/browse/browse-layout";
 import { activeFilterCount, parseBrowseParams } from "@/lib/browse-utils";
@@ -171,6 +174,12 @@ async function BrowseResults({
       ...new Set(listings.map((l) => l.host_id).filter(Boolean)),
     ];
     const trustResults = await computeIncomingTrustPaths(hostIds, viewerId);
+    // Batched grant lookup. Without this, the browse access check
+    // disagreed with the listing-detail access check (which already
+    // passes hasGrant) — a viewer who'd been granted access via an
+    // accepted intro saw a locked card on /browse but full access on
+    // click. One query covers every host on the page.
+    const grantedHostIds = await getActiveGrantorIds(hostIds, viewerId);
     for (const l of listings) {
       const r = trustResults[l.host_id];
       const score = r?.score ?? 0;
@@ -188,7 +197,8 @@ async function BrowseResults({
           access_settings: l.access_settings as AccessSettings | null,
         },
         score,
-        degree
+        degree,
+        grantedHostIds.has(l.host_id)
       );
 
       trustByListing[l.id] = {

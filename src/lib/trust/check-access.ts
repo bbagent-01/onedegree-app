@@ -181,3 +181,34 @@ export async function hasActiveListingAccessGrant(
   }
   return Boolean(data?.id);
 }
+
+/**
+ * Batched grant lookup. Returns the set of grantor_ids (out of the
+ * caller-supplied `grantorIds`) that hold an active grant to `granteeId`.
+ *
+ * One query for the whole browse grid instead of N — the singular
+ * `hasActiveListingAccessGrant` would issue N round-trips.
+ */
+export async function getActiveGrantorIds(
+  grantorIds: string[],
+  granteeId: string
+): Promise<Set<string>> {
+  if (!granteeId || grantorIds.length === 0) return new Set();
+  const filtered = grantorIds.filter((id) => id && id !== granteeId);
+  if (filtered.length === 0) return new Set();
+  const { getSupabaseAdmin } = await import("../supabase");
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("listing_access_grants")
+    .select("grantor_id")
+    .in("grantor_id", filtered)
+    .eq("grantee_id", granteeId)
+    .is("revoked_at", null);
+  if (error) {
+    console.error("getActiveGrantorIds error", error);
+    return new Set();
+  }
+  return new Set(
+    ((data || []) as { grantor_id: string }[]).map((r) => r.grantor_id)
+  );
+}
