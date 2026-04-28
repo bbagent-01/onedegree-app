@@ -17,7 +17,7 @@ import {
   getPresetById,
   setActivePresetId,
 } from "@/lib/dev-theme/brand-presets";
-import { Check, Palette } from "lucide-react";
+import { ArrowRight, Check, Palette } from "lucide-react";
 
 /**
  * Floating brand switcher mounted on every route via SandboxMount.
@@ -100,15 +100,20 @@ export function SandboxIndicator() {
         />
       )}
 
-      {/* Floating switcher pill, bottom-center. */}
+      {/* Floating switcher — circle icon, bottom-left, sitting just
+          to the right of the ImpersonationSwitcher pill (which is at
+          bottom-4 left-4 and capped at max-w-[180px]). 15rem clears
+          its rightmost edge with a small gap. */}
       <div
         ref={popoverRef}
-        className="fixed bottom-3 left-1/2 z-[90] -translate-x-1/2"
+        className="fixed bottom-4 left-[15rem] z-[90]"
       >
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 rounded-full border border-white/20 bg-zinc-900/90 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-white shadow-lg backdrop-blur transition hover:bg-zinc-800/90"
+          aria-label={`Brand preset · ${activeLabel}`}
+          title={`Brand · ${activeLabel}`}
+          className="flex h-10 w-10 items-center justify-center rounded-full border shadow-lg backdrop-blur transition hover:scale-105"
           style={{
             background:
               active === "guesty-forest"
@@ -121,21 +126,20 @@ export function SandboxIndicator() {
           }}
         >
           <Palette
-            className="h-3 w-3"
+            className="h-4 w-4"
             style={{
               color:
                 active === "guesty-forest" ? "#BFE2D4" : "#a855f7",
             }}
           />
-          <span>Brand · {activeLabel}</span>
         </button>
 
         {open && (
           <div
-            className="absolute bottom-[calc(100%+8px)] left-1/2 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-white/15 bg-zinc-900/95 shadow-2xl backdrop-blur-md"
+            className="absolute bottom-[calc(100%+8px)] left-0 w-72 overflow-hidden rounded-xl border border-white/15 bg-zinc-900/95 shadow-2xl backdrop-blur-md"
           >
             <div className="border-b border-white/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-white/50">
-              Brand presets · alpha admin
+              Brand · alpha admin
             </div>
             <div className="py-1">
               {BRAND_PRESETS.map((p) => (
@@ -166,6 +170,13 @@ export function SandboxIndicator() {
                 </button>
               ))}
             </div>
+            <a
+              href="/dev/design-system"
+              className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2.5 text-xs font-medium text-white/85 transition hover:bg-white/10"
+            >
+              <span>Open design system</span>
+              <ArrowRight className="h-3.5 w-3.5 text-white/60" />
+            </a>
             <div className="border-t border-white/10 px-3 py-2 text-[10px] text-white/40">
               Persists in this tab only · clears on close
             </div>
