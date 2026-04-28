@@ -52,6 +52,16 @@ const REQUIRED_ENV: Array<readonly [string, string | undefined]> = [
   ],
   ["SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY],
   ["CRON_SECRET", process.env.CRON_SECRET],
+  // S11.pre.3 diagnostic: impersonation switcher returns 404 even
+  // though /pages/projects API confirms both vars set in production
+  // env_vars. Surfacing presence here will tell us whether the
+  // variables actually bind to process.env at edge runtime.
+  [
+    "NEXT_PUBLIC_ENABLE_IMPERSONATION",
+    process.env.NEXT_PUBLIC_ENABLE_IMPERSONATION,
+  ],
+  ["IMPERSONATION_ADMIN_USER_IDS", process.env.IMPERSONATION_ADMIN_USER_IDS],
+  ["IMPERSONATION_COOKIE_SECRET", process.env.IMPERSONATION_COOKIE_SECRET],
 ];
 
 // TRUST_VOUCH_K is the only trust-config var actually read from env
