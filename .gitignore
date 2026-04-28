@@ -43,3 +43,10 @@ next-env.d.ts
 # clerk configuration (can include secrets)
 /.clerk/
 _reference-repos/
+
+# brand asset working dirs (pre-commit logo experiments)
+/tsd-logo-r2/
+/tst-logo-r3/
+
+# scheduled tasks runtime lock (per-host, not for git)
+.claude/scheduled_tasks.lock
