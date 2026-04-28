@@ -100,15 +100,14 @@ export function SandboxIndicator() {
         />
       )}
 
-      {/* Floating switcher — circle icon, bottom-left, sitting just
-          to the right of the ImpersonationSwitcher pill. The
-          impersonation pill's right edge falls around 252px when
-          the impersonated label is fully expanded; 17rem (272px)
-          gives a clean ~20px gap. */}
-      <div
-        ref={popoverRef}
-        className="fixed bottom-4 left-[17rem] z-[90]"
-      >
+      {/* Position-free wrapper. The parent admin-dock in (app)/layout
+          .tsx places this in a flex row next to ImpersonationSwitcher,
+          so the gap between the two icons is set by the dock's
+          flex-gap, not a hardcoded `left-[17rem]` based on the old
+          long pill width. `relative` keeps the popover anchor below
+          working; `z-[90]` keeps the trigger above the dashed
+          preview frame which is at z-[80]. */}
+      <div ref={popoverRef} className="relative z-[90]">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
