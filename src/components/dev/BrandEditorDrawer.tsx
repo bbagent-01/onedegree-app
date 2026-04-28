@@ -89,14 +89,9 @@ export function BrandEditorDrawer({ open, onClose }: Props) {
 
   return (
     <>
-      {/* Backdrop — clickable to close. Lighter dim so the live site
-          stays mostly visible behind the drawer (the whole point is
-          to edit while seeing the result). */}
-      <div
-        className="fixed inset-0 z-[200] bg-black/30"
-        onClick={onClose}
-        aria-hidden
-      />
+      {/* No backdrop — the whole point is to edit while interacting
+          with the live page behind. Click the X or press Escape to
+          close. */}
 
       {/* Drawer panel */}
       <aside
@@ -304,9 +299,16 @@ function TokenRow({
   onChange: (v: string) => void;
   onClear: () => void;
 }) {
+  const numeric = parseNumericValue(value);
+  const isNumericCategory =
+    token.category === "fontSize" ||
+    token.category === "spacing" ||
+    token.category === "radius" ||
+    token.category === "maxWidth";
+
   return (
     <div
-      className="flex items-center gap-2 rounded-md border px-2 py-1.5"
+      className="flex items-start gap-2 rounded-md border px-2 py-1.5"
       style={{
         background: overridden
           ? "rgba(191, 226, 212, 0.10)"
@@ -321,7 +323,7 @@ function TokenRow({
           type="color"
           value={normalizeColor(value)}
           onChange={(e) => onChange(e.target.value)}
-          className="h-7 w-9 shrink-0 cursor-pointer rounded border-0"
+          className="mt-0.5 h-7 w-9 shrink-0 cursor-pointer rounded border-0"
           aria-label={`Color picker for ${token.name}`}
         />
       )}
@@ -338,6 +340,14 @@ function TokenRow({
             </button>
           )}
         </div>
+        {isNumericCategory && numeric ? (
+          <NumericSlider
+            num={numeric.num}
+            unit={numeric.unit}
+            category={token.category}
+            onChange={(n) => onChange(`${n}${numeric.unit}`)}
+          />
+        ) : null}
         <input
           type="text"
           value={value}
@@ -351,6 +361,84 @@ function TokenRow({
       </div>
     </div>
   );
+}
+
+function NumericSlider({
+  num,
+  unit,
+  category,
+  onChange,
+}: {
+  num: number;
+  unit: string;
+  category: TokenCategory;
+  onChange: (n: number) => void;
+}) {
+  const range = sliderRange(category, unit, num);
+  return (
+    <div className="mt-1 flex items-center gap-2">
+      <input
+        type="range"
+        min={range.min}
+        max={range.max}
+        step={range.step}
+        value={Math.min(Math.max(num, range.min), range.max)}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="flex-1 accent-[#BFE2D4]"
+      />
+      <span
+        className="w-14 shrink-0 text-right font-mono text-[10px] opacity-70"
+        title={`${num}${unit}`}
+      >
+        {Number.isInteger(num) ? num : num.toFixed(2)}
+        {unit}
+      </span>
+    </div>
+  );
+}
+
+// Pick a range that's wide enough to be useful but tight enough to
+// give the slider meaningful resolution. Uses the canonical value
+// as a centerpoint when possible.
+function sliderRange(
+  category: TokenCategory,
+  unit: string,
+  current: number
+): { min: number; max: number; step: number } {
+  if (unit === "rem") {
+    return { min: 0, max: Math.max(8, current * 2.5), step: 0.05 };
+  }
+  if (unit === "em") {
+    return { min: 0, max: Math.max(4, current * 2.5), step: 0.05 };
+  }
+  if (unit === "%") {
+    return { min: 0, max: 100, step: 1 };
+  }
+  // Default: px.
+  switch (category) {
+    case "fontSize":
+      return { min: 8, max: Math.max(96, current * 2), step: 1 };
+    case "spacing":
+      return { min: 0, max: Math.max(64, current * 3), step: 1 };
+    case "radius":
+      return { min: 0, max: Math.max(48, current * 3), step: 1 };
+    case "maxWidth":
+      return { min: 240, max: Math.max(1920, current * 1.5), step: 8 };
+    default:
+      return { min: 0, max: Math.max(100, current * 2.5), step: 1 };
+  }
+}
+
+// Try to peel a `<number><unit>` out of a token value. Returns null
+// for non-trivial values (clamp(...), calc(...), comma-separated tuples).
+function parseNumericValue(
+  v: string
+): { num: number; unit: string } | null {
+  const trimmed = v.trim();
+  // Reject anything that isn't a single number+unit.
+  const match = trimmed.match(/^(-?\d+(?:\.\d+)?)(px|rem|em|%|)$/);
+  if (!match) return null;
+  return { num: parseFloat(match[1]), unit: match[2] || "px" };
 }
 
 function normalizeColor(v: string): string {

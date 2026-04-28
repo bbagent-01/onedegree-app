@@ -84,7 +84,7 @@ function colorCss(name: string, value: string): string {
   // bg-, text-, border-, ring-, fill-, stroke-, divide-, outline-,
   // accent-, decoration-, caret-, placeholder-, from-, via-, to-
   // We cover the common subset to avoid bloat.
-  return `
+  const baseRules = `
 .bg-${name} { background-color: ${value} !important; }
 .text-${name} { color: ${value} !important; }
 .border-${name} { border-color: ${value} !important; }
@@ -93,6 +93,20 @@ function colorCss(name: string, value: string): string {
 .stroke-${name} { stroke: ${value} !important; }
 .from-${name} { --tw-gradient-from: ${value} !important; }
 `.trim();
+  // Foundational tokens also drive direct body / html rules, since
+  // brand-preset extraCss targets the body/html element rather than
+  // the utility class. Without this, editing color/background in the
+  // drawer would only affect elements with .bg-background — leaving
+  // the actual page bg unchanged.
+  if (name === "background") {
+    return `${baseRules}
+body, html { background-color: ${value} !important; }`;
+  }
+  if (name === "foreground") {
+    return `${baseRules}
+body { color: ${value} !important; }`;
+  }
+  return baseRules;
 }
 
 function radiusCss(name: string, value: string): string {
@@ -245,6 +259,13 @@ export function applySandbox(tokens: TokenSpec[]) {
   } else {
     document.getElementById(SANDBOX_EXTRA_ID)?.remove();
   }
+
+  // Re-append the override style tag to the END of <head> so it wins
+  // any same-selector cascade fight against the preset's extraCss.
+  // Without this, edits made via the drawer to selectors that the
+  // preset hardcodes (body bg, h1 font-size, etc.) get overridden by
+  // the preset's later-loaded !important rules.
+  document.head.appendChild(style);
 }
 
 // ── Export helpers ────────────────────────────────────────────────────
