@@ -23,6 +23,10 @@ jobs:
       - name: Build with next-on-pages
         run: npx @cloudflare/next-on-pages
         env:
+          # GitHub-hosted runners get OOM-killed by Next's build worker
+          # without an explicit heap bump (last-100-kb of brand-presets
+          # CSS pushed it over the edge — SIGSEGV in the build worker).
+          NODE_OPTIONS: --max-old-space-size=6144
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
