@@ -59,31 +59,30 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "color/brand": "#BFE2D4",
       "color/brand-foreground": "#0B2E25",
 
-      // ── Page surfaces → very deep, high-saturation forest.
-      //    #03241A: HSL(155, 80%, 8%) — same hue as the source mock
-      //    but pushed to maximum saturation at the same lightness.
-      //    The deep + saturated combo reads as rich pigment, not a
-      //    flat wash. ──────────────────────────────────────────
-      "color/background": "#03241A",
+      // ── Page surfaces → match the source HTML doc exactly.
+      //    body { background: #07221B } in the standalone Guesty
+      //    file, which is THE color the source designer landed on.
+      //    The earlier #03241A push was too dark — frame + cards
+      //    didn't get enough room to layer above it without
+      //    looking near-black. ──────────────────────────────────
+      "color/background": "#07221B",
       "color/foreground": "#F5F1E6",
 
       // ── Card / popover → DARK GREEN-TINTED GLASS.
-      //    Cream-tinted glass on every .bg-white was painting a
-      //    white wash over the frame interior — the visual average
-      //    came out gray-green and washed-out. Swapping to a
-      //    semi-transparent dark forest tint inverts the depth:
-      //    cards now read as scooped darker wells in the frame,
-      //    and the saturation stays rich. ──────────────────────
-      "color/card": "rgba(4, 25, 18, 0.55)",
+      //    Cards register as scooped darker wells in the lighter
+      //    frame interior. Alpha tuned for the new #0B2E26 frame:
+      //    rgba(7,34,27,0.55) lands ~25% darker than the frame so
+      //    cards read clearly without losing forest saturation. ─
+      "color/card": "rgba(7, 34, 27, 0.55)",
       "color/card-foreground": "#F5F1E6",
       "color/popover": "#0B2E25",
       "color/popover-foreground": "#F5F1E6",
 
       // ── Muted surfaces → dark green tint ────────────────────
-      "color/muted": "rgba(4, 25, 18, 0.55)",
+      "color/muted": "rgba(7, 34, 27, 0.55)",
       "color/muted-foreground": "rgba(245, 241, 230, 0.62)",
-      "color/surface": "rgba(4, 25, 18, 0.55)",
-      "color/surface-alt": "rgba(4, 25, 18, 0.7)",
+      "color/surface": "rgba(7, 34, 27, 0.55)",
+      "color/surface-alt": "rgba(7, 34, 27, 0.7)",
       "color/subtle": "rgba(245, 241, 230, 0.55)",
 
       // ── Borders / inputs → faint cream rule on dark ─────────
@@ -111,27 +110,25 @@ export const BRAND_PRESETS: BrandPreset[] = [
       "Instrument+Serif:ital@0;1",
     ],
     extraCss: `
-      /* ── DEEPEST FOREST PAGE BG ──────────────────────────────
-         #03241A · HSL(155, 80%, 8%). Maximum saturation at this
-         lightness — anything deeper goes black, anything lighter
-         goes gray. */
+      /* ── BODY ────────────────────────────────────────────────
+         #07221B — taken verbatim from the source standalone
+         (body { background: #07221B }). */
       html[data-theme="sandbox"],
       html[data-theme="sandbox"] body {
-        background: #03241A !important;
+        background: #07221B !important;
         color: #F5F1E6 !important;
       }
 
       /* ── SCREEN FRAME ────────────────────────────────────────
-         #082E22 — same hue + saturation as body, just barely
-         lifted in lightness (10% vs 8%). The depth is in the
-         body→frame layer, not chroma loss. Earlier #0E3325 had
-         lower saturation than the body so the frame interior was
-         reading gray-green by comparison. */
+         #0B2E26 — Loren's explicit value, also the source mock's
+         --green-900. Lighter than body so the frame visibly
+         floats; same hue family so saturation reads consistent
+         across body→frame→glass. */
       html[data-theme="sandbox"] .page-frame {
-        margin: 24px 0 48px !important;
+        margin: 32px 0 56px !important;
         border-radius: 24px !important;
         overflow: hidden !important;
-        background: #082E22 !important;
+        background: #0B2E26 !important;
         border: 1px solid rgba(245, 241, 230, 0.10) !important;
         box-shadow:
           0 40px 90px -22px rgba(0, 0, 0, 0.78),
@@ -146,21 +143,48 @@ export const BRAND_PRESETS: BrandPreset[] = [
          another glass tile. */
       html[data-theme="sandbox"] .page-frame nav,
       html[data-theme="sandbox"] .page-frame aside {
-        background: rgba(3, 36, 26, 0.65) !important;
+        background: rgba(7, 34, 27, 0.65) !important;
       }
 
       /* ── PAGE-CHROME NAV BAR ────────────────────────────────
          The mock nav uses bg-white/95. Catch the common opacity
-         variants and flip to near-opaque dark forest so the
-         cream wordmark on top reads correctly. */
+         variants and flip to near-opaque dark forest. */
       html[data-theme="sandbox"] .bg-white\\/95,
       html[data-theme="sandbox"] .bg-white\\/90,
       html[data-theme="sandbox"] .bg-white\\/80,
       html[data-theme="sandbox"] .bg-white\\/70,
       html[data-theme="sandbox"] .bg-white\\/60 {
-        background-color: rgba(3, 36, 26, 0.85) !important;
+        background-color: rgba(7, 34, 27, 0.85) !important;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
+      }
+
+      /* ── MODALS ──────────────────────────────────────────────
+         Solid forest box with generous padding; backdrop overlay
+         gets dark + heavy blur so the page behind soft-fades.
+         Catches shadcn dialog content + any [role="dialog"]
+         element with the shadow-modal token. */
+      html[data-theme="sandbox"] [role="dialog"][aria-modal="true"],
+      html[data-theme="sandbox"] [data-radix-dialog-content],
+      html[data-theme="sandbox"] [data-state="open"][role="dialog"],
+      html[data-theme="sandbox"] .shadow-modal {
+        background: #0B2E25 !important;
+        background-color: #0B2E25 !important;
+        border: 1px solid rgba(245, 241, 230, 0.18) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        padding: 2.5rem !important;
+        box-shadow:
+          0 50px 100px -25px rgba(0, 0, 0, 0.85),
+          0 16px 40px -12px rgba(0, 0, 0, 0.55) !important;
+      }
+      /* Backdrop dim — heavy blur so the page underneath softens. */
+      html[data-theme="sandbox"] .bg-black\\/40,
+      html[data-theme="sandbox"] .bg-black\\/50,
+      html[data-theme="sandbox"] .bg-black\\/60 {
+        background-color: rgba(7, 34, 27, 0.55) !important;
+        backdrop-filter: blur(14px) !important;
+        -webkit-backdrop-filter: blur(14px) !important;
       }
 
       /* ── GLASS TILES ─────────────────────────────────────────

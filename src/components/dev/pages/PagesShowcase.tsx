@@ -176,11 +176,11 @@ export function PagesShowcase({ route }: Props) {
     spec.variants.find((v) => v.id === activeVariant) ?? spec.variants[0];
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-8">
       {/* Eyebrow + big serif page headline. Plain styling under
           default; under Guesty the preset's CSS gives this the
           dramatic forest-hero treatment with italic mint accents. */}
-      <div className="space-y-3 pt-4">
+      <div className="space-y-4 pt-6">
         <p className="eyebrow text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
           <span className="num text-foreground">{spec.num}</span> —{" "}
           {spec.routeLabel.replace(/^\//, "").toUpperCase().replace(/\[ID\]/, "")}
@@ -195,7 +195,7 @@ export function PagesShowcase({ route }: Props) {
         )}
       </div>
 
-      <div className="border-t border-border pt-3">
+      <div className="border-t border-border pt-4">
         <code className="font-mono text-[11px] text-muted-foreground">
           {spec.filePath}
         </code>
