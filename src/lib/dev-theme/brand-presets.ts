@@ -502,16 +502,26 @@ export const BRAND_PRESETS: BrandPreset[] = [
         color: #4FB191 !important;
       }
 
-      /* ── LISTING CARD IMAGES — thin border + heavier shadow ──
-         The aspect-[4/3] rounded-xl overflow-hidden combo is the
-         signature class set on listing card image wrappers. Frame
-         them with a hairline cream border and an outset shadow
-         that visually lifts the tile off the forest bg. */
-      html[data-theme="sandbox"] [class*="aspect-[4/3]"][class*="rounded-xl"][class*="overflow-hidden"] {
-        border: 1px solid var(--tt-glass-border) !important;
+      /* ── LISTING TILE CARDS — border at rest, shadow on hover ──
+         Target the link or button .group wrapper that contains an
+         aspect-[4/3] image div as a child — uniquely identifies a
+         listing tile without needing a className change in
+         live-listing-card.tsx. The border encloses image + text
+         together so the entire tile reads as a framed card. Shadow
+         is reserved for the hover state to give a felt lift. */
+      html[data-theme="sandbox"] a.group:has(> [class*="aspect-[4/3]"]),
+      html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]) {
+        border: 1px solid var(--tt-glass-border);
+        border-radius: 16px;
+        padding: 8px;
+        transition: box-shadow 200ms ease, border-color 200ms ease;
+      }
+      html[data-theme="sandbox"] a.group:has(> [class*="aspect-[4/3]"]):hover,
+      html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]):hover {
         box-shadow:
           0 24px 60px -15px rgba(0, 0, 0, 0.7),
-          0 8px 20px -8px rgba(0, 0, 0, 0.45) !important;
+          0 8px 20px -8px rgba(0, 0, 0, 0.45);
+        border-color: rgba(245, 241, 230, 0.22);
       }
 
       /* ── SHADOWS ─────────────────────────────────────────────
