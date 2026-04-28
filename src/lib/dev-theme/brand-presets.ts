@@ -290,13 +290,66 @@ export const BRAND_PRESETS: BrandPreset[] = [
         border-color: var(--tt-glass-border) !important;
       }
 
+      /* ── TONE INHERITANCE ────────────────────────────────────
+         Loren's pattern: every surface declares a tone, children
+         inherit the inverse. Implementation uses two CSS variables
+         that propagate down via the cascade — flip them at any
+         "light surface" and every Tailwind gray/zinc/slate text
+         class inside that surface re-routes through the dark fg
+         variant automatically. */
+      html[data-theme="sandbox"] {
+        --tone-fg: var(--tt-cream);
+        --tone-fg-muted: var(--tt-cream-muted);
+      }
+      /* Light surfaces flip the tone variables for their subtree.
+         Any descendant text-zinc/gray/slate-N rule below will then
+         resolve to the dark fg color. */
+      html[data-theme="sandbox"] [class*="bg-zinc-50"],
+      html[data-theme="sandbox"] [class*="bg-zinc-100"],
+      html[data-theme="sandbox"] [class*="bg-zinc-200"],
+      html[data-theme="sandbox"] [class*="bg-gray-50"],
+      html[data-theme="sandbox"] [class*="bg-gray-100"],
+      html[data-theme="sandbox"] [class*="bg-gray-200"],
+      html[data-theme="sandbox"] [class*="bg-slate-50"],
+      html[data-theme="sandbox"] [class*="bg-slate-100"],
+      html[data-theme="sandbox"] button[class*="bg-brand"],
+      html[data-theme="sandbox"] [class*="bg-amber-100"] {
+        --tone-fg: var(--tt-modal-bg);
+        --tone-fg-muted: rgba(11, 46, 37, 0.65);
+      }
+      /* Tailwind gray scales now route through the tone variable
+         — readable on dark by default, readable on light when
+         nested inside a flipped surface. */
+      html[data-theme="sandbox"] .text-zinc-400,
+      html[data-theme="sandbox"] .text-zinc-500,
+      html[data-theme="sandbox"] .text-zinc-600,
+      html[data-theme="sandbox"] .text-gray-400,
+      html[data-theme="sandbox"] .text-gray-500,
+      html[data-theme="sandbox"] .text-gray-600,
+      html[data-theme="sandbox"] .text-slate-400,
+      html[data-theme="sandbox"] .text-slate-500,
+      html[data-theme="sandbox"] .text-slate-600 {
+        color: var(--tone-fg-muted) !important;
+      }
+      html[data-theme="sandbox"] .text-zinc-700,
+      html[data-theme="sandbox"] .text-zinc-800,
+      html[data-theme="sandbox"] .text-zinc-900,
+      html[data-theme="sandbox"] .text-gray-700,
+      html[data-theme="sandbox"] .text-gray-800,
+      html[data-theme="sandbox"] .text-gray-900,
+      html[data-theme="sandbox"] .text-slate-700,
+      html[data-theme="sandbox"] .text-slate-800,
+      html[data-theme="sandbox"] .text-slate-900 {
+        color: var(--tone-fg) !important;
+      }
+
       /* Default text colors */
       html[data-theme="sandbox"] .text-foreground,
       html[data-theme="sandbox"] [class*="text-foreground/"] {
-        color: var(--tt-cream) !important;
+        color: var(--tone-fg) !important;
       }
       html[data-theme="sandbox"] .text-muted-foreground {
-        color: var(--tt-cream-muted) !important;
+        color: var(--tone-fg-muted) !important;
       }
 
       /* Form fields → dark green tinted glass on dark */
