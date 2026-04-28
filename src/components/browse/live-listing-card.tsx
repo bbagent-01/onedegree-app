@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Heart, ChevronLeft, ChevronRight, Lock, Star, Info } from "lucide-react";
+import { Heart, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { toast } from "sonner";
 import type { BrowseListing } from "@/lib/browse-data";
 import { SaveToWishlistDialog } from "@/components/wishlist/save-to-wishlist-dialog";
@@ -38,33 +38,19 @@ export function LiveListingCard({
     ? listing.photos.map((p) => p.public_url)
     : [PLACEHOLDER];
 
-  // Preview set: cover is always included, blurred if cover is not
-  // also marked is_preview. Other is_preview photos shown unblurred.
-  const coverPhoto = listing.photos.find((p) => p.is_cover) || listing.photos[0];
-  const previewSet: { url: string; blur: boolean }[] = [];
-  if (coverPhoto) {
-    previewSet.push({
-      url: coverPhoto.public_url,
-      blur: !coverPhoto.is_preview,
-    });
-  }
-  for (const p of listing.photos) {
-    if (p === coverPhoto) continue;
-    if (p.is_preview) previewSet.push({ url: p.public_url, blur: false });
-  }
-  const previewImages = previewSet.length > 0
-    ? previewSet.map((p) => p.url)
-    : [PLACEHOLDER];
-  const previewBlurs = previewSet.length > 0
-    ? previewSet.map((p) => p.blur)
-    : [false];
+  // Preview set: only host-curated `is_preview` photos. Used for the
+  // gated card variant so locked viewers see the host's intended
+  // teaser photos (or fall back to the placeholder).
+  const previewSet = listing.photos
+    .filter((p) => p.is_preview)
+    .map((p) => p.public_url);
+  const previewImages = previewSet.length > 0 ? previewSet : [PLACEHOLDER];
 
   const [currentImage, setCurrentImage] = useState(0);
   const [isSaved, setIsSaved] = useState(initialSaved);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [gateDialogOpen, setGateDialogOpen] = useState(false);
 
-  const canSeePreview = trust?.canSeePreview ?? true;
   const canSeeFull = trust?.canSeeFull ?? true;
 
   const prev = (e: React.MouseEvent) => {
@@ -94,171 +80,24 @@ export function LiveListingCard({
     setDialogOpen(true);
   };
 
-  const rating = listing.avg_listing_rating ?? 0;
   const price = listing.price_min ?? listing.price_max ?? 0;
-  const hasPriceRange =
-    listing.price_min && listing.price_max && listing.price_min !== listing.price_max;
 
-  // Preview content toggles — missing fields default to true so
-  // the preview tile shows as much as the host would expect.
-  // Note: show_profile_photo is honored on the gated / full listing
-  // detail views (host card) but deliberately ignored on the
-  // browse grid tiles — tiles stay text-only for a consistent read.
-  const previewContent = listing.access_settings?.preview_content;
-  const showTitle = previewContent?.show_title ?? true;
-  const showPriceRange = previewContent?.show_price_range ?? true;
-  const showNeighborhood = previewContent?.show_neighborhood ?? true;
-  const showRating = previewContent?.show_rating ?? true;
-  const showHostFirstName = previewContent?.show_host_first_name ?? true;
-
-  // Choose which images set to use based on access level
+  // Choose which images set to use based on access level. The card
+  // is now strictly binary (full or gated), so per-field preview
+  // toggles (show_title, show_rating, etc.) no longer apply on the
+  // browse grid — they still gate the listing-detail page render.
   const images = canSeeFull ? allImages : previewImages;
 
   // ─────────────────────────────────────────────────────────────
-  // Preview variant — viewer can see preview but NOT full listing.
-  // Shows preview photos (not blurred), neighborhood, price range,
-  // rating, subtle lock icon. No host info.
+  // Gated card — anything short of full access. The middle "preview"
+  // tier was previously surfaced as its own card variant (lock badge
+  // + full metadata), which read as the gate logic being broken
+  // (S11.pre.3 D-Obs2). Browse cards are now strictly binary: fully
+  // unlocked OR locked. The preview-tier listing detail page still
+  // exists at /listings/[id] for hosts who configured one — it's
+  // just no longer mirrored on the browse grid.
   // ─────────────────────────────────────────────────────────────
-  if (canSeePreview && !canSeeFull) {
-    return (
-      <>
-        <Link
-          href={`/listings/${listing.id}`}
-          className="group block"
-        >
-          <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={images[currentImage] ?? PLACEHOLDER}
-              alt={`Preview of listing in ${listing.area_name}`}
-              className={cn(
-                "h-full w-full object-cover",
-                previewBlurs[currentImage]
-                  ? "scale-110 blur-lg"
-                  : "saturate-[0.92]"
-              )}
-            />
-
-            {/* Lock badge — top-left */}
-            <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur">
-              <Lock className="h-3 w-3" />
-              Private listing
-            </div>
-
-            {/* Preview tooltip — top-right */}
-            {/* Info tooltip — top-right */}
-            <div
-              className="absolute right-3 top-3 z-10 group/tip"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            >
-              <button
-                className="peer flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur"
-              >
-                <Info className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-              <div className="pointer-events-none absolute right-0 top-full z-20 mt-1 w-52 rounded-lg bg-foreground px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity peer-hover:opacity-100 peer-focus:opacity-100">
-                Your trust score with this host is below the required threshold. Get vouched by more people to unlock.
-              </div>
-            </div>
-
-            {/* Carousel nav */}
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={prev}
-                  aria-label="Previous photo"
-                  className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 p-1 opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-white"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={next}
-                  aria-label="Next photo"
-                  className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 p-1 opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-white"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-                <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 gap-1">
-                  {images.map((_, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        "h-1.5 w-1.5 rounded-full transition-colors",
-                        i === currentImage ? "bg-white" : "bg-white/50"
-                      )}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="mt-3">
-            <h3 className="font-semibold text-foreground leading-tight line-clamp-1">
-              {showNeighborhood ? listing.area_name : "Private location"}
-            </h3>
-            {showTitle && (
-              <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
-                {listing.title}
-              </p>
-            )}
-            {listing.host && showHostFirstName && (
-              <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
-                Hosted by {listing.host.name.split(" ")[0]}
-              </p>
-            )}
-            {listing.host && !showHostFirstName && (
-              <p className="mt-0.5 text-sm text-muted-foreground line-clamp-1">
-                Hosted by a Trustead member
-              </p>
-            )}
-            {trust && (
-              <div className="mt-1">
-                <TrustTag
-                  size="micro"
-                  score={trust.trust_score}
-                  degree={trust.degree}
-                  direct={trust.hasDirectVouch}
-                  connectorPaths={trust.connectorPaths}
-                  hostRating={
-                    showRating ? listing.host?.host_rating ?? null : null
-                  }
-                  hostReviewCount={
-                    showRating ? listing.host?.host_review_count ?? 0 : 0
-                  }
-                />
-              </div>
-            )}
-            {showPriceRange && (
-              <p className="mt-1">
-                {hasPriceRange ? (
-                  <>
-                    <span className="font-semibold">
-                      ${listing.price_min}&ndash;${listing.price_max}
-                    </span>
-                    <span className="text-muted-foreground"> / night</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="font-semibold">${price}</span>
-                    <span className="text-muted-foreground"> night</span>
-                  </>
-                )}
-              </p>
-            )}
-          </div>
-        </Link>
-      </>
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // Gated fallback — viewer can't even see preview.
-  // Blurred photo, hidden title, overlay CTA that opens a modal.
-  // (This shouldn't appear on browse — filtered out server-side —
-  // but kept for other contexts e.g. wishlists, search.)
-  // ─────────────────────────────────────────────────────────────
-  if (!canSeeFull && !canSeePreview) {
+  if (!canSeeFull) {
     const mutuals = trust?.mutualConnections ?? [];
     const openGate = (e: React.MouseEvent) => {
       e.preventDefault();

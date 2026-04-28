@@ -193,20 +193,15 @@ export function VouchModal({
   };
 
   const content = (
-    // No min-height: every absolute step panel inherits the active
-    // panel's height via `inset-0`, so forcing a floor here just adds
-    // dead whitespace below Continue when the tier cards happen to be
-    // the shortest of the four steps.
-    <div className="relative">
-      {/* Step 1: Vouch Type */}
-      <div
-        className={cn(
-          "transition-all duration-300 ease-in-out",
-          step === "type"
-            ? "translate-x-0 opacity-100"
-            : "-translate-x-full absolute inset-0 opacity-0 pointer-events-none"
-        )}
-      >
+    // Carousel-style siblings (translate-x with `absolute inset-0`)
+    // were stretching the active panel's hit-box past the dialog
+    // bounds — Step 2's bucket buttons rendered with their labels
+    // clipped off the left edge while the multipliers stayed visible
+    // on the right. Render only the active step instead. No layered
+    // off-screen panels, no transform leak.
+    <div>
+      {step === "type" && (
+      <div>
         <p className="mb-4 text-sm text-muted-foreground">
           How do you know {firstName}?
         </p>
@@ -283,18 +278,11 @@ export function VouchModal({
           </Button>
         </div>
       </div>
+      )}
 
       {/* Step 2: Years Known + Acknowledgment */}
-      <div
-        className={cn(
-          "transition-all duration-300 ease-in-out",
-          step === "years"
-            ? "translate-x-0 opacity-100"
-            : step === "type" || step === "remove_confirm"
-              ? "translate-x-full absolute inset-0 opacity-0 pointer-events-none"
-              : "-translate-x-full absolute inset-0 opacity-0 pointer-events-none"
-        )}
-      >
+      {step === "years" && (
+      <div>
         {isPostStay ? (
           <>
             <div className="rounded-xl border-2 border-brand bg-brand/5 p-4">
@@ -397,16 +385,11 @@ export function VouchModal({
           </Button>
         </div>
       </div>
+      )}
 
       {/* Remove Confirmation */}
-      <div
-        className={cn(
-          "transition-all duration-300 ease-in-out",
-          step === "remove_confirm"
-            ? "translate-x-0 opacity-100"
-            : "translate-x-full absolute inset-0 opacity-0 pointer-events-none"
-        )}
-      >
+      {step === "remove_confirm" && (
+      <div>
         <p className="text-sm text-muted-foreground">
           Are you sure you want to remove your vouch for{" "}
           <span className="font-medium text-foreground">{target.name}</span>?
@@ -443,16 +426,11 @@ export function VouchModal({
           </Button>
         </div>
       </div>
+      )}
 
       {/* Confirmation */}
-      <div
-        className={cn(
-          "transition-all duration-300 ease-in-out",
-          step === "confirm"
-            ? "translate-x-0 opacity-100"
-            : "translate-x-full absolute inset-0 opacity-0 pointer-events-none"
-        )}
-      >
+      {step === "confirm" && (
+      <div>
         <div className="flex flex-col items-center py-4 text-center">
           <Link href={`/profile/${target.id}`} className="relative group">
             <Avatar className="h-16 w-16 ring-2 ring-transparent group-hover:ring-brand/30 transition-all">
@@ -524,6 +502,7 @@ export function VouchModal({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 

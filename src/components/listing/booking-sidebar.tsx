@@ -316,8 +316,12 @@ export function BookingSidebar({
           bottom: "var(--mobile-nav-h, 3.75rem)",
         }}
       >
-        <div className="mx-auto flex max-w-md items-center justify-between gap-3">
-          <div>
+        {/* Stack vertically on narrow viewports (<480w) so the price
+            helper "Add dates for prices" doesn't get column-squeezed
+            into a 1-word stack alongside the CTA. The horizontal row
+            returns at sm: where there's room for both. */}
+        <div className="mx-auto flex max-w-md flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <div className="flex items-center justify-between gap-3 sm:block">
             <div>
               <span className="text-base font-semibold">${pricePerNight}</span>
               <span className="text-xs text-muted-foreground"> night</span>
@@ -328,7 +332,7 @@ export function BookingSidebar({
               </div>
             ) : (
               <button
-                className="text-xs underline text-muted-foreground"
+                className="whitespace-nowrap text-xs underline text-muted-foreground"
                 onClick={() => {
                   document
                     .getElementById("mobile-dates")
@@ -340,7 +344,7 @@ export function BookingSidebar({
             )}
           </div>
           <Button
-            className="h-11 rounded-lg bg-brand px-6 font-semibold hover:bg-brand-600"
+            className="h-11 w-full rounded-lg bg-brand px-6 font-semibold hover:bg-brand-600 sm:w-auto"
             onClick={openReview}
             disabled={!range?.from || !range?.to}
           >

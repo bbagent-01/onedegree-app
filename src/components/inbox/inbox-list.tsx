@@ -269,7 +269,21 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
       <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">
-            No conversations match.
+            {tab !== "intros" && introThreads.length > 0 ? (
+              <>
+                <div>No messages here yet.</div>
+                <button
+                  type="button"
+                  onClick={() => setTab("intros")}
+                  className="mt-2 inline-flex items-center gap-1 font-medium text-foreground underline underline-offset-2 hover:text-brand"
+                >
+                  You have {introThreads.length} intro request
+                  {introThreads.length === 1 ? "" : "s"}
+                </button>
+              </>
+            ) : (
+              "No conversations match."
+            )}
           </div>
         ) : (
           <ul>

@@ -122,11 +122,16 @@ export function BrowseLayout({
     else cardRefs.current.delete(id);
   };
 
+  // Use `minmax(0, 1fr)` instead of the bare `1fr` Tailwind preset.
+  // Plain `1fr` resolves to `minmax(auto, 1fr)` and lets a single
+  // intrinsically-wide child (e.g. a TrustTag mutuals row that ran a
+  // hair longer than the column) push the column past its track,
+  // overflowing the right edge of the viewport on mobile.
   const gridCols = useMemo(
     () =>
       mode === "split"
-        ? "grid-cols-1 sm:grid-cols-2"
-        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+        ? "grid-cols-[minmax(0,1fr)] sm:grid-cols-[repeat(2,minmax(0,1fr))]"
+        : "grid-cols-[minmax(0,1fr)] sm:grid-cols-[repeat(2,minmax(0,1fr))] lg:grid-cols-[repeat(3,minmax(0,1fr))] xl:grid-cols-[repeat(4,minmax(0,1fr))]",
     [mode]
   );
 
@@ -255,7 +260,7 @@ export function BrowseLayout({
                       setSelectedId((cur) => (cur === l.id ? null : cur))
                     }
                     className={cn(
-                      "h-fit self-start rounded-2xl p-3 transition-shadow",
+                      "h-fit min-w-0 self-start rounded-2xl p-3 transition-shadow",
                       selectedId === l.id &&
                         "shadow-[0_12px_32px_rgba(0,0,0,0.14)]"
                     )}
