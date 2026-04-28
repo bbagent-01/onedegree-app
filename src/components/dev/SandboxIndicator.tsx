@@ -101,12 +101,13 @@ export function SandboxIndicator() {
       )}
 
       {/* Floating switcher — circle icon, bottom-left, sitting just
-          to the right of the ImpersonationSwitcher pill (which is at
-          bottom-4 left-4 and capped at max-w-[180px]). 15rem clears
-          its rightmost edge with a small gap. */}
+          to the right of the ImpersonationSwitcher pill. The
+          impersonation pill's right edge falls around 252px when
+          the impersonated label is fully expanded; 17rem (272px)
+          gives a clean ~20px gap. */}
       <div
         ref={popoverRef}
-        className="fixed bottom-4 left-[15rem] z-[90]"
+        className="fixed bottom-4 left-[17rem] z-[90]"
       >
         <button
           type="button"
