@@ -17,7 +17,8 @@ import {
   getPresetById,
   setActivePresetId,
 } from "@/lib/dev-theme/brand-presets";
-import { ArrowRight, Check, Palette } from "lucide-react";
+import { ArrowRight, Check, Palette, Sliders } from "lucide-react";
+import { BrandEditorDrawer } from "./BrandEditorDrawer";
 
 /**
  * Floating brand switcher mounted on every route via SandboxMount.
@@ -35,6 +36,7 @@ export function SandboxIndicator() {
   const [active, setActive] = useState<string>("default");
   const [on, setOn] = useState(false);
   const [open, setOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -141,6 +143,20 @@ export function SandboxIndicator() {
             <div className="border-b border-white/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-white/50">
               Brand · alpha admin
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEditorOpen(true);
+                setOpen(false);
+              }}
+              className="flex w-full items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5 text-left text-sm font-medium text-white transition hover:bg-white/10"
+            >
+              <span className="flex items-center gap-2">
+                <Sliders className="h-3.5 w-3.5" style={{ color: "#BFE2D4" }} />
+                Edit theme
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 text-white/60" />
+            </button>
             <div className="py-1">
               {BRAND_PRESETS.map((p) => (
                 <button
@@ -183,6 +199,11 @@ export function SandboxIndicator() {
           </div>
         )}
       </div>
+
+      <BrandEditorDrawer
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+      />
     </>
   );
 }
