@@ -188,17 +188,18 @@ export const BRAND_PRESETS: BrandPreset[] = [
       }
 
       /* ── GLASS TILES ─────────────────────────────────────────
-         CRITICAL: cream-tinted glass on every .bg-white was
-         painting white over green, which visually averaged the
-         whole content area to gray-green. Flipped to a semi-
-         transparent darker forest tint — cards now read as
-         scooped wells in the frame interior, the saturation
-         stays rich, and the thin cream rim still defines edges. */
-      html[data-theme="sandbox"] .bg-white,
-      html[data-theme="sandbox"] .bg-card,
-      html[data-theme="sandbox"] .bg-popover,
-      html[data-theme="sandbox"] .bg-background {
-        background-color: rgba(4, 25, 18, 0.55) !important;
+         CRITICAL: the .page-frame element itself ALSO has the
+         class .bg-white in its className (set by PagesShowcase
+         for the default preset's full-bleed white surface). So
+         this selector would otherwise override the .page-frame's
+         own #0B2E26 forest fill back to glass. The :not()
+         excludes the frame so it keeps its solid forest interior.
+         Same for the popover / dialog selectors handled below. */
+      html[data-theme="sandbox"] .bg-white:not(.page-frame),
+      html[data-theme="sandbox"] .bg-card:not(.page-frame),
+      html[data-theme="sandbox"] .bg-popover:not(.page-frame),
+      html[data-theme="sandbox"] .bg-background:not(.page-frame) {
+        background-color: rgba(7, 34, 27, 0.55) !important;
         border: 1px solid rgba(245, 241, 230, 0.10) !important;
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
