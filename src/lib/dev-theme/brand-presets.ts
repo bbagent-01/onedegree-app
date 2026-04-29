@@ -133,14 +133,17 @@ export const BRAND_PRESETS: BrandPreset[] = [
         --tt-modal-blur: 14px;
         --tt-modal-padding: 2.5rem;
         --tt-headline-font: 'DM Serif Display', Georgia, serif;
-        /* Trust degree scale — wider separation between 1° and 4°
-           than the previous values so each step is visually distinct.
-           All preserve >=4.4:1 contrast with white. */
-        --tt-degree-1: #2A8A6B;
-        --tt-degree-2: #1F7553;
-        --tt-degree-3: #14503A;
-        --tt-degree-4: #1B342B;
-        --tt-degree-none: #000000;
+        /* Trust degree scale — each step visually distinct AND each
+           step has adequate contrast against the body bg (#07221B).
+           Earlier dim values (#14503A, #1B342B, #000000) blended into
+           the bg so the pill chip read as invisible. Bumped so the
+           weakest pill still reads as a clear chip. White text stays
+           >=5:1 on every step. Editable live via the brand drawer. */
+        --tt-degree-1: #4FB191;
+        --tt-degree-2: #2A8A6B;
+        --tt-degree-3: #1F7553;
+        --tt-degree-4: #2C5A4A;
+        --tt-degree-none: #525252;
       }
 
       /* ── BODY ────────────────────────────────────────────── */
@@ -194,7 +197,13 @@ export const BRAND_PRESETS: BrandPreset[] = [
         -webkit-backdrop-filter: blur(var(--tt-modal-blur)) !important;
       }
 
-      /* ── GLASS TILES ─────────────────────────────────────── */
+      /* ── GLASS TILES ───────────────────────────────────────
+         Any dark glass surface also resets the tone vars to cream.
+         Without this, a glass tile nested inside a light highlight
+         card (e.g. the "Pay in installments" details box inside the
+         "You approved …" approval card) inherits the parent's flipped
+         dark --tone-fg, painting dark text on dark glass = invisible.
+         Each surface declares its tone; children inherit appropriately. */
       html[data-theme="sandbox"] .bg-white:not(.page-frame):not([role="dialog"]),
       html[data-theme="sandbox"] .bg-card:not(.page-frame):not([role="dialog"]),
       html[data-theme="sandbox"] .bg-popover:not(.page-frame):not([role="dialog"]),
@@ -204,6 +213,9 @@ export const BRAND_PRESETS: BrandPreset[] = [
         border: 1px solid var(--tt-rule) !important;
         backdrop-filter: blur(var(--tt-glass-blur));
         -webkit-backdrop-filter: blur(var(--tt-glass-blur));
+        --tone-fg: var(--tt-cream);
+        --tone-fg-muted: var(--tt-cream-muted);
+        color: var(--tone-fg);
       }
 
       /* ── INTERACTIVE STATES — hover/focus/selected ───────────
@@ -352,10 +364,16 @@ export const BRAND_PRESETS: BrandPreset[] = [
         border: 1px solid rgba(245, 241, 230, 0.18) !important;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
-        padding: var(--tt-modal-padding) !important;
         box-shadow:
           0 50px 100px -25px rgba(0, 0, 0, 0.85),
           0 16px 40px -12px rgba(0, 0, 0, 0.55) !important;
+      }
+      /* Heavy modal padding only for actual dialogs — popovers (which
+         base-ui marks role="dialog" too) have their own snug Tailwind
+         padding for menu items. Without this exclusion the account
+         menu ended up with 2.5rem of empty padding on every side. */
+      html[data-theme="sandbox"] [role="dialog"]:not([data-slot="popover-content"]) {
+        padding: var(--tt-modal-padding) !important;
       }
       /* DialogFooter / action bar inside dialogs uses bg-muted
          which the surface rule would otherwise glass — match that
@@ -532,15 +550,21 @@ export const BRAND_PRESETS: BrandPreset[] = [
         -webkit-backdrop-filter: blur(10px);
       }
 
-      /* ── BRAND BUTTON (the mint pill) ──────────────────────── */
+      /* ── BRAND BUTTON (the mint pill) ────────────────────────
+         Padding override is gated to text buttons — small fixed-size
+         icon buttons (h-8/9/10/12 + matching w-) skip it so the icon
+         doesn't get pushed out of a 40×40 circle (which is what was
+         eating the search button's icon). */
       html[data-theme="sandbox"] button[class*="bg-brand"] {
         border-radius: 999px !important;
-        padding-left: 1.25rem !important;
-        padding-right: 1.25rem !important;
         font-weight: 600 !important;
         background-color: var(--tt-mint) !important;
         color: var(--tt-modal-bg) !important;
         border-color: transparent !important;
+      }
+      html[data-theme="sandbox"] button[class*="bg-brand"]:not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="w-12"]):not([class*="aspect-square"]) {
+        padding-left: 1.25rem !important;
+        padding-right: 1.25rem !important;
       }
       html[data-theme="sandbox"] button[class*="bg-brand"]:hover {
         background-color: var(--tt-mint-mid) !important;
@@ -624,33 +648,26 @@ export const BRAND_PRESETS: BrandPreset[] = [
         background-color: var(--tt-degree-4) !important;
       }
 
-      /* ── LISTING TILE GRID — single-line grid effect ──────────
-         Cards share 1px lines so the page reads as a continuous
-         grid rather than a row of boxed cards. To avoid adjacent
-         borders doubling at junctions (which created the "gap"
-         look), each card only carries border-right + border-bottom;
-         the grid container supplies the outer top + left edges. The
-         interior of each card keeps generous padding so the image
-         + text have breathing room, and images keep their rounded
-         corners (Loren's preference). */
+      /* ── LISTING TILE GRID — bordered cards, snug gap ───────
+         Cards get a full border + rounded corners on all four sides,
+         and the grid uses a tight gap (12px) so the cards feel
+         related without crowding. Reverts the prior "single-line
+         shared-border" look at Loren's request. */
       html[data-theme="sandbox"] [class*="grid"]:has(> a.group > [class*="aspect-[4/3]"]),
       html[data-theme="sandbox"] [class*="grid"]:has(> button.group > [class*="aspect-[4/3]"]) {
-        gap: 0 !important;
-        border-top: 1px solid var(--tt-glass-border);
-        border-left: 1px solid var(--tt-glass-border);
+        gap: 12px !important;
       }
       html[data-theme="sandbox"] a.group:has(> [class*="aspect-[4/3]"]),
       html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]) {
-        border: 0;
-        border-right: 1px solid var(--tt-glass-border);
-        border-bottom: 1px solid var(--tt-glass-border);
-        border-radius: 0;
-        padding: 20px;
-        transition: background-color 200ms ease;
+        border: 1px solid var(--tt-glass-border);
+        border-radius: 16px;
+        padding: 12px;
+        transition: background-color 200ms ease, border-color 200ms ease;
       }
       html[data-theme="sandbox"] a.group:has(> [class*="aspect-[4/3]"]):hover,
       html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]):hover {
         background-color: rgba(245, 241, 230, 0.04);
+        border-color: rgba(245, 241, 230, 0.22);
       }
 
       /* ── SHADOWS ─────────────────────────────────────────────

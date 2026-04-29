@@ -205,7 +205,7 @@ export function SearchBar({ suggestions, compact }: SearchBarProps) {
         </PopoverContent>
       </Popover>
 
-      <span className="h-8 w-px bg-border" />
+      <span className="self-stretch w-px bg-border" />
 
       {/* Dates */}
       <Popover open={dateOpen} onOpenChange={setDateOpen}>
@@ -242,7 +242,7 @@ export function SearchBar({ suggestions, compact }: SearchBarProps) {
         </PopoverContent>
       </Popover>
 
-      <span className="h-8 w-px bg-border" />
+      <span className="self-stretch w-px bg-border" />
 
       {/* Guests */}
       <Popover open={guestsOpen} onOpenChange={setGuestsOpen}>

@@ -16,15 +16,14 @@ interface Props {
   icon: LucideIcon;
   title: string;
   subtitle?: string;
-  /** Accent color for the icon chip. */
-  tone?: "neutral" | "emerald" | "amber" | "brand";
   /**
-   * When true, tint the whole card body with the tone (not just the
-   * icon chip). Used by S7 edit/edit-request markers so they stand
-   * out in the timeline as actionable state shifts rather than
-   * blending into the default white milestone look.
+   * Color family for the body + icon chip. Each tone is a complete
+   * style — pick the tone and you get the matched body, chip, and
+   * text colors. tone="neutral" stays white-on-glass; the colored
+   * tones get tinted bodies so every "Heads up"/system-event card
+   * pulls from the same set of styles regardless of caller.
    */
-  emphasizeBody?: boolean;
+  tone?: "neutral" | "emerald" | "amber" | "brand";
 }
 
 export function SystemMilestoneCard({
@@ -32,21 +31,25 @@ export function SystemMilestoneCard({
   title,
   subtitle,
   tone = "neutral",
-  emphasizeBody = false,
 }: Props) {
+  const bodyClass =
+    tone === "amber"
+      ? "border-amber-300 bg-amber-50"
+      : tone === "emerald"
+        ? "border-emerald-200 bg-emerald-50"
+        : tone === "brand"
+          ? "border-brand/40 bg-brand/5"
+          : "border-border bg-white";
+
+  // Amber body uses high-contrast dark amber text. Other tones rely
+  // on the body's own foreground (cream on neutral via glass rules,
+  // dark on emerald/brand cream-tinted bodies via tone-fg flip).
+  const titleClass = tone === "amber" ? "text-amber-900" : "";
+  const subtitleClass =
+    tone === "amber" ? "text-amber-800/80" : "text-muted-foreground";
+
   return (
-    <div
-      className={cn(
-        "mx-auto w-full max-w-xl rounded-2xl border p-4",
-        emphasizeBody && tone === "amber"
-          ? "border-amber-300 bg-amber-50"
-          : emphasizeBody && tone === "emerald"
-            ? "border-emerald-200 bg-emerald-50"
-            : emphasizeBody && tone === "brand"
-              ? "border-brand/40 bg-brand/5"
-              : "border-border bg-white"
-      )}
-    >
+    <div className={cn("mx-auto w-full max-w-xl rounded-2xl border p-4", bodyClass)}>
       <div className="flex items-start gap-3">
         <div
           className={cn(
@@ -60,23 +63,11 @@ export function SystemMilestoneCard({
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div
-            className={cn(
-              "text-sm font-semibold",
-              emphasizeBody && tone === "amber" && "text-amber-900"
-            )}
-          >
+          <div className={cn("text-sm font-semibold", titleClass)}>
             {title}
           </div>
           {subtitle && (
-            <div
-              className={cn(
-                "mt-0.5 text-xs",
-                emphasizeBody && tone === "amber"
-                  ? "text-amber-800/80"
-                  : "text-muted-foreground"
-              )}
-            >
+            <div className={cn("mt-0.5 text-xs", subtitleClass)}>
               {subtitle}
             </div>
           )}
