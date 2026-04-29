@@ -18,6 +18,7 @@ const isPublicRoute = createRouteMatcher([
   "/join/(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/onboarding(.*)",
 ]);
 
 /**
