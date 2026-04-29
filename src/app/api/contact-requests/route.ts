@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { validateBookingDates } from "@/lib/validate-booking-dates";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { rateLimitOr429 } from "@/lib/rate-limit";
 
 // GET: fetch contact requests for current user (as host or guest)
 export async function GET(req: Request) {
@@ -75,6 +76,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
+
+  const blocked = await rateLimitOr429("contactRequest", userId);
+  if (blocked) return blocked;
 
   const supabase = getSupabaseAdmin();
   const { data: currentUser } = await supabase

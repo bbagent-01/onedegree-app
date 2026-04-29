@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveAuth } from "@/lib/impersonation/session";
 import { getOrCreateThread } from "@/lib/messaging-data";
+import { rateLimitOr429 } from "@/lib/rate-limit";
 
 /**
  * POST /api/contact-requests/from-proposal/[threadId]
@@ -49,6 +50,9 @@ export async function POST(
 ) {
   const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const blocked = await rateLimitOr429("contactRequest", userId);
+  if (blocked) return blocked;
 
   const { threadId } = await ctx.params;
   if (!threadId) {

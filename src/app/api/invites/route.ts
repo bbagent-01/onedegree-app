@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailInvitation } from "@/lib/email";
 import { sendInviteSMS } from "@/lib/sms/send-invite";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { rateLimitOr429 } from "@/lib/rate-limit";
 
 // GET: list current user's invites
 export async function GET() {
@@ -47,6 +48,9 @@ export async function POST(req: Request) {
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });
   }
+
+  const blocked = await rateLimitOr429("invite", userId);
+  if (blocked) return blocked;
 
   const body = await req.json();
   const { inviteeName, inviteePhone, inviteeEmail, vouchType, yearsKnownBucket } = body;

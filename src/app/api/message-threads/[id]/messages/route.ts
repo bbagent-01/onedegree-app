@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailNewMessage } from "@/lib/email";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { rateLimitOr429 } from "@/lib/rate-limit";
 
 /**
  * POST /api/message-threads/[id]/messages
@@ -16,6 +17,9 @@ export async function POST(
   const { id: threadId } = await params;
   const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const blocked = await rateLimitOr429("dmMessage", userId);
+  if (blocked) return blocked;
 
   const supabase = getSupabaseAdmin();
   const { data: currentUser } = await supabase
