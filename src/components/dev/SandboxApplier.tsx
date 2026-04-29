@@ -10,12 +10,34 @@
 import { useEffect } from "react";
 import {
   applySandbox,
+  clearAll,
   SANDBOX_EVENT,
 } from "@/lib/dev-theme/sandbox";
 import { tokensByCategory } from "@/lib/dev-theme/tokens";
 
+// One-time migration flag. Visitors who were here before the trustead
+// canonicalization (commit f96547e) have `dev2.sandbox.enabled.v1` and
+// the override map persisted in sessionStorage from when the applier
+// auto-enabled trustead. Without this cleanup, applySandbox reads the
+// stale flag and re-injects the overlay on top of the now-canonical
+// CSS, leaving `data-theme="sandbox"` set on <html> and the user
+// stuck with two layers of the same theme. Run clearAll once per
+// fresh tab to drop the legacy state.
+const CANONICAL_MIGRATION_KEY = "dev2.canonical-migrated.v1";
+
 export default function SandboxApplier() {
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        if (sessionStorage.getItem(CANONICAL_MIGRATION_KEY) !== "1") {
+          clearAll();
+          sessionStorage.setItem(CANONICAL_MIGRATION_KEY, "1");
+        }
+      } catch {
+        /* sessionStorage may be unavailable (private mode quirks) — fine */
+      }
+    }
+
     const grouped = tokensByCategory();
     const all = [
       ...grouped.color,

@@ -65,14 +65,16 @@ function SignUpInner() {
   const redirectUrl = params.get("redirect_url") || "/browse";
 
   const completeSignUpAndRedirect = async (sessionId: string) => {
-    // setActive is typed nullable on useSignUp but in practice it's
-    // always present when isLoaded is true (which all callers gate
-    // on). Fall back to a resolved promise so the race still works.
-    const setActiveCall = setActive
-      ? setActive({ session: sessionId })
-      : Promise.resolve();
+    // useSignUp returns setActive as part of a discriminated union
+    // narrowed by isLoaded — outside an isLoaded check (e.g. inside a
+    // helper closure) TS sees setActive as possibly undefined. Guard
+    // here so TS narrows for the actual call below; in practice
+    // setActive is always defined by the time we get here because all
+    // call sites gate on `signUp.status === "complete"` which requires
+    // useSignUp to have loaded.
+    if (!setActive) return;
     await Promise.race([
-      setActiveCall,
+      setActive({ session: sessionId }),
       new Promise<void>((resolve) =>
         setTimeout(resolve, SETACTIVE_TIMEOUT_MS)
       ),
@@ -252,7 +254,7 @@ function SignUpInner() {
   const advanceSignUp = async (
     res: NonNullable<ReturnType<typeof useSignUp>["signUp"]>
   ) => {
-    if (res.status === "complete" && res.createdSessionId && setActive) {
+    if (res.status === "complete" && res.createdSessionId) {
       await completeSignUpAndRedirect(res.createdSessionId);
       return;
     }
@@ -342,7 +344,7 @@ function SignUpInner() {
     if (!isLoaded || saving) return;
     setSaving(true);
     try {
-      if (signUp.status === "complete" && signUp.createdSessionId && setActive) {
+      if (signUp.status === "complete" && signUp.createdSessionId) {
         await completeSignUpAndRedirect(signUp.createdSessionId);
         return;
       }
@@ -353,7 +355,7 @@ function SignUpInner() {
       const updated = (await (signUp as any).update({
         unsafeMetadata: { phone_skipped: true },
       })) as typeof signUp;
-      if (updated.status === "complete" && updated.createdSessionId && setActive) {
+      if (updated.status === "complete" && updated.createdSessionId) {
         await completeSignUpAndRedirect(updated.createdSessionId);
       } else {
         toast.error(
