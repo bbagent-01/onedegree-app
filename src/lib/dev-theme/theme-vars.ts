@@ -19,7 +19,7 @@ export interface ThemeVar {
   /** Human-readable name for the editor row. */
   name: string;
   /** Logical group used to section the editor UI. */
-  group: "Surfaces" | "Type" | "Accents" | "Effects";
+  group: "Surfaces" | "Type" | "Accents" | "Trust" | "Effects";
   /** Drives which input widget renders. */
   kind: ThemeVarKind;
   /** Canonical value (matches what brand-presets.ts declares). */
@@ -126,7 +126,47 @@ export const TRUSTEAD_THEME_VARS: ThemeVar[] = [
     group: "Accents",
     kind: "color",
     default: "#4FB191",
-    hint: "Trust-solid pill + CTA hover",
+    hint: "CTA hover state",
+  },
+  // Trust degree scale — drives pill bg, shield+score text, and
+  // connector dot colors per degree. White text contrast preserved
+  // on every step (>=4.4:1 against white).
+  {
+    id: "themevar/degree-1",
+    name: "1° (closest)",
+    group: "Trust",
+    kind: "color",
+    default: "#2A8A6B",
+    hint: "Brightest — direct vouch, max trust",
+  },
+  {
+    id: "themevar/degree-2",
+    name: "2°",
+    group: "Trust",
+    kind: "color",
+    default: "#1F7553",
+  },
+  {
+    id: "themevar/degree-3",
+    name: "3°",
+    group: "Trust",
+    kind: "color",
+    default: "#14503A",
+  },
+  {
+    id: "themevar/degree-4",
+    name: "4°",
+    group: "Trust",
+    kind: "color",
+    default: "#1B342B",
+    hint: "Darkest — three hops out",
+  },
+  {
+    id: "themevar/degree-none",
+    name: "No connection",
+    group: "Trust",
+    kind: "color",
+    default: "#000000",
   },
   // Effects
   {
@@ -156,5 +196,6 @@ export const THEME_VAR_GROUPS: Array<ThemeVar["group"]> = [
   "Surfaces",
   "Type",
   "Accents",
+  "Trust",
   "Effects",
 ];

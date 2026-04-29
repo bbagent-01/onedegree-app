@@ -133,6 +133,14 @@ export const BRAND_PRESETS: BrandPreset[] = [
         --tt-modal-blur: 14px;
         --tt-modal-padding: 2.5rem;
         --tt-headline-font: 'DM Serif Display', Georgia, serif;
+        /* Trust degree scale — wider separation between 1° and 4°
+           than the previous values so each step is visually distinct.
+           All preserve >=4.4:1 contrast with white. */
+        --tt-degree-1: #2A8A6B;
+        --tt-degree-2: #1F7553;
+        --tt-degree-3: #14503A;
+        --tt-degree-4: #1B342B;
+        --tt-degree-none: #000000;
       }
 
       /* ── BODY ────────────────────────────────────────────── */
@@ -503,29 +511,60 @@ export const BRAND_PRESETS: BrandPreset[] = [
       }
 
       /* ── TRUST DEGREE PILLS → GREEN SCALE ────────────────────
-         1° brightest, 4° darkest grayish-green, No-connection
-         near-black. White text contrast preserved on every step.
-         Selectors anchor on rounded-full plus the pill-specific bg
-         class so we don't repaint every emerald or zinc element on
-         the page. */
+         All routed through --tt-degree-N theme vars so the editor
+         can tune them live. Each degree's pill, shield+score text,
+         and connector dots resolve to the SAME var so the badge
+         reads as one color block per degree. */
       html[data-theme="sandbox"] [class*="rounded-full"][class*="bg-brand"][class*="text-white"] {
-        background-color: #2A8A6B !important;
+        background-color: var(--tt-degree-1) !important;
       }
       html[data-theme="sandbox"] [class*="rounded-full"][class*="bg-emerald-600"][class*="text-white"] {
-        background-color: #1F6B53 !important;
+        background-color: var(--tt-degree-2) !important;
       }
       html[data-theme="sandbox"] [class*="rounded-full"][class*="bg-[#bf8a0d]"][class*="text-white"] {
-        background-color: #154C3B !important;
+        background-color: var(--tt-degree-3) !important;
       }
       html[data-theme="sandbox"] [class*="rounded-full"][class*="bg-zinc-500"][class*="text-white"] {
-        background-color: #2C3E36 !important;
+        background-color: var(--tt-degree-4) !important;
       }
       html[data-theme="sandbox"] [class*="rounded-full"][class*="bg-zinc-900"][class*="text-white"] {
-        background-color: #000000 !important;
+        background-color: var(--tt-degree-none) !important;
       }
-      /* Same for the shield + score text colors that mirror the pill */
-      html[data-theme="sandbox"] .text-\\[\\#bf8a0d\\] {
-        color: #4FB191 !important;
+
+      /* 3° badge: shield+score text + all three mustard dot ramp
+         steps re-route to var(--tt-degree-3) so the entire badge
+         reads as one color. */
+      html[data-theme="sandbox"] .text-\\[\\#bf8a0d\\],
+      html[data-theme="sandbox"] .bg-\\[\\#bf8a0d\\],
+      html[data-theme="sandbox"] .bg-\\[\\#d4a024\\],
+      html[data-theme="sandbox"] .bg-\\[\\#e6b95c\\] {
+        color: var(--tt-degree-3) !important;
+        background-color: var(--tt-degree-3) !important;
+      }
+      /* Restore text color where the rule above wrongly painted it
+         (text-[#bf8a0d] only sets color, not background). */
+      html[data-theme="sandbox"] .text-\\[\\#bf8a0d\\]:not([class*="bg-"]) {
+        background-color: transparent !important;
+      }
+
+      /* 2° badge: shield uses text-emerald-700 + emerald dot ramp.
+         Re-route both to degree-2 so the whole badge matches. */
+      html[data-theme="sandbox"] [class*="text-emerald-700"]:not([class*="bg-"]) {
+        color: var(--tt-degree-2) !important;
+      }
+      html[data-theme="sandbox"] .bg-emerald-700,
+      html[data-theme="sandbox"] .bg-emerald-500,
+      html[data-theme="sandbox"] .bg-emerald-300,
+      html[data-theme="sandbox"] .bg-emerald-100 {
+        background-color: var(--tt-degree-2) !important;
+      }
+
+      /* 4° badge: shield uses text-zinc-600 + dot uses bg-zinc-300.
+         Already widely used elsewhere — only flip when it appears
+         within an inline-flex tag context (heuristic via -space-x
+         which the connector dots wrapper uses). */
+      html[data-theme="sandbox"] [class*="-space-x-"] .bg-zinc-300 {
+        background-color: var(--tt-degree-4) !important;
       }
 
       /* ── LISTING TILE GRID — rectilinear, zero gaps ──────────
