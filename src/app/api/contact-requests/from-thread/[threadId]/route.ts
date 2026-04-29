@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveAuth } from "@/lib/impersonation/session";
 import { rateLimitOr429 } from "@/lib/rate-limit";
+import { blockIfDemoMix } from "@/lib/demo-guard";
 
 /**
  * POST /api/contact-requests/from-thread/[threadId]
@@ -64,6 +65,11 @@ export async function POST(
       { status: 403 }
     );
   }
+
+  // Host (viewer) is sending terms to the thread's guest — block if
+  // this crosses the demo boundary.
+  const demoBlock = await blockIfDemoMix(viewer.id, thread.guest_id);
+  if (demoBlock) return demoBlock;
   if (!thread.listing_id) {
     return Response.json(
       { error: "Thread has no listing attached." },

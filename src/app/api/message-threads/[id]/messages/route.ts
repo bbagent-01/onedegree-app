@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailNewMessage } from "@/lib/email";
 import { effectiveAuth } from "@/lib/impersonation/session";
 import { rateLimitOr429 } from "@/lib/rate-limit";
+import { blockIfDemoMix } from "@/lib/demo-guard";
 
 /**
  * POST /api/message-threads/[id]/messages
@@ -44,6 +45,11 @@ export async function POST(
   if (thread.guest_id !== currentUser.id && thread.host_id !== currentUser.id) {
     return Response.json({ error: "Not authorized" }, { status: 403 });
   }
+
+  const otherParticipantId =
+    thread.guest_id === currentUser.id ? thread.host_id : thread.guest_id;
+  const demoBlock = await blockIfDemoMix(currentUser.id, otherParticipantId);
+  if (demoBlock) return demoBlock;
 
   // Sender-side message gate: once an intro has been declined, the
   // sender can't keep posting. Only the recipient can keep the

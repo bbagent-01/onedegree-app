@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { validateBookingDates } from "@/lib/validate-booking-dates";
 import { effectiveAuth } from "@/lib/impersonation/session";
 import { rateLimitOr429 } from "@/lib/rate-limit";
+import { blockIfDemoMix } from "@/lib/demo-guard";
 
 // GET: fetch contact requests for current user (as host or guest)
 export async function GET(req: Request) {
@@ -109,6 +110,9 @@ export async function POST(req: Request) {
   if (listing.host_id === currentUser.id) {
     return Response.json({ error: "You can't request your own listing" }, { status: 400 });
   }
+
+  const demoBlock = await blockIfDemoMix(currentUser.id, listing.host_id);
+  if (demoBlock) return demoBlock;
 
   // Validate dates against calendar rules if both dates provided
   if (checkIn && checkOut) {

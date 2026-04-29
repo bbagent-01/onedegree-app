@@ -7,6 +7,7 @@ import { emailNewBookingRequest } from "@/lib/email";
 import { effectiveAuth } from "@/lib/impersonation/session";
 import { resolveEffectivePolicy } from "@/lib/cancellation";
 import { RESERVATION_REQUEST_PREFIX } from "@/lib/structured-messages";
+import { blockIfDemoMix } from "@/lib/demo-guard";
 
 /**
  * Track B reservation endpoint.
@@ -80,6 +81,9 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+
+  const demoBlock = await blockIfDemoMix(currentUser.id, listing.host_id);
+  if (demoBlock) return demoBlock;
 
   // The guest's typed message is what the host should see in the preview
   // card. Fall back to a short placeholder if empty so the column is never
