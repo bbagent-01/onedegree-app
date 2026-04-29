@@ -237,28 +237,85 @@ export const BRAND_PRESETS: BrandPreset[] = [
       }
 
       /* ── AMBER ALERT / SYSTEM-MILESTONE CARDS ────────────────
-         Properly yellow-tinted now (not transparent). Soft warm
-         glow so the alert reads as warm/notification but stays
-         legible on the dark forest bg. Tone-fg vars flip in
-         tandem so amber-tinted text inside reads dark. */
+         Solid cream-yellow surfaces (not translucent). Translucent
+         amber over dark forest read as muddy olive; solid cream
+         pops as a proper notification. Dark amber text + brighter
+         icon chip preserve hierarchy. */
       html[data-theme="sandbox"] .bg-amber-50,
       html[data-theme="sandbox"] [class*="bg-amber-50/"] {
-        background-color: rgba(251, 191, 36, 0.18) !important;
-        border-color: rgba(251, 191, 36, 0.45) !important;
-        --tone-fg: #3A2400;
-        --tone-fg-muted: rgba(58, 36, 0, 0.75);
+        background-color: #FAEDC2 !important;
+        border-color: rgba(150, 100, 0, 0.5) !important;
+        --tone-fg: #4A2E00;
+        --tone-fg-muted: rgba(74, 46, 0, 0.72);
       }
-      /* bg-amber-100 is the small icon badge inside those cards. */
+      /* Icon chip — solid amber so it pops on the cream-yellow card. */
       html[data-theme="sandbox"] .bg-amber-100 {
-        background-color: rgba(251, 191, 36, 0.55) !important;
+        background-color: #FCD34D !important;
       }
       html[data-theme="sandbox"] .border-amber-200,
       html[data-theme="sandbox"] .border-amber-300 {
-        border-color: rgba(251, 191, 36, 0.45) !important;
+        border-color: rgba(150, 100, 0, 0.5) !important;
       }
+      /* All amber text classes route to dark amber so they stay
+         legible on either the cream-yellow card or the bright amber
+         chip. text-amber-900 was missed previously — that's the
+         emphasizeBody title which was rendering bright orange. */
       html[data-theme="sandbox"] .text-amber-700,
-      html[data-theme="sandbox"] .text-amber-800 {
-        color: #5A3A00 !important;
+      html[data-theme="sandbox"] .text-amber-800,
+      html[data-theme="sandbox"] .text-amber-900,
+      html[data-theme="sandbox"] [class*="text-amber-800/"] {
+        color: #4A2E00 !important;
+      }
+
+      /* ── IMPORTANT HIGHLIGHT CARDS — white-bg dark-text ──────
+         Loren's "designation": cards that hold important info
+         (terms, check-in, approval) get a high-contrast cream
+         background + dark forest text so they pop off the dark
+         page bg. Target the border-2 + rounded-2xl + bg-white
+         signature unique to TermsOfferedCard / approval cards.
+         Tone-fg vars flip so all nested muted text + zinc/gray
+         scales also resolve dark within these cards. */
+      html[data-theme="sandbox"] [class*="border-2"][class*="rounded-2xl"][class*="bg-white"] {
+        background-color: var(--tt-cream) !important;
+        color: var(--tt-modal-bg) !important;
+        --tone-fg: var(--tt-modal-bg);
+        --tone-fg-muted: rgba(11, 46, 37, 0.62);
+        border: 1px solid rgba(11, 46, 37, 0.20) !important;
+        backdrop-filter: none !important;
+      }
+      /* Internal dividers + borders inside the highlight card: dark
+         forest at low opacity so structure reads but doesn't clutter. */
+      html[data-theme="sandbox"] [class*="border-2"][class*="rounded-2xl"][class*="bg-white"] [class~="border"],
+      html[data-theme="sandbox"] [class*="border-2"][class*="rounded-2xl"][class*="bg-white"] [class*="border-t"],
+      html[data-theme="sandbox"] [class*="border-2"][class*="rounded-2xl"][class*="bg-white"] [class*="border-b"],
+      html[data-theme="sandbox"] [class*="border-2"][class*="rounded-2xl"][class*="bg-white"] [class*="divide-"] > *,
+      html[data-theme="sandbox"] [class*="border-2"][class*="rounded-2xl"][class*="bg-white"] [class*="divide-y"] > * {
+        border-color: rgba(11, 46, 37, 0.14) !important;
+      }
+      /* Buttons inside the highlight card: dark border, transparent
+         bg so they read against cream. */
+      html[data-theme="sandbox"] [class*="border-2"][class*="rounded-2xl"][class*="bg-white"] button[class*="border"]:not([class*="bg-brand"]) {
+        background-color: transparent !important;
+        border-color: rgba(11, 46, 37, 0.20) !important;
+        color: var(--tt-modal-bg) !important;
+      }
+      /* Same treatment for emerald-50 / sky-50 highlight variants
+         (accepted, payment-due) — flip to soft mint-cream / sky-cream
+         instead of translucent over dark. Inherit the same tone-fg
+         flip so nested text reads dark. */
+      html[data-theme="sandbox"] [class*="border-2"][class*="rounded-2xl"][class*="bg-emerald-50"] {
+        background-color: #E5F5EE !important;
+        color: var(--tt-modal-bg) !important;
+        --tone-fg: var(--tt-modal-bg);
+        --tone-fg-muted: rgba(11, 46, 37, 0.62);
+        border-color: rgba(31, 117, 83, 0.40) !important;
+      }
+      html[data-theme="sandbox"] [class*="border-2"][class*="rounded-2xl"][class*="bg-sky-50"] {
+        background-color: #E6F0F7 !important;
+        color: var(--tt-modal-bg) !important;
+        --tone-fg: var(--tt-modal-bg);
+        --tone-fg-muted: rgba(11, 46, 37, 0.62);
+        border-color: rgba(56, 100, 130, 0.40) !important;
       }
 
       /* ── SMALL LABELS → PILL EVERYWHERE ──────────────────────
@@ -567,42 +624,33 @@ export const BRAND_PRESETS: BrandPreset[] = [
         background-color: var(--tt-degree-4) !important;
       }
 
-      /* ── LISTING TILE GRID — rectilinear, zero gaps ──────────
-         Loren's call: the listing browse view becomes a
-         continuous magazine-style grid. Cards have no rounded
-         corners, no gaps between them, and generous interior
-         padding so the breathing room moves from "between cards"
-         to "inside cards". Adjacent borders share visually.
-
-         Parent grid: gap collapses to 0. The :has() chain matches
-         a grid that directly contains listing tiles, so other grid
-         layouts on the site stay unchanged. */
+      /* ── LISTING TILE GRID — single-line grid effect ──────────
+         Cards share 1px lines so the page reads as a continuous
+         grid rather than a row of boxed cards. To avoid adjacent
+         borders doubling at junctions (which created the "gap"
+         look), each card only carries border-right + border-bottom;
+         the grid container supplies the outer top + left edges. The
+         interior of each card keeps generous padding so the image
+         + text have breathing room, and images keep their rounded
+         corners (Loren's preference). */
       html[data-theme="sandbox"] [class*="grid"]:has(> a.group > [class*="aspect-[4/3]"]),
       html[data-theme="sandbox"] [class*="grid"]:has(> button.group > [class*="aspect-[4/3]"]) {
         gap: 0 !important;
+        border-top: 1px solid var(--tt-glass-border);
+        border-left: 1px solid var(--tt-glass-border);
       }
-
-      /* The tiles themselves: square corners, thin cream border,
-         interior padding (20px) so image + content have room.
-         Images inside also lose their rounded-xl so the look reads
-         as a uniform grid block. */
       html[data-theme="sandbox"] a.group:has(> [class*="aspect-[4/3]"]),
       html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]) {
-        border: 1px solid var(--tt-glass-border);
+        border: 0;
+        border-right: 1px solid var(--tt-glass-border);
+        border-bottom: 1px solid var(--tt-glass-border);
         border-radius: 0;
         padding: 20px;
-        transition: box-shadow 200ms ease, border-color 200ms ease, background-color 200ms ease;
-      }
-      html[data-theme="sandbox"] a.group > [class*="aspect-[4/3]"][class*="rounded-xl"],
-      html[data-theme="sandbox"] button.group > [class*="aspect-[4/3]"][class*="rounded-xl"] {
-        border-radius: 0 !important;
+        transition: background-color 200ms ease;
       }
       html[data-theme="sandbox"] a.group:has(> [class*="aspect-[4/3]"]):hover,
       html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]):hover {
-        box-shadow:
-          0 24px 60px -15px rgba(0, 0, 0, 0.7),
-          0 8px 20px -8px rgba(0, 0, 0, 0.45);
-        border-color: rgba(245, 241, 230, 0.22);
+        background-color: rgba(245, 241, 230, 0.04);
       }
 
       /* ── SHADOWS ─────────────────────────────────────────────
