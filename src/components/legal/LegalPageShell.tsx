@@ -97,10 +97,10 @@ export function LegalPageShell({
               <p>
                 Questions? Email{" "}
                 <a
-                  href="mailto:hello@staytrustead.com"
+                  href="mailto:hello@trustead.app"
                   className="font-semibold text-foreground underline underline-offset-2 hover:text-brand"
                 >
-                  hello@staytrustead.com
+                  hello@trustead.app
                 </a>
                 . Loren Polster LLC DBA Trustead · NY DOS ID 5908355 · 367 St
                 Marks Ave #1087, Brooklyn, NY 11238.
@@ -121,10 +121,10 @@ function AlphaBanner() {
       <strong className="font-semibold">Alpha draft</strong> — effective April
       25, 2026. These terms apply during our free beta. Contact{" "}
       <a
-        href="mailto:hello@staytrustead.com"
+        href="mailto:hello@trustead.app"
         className="font-semibold underline underline-offset-2"
       >
-        hello@staytrustead.com
+        hello@trustead.app
       </a>{" "}
       with questions.
     </div>

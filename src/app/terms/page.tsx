@@ -401,7 +401,7 @@ export default function TermsPage() {
       </h2>
       <p>
         You may close your account at any time by contacting{" "}
-        <a href="mailto:hello@staytrustead.com">hello@staytrustead.com</a> or
+        <a href="mailto:hello@trustead.app">hello@trustead.app</a> or
         using any account-closure feature provided on the Platform. Trustead
         may suspend or terminate your access to the Platform at any time, with
         or without notice, for any reason, including violation of these Terms.
@@ -511,7 +511,7 @@ export default function TermsPage() {
       <p>
         19.6. <strong>30-day opt-out.</strong> You may opt out of this
         arbitration agreement by sending a written opt-out notice to{" "}
-        <a href="mailto:hello@staytrustead.com">hello@staytrustead.com</a>{" "}
+        <a href="mailto:hello@trustead.app">hello@trustead.app</a>{" "}
         within thirty (30) days of first accepting these Terms, stating your
         name, account email, and clear intent to opt out. Opting out does not
         affect any other provision of these Terms.
@@ -574,7 +574,7 @@ export default function TermsPage() {
       </p>
       <p>
         22.7. <em>Contact.</em> Questions about these Terms:{" "}
-        <a href="mailto:hello@staytrustead.com">hello@staytrustead.com</a>, 367
+        <a href="mailto:hello@trustead.app">hello@trustead.app</a>, 367
         St Marks Ave #1087, Brooklyn, NY 11238.
       </p>
     </LegalPageShell>

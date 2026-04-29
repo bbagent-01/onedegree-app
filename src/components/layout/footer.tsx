@@ -69,7 +69,7 @@ const LEGAL_LINKS: FooterLink[] = [
   { label: "Terms", href: "/terms" },
   { label: "Privacy", href: "/privacy" },
   { label: "Beta Status", href: "/legal-status" },
-  { label: "Contact", href: "mailto:hello@staytrustead.com", external: true },
+  { label: "Contact", href: "mailto:hello@trustead.app", external: true },
 ];
 
 function FooterLinkItem({ link }: { link: FooterLink }) {

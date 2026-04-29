@@ -340,7 +340,7 @@ async function sendAlertEmail(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Trustead <hello@staytrustead.com>",
+        from: "Trustead <hello@trustead.app>",
         to: subscriber.email,
         subject: `New ${args.kindLabel} in your network — ${args.title}`,
         html,
