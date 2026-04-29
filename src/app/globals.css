@@ -1,17 +1,564 @@
+/* ──────────────────────────────────────────────────────────────
+   Trustead canonical theme.
+
+   This file is the source of truth for the app's look. The forest
+   green / cream / mint look used to be a runtime overlay applied
+   by <SandboxApplier /> via JavaScript on every page load — the
+   underlying tokens were still the legacy Attio Light theme. Now
+   the trustead values are baked in here (and in tailwind.config.ts)
+   so the page renders correctly even if all client-side theme
+   tooling fails to mount.
+
+   The dev-theme/ folder is still in the codebase for the brand-
+   switcher tool, but it no longer mounts automatically and the
+   "trustead" preset's overrides are now redundant with this CSS.
+   Switch a different preset on top of this layer for design
+   experimentation.
+─────────────────────────────────────────────────────────────── */
+
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Instrument+Serif:ital@0;1&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Theme custom properties ─────────────────────────────────
+   Foundational Trustead-theme values. Components reference these
+   via var(--tt-*) so future palette tweaks land in one place. */
+:root {
+  --tt-body-bg: #07221b;
+  --tt-frame-bg: #0b2e26;
+  --tt-glass-bg: rgba(7, 34, 27, 0.75);
+  --tt-glass-border: rgba(245, 241, 230, 0.14);
+  --tt-rule: rgba(245, 241, 230, 0.1);
+  --tt-modal-bg: #0b2e25;
+  --tt-cream: #f5f1e6;
+  --tt-cream-muted: rgba(245, 241, 230, 0.62);
+  --tt-mint: #bfe2d4;
+  --tt-mint-mid: #4fb191;
+  --tt-h1-size: clamp(40px, 6vw, 72px);
+  --tt-h2-size: clamp(28px, 3.5vw, 44px);
+  --tt-glass-blur: 6px;
+  --tt-modal-blur: 14px;
+  --tt-modal-padding: 2.5rem;
+  --tt-headline-font: "DM Serif Display", Georgia, serif;
+  /* Trust degree scale — each step visually distinct AND each step has
+     adequate contrast against the body bg (#07221B). White text stays
+     >=5:1 on every step. */
+  --tt-degree-1: #4fb191;
+  --tt-degree-2: #2a8a6b;
+  --tt-degree-3: #1f7553;
+  --tt-degree-4: #2c5a4a;
+  --tt-degree-none: #525252;
+  /* Tone inheritance: every surface declares a tone, children inherit
+     the inverse. Default = cream text on dark; flipped to dark text on
+     cream/light surfaces. */
+  --tone-fg: var(--tt-cream);
+  --tone-fg-muted: var(--tt-cream-muted);
+}
 
 @layer base {
   * {
     border-color: theme("colors.border");
   }
 
+  html,
   body {
-    @apply bg-background text-foreground antialiased;
+    background: var(--tt-body-bg);
+    color: var(--tt-cream);
+  }
+
+  body {
+    @apply antialiased;
     font-family: "DM Sans", system-ui, sans-serif;
   }
 }
+
+/* ── SCREEN FRAME ────────────────────────────────────────────── */
+.page-frame {
+  margin: 32px 0 56px !important;
+  border-radius: 24px !important;
+  overflow: hidden !important;
+  background: var(--tt-frame-bg) !important;
+  border: 1px solid var(--tt-rule) !important;
+  box-shadow: 0 40px 90px -22px rgba(0, 0, 0, 0.78),
+    0 8px 24px -8px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(245, 241, 230, 0.05) !important;
+}
+.page-frame [class~="border-b"] {
+  border-bottom-color: var(--tt-rule) !important;
+}
+.page-frame nav,
+.page-frame aside {
+  background: rgba(7, 34, 27, 0.65) !important;
+}
+
+/* ── PAGE-CHROME NAV BAR ─────────────────────────────────────── */
+.bg-white\/95,
+.bg-white\/90,
+.bg-white\/80,
+.bg-white\/70,
+.bg-white\/60,
+[class*="bg-background/"],
+[class*="bg-card/"],
+[class*="bg-popover/"],
+[class*="bg-surface/"] {
+  background-color: rgba(7, 34, 27, 0.85) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ── BACKDROP DIM ────────────────────────────────────────────── */
+.bg-black\/40,
+.bg-black\/50,
+.bg-black\/60 {
+  background-color: var(--tt-glass-bg) !important;
+  backdrop-filter: blur(var(--tt-modal-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--tt-modal-blur)) !important;
+}
+
+/* ── GLASS TILES ─────────────────────────────────────────────
+   Any dark glass surface also resets the tone vars to cream so a
+   glass tile nested inside a light highlight card (e.g. the "Pay
+   in installments" details box inside the "You approved …" card)
+   renders cream text instead of inheriting the parent's flipped
+   dark --tone-fg. */
+.bg-white:not(.page-frame):not([role="dialog"]),
+.bg-card:not(.page-frame):not([role="dialog"]),
+.bg-popover:not(.page-frame):not([role="dialog"]),
+.bg-background:not(.page-frame):not([role="dialog"]),
+.bg-surface:not(.page-frame):not([role="dialog"]) {
+  background-color: var(--tt-glass-bg) !important;
+  border: 1px solid var(--tt-rule) !important;
+  backdrop-filter: blur(var(--tt-glass-blur));
+  -webkit-backdrop-filter: blur(var(--tt-glass-blur));
+  --tone-fg: var(--tt-cream);
+  --tone-fg-muted: var(--tt-cream-muted);
+  color: var(--tone-fg);
+}
+
+/* ── INTERACTIVE STATES — hover/focus/selected ───────────────
+   Tailwind compiles hover:bg-white into a hover-pseudoclass selector
+   that the static .bg-white rule above does NOT match. Without this,
+   list rows hover to pure white with cream text. */
+[class*="hover\:bg-white"]:hover,
+[class*="focus\:bg-white"]:focus,
+[class*="hover\:bg-card"]:hover,
+[class*="hover\:bg-popover"]:hover {
+  background-color: rgba(245, 241, 230, 0.08) !important;
+}
+.bg-muted:not([class*="bg-muted-foreground"]) {
+  background-color: rgba(245, 241, 230, 0.06) !important;
+}
+[class*="hover\:bg-muted"]:hover,
+[class*="hover\:bg-accent"]:hover {
+  background-color: rgba(245, 241, 230, 0.08) !important;
+}
+[class*="bg-muted/"] {
+  background-color: rgba(245, 241, 230, 0.04) !important;
+}
+
+/* ── AMBER ALERT / SYSTEM-MILESTONE CARDS ────────────────────
+   Solid cream-yellow surfaces (not translucent). Translucent amber
+   over dark forest read as muddy olive; solid cream pops as a proper
+   notification. */
+.bg-amber-50,
+[class*="bg-amber-50/"] {
+  background-color: #faedc2 !important;
+  border-color: rgba(150, 100, 0, 0.5) !important;
+  --tone-fg: #4a2e00;
+  --tone-fg-muted: rgba(74, 46, 0, 0.72);
+}
+.bg-amber-100 {
+  background-color: #fcd34d !important;
+}
+.border-amber-200,
+.border-amber-300 {
+  border-color: rgba(150, 100, 0, 0.5) !important;
+}
+.text-amber-700,
+.text-amber-800,
+.text-amber-900,
+[class*="text-amber-800/"] {
+  color: #4a2e00 !important;
+}
+
+/* ── IMPORTANT HIGHLIGHT CARDS — cream-bg dark-text ──────────
+   Cards with the border-2 + rounded-2xl + bg-white signature get a
+   high-contrast cream background + dark forest text so they pop off
+   the dark page. */
+[class*="border-2"][class*="rounded-2xl"][class*="bg-white"] {
+  background-color: var(--tt-cream) !important;
+  color: var(--tt-modal-bg) !important;
+  --tone-fg: var(--tt-modal-bg);
+  --tone-fg-muted: rgba(11, 46, 37, 0.62);
+  border: 1px solid rgba(11, 46, 37, 0.2) !important;
+  backdrop-filter: none !important;
+}
+[class*="border-2"][class*="rounded-2xl"][class*="bg-white"] [class~="border"],
+[class*="border-2"][class*="rounded-2xl"][class*="bg-white"] [class*="border-t"],
+[class*="border-2"][class*="rounded-2xl"][class*="bg-white"] [class*="border-b"],
+[class*="border-2"][class*="rounded-2xl"][class*="bg-white"] [class*="divide-"] > *,
+[class*="border-2"][class*="rounded-2xl"][class*="bg-white"] [class*="divide-y"] > * {
+  border-color: rgba(11, 46, 37, 0.14) !important;
+}
+[class*="border-2"][class*="rounded-2xl"][class*="bg-white"] button[class*="border"]:not([class*="bg-brand"]) {
+  background-color: transparent !important;
+  border-color: rgba(11, 46, 37, 0.2) !important;
+  color: var(--tt-modal-bg) !important;
+}
+[class*="border-2"][class*="rounded-2xl"][class*="bg-emerald-50"] {
+  background-color: #e5f5ee !important;
+  color: var(--tt-modal-bg) !important;
+  --tone-fg: var(--tt-modal-bg);
+  --tone-fg-muted: rgba(11, 46, 37, 0.62);
+  border-color: rgba(31, 117, 83, 0.4) !important;
+}
+[class*="border-2"][class*="rounded-2xl"][class*="bg-sky-50"] {
+  background-color: #e6f0f7 !important;
+  color: var(--tt-modal-bg) !important;
+  --tone-fg: var(--tt-modal-bg);
+  --tone-fg-muted: rgba(11, 46, 37, 0.62);
+  border-color: rgba(56, 100, 130, 0.4) !important;
+}
+
+/* ── ROUNDED CORNERS GUARANTEE ───────────────────────────────
+   Loren's rule: labels, badges, buttons, anchors, and pills should
+   never have square corners. Only structural grid containers stay
+   square. Any small content element without an explicit rounded
+   utility gets a small default radius. */
+:is(button, span, a, label, [role="button"]):not([class*="rounded"]) {
+  border-radius: 6px;
+}
+
+/* ── SMALL LABELS → PILL EVERYWHERE ──────────────────────────
+   Any little label/badge with small text + bg + horizontal padding
+   becomes a pill. Buttons / inputs / textareas excluded. */
+:is([class*="rounded-md"], [class*="rounded-sm"], [class*="rounded "])[class*="text-xs"][class*="px-"]:not(button):not(input):not(textarea):not(label),
+:is([class*="rounded-md"], [class*="rounded-sm"], [class*="rounded "])[class*="text-[10"][class*="px-"]:not(button):not(input):not(textarea):not(label),
+:is([class*="rounded-md"], [class*="rounded-sm"], [class*="rounded "])[class*="text-[11"][class*="px-"]:not(button):not(input):not(textarea):not(label) {
+  border-radius: 999px !important;
+}
+
+/* ── CHAT MESSAGE BUBBLES → CREAM WITH DARK TEXT ─────────────
+   Both sides of the conversation become cream cards with dark forest
+   text — pops against the dark glass thread pane. */
+[class*="rounded-bl-sm"][class*="bg-muted"],
+[class*="rounded-br-sm"][class*="bg-brand"],
+[class*="rounded-bl-sm"][class*="bg-brand"],
+[class*="rounded-br-sm"][class*="bg-muted"] {
+  background-color: var(--tt-cream) !important;
+  color: var(--tt-modal-bg) !important;
+  --tone-fg: var(--tt-modal-bg);
+  --tone-fg-muted: rgba(11, 46, 37, 0.65);
+}
+
+/* ── MODALS / DIALOGS ────────────────────────────────────────── */
+[role="dialog"] {
+  background: var(--tt-modal-bg) !important;
+  background-color: var(--tt-modal-bg) !important;
+  border: 1px solid rgba(245, 241, 230, 0.18) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 50px 100px -25px rgba(0, 0, 0, 0.85),
+    0 16px 40px -12px rgba(0, 0, 0, 0.55) !important;
+}
+/* Heavy modal padding only for actual dialogs — popovers (which
+   base-ui marks role="dialog" too) keep their tighter Tailwind
+   padding for menu items. */
+[role="dialog"]:not([data-slot="popover-content"]) {
+  padding: var(--tt-modal-padding) !important;
+}
+[role="dialog"] [class*="bg-muted"],
+[role="dialog"] .border-t {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: var(--tt-glass-border) !important;
+  backdrop-filter: none !important;
+}
+
+/* Translucent overlays (modal backdrops, hover scrims). */
+.bg-black\/40,
+.bg-black\/50,
+.bg-black\/60 {
+  background-color: rgba(11, 46, 37, 0.7) !important;
+}
+
+/* Borders → faint cream */
+[class~="border"]:not([class*="border-brand"]):not([class*="border-danger"]):not([class*="border-emerald"]):not([class*="border-amber"]):not([class*="border-rose"]) {
+  border-color: var(--tt-glass-border) !important;
+}
+
+/* ── TONE INHERITANCE ────────────────────────────────────────
+   Every surface declares a tone, children inherit the inverse.
+   Light surfaces flip the tone variables for their subtree so any
+   descendant text-zinc/gray/slate-N rule resolves to dark. */
+[class*="bg-zinc-50"],
+[class*="bg-zinc-100"],
+[class*="bg-zinc-200"],
+[class*="bg-gray-50"],
+[class*="bg-gray-100"],
+[class*="bg-gray-200"],
+[class*="bg-slate-50"],
+[class*="bg-slate-100"],
+button[class*="bg-brand"],
+[class*="bg-amber-100"] {
+  --tone-fg: var(--tt-modal-bg);
+  --tone-fg-muted: rgba(11, 46, 37, 0.65);
+}
+.text-zinc-400,
+.text-zinc-500,
+.text-zinc-600,
+.text-gray-400,
+.text-gray-500,
+.text-gray-600,
+.text-slate-400,
+.text-slate-500,
+.text-slate-600 {
+  color: var(--tone-fg-muted) !important;
+}
+.text-zinc-700,
+.text-zinc-800,
+.text-zinc-900,
+.text-gray-700,
+.text-gray-800,
+.text-gray-900,
+.text-slate-700,
+.text-slate-800,
+.text-slate-900 {
+  color: var(--tone-fg) !important;
+}
+
+/* Default text colors */
+.text-foreground,
+[class*="text-foreground/"] {
+  color: var(--tone-fg) !important;
+}
+.text-muted-foreground {
+  color: var(--tone-fg-muted) !important;
+}
+
+/* Form fields → dark green tinted glass.
+   Inputs with explicit bg-transparent (e.g. the price min/max number
+   fields nested inside an already-styled container) keep their
+   transparent bg so the parent's chrome isn't doubled up with a
+   darker rectangle behind the digits. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([class*="bg-transparent"]),
+textarea:not([class*="bg-transparent"]),
+select,
+[role="combobox"],
+[class*="!bg-white"] {
+  background-color: rgba(4, 25, 18, 0.55) !important;
+  color: var(--tt-cream) !important;
+  border-color: var(--tt-glass-border) !important;
+}
+input::placeholder,
+textarea::placeholder {
+  color: rgba(245, 241, 230, 0.4) !important;
+}
+
+/* Divider / separator lines */
+hr,
+[data-orientation="horizontal"][role="separator"] {
+  background-color: var(--tt-rule) !important;
+  border-color: var(--tt-rule) !important;
+  height: 1px !important;
+}
+section > .border-t,
+section .border-t {
+  border-top-color: var(--tt-rule) !important;
+}
+.eyebrow .bg-border {
+  background-color: rgba(245, 241, 230, 0.18) !important;
+}
+
+/* ── BIG SERIF HEADLINES ─────────────────────────────────────── */
+h1 {
+  font-family: var(--tt-headline-font) !important;
+  font-weight: 400 !important;
+  font-size: var(--tt-h1-size) !important;
+  letter-spacing: -0.025em !important;
+  line-height: 1.02 !important;
+  color: var(--tt-cream) !important;
+  max-width: 18ch;
+}
+h2 {
+  font-family: var(--tt-headline-font) !important;
+  font-weight: 400 !important;
+  font-size: var(--tt-h2-size) !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.05 !important;
+  color: var(--tt-cream) !important;
+  max-width: 24ch;
+}
+h3 {
+  font-family: "DM Sans", system-ui, sans-serif !important;
+  letter-spacing: -0.01em !important;
+  color: var(--tt-cream) !important;
+}
+h1 em,
+h2 em,
+em.accent {
+  font-family: var(--tt-headline-font), "Instrument Serif", serif !important;
+  font-style: italic !important;
+  color: var(--tt-mint) !important;
+  font-weight: 400 !important;
+}
+
+/* Eyebrow utility — small caps tracked label */
+.eyebrow {
+  font-family: "DM Sans", sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.22em !important;
+  text-transform: uppercase !important;
+  color: rgba(245, 241, 230, 0.55) !important;
+}
+.eyebrow .num {
+  color: #f5f1e6 !important;
+  margin-right: 10px !important;
+}
+
+/* ── PILL CONTROLS ──────────────────────────────────────────── */
+.rounded-full,
+[data-radix-pill] {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* ── BRAND BUTTON (the mint pill) ─────────────────────────────
+   Padding override gated to text buttons — small fixed-size icon
+   buttons skip it so the icon doesn't get pushed out of a circle. */
+button[class*="bg-brand"] {
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+  background-color: var(--tt-mint) !important;
+  color: var(--tt-modal-bg) !important;
+  border-color: transparent !important;
+}
+button[class*="bg-brand"]:not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="w-12"]):not([class*="aspect-square"]) {
+  padding-left: 1.25rem !important;
+  padding-right: 1.25rem !important;
+}
+button[class*="bg-brand"]:hover {
+  background-color: var(--tt-mint-mid) !important;
+}
+
+/* ── FILTER CHIPS / TAB-LIKE PILLS ───────────────────────────── */
+[class*="bg-brand"][class*="border-brand"] {
+  background-color: var(--tt-cream) !important;
+  color: var(--tt-modal-bg) !important;
+  border-color: transparent !important;
+}
+
+/* ── BRAND LOGO COLOR FLIP ───────────────────────────────────── */
+.brand-logo {
+  color: var(--tt-cream) !important;
+}
+
+/* ── RING-WHITE → BLEND INTO BG ──────────────────────────────
+   The ring-2 ring-white pattern (used on connector dots and vouch-
+   count avatars) reads as a stark white halo on dark forest. */
+.ring-white {
+  --tw-ring-color: var(--tt-body-bg) !important;
+}
+
+/* ── TRUST DEGREE PILLS → GREEN SCALE ─────────────────────────
+   All routed through --tt-degree-N theme vars. Each degree's pill,
+   shield+score text, and connector dots resolve to the SAME var. */
+[class*="rounded-full"][class*="bg-brand"][class*="text-white"] {
+  background-color: var(--tt-degree-1) !important;
+}
+[class*="rounded-full"][class*="bg-emerald-600"][class*="text-white"] {
+  background-color: var(--tt-degree-2) !important;
+}
+[class*="rounded-full"][class*="bg-[#bf8a0d]"][class*="text-white"] {
+  background-color: var(--tt-degree-3) !important;
+}
+[class*="rounded-full"][class*="bg-zinc-500"][class*="text-white"] {
+  background-color: var(--tt-degree-4) !important;
+}
+[class*="rounded-full"][class*="bg-zinc-900"][class*="text-white"] {
+  background-color: var(--tt-degree-none) !important;
+}
+
+/* 3° badge: shield + dot ramp routes to var(--tt-degree-3). */
+.text-\[\#bf8a0d\],
+.bg-\[\#bf8a0d\],
+.bg-\[\#d4a024\],
+.bg-\[\#e6b95c\] {
+  color: var(--tt-degree-3) !important;
+  background-color: var(--tt-degree-3) !important;
+}
+.text-\[\#bf8a0d\]:not([class*="bg-"]) {
+  background-color: transparent !important;
+}
+
+/* 2° badge: shield text + emerald dot ramp routes to var(--tt-degree-2). */
+[class*="text-emerald-700"]:not([class*="bg-"]) {
+  color: var(--tt-degree-2) !important;
+}
+.bg-emerald-700,
+.bg-emerald-500,
+.bg-emerald-300,
+.bg-emerald-100 {
+  background-color: var(--tt-degree-2) !important;
+}
+
+/* 4° badge: only flip zinc-300 dots when in connector cluster. */
+[class*="-space-x-"] .bg-zinc-300 {
+  background-color: var(--tt-degree-4) !important;
+}
+
+/* ── LISTING TILE GRID — bordered cards, snug gap ───────────
+   Border flush with the card edge (no inner padding); body block
+   below the photo carries its own padding so text has breathing
+   room. Small gap so cards feel related without crowding. */
+[class*="grid"]:has(> a.group > [class*="aspect-[4/3]"]),
+[class*="grid"]:has(> button.group > [class*="aspect-[4/3]"]) {
+  gap: 12px !important;
+}
+a.group:has(> [class*="aspect-[4/3]"]),
+button.group:has(> [class*="aspect-[4/3]"]) {
+  border: 1px solid var(--tt-glass-border);
+  border-radius: 16px;
+  padding: 0;
+  overflow: hidden;
+  transition: background-color 200ms ease, border-color 200ms ease;
+}
+a.group:has(> [class*="aspect-[4/3]"]) > *:not([class*="aspect-[4/3]"]),
+button.group:has(> [class*="aspect-[4/3]"]) > *:not([class*="aspect-[4/3]"]) {
+  padding: 12px 14px;
+}
+a.group:has(> [class*="aspect-[4/3]"]):hover,
+button.group:has(> [class*="aspect-[4/3]"]):hover {
+  background-color: rgba(245, 241, 230, 0.04);
+  border-color: rgba(245, 241, 230, 0.22);
+}
+
+/* ── SHADOWS ─────────────────────────────────────────────────── */
+.shadow-card,
+.shadow-sm,
+.shadow-md {
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(245, 241, 230, 0.06) !important;
+}
+.shadow-modal {
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.65),
+    inset 0 0 0 1px rgba(245, 241, 230, 0.08) !important;
+}
+
+/* ── OUTLINE BUTTONS — match the dark-glass card treatment */
+button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([class*="bg-emerald"]) {
+  background-color: rgba(4, 25, 18, 0.45) !important;
+  border-color: rgba(245, 241, 230, 0.14) !important;
+  color: #f5f1e6 !important;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Component-specific styles below this line are not part of the
+   token system — they're scoped to specific page features.
+─────────────────────────────────────────────────────────────── */
 
 /* Long-form legal documents: ToS, Privacy Policy, /legal-status. */
 .legal-prose {

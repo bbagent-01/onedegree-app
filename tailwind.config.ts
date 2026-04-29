@@ -13,17 +13,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ── Trustead canonical palette ───────────────────────────
+        // Forest greens + cream + mint, baked in as the real theme
+        // (was previously a runtime overlay via SandboxApplier — now
+        // these ARE the source-of-truth tokens). Keep brand.50–700
+        // as a single ramp so trust-pill components and the rest of
+        // the codebase that reads bg-brand-N keep working.
         brand: {
-          DEFAULT: "#734796",
-          50: "#F5F1F8",
-          100: "#E8DFF0",
-          200: "#D1BDE0",
-          300: "#B395CC",
-          400: "#946CB3",
-          500: "#734796",
-          600: "#5E3A7A",
-          700: "#4A2E60",
-          foreground: "#FFFFFF",
+          DEFAULT: "#BFE2D4", // pale mint pill
+          50: "#EAF4EE",
+          100: "#BFE2D4",
+          200: "#BFE2D4",
+          300: "#4FB191",
+          400: "#2A8A6B",
+          500: "#1F6B53",
+          600: "#154C3B",
+          700: "#103A2E",
+          foreground: "#0B2E25",
         },
         success: {
           DEFAULT: "#059669",
@@ -43,49 +49,49 @@ const config: Config = {
           100: "#FEE2E2",
           foreground: "#FFFFFF",
         },
-        background: "#FFFFFF",
+        background: "#07221B",
         surface: {
-          DEFAULT: "#F8F9FA",
-          alt: "#F1F3F5",
+          DEFAULT: "rgba(7, 34, 27, 0.55)",
+          alt: "rgba(7, 34, 27, 0.7)",
         },
-        foreground: "#1A1D21",
+        foreground: "#F5F1E6",
         muted: {
-          DEFAULT: "#F8F9FA",
-          foreground: "#6B7280",
+          DEFAULT: "rgba(7, 34, 27, 0.55)",
+          foreground: "rgba(245, 241, 230, 0.62)",
         },
-        subtle: "#9CA3AF",
-        border: "#E5E7EB",
-        input: "#E5E7EB",
-        ring: "#734796",
+        subtle: "rgba(245, 241, 230, 0.55)",
+        border: "rgba(245, 241, 230, 0.14)",
+        input: "rgba(245, 241, 230, 0.14)",
+        ring: "#4FB191",
         card: {
-          DEFAULT: "#FFFFFF",
-          foreground: "#1A1D21",
+          DEFAULT: "rgba(7, 34, 27, 0.55)",
+          foreground: "#F5F1E6",
         },
         popover: {
-          DEFAULT: "#FFFFFF",
-          foreground: "#1A1D21",
+          DEFAULT: "#0B2E25",
+          foreground: "#F5F1E6",
         },
         primary: {
-          DEFAULT: "#734796",
-          foreground: "#FFFFFF",
+          DEFAULT: "#BFE2D4",
+          foreground: "#0B2E25",
         },
         secondary: {
-          DEFAULT: "#F8F9FA",
-          foreground: "#1A1D21",
+          DEFAULT: "rgba(245, 241, 230, 0.06)",
+          foreground: "#F5F1E6",
         },
         accent: {
-          DEFAULT: "#F8F9FA",
-          foreground: "#734796",
+          DEFAULT: "rgba(245, 241, 230, 0.10)",
+          foreground: "#BFE2D4",
         },
         destructive: {
           DEFAULT: "#DC2626",
           foreground: "#FFFFFF",
         },
         trust: {
-          low: "#EF4444",
-          building: "#F59E0B",
-          solid: "#059669",
-          exceptional: "#8B5CF6",
+          low: "#FB923C",
+          building: "#FBBF24",
+          solid: "#4FB191",
+          exceptional: "#C4B5FD",
         },
       },
       boxShadow: {
@@ -109,6 +115,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["DM Sans", "system-ui", "sans-serif"],
+        serif: ["DM Serif Display", "Georgia", "serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
       fontSize: {
