@@ -32,15 +32,15 @@ export interface BrandPreset {
 export const BRAND_PRESETS: BrandPreset[] = [
   {
     id: "default",
-    label: "Default · Trustead",
-    blurb: "Current alpha-c brand — Attio-clean white surfaces with plum brand.",
+    label: "Legacy · Attio Light",
+    blurb: "Old white-surface plum-accent look. Use to compare or revert.",
     overrides: {},
   },
   {
     id: "trustead",
-    label: "Trustead theme",
+    label: "Trustead theme · default",
     blurb:
-      "Deep forest takeover with glass card surfaces, mint accents, and DM Serif Display headlines.",
+      "Deep forest takeover with glass card surfaces, mint accents, and DM Serif Display headlines. Active by default for every visitor.",
     overrides: {
       // ── Brand scale → Forest greens (used by trust pills, badges,
       //    score chips that read brand-500 / brand-100 etc.) ─────

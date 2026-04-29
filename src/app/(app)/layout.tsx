@@ -2,6 +2,7 @@ import { DesktopNav } from "@/components/layout/desktop-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Footer } from "@/components/layout/footer";
 import { VouchBackToaster } from "@/components/trust/vouch-back-toaster";
+import SandboxApplier from "@/components/dev/SandboxApplier";
 
 // ALPHA ONLY (CC-Dev1): compile-time gate. `NEXT_PUBLIC_*` env vars
 // are inlined by Next.js at build time, so when this evaluates to
@@ -37,6 +38,11 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Trustead theme baseline — applied for EVERY user (not
+          admin-gated). Renders the new green/cream/mint look as the
+          site's default. Admin-only editor (palette + drawer) lives
+          inside SandboxMount below. */}
+      <SandboxApplier />
       <DesktopNav />
       {/* Bottom padding reserves space for the fixed mobile nav plus the
           iOS home-indicator safe area. Stripped on md+ where the nav
