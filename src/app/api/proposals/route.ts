@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { rateLimitOr429 } from "@/lib/rate-limit";
 import {
   countActiveProposalsByAuthor,
   fetchVisibleProposals,
@@ -140,6 +141,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const blocked = await rateLimitOr429("proposal", userId);
+  if (blocked) return blocked;
 
   const supabase = getSupabaseAdmin();
   const { data: viewer } = await supabase

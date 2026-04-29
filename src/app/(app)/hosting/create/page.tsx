@@ -1008,7 +1008,7 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-foreground">
           Currently only serving the US market. If you live outside the US,{" "}
           <a
-            href="mailto:hello@staytrustead.com?subject=Add%20my%20region%20to%20Trustead"
+            href="mailto:hello@trustead.app?subject=Add%20my%20region%20to%20Trustead"
             className="font-semibold underline underline-offset-2"
           >
             contact us here

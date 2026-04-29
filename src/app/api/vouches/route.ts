@@ -3,6 +3,7 @@ export const runtime = "edge";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { blockIfDemoMix } from "@/lib/demo-guard";
 
 // GET: fetch existing vouch between current user and target
 export async function GET(req: Request) {
@@ -77,6 +78,9 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+
+  const demoBlock = await blockIfDemoMix(currentUser.id, targetUserId);
+  if (demoBlock) return demoBlock;
 
   // Post-stay vouches are always "Met through Trustead" — the
   // platform_met bucket (0.4×), added in migration 035a.

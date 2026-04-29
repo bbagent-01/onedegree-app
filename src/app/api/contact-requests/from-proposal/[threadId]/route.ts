@@ -3,6 +3,8 @@ export const runtime = "edge";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveAuth } from "@/lib/impersonation/session";
 import { getOrCreateThread } from "@/lib/messaging-data";
+import { rateLimitOr429 } from "@/lib/rate-limit";
+import { blockIfDemoMix } from "@/lib/demo-guard";
 
 /**
  * POST /api/contact-requests/from-proposal/[threadId]
@@ -50,6 +52,9 @@ export async function POST(
   const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  const blocked = await rateLimitOr429("contactRequest", userId);
+  if (blocked) return blocked;
+
   const { threadId } = await ctx.params;
   if (!threadId) {
     return Response.json({ error: "threadId required" }, { status: 400 });
@@ -90,6 +95,11 @@ export async function POST(
   if (thread.guest_id !== viewer.id && thread.host_id !== viewer.id) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  const otherParticipantId =
+    thread.guest_id === viewer.id ? thread.host_id : thread.guest_id;
+  const demoBlock = await blockIfDemoMix(viewer.id, otherParticipantId);
+  if (demoBlock) return demoBlock;
 
   // No spoofing — the proposal_id in the body must match what the
   // thread carries. Belt + suspenders against a malicious client

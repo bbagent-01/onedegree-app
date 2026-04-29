@@ -11,6 +11,8 @@
  *   TWILIO_PHONE_NUMBER (the sending number, E.164 format)
  */
 
+import { isOptedOut, OptedOutError } from "./opt-out";
+
 interface SendInviteSMSParams {
   toPhone: string;
   inviterName: string;
@@ -34,6 +36,11 @@ export async function sendInviteSMS({
         "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER."
     );
     return { success: false, error: "twilio_not_configured" };
+  }
+
+  if (await isOptedOut(toPhone)) {
+    console.warn(`[SMS] Skipping invite to ${toPhone} — recipient opted out`);
+    throw new OptedOutError(toPhone);
   }
 
   // Keep SMS under 160 chars when possible

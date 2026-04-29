@@ -50,10 +50,10 @@ export default function NotFound() {
           <p className="mt-10 text-xs text-muted-foreground">
             Need help? Email{" "}
             <a
-              href="mailto:hello@staytrustead.com"
+              href="mailto:hello@trustead.app"
               className="font-semibold text-foreground underline underline-offset-2 hover:text-brand"
             >
-              hello@staytrustead.com
+              hello@trustead.app
             </a>
             .
           </p>
