@@ -232,7 +232,7 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
           <SheetTitle>Filters</SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-10 px-6 pb-10 pt-4 sm:px-8">
+        <div className="space-y-10 px-4 pb-28 pt-4 sm:px-5">
           {/* Price */}
           <section>
             <h3 className="text-base font-semibold">Price range</h3>
@@ -360,7 +360,14 @@ export function FilterSheet({ priceRange, activeCount, compact }: Props) {
           </section>
         </div>
 
-        <SheetFooter className="sticky bottom-0 flex-row items-center justify-between border-t border-border bg-white px-6 py-5 sm:px-8">
+        <SheetFooter
+          className="sticky bottom-0 flex-row items-center justify-between border-t border-border px-4 py-4 sm:px-5"
+          // Inline solid bg so trustead's bg-white→glass remap can't
+          // turn the action bar transparent (the user could see filter
+          // content bleeding through). Solid forest matches the modal
+          // surface and reads as a clear dock at the bottom.
+          style={{ backgroundColor: "var(--tt-modal-bg, #0B2E25)" }}
+        >
           <button
             type="button"
             onClick={clearAll}

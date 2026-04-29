@@ -461,9 +461,13 @@ export const BRAND_PRESETS: BrandPreset[] = [
         color: var(--tone-fg-muted) !important;
       }
 
-      /* Form fields → dark green tinted glass on dark */
-      html[data-theme="sandbox"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
-      html[data-theme="sandbox"] textarea,
+      /* Form fields → dark green tinted glass on dark.
+         Inputs with explicit bg-transparent (e.g. the price min/max
+         number fields nested inside an already-styled container) keep
+         their transparent bg so the parent's chrome isn't doubled up
+         with a darker rectangle behind the digits. */
+      html[data-theme="sandbox"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([class*="bg-transparent"]),
+      html[data-theme="sandbox"] textarea:not([class*="bg-transparent"]),
       html[data-theme="sandbox"] select,
       html[data-theme="sandbox"] [role="combobox"],
       html[data-theme="sandbox"] [class*="!bg-white"] {

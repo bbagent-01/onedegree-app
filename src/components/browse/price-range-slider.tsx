@@ -83,18 +83,28 @@ export function PriceRangeSlider({
           return (
             <div
               key={i}
-              className={cn(
-                "flex-1 rounded-sm transition-colors",
-                inRange ? "bg-foreground" : "bg-muted"
-              )}
-              style={{ height: `${Math.max(4, (count / maxBucket) * 100)}%` }}
+              className="flex-1 rounded-sm transition-colors"
+              style={{
+                height: `${Math.max(4, (count / maxBucket) * 100)}%`,
+                // Inline so the trustead bg-muted glass remap can't
+                // turn out-of-range bars invisible. Out-of-range stays
+                // visible as a faded cream so the user can see the
+                // distribution shape outside their selected window.
+                backgroundColor: inRange
+                  ? "var(--tt-cream, #F5F1E6)"
+                  : "rgba(245, 241, 230, 0.22)",
+              }}
             />
           );
         })}
       </div>
       <div
         ref={trackRef}
-        className="relative mt-4 h-2 rounded-full bg-muted"
+        className="relative mt-4 h-2 rounded-full"
+        // Inline track + fill colors so trustead's bg-muted/foreground
+        // remaps don't muddy the slider; track stays a faded cream rule,
+        // fill is the solid mint that matches the brand pill.
+        style={{ backgroundColor: "rgba(245, 241, 230, 0.18)" }}
         onPointerDown={(e) => {
           const v = pointerToValue(e.clientX);
           // Jump closer handle.
@@ -108,10 +118,11 @@ export function PriceRangeSlider({
         }}
       >
         <div
-          className="absolute top-0 h-2 rounded-full bg-foreground"
+          className="absolute top-0 h-2 rounded-full"
           style={{
             left: `${pct(local[0])}%`,
             width: `${pct(local[1]) - pct(local[0])}%`,
+            backgroundColor: "var(--tt-cream, #F5F1E6)",
           }}
         />
         {(["min", "max"] as const).map((k) => (
@@ -123,9 +134,14 @@ export function PriceRangeSlider({
               setDrag(k);
             }}
             aria-label={`${k} price`}
-            className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border bg-white shadow cursor-grab active:cursor-grabbing"
+            className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full cursor-grab active:cursor-grabbing"
             style={{
               left: `${pct(local[k === "min" ? 0 : 1])}%`,
+              // Solid cream knob — was bg-white which trustead glassed
+              // into a translucent dark blob. Solid + no shadow reads
+              // cleanly on the dark sidebar.
+              backgroundColor: "var(--tt-cream, #F5F1E6)",
+              border: "1px solid rgba(245, 241, 230, 0.35)",
             }}
           />
         ))}
