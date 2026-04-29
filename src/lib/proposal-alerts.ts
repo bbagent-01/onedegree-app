@@ -21,6 +21,7 @@ import {
 } from "./proposals-data";
 import { computeIncomingTrustPaths } from "./trust-data";
 import { sendInviteSMS } from "./sms/send-invite";
+import { isOptedOut } from "./sms/opt-out";
 
 const APP_BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL || "https://trustead.app";
@@ -359,6 +360,12 @@ async function sendAlertSMS(
 ) {
   if (!subscriber.phone_number) {
     console.log(`[alerts] subscriber ${subscriber.id} has no phone — skipping`);
+    return;
+  }
+  if (await isOptedOut(subscriber.phone_number)) {
+    console.log(
+      `[alerts] subscriber ${subscriber.id} (${subscriber.phone_number}) has opted out — skipping`
+    );
     return;
   }
   // Piggyback on the existing Twilio helper by composing a purpose-fit

@@ -156,13 +156,23 @@ export async function POST(req: Request) {
 
   // Step 1: Try SMS if phone provided
   if (inviteePhone) {
-    const smsResult = await sendInviteSMS({
-      toPhone: inviteePhone,
-      inviterName: currentUser.name,
-      inviteeName,
-      inviteUrl,
-    });
-    smsSuccess = smsResult.success;
+    try {
+      const smsResult = await sendInviteSMS({
+        toPhone: inviteePhone,
+        inviterName: currentUser.name,
+        inviteeName,
+        inviteUrl,
+      });
+      smsSuccess = smsResult.success;
+    } catch (e) {
+      // OptedOutError surfaces here when the invitee has previously
+      // replied STOP. Treat as a soft failure so email fallback fires.
+      if (e instanceof Error && (e as { code?: string }).code === "opted_out") {
+        smsSuccess = false;
+      } else {
+        throw e;
+      }
+    }
   }
 
   // Step 2: Send email if provided AND (SMS failed OR no phone OR both)
