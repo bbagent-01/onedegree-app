@@ -65,8 +65,14 @@ function SignUpInner() {
   const redirectUrl = params.get("redirect_url") || "/browse";
 
   const completeSignUpAndRedirect = async (sessionId: string) => {
+    // setActive is typed nullable on useSignUp but in practice it's
+    // always present when isLoaded is true (which all callers gate
+    // on). Fall back to a resolved promise so the race still works.
+    const setActiveCall = setActive
+      ? setActive({ session: sessionId })
+      : Promise.resolve();
     await Promise.race([
-      setActive({ session: sessionId }),
+      setActiveCall,
       new Promise<void>((resolve) =>
         setTimeout(resolve, SETACTIVE_TIMEOUT_MS)
       ),

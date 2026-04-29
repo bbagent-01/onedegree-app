@@ -330,6 +330,18 @@ export const BRAND_PRESETS: BrandPreset[] = [
         border-color: rgba(56, 100, 130, 0.40) !important;
       }
 
+      /* ── ROUNDED CORNERS GUARANTEE ───────────────────────────
+         Loren's rule: labels, badges, buttons, anchors, and pills
+         should never have square corners. Only structural grid
+         containers stay square. Any small content element (button,
+         span, label, anchor) without an explicit rounded utility
+         gets a small default radius so nothing reads as a hard
+         rectangle. Specificity stays low so explicit Tailwind
+         rounded-* classes always win when present. */
+      html[data-theme="sandbox"] :is(button, span, a, label, [role="button"]):not([class*="rounded"]) {
+        border-radius: 6px;
+      }
+
       /* ── SMALL LABELS → PILL EVERYWHERE ──────────────────────
          Loren's rule: any little label/badge is a pill. Catches
          small inline elements with rounded-md/sm/no-suffix that
@@ -665,8 +677,17 @@ export const BRAND_PRESETS: BrandPreset[] = [
       html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]) {
         border: 1px solid var(--tt-glass-border);
         border-radius: 16px;
-        padding: 12px;
+        padding: 0;
+        overflow: hidden;
         transition: background-color 200ms ease, border-color 200ms ease;
+      }
+      /* The card body that sits below the photo (title, host, pill,
+         price) needs interior breathing room since the outer card no
+         longer carries padding. Targets the second child of each
+         tile — the wrapper that holds all the text. */
+      html[data-theme="sandbox"] a.group:has(> [class*="aspect-[4/3]"]) > *:not([class*="aspect-[4/3]"]),
+      html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]) > *:not([class*="aspect-[4/3]"]) {
+        padding: 12px 14px;
       }
       html[data-theme="sandbox"] a.group:has(> [class*="aspect-[4/3]"]):hover,
       html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]):hover {
