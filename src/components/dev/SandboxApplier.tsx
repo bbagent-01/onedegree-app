@@ -27,6 +27,18 @@ const CANONICAL_MIGRATION_KEY = "dev2.canonical-migrated.v1";
 
 export default function SandboxApplier() {
   useEffect(() => {
+    // Defensive: any visitor landing on this page should start with
+    // a clean canonical render. Strip data-theme + any leftover
+    // override style tags before deciding whether to re-enable the
+    // overlay. Even if a stale tab somehow has the attribute set,
+    // this guarantees it gets removed.
+    if (typeof document !== "undefined") {
+      document.documentElement.removeAttribute("data-theme");
+      document.getElementById("dev2-sandbox-style")?.remove();
+      document.getElementById("dev2-sandbox-fonts")?.remove();
+      document.getElementById("dev2-sandbox-extra")?.remove();
+    }
+
     if (typeof window !== "undefined") {
       try {
         if (sessionStorage.getItem(CANONICAL_MIGRATION_KEY) !== "1") {
