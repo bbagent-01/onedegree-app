@@ -2,12 +2,11 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Signed-out users hit `/sign-in` for everything except shareable deep links
-// (specific listing/profile pages, help docs, join invites) and webhook/cron
-// endpoints. `/` and `/browse` are now private so the landing experience is
-// always the sign-in screen.
 const isPublicRoute = createRouteMatcher([
+  "/",
+  "/browse(.*)",
   "/listing/(.*)",
+  "/listings/(.*)",
   "/listings/(.*)",
   "/help(.*)",
   "/profile/(.*)",
@@ -18,7 +17,6 @@ const isPublicRoute = createRouteMatcher([
   "/join/(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/onboarding(.*)",
 ]);
 
 /**

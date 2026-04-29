@@ -4,7 +4,6 @@ import { ChevronRight, User, Bell, Shield } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DeactivateButton } from "@/components/settings/deactivate-button";
-import { ReplayOnboardingLink } from "@/components/settings/replay-onboarding-link";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -59,15 +58,6 @@ export default async function SettingsPage() {
               description="See how your profile looks to other users."
             />
           )}
-        </div>
-      </section>
-
-      <section className="mt-10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Help & tour
-        </h2>
-        <div className="mt-3 divide-y divide-border rounded-2xl border border-border bg-white">
-          <ReplayOnboardingLink />
         </div>
       </section>
 

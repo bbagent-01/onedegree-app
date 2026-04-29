@@ -1,7 +1,6 @@
 import { DesktopNav } from "@/components/layout/desktop-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Footer } from "@/components/layout/footer";
-import { OnboardingGate } from "@/components/onboarding/onboarding-gate";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -20,7 +19,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </main>
       <Footer />
       <MobileNav />
-      <OnboardingGate />
     </div>
   );
 }
