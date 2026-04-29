@@ -88,20 +88,6 @@ export function SandboxIndicator() {
 
   return (
     <>
-      {/* Site-wide preview frame when a non-default preset is on —
-          purple under default, mint under Green. Pointer-events
-          off so it doesn't block clicks. */}
-      {on && (
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-0 z-[80] border-2 border-dashed"
-          style={{
-            borderColor:
-              active === "trustead" ? "#4FB191" : "#a855f7",
-          }}
-        />
-      )}
-
       {/* Position-free wrapper. The parent admin-dock in (app)/layout
           .tsx places this in a flex row next to ImpersonationSwitcher,
           so the gap between the two icons is set by the dock's
