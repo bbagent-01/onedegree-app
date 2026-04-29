@@ -125,6 +125,18 @@ export function PhotoFilterDialog({
     let cancelled = false;
     const load = async () => {
       try {
+        if (source.kind === "file") {
+          const allowed = ["image/jpeg", "image/png", "image/webp"];
+          if (!allowed.includes(source.file.type)) {
+            throw new Error(
+              "That file type isn't supported. Use a JPG, PNG, or WebP image."
+            );
+          }
+          const MAX_BYTES = 10 * 1024 * 1024;
+          if (source.file.size > MAX_BYTES) {
+            throw new Error("That image is over 10 MB. Try a smaller file.");
+          }
+        }
         const bmp =
           source.kind === "file"
             ? await bitmapFromFile(source.file)
@@ -137,7 +149,9 @@ export function PhotoFilterDialog({
         originalPreviewRef.current = previewBitmap(bmp, PREVIEW_DIM);
       } catch (e) {
         console.error("Failed to load source image", e);
-        toast.error("Couldn't load that photo. Try again.");
+        const message =
+          e instanceof Error && e.message ? e.message : "Couldn't load that photo. Try again.";
+        toast.error(message);
         onCancel();
       } finally {
         if (!cancelled) setLoading(false);
