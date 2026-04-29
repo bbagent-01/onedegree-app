@@ -528,19 +528,35 @@ export const BRAND_PRESETS: BrandPreset[] = [
         color: #4FB191 !important;
       }
 
-      /* ── LISTING TILE CARDS — border at rest, shadow on hover ──
-         Target the link or button .group wrapper that contains an
-         aspect-[4/3] image div as a child — uniquely identifies a
-         listing tile without needing a className change in
-         live-listing-card.tsx. The border encloses image + text
-         together so the entire tile reads as a framed card. Shadow
-         is reserved for the hover state to give a felt lift. */
+      /* ── LISTING TILE GRID — rectilinear, zero gaps ──────────
+         Loren's call: the listing browse view becomes a
+         continuous magazine-style grid. Cards have no rounded
+         corners, no gaps between them, and generous interior
+         padding so the breathing room moves from "between cards"
+         to "inside cards". Adjacent borders share visually.
+
+         Parent grid: gap collapses to 0. The :has() chain matches
+         a grid that directly contains listing tiles, so other grid
+         layouts on the site stay unchanged. */
+      html[data-theme="sandbox"] [class*="grid"]:has(> a.group > [class*="aspect-[4/3]"]),
+      html[data-theme="sandbox"] [class*="grid"]:has(> button.group > [class*="aspect-[4/3]"]) {
+        gap: 0 !important;
+      }
+
+      /* The tiles themselves: square corners, thin cream border,
+         interior padding (20px) so image + content have room.
+         Images inside also lose their rounded-xl so the look reads
+         as a uniform grid block. */
       html[data-theme="sandbox"] a.group:has(> [class*="aspect-[4/3]"]),
       html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]) {
         border: 1px solid var(--tt-glass-border);
-        border-radius: 16px;
-        padding: 8px;
-        transition: box-shadow 200ms ease, border-color 200ms ease;
+        border-radius: 0;
+        padding: 20px;
+        transition: box-shadow 200ms ease, border-color 200ms ease, background-color 200ms ease;
+      }
+      html[data-theme="sandbox"] a.group > [class*="aspect-[4/3]"][class*="rounded-xl"],
+      html[data-theme="sandbox"] button.group > [class*="aspect-[4/3]"][class*="rounded-xl"] {
+        border-radius: 0 !important;
       }
       html[data-theme="sandbox"] a.group:has(> [class*="aspect-[4/3]"]):hover,
       html[data-theme="sandbox"] button.group:has(> [class*="aspect-[4/3]"]):hover {
