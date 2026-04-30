@@ -98,11 +98,11 @@ export function NetworkSection({
       {/* Action buttons */}
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
-          href="/invite"
+          href="/invite/share"
           className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-4 py-2.5 text-sm font-semibold text-background hover:bg-foreground/90"
         >
-          <UserPlus className="h-4 w-4" />
-          Invite someone
+          <Send className="h-4 w-4" />
+          Invite + pre-vouch a friend
         </Link>
         <Link
           href="/vouch"
@@ -110,6 +110,13 @@ export function NetworkSection({
         >
           <Shield className="h-4 w-4" />
           Vouch for a member
+        </Link>
+        <Link
+          href="/invite"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+        >
+          <UserPlus className="h-4 w-4" />
+          Invite via SMS
         </Link>
       </div>
 
@@ -226,6 +233,19 @@ function PersonRow({
             <Star className="h-3 w-3 fill-foreground text-foreground" />
             <span className="font-medium text-foreground">{gr.toFixed(1)}</span>
           </span>
+        )}
+        {showGuestRating && person.from_open_link && (
+          // B2: undo nudge for vouches that landed via Mode B / Mode C
+          // open links. Tapping the row already navigates to /profile,
+          // where the existing "remove vouch" path lives. The badge is
+          // a passive flag; sender clicks through normally to revoke.
+          <Link
+            href={`/profile/${person.user_id}?vouch=1`}
+            className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900 hover:bg-amber-100"
+            title="This vouch came from an open invite link. Tap to review or remove."
+          >
+            from open link — review?
+          </Link>
         )}
         <Badge
           className={

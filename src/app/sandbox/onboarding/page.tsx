@@ -1,69 +1,147 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Home, Users, Shield, ArrowLeft, ArrowRight } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Eye,
+  Lock,
+  Shield,
+  Star,
+  Users,
+} from "lucide-react";
+
+// ── Slide schema ──────────────────────────────────────────────────
 
 type Slide = {
-  icon: typeof Home;
-  title: string;
+  eyebrow: string;
+  titleLines: [string, string];
+  titleEmphasis?: { word: string; className: string };
   body: string;
+  Visual: React.ComponentType | null;
 };
 
+// STRANGERS_OPTION_ONE — the vertical-cycling pain-points list lives
+// in PainPointsListVisual below but is intentionally NOT in SLIDES.
+// Loren is keeping it as the alternate "strangers" treatment. Bring
+// it back by inserting a slide entry with `Visual: PainPointsListVisual`.
 const SLIDES: Slide[] = [
   {
-    icon: Home,
-    title: "Trustead is invitation-only home rental",
-    body: "A small, private network of homes opened up to people inside it. No public listings, no cold bookings — every stay starts from a personal connection.",
+    eyebrow: "The problem",
+    titleLines: ["Renting your actual home,", "actually isn't great"],
+    body: "It comes with friction you'd rather not deal with.",
+    Visual: PainPointsCardsVisual,
   },
   {
-    icon: Users,
-    title: "Trust comes from people you actually know",
-    body: "Your degree of separation from a host or guest is what unlocks a stay. The closer your tie, the more you can do here.",
+    eyebrow: "The answer",
+    titleLines: ["Rent your home to", "people you can trust"],
+    titleEmphasis: { word: "trust", className: "italic text-brand-300" },
+    body: "Rent your primary home to friends of friends. Control who sees it on our private invite-only platform.",
+    Visual: null,
   },
   {
-    icon: Shield,
-    title: "Find a place. Vouch for a friend. Stay safer.",
-    body: "Browse homes hosted by your network. Vouch for friends to bring them in. Every booking strengthens the web you stay inside of.",
+    eyebrow: "Vouching",
+    titleLines: ["Build trust by vouching", "for people you know"],
+    body: "Invite people you know. They invite people they know. The graph builds itself into a real trust network.",
+    Visual: VouchPickerVisual,
+  },
+  {
+    eyebrow: "Trust",
+    titleLines: ["Rent to people", "connected to you."],
+    body: "See exactly how — through whom, and how strongly.",
+    Visual: TrustDetailVisual,
+  },
+  {
+    eyebrow: "Privacy",
+    titleLines: ["Control who sees your", "listing, or listing preview"],
+    body: "Make it fully private, share a teaser only, or open it up to friends-of-friends. Your call.",
+    Visual: VisibilityVisual,
   },
 ];
 
-const INTRO_DURATION_MS = 2000;
+// Phase timeline:
+//   intro    (0 → 2800 ms)        — logo draws + tagline fades up
+//   morphing (2800 → 4400 ms)     — logo translates up + shrinks; tagline fades out; slide content NOT yet rendered
+//   slides   (4400 ms → ...)      — slide content mounts and runs its word stagger
+const INTRO_DURATION_MS = 2800;
 const SWIPE_THRESHOLD_PX = 50;
 
-type Phase = "intro" | "slides" | "dismissed";
+// Tagline appears 700ms into the intro and stays visible until the
+// logo starts moving (when phase flips to morphing). 700ms gives the
+// logo's draw-in (~1.4s) time to feel like the lead.
+const TAGLINE_DELAY_MS = 700;
+
+// Word-stagger tokens.
+const WORD_DURATION_MS = 600;
+const WORD_EASING = "cubic-bezier(0.25, 0.46, 0.45, 0.94)"; // power2.out
+const TITLE_WORD_STAGGER_MS = 30;
+const BODY_WORD_STAGGER_MS = 12;
+const BLOCK_FADE_DURATION_MS = 500;
+const WORD_EXIT_DURATION_MS = 400;
+
+// Logo morph — dramatic ease-in-out, tuned to start slow, accelerate
+// through the middle, settle slowly. Drama matches the deliberate
+// pace of the slide-text rise. Move first; shrink only after the
+// move lands. Total morph = LOGO_MOVE_MS + LOGO_SHRINK_MS.
+const LOGO_MOVE_MS = 1100;
+const LOGO_SHRINK_MS = 500;
+const LOGO_EASING = "cubic-bezier(0.83, 0, 0.17, 1)"; // dramatic ease-in-out
+const LOGO_TOTAL_MORPH_MS = LOGO_MOVE_MS + LOGO_SHRINK_MS;
+
+type Phase = "intro" | "morphing" | "slides" | "dismissed";
 
 export default function SandboxOnboardingPage() {
   const [phase, setPhase] = useState<Phase>("intro");
   const [index, setIndex] = useState(0);
+  const [exiting, setExiting] = useState(false);
   const touchStartX = useRef<number | null>(null);
 
   const isLast = index === SLIDES.length - 1;
+  const isFirst = index === 0;
 
+  // Phase progression: intro → morphing → slides.
   useEffect(() => {
-    if (phase !== "intro") return;
-    const t = setTimeout(() => setPhase("slides"), INTRO_DURATION_MS);
-    return () => clearTimeout(t);
+    if (phase === "intro") {
+      const t = setTimeout(() => setPhase("morphing"), INTRO_DURATION_MS);
+      return () => clearTimeout(t);
+    }
+    if (phase === "morphing") {
+      const t = setTimeout(() => setPhase("slides"), LOGO_TOTAL_MORPH_MS);
+      return () => clearTimeout(t);
+    }
   }, [phase]);
+
+  const transitionTo = (nextIdx: number) => {
+    setExiting(true);
+    setTimeout(() => {
+      setIndex(nextIdx);
+      setExiting(false);
+    }, WORD_EXIT_DURATION_MS);
+  };
 
   const next = () => {
     if (isLast) {
       setPhase("dismissed");
       return;
     }
-    setIndex((i) => Math.min(i + 1, SLIDES.length - 1));
+    transitionTo(index + 1);
   };
 
   const prev = () => {
-    setIndex((i) => Math.max(i - 1, 0));
+    if (isFirst) return;
+    transitionTo(index - 1);
   };
 
   const skip = () => setPhase("dismissed");
+  // Skipping the intro fast-forwards the whole logo-morph window so
+  // the user lands on the first slide right away.
   const skipIntro = () => setPhase("slides");
 
   useEffect(() => {
     if (phase === "dismissed") return;
     const onKey = (e: KeyboardEvent) => {
-      if (phase === "intro") {
+      if (phase === "intro" || phase === "morphing") {
         skipIntro();
         return;
       }
@@ -73,7 +151,7 @@ export default function SandboxOnboardingPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, isLast]);
+  }, [phase, isLast, isFirst, index]);
 
   if (phase === "dismissed") {
     return (
@@ -86,18 +164,35 @@ export default function SandboxOnboardingPage() {
   }
 
   const slide = SLIDES[index];
-  const Icon = slide.icon;
+  const Visual = slide.Visual;
+
+  // Stagger sequencing — eyebrow lands first, then title words, then
+  // visual + body, then CTA. All paced off the title's natural end.
+  const eyebrowDelay = 0;
+  const titleStartDelay = 200;
+  const titleWords = slide.titleLines.flatMap((l) => l.split(" ")).length;
+  const titleEndDelay =
+    titleStartDelay +
+    (titleWords - 1) * TITLE_WORD_STAGGER_MS +
+    WORD_DURATION_MS;
+  const visualDelay = titleStartDelay + Math.round(titleEndDelay * 0.4);
+  const bodyStartDelay = titleStartDelay + Math.round(titleEndDelay * 0.55);
+  const bodyWords = slide.body.split(/\s+/).filter(Boolean).length;
+  const bodyEndDelay =
+    bodyStartDelay + (bodyWords - 1) * BODY_WORD_STAGGER_MS + WORD_DURATION_MS;
+  const buttonDelay = Math.round(bodyEndDelay * 0.65);
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (phase === "intro") return;
+    if (phase !== "slides") return;
     touchStartX.current = e.touches[0]?.clientX ?? null;
   };
 
   const onTouchEnd = (e: React.TouchEvent) => {
-    if (phase === "intro") {
+    if (phase === "intro" || phase === "morphing") {
       skipIntro();
       return;
     }
+    if (exiting) return;
     const start = touchStartX.current;
     if (start == null) return;
     const end = e.changedTouches[0]?.clientX ?? start;
@@ -109,27 +204,106 @@ export default function SandboxOnboardingPage() {
     touchStartX.current = null;
   };
 
+  const introOrMorphing = phase === "intro" || phase === "morphing";
+
   return (
     <main
-      className="sandbox-onboarding-root relative flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground"
+      className={`sandbox-onboarding-root relative flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground ${
+        exiting ? "is-exiting" : ""
+      }`}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
-      onClick={phase === "intro" ? skipIntro : undefined}
+      onClick={introOrMorphing ? skipIntro : undefined}
     >
-      {/* Plain <style> tag (not styled-jsx) — keeps webpack compile fast and
-          the rules are scoped via the .sandbox-onboarding-root class name.
-          Hides the global cookie banner only on this takeover surface. */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
-            @keyframes sb-fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes sb-intro-hold { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
-            .sandbox-onboarding-root .anim-step { opacity: 0; animation: sb-fade-up 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-            .sandbox-onboarding-root .intro-overlay { animation: sb-intro-hold ${INTRO_DURATION_MS}ms ease-out forwards; }
-            body:has(.sandbox-onboarding-root) > div.fixed.inset-x-0.bottom-0.z-40 { display: none !important; }
+            /* Word IN/OUT — implicit \`from\` in both keyframes (no
+               explicit from{}) so the browser uses the current
+               computed value as the start. Removes the snap that
+               caused flickering when the exit class was added
+               mid-rise. */
+            @keyframes sb-word-rise {
+              to { opacity: 1; transform: translate3d(0, 0, 0); }
+            }
+            @keyframes sb-word-exit {
+              to { opacity: 0; transform: translate3d(0, -110%, 0); }
+            }
+            .sandbox-onboarding-root .word-mask {
+              display: inline-block;
+              overflow: hidden;
+              vertical-align: top;
+              line-height: inherit;
+            }
+            .sandbox-onboarding-root .word-fill {
+              display: inline-block;
+              opacity: 0;
+              transform: translate3d(0, 110%, 0);
+              will-change: opacity, transform;
+              animation: sb-word-rise ${WORD_DURATION_MS}ms ${WORD_EASING} forwards;
+            }
+            .sandbox-onboarding-root.is-exiting .word-fill {
+              animation: sb-word-exit ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING} forwards;
+            }
+
+            /* Block in/out — visual + button + eyebrow */
+            @keyframes sb-block-rise {
+              to { opacity: 1; transform: translate3d(0, 0, 0); }
+            }
+            @keyframes sb-block-exit {
+              to { opacity: 0; transform: translate3d(0, -24px, 0); }
+            }
+            .sandbox-onboarding-root .block-rise {
+              opacity: 0;
+              transform: translate3d(0, 24px, 0);
+              will-change: opacity, transform;
+              animation: sb-block-rise ${BLOCK_FADE_DURATION_MS}ms ${WORD_EASING} forwards;
+            }
+            .sandbox-onboarding-root.is-exiting .block-rise {
+              animation: sb-block-exit ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING} forwards;
+            }
+
+            /* Pain-points list (alt) — vertical cycle */
+            @keyframes sb-pain-cycle {
+              0%,  18% { transform: translate3d(0, calc(0 * var(--pain-h) * -1), 0); }
+              20%, 38% { transform: translate3d(0, calc(1 * var(--pain-h) * -1), 0); }
+              40%, 58% { transform: translate3d(0, calc(2 * var(--pain-h) * -1), 0); }
+              60%, 78% { transform: translate3d(0, calc(3 * var(--pain-h) * -1), 0); }
+              80%, 98% { transform: translate3d(0, calc(4 * var(--pain-h) * -1), 0); }
+              100%     { transform: translate3d(0, calc(5 * var(--pain-h) * -1), 0); }
+            }
+            .sandbox-onboarding-root .pain-track {
+              animation: sb-pain-cycle 18s linear infinite;
+              will-change: transform;
+            }
+            .sandbox-onboarding-root .pain-window {
+              -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
+                      mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
+            }
+
+            /* Pain-cards horizontal scroll, right→left */
+            @keyframes sb-cards-scroll {
+              from { transform: translate3d(0, 0, 0); }
+              to   { transform: translate3d(-50%, 0, 0); }
+            }
+            .sandbox-onboarding-root .cards-track {
+              animation: sb-cards-scroll 28s linear infinite;
+              will-change: transform;
+            }
+            .sandbox-onboarding-root .cards-window {
+              -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+                      mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+            }
+
+            body:has(.sandbox-onboarding-root) > div.fixed.inset-x-0.bottom-0.z-40 {
+              display: none !important;
+            }
+
             @media (prefers-reduced-motion: reduce) {
-              .sandbox-onboarding-root .anim-step,
-              .sandbox-onboarding-root .intro-overlay {
+              .sandbox-onboarding-root .word-fill,
+              .sandbox-onboarding-root .block-rise,
+              .sandbox-onboarding-root .pain-track,
+              .sandbox-onboarding-root .cards-track {
                 animation: none !important;
                 opacity: 1 !important;
                 transform: none !important;
@@ -139,102 +313,531 @@ export default function SandboxOnboardingPage() {
         }}
       />
 
-      {phase === "intro" && (
-        <div className="intro-overlay absolute inset-0 z-30 flex items-center justify-center bg-background px-6">
-          <iframe
-            src="/assets/logo-animation/trustead-logo-animation.html"
-            className="w-full max-w-md border-0"
-            style={{ aspectRatio: "3446 / 845" }}
-            tabIndex={-1}
-            title="Trustead animated logo"
-          />
+      {/* Persistent logo wrapper.
+          Phase A (intro → morphing transition): top + transform animate
+          over LOGO_MOVE_MS — the upward translate.
+          Phase B (lands at top): width animates over LOGO_SHRINK_MS,
+          delayed by LOGO_MOVE_MS so the shrink only fires after the
+          move ends. Both share the dramatic ease-in-out curve so the
+          motion is deliberate. The wrapper sits at z-40 so the slide
+          content (z-10) cannot animate behind it during morphing. */}
+      <div
+        className="pointer-events-none absolute z-40 left-1/2 -translate-x-1/2"
+        style={{
+          top: introOrMorphing && phase !== "morphing" ? "50%" : "1.75rem",
+          transform:
+            introOrMorphing && phase !== "morphing"
+              ? "translate(-50%, -50%)"
+              : "translate(-50%, 0)",
+          width:
+            introOrMorphing && phase !== "morphing"
+              ? "min(28rem, 92vw)"
+              : "9rem",
+          transitionProperty: "top, transform, width",
+          transitionDuration: `${LOGO_MOVE_MS}ms, ${LOGO_MOVE_MS}ms, ${LOGO_SHRINK_MS}ms`,
+          transitionDelay: `0ms, 0ms, ${LOGO_MOVE_MS}ms`,
+          transitionTimingFunction: `${LOGO_EASING}, ${LOGO_EASING}, ${LOGO_EASING}`,
+        }}
+      >
+        <iframe
+          src="/assets/logo-animation/trustead-logo-animation-white.html"
+          className="w-full border-0"
+          style={{ aspectRatio: "3446 / 845" }}
+          tabIndex={-1}
+          title="Trustead animated logo"
+        />
+        {/* Tagline — plain (no italic, no brand-300). Fades up after
+            TAGLINE_DELAY_MS while the wordmark draws, stays through
+            the rest of the intro, and fades out the moment phase
+            flips to morphing (so it disappears right as the logo
+            starts moving up). */}
+        <div
+          className="mt-3 text-center"
+          style={{
+            opacity: phase === "intro" ? 1 : 0,
+            transform:
+              phase === "intro"
+                ? "translate3d(0, 0, 0)"
+                : "translate3d(0, -16px, 0)",
+            transition: `opacity ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING}, transform ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING}`,
+            animation:
+              phase === "intro"
+                ? `sb-block-rise ${BLOCK_FADE_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_DELAY_MS}ms backwards`
+                : "none",
+          }}
+        >
+          <span className="text-base text-muted-foreground sm:text-lg">
+            Rent your home with trust
+          </span>
         </div>
-      )}
+      </div>
 
       {phase === "slides" && (
         <>
-          <button
-            type="button"
-            onClick={skip}
-            className="absolute right-5 top-5 z-20 rounded-pill px-3 py-1.5 text-sm text-muted-foreground transition hover:text-foreground sm:right-8 sm:top-8"
-          >
-            Skip
-          </button>
-
           <div
             key={index}
-            className="flex flex-1 items-center justify-center px-6 pb-32 pt-16 sm:pb-28"
+            className="relative z-10 flex flex-1 items-center justify-center overflow-y-auto px-6 pt-32 pb-20 sm:pt-36 sm:pb-24"
           >
-            <div className="flex max-w-xl flex-col items-center gap-6 text-center sm:gap-8">
-              {/* ILLUSTRATION SLOT — Lucide placeholder, swap with real artwork later */}
-              <div
-                className="anim-step flex h-32 w-32 items-center justify-center rounded-full border border-border bg-secondary"
-                style={{ animationDelay: "0ms" }}
+            <div className="flex w-full max-w-md flex-col items-center gap-6 text-center sm:max-w-xl sm:gap-8">
+              {/* Eyebrow pill — small uppercase tag above the heading */}
+              <span
+                className="block-rise inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
+                style={{ animationDelay: `${eyebrowDelay}ms` }}
               >
-                <Icon className="h-14 w-14 text-brand-300" strokeWidth={1.5} />
-              </div>
+                {slide.eyebrow}
+              </span>
 
-              <h1
-                className="anim-step font-serif text-3xl leading-tight sm:text-4xl"
-                style={{ animationDelay: "120ms" }}
-              >
-                {slide.title}
-              </h1>
+              <AnimatedHeading
+                titleLines={slide.titleLines}
+                emphasis={slide.titleEmphasis}
+                stagger={TITLE_WORD_STAGGER_MS}
+                baseDelay={titleStartDelay}
+              />
 
-              <p
-                className="anim-step text-base text-muted-foreground sm:text-lg"
-                style={{ animationDelay: "240ms" }}
-              >
-                {slide.body}
+              {Visual && (
+                <div
+                  className="block-rise w-full"
+                  style={{ animationDelay: `${visualDelay}ms` }}
+                >
+                  <Visual />
+                </div>
+              )}
+
+              <p className="text-base leading-relaxed text-muted-foreground sm:text-lg">
+                <AnimatedWords
+                  text={slide.body}
+                  stagger={BODY_WORD_STAGGER_MS}
+                  baseDelay={bodyStartDelay}
+                />
               </p>
+
+              <div
+                className="block-rise flex w-full flex-col items-center gap-3"
+                style={{ animationDelay: `${buttonDelay}ms` }}
+              >
+                <button
+                  type="button"
+                  onClick={next}
+                  aria-label={isLast ? "Get started" : "Continue"}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 py-3.5 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
+                >
+                  {isLast ? "Get started" : "Continue"}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+                {/* Skip is centered under Continue; back arrow lives
+                    on the left edge so the row reads as a balanced
+                    "← center action" instead of a paired group. */}
+                <div className="relative flex w-full items-center justify-center">
+                  {!isFirst && (
+                    <button
+                      type="button"
+                      onClick={prev}
+                      aria-label="Previous slide"
+                      className="absolute left-0 grid h-8 w-8 place-items-center rounded-pill text-muted-foreground transition hover:text-foreground"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={skip}
+                    className="rounded-pill px-3 py-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+                  >
+                    Skip
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 px-3 pb-10 sm:px-8 sm:pb-12">
-            <div className="flex flex-1 justify-start">
-              {index > 0 && (
-                <button
-                  type="button"
-                  onClick={prev}
-                  aria-label="Previous slide"
-                  className="rounded-pill border border-border bg-secondary p-3 text-foreground transition hover:bg-accent"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {SLIDES.map((_, i) => (
-                <span
-                  key={i}
-                  aria-label={`Slide ${i + 1}${i === index ? " (current)" : ""}`}
-                  className={
-                    i === index
-                      ? "h-2 w-6 rounded-pill bg-brand-300 transition-all"
-                      : "h-2 w-2 rounded-pill bg-border transition-all"
-                  }
-                />
-              ))}
-            </div>
-
-            <div className="flex flex-1 justify-end">
-              <button
-                type="button"
-                onClick={next}
-                aria-label={isLast ? "Get started" : "Next slide"}
+          <div className="absolute inset-x-0 bottom-6 z-20 flex items-center justify-center gap-2 sm:bottom-8">
+            {SLIDES.map((_, i) => (
+              <span
+                key={i}
+                aria-label={`Slide ${i + 1}${i === index ? " (current)" : ""}`}
                 className={
-                  isLast
-                    ? "rounded-pill bg-brand-300 px-5 py-3 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
-                    : "rounded-pill bg-brand-300 p-3 text-brand-foreground shadow-card transition hover:bg-brand-400"
+                  i === index
+                    ? "h-2 w-6 rounded-pill bg-brand-300 transition-all"
+                    : "h-2 w-2 rounded-pill bg-border transition-all"
                 }
-              >
-                {isLast ? "Get started" : <ArrowRight className="h-5 w-5" />}
-              </button>
-            </div>
+              />
+            ))}
           </div>
         </>
       )}
     </main>
+  );
+}
+
+// ── Animated heading + body ───────────────────────────────────────
+
+function AnimatedHeading({
+  titleLines,
+  emphasis,
+  stagger,
+  baseDelay,
+}: {
+  titleLines: [string, string];
+  emphasis?: { word: string; className: string };
+  stagger: number;
+  baseDelay: number;
+}) {
+  let globalWordIdx = 0;
+  return (
+    // Mobile font size scales with viewport (clamp(34, 10.5vw, 44))
+    // so 375px → ~39px (~1.5× the prior 26px) while still fitting
+    // the longer slide-5 line. Desktop sizes unchanged.
+    <h1 className="font-serif !leading-[1.08] !tracking-tight !max-w-none !text-[clamp(34px,10.5vw,44px)] sm:!text-[50px] md:!text-[60px]">
+      {titleLines.map((line, lineIdx) => (
+        <span key={lineIdx} className="block">
+          {line.split(" ").map((word, wordIdx, arr) => {
+            const delay = baseDelay + globalWordIdx * stagger;
+            globalWordIdx += 1;
+            const isEmphasis =
+              emphasis && stripPunct(word) === stripPunct(emphasis.word);
+            return (
+              <span key={`${lineIdx}-${wordIdx}`}>
+                <span className="word-mask">
+                  <span
+                    className={`word-fill ${isEmphasis ? emphasis!.className : ""}`}
+                    style={{ animationDelay: `${delay}ms` }}
+                  >
+                    {word}
+                  </span>
+                </span>
+                {wordIdx < arr.length - 1 && " "}
+              </span>
+            );
+          })}
+        </span>
+      ))}
+    </h1>
+  );
+}
+
+function AnimatedWords({
+  text,
+  stagger,
+  baseDelay,
+}: {
+  text: string;
+  stagger: number;
+  baseDelay: number;
+}) {
+  const words = text.split(/\s+/).filter(Boolean);
+  return (
+    <>
+      {words.map((word, i) => (
+        <span key={i}>
+          <span className="word-mask">
+            <span
+              className="word-fill"
+              style={{ animationDelay: `${baseDelay + i * stagger}ms` }}
+            >
+              {word}
+            </span>
+          </span>
+          {i < words.length - 1 && " "}
+        </span>
+      ))}
+    </>
+  );
+}
+
+function stripPunct(s: string) {
+  return s.replace(/[.,;:!?"'()]/g, "").toLowerCase();
+}
+
+// ── Visuals ───────────────────────────────────────────────────────
+
+const PAIN_POINTS = [
+  {
+    title: "Putting your stuff away",
+    subtitle: "Every time you rent. Out again every time you return.",
+    image: "/assets/onboarding-problems/problem-02-packing.webp",
+  },
+  {
+    title: "Neighbor issues",
+    subtitle: "A new household every weekend. Not everyone is thrilled.",
+    image: "/assets/onboarding-problems/problem-03-neighbors.webp",
+  },
+  {
+    title: "Exposing your nice things",
+    subtitle: "Glasses, couches, art — left to strangers' wear and tear.",
+    image: "/assets/onboarding-problems/problem-01-wine.webp",
+  },
+  {
+    title: "Coverage doesn't mean caring",
+    subtitle: "Insurance pays out. It doesn't fix how renters treat your home.",
+    image: "/assets/onboarding-problems/problem-04-careless.webp",
+  },
+  {
+    title: "Public listings are searchable",
+    subtitle: "Anyone can find your address attached to a listing.",
+    image: "/assets/onboarding-problems/problem-05-regulation.webp",
+  },
+];
+
+// STRANGERS_OPTION_ONE — the vertical pain-points list. Kept in code
+// as an alternate treatment; not currently in SLIDES.
+function PainPointsListVisual() {
+  const ITEM_HEIGHT = 76;
+  const items = [...PAIN_POINTS, PAIN_POINTS[0]];
+  return (
+    <div
+      className="pain-window relative w-full overflow-hidden"
+      style={
+        {
+          height: `${ITEM_HEIGHT}px`,
+          ["--pain-h" as string]: `${ITEM_HEIGHT}px`,
+        } as React.CSSProperties
+      }
+    >
+      <div className="pain-track">
+        {items.map((p, i) => (
+          <div
+            key={`${p.title}-${i}`}
+            className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/40 px-4 text-left"
+            style={{ height: `${ITEM_HEIGHT}px` }}
+          >
+            <span
+              aria-hidden
+              className="grid h-2 w-2 shrink-0 place-items-center rounded-full"
+              style={{ backgroundColor: "#B45309" }}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold leading-tight">
+                {p.title}
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
+                {p.subtitle}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PainPointsCardsVisual() {
+  const cards = [...PAIN_POINTS, ...PAIN_POINTS];
+  return (
+    <div className="cards-window relative w-full overflow-hidden">
+      <div className="cards-track flex gap-3" style={{ width: "max-content" }}>
+        {cards.map((p, i) => (
+          <div
+            key={`${p.title}-${i}`}
+            className="flex w-[44vw] max-w-[180px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/40 text-left sm:w-[180px]"
+          >
+            <div
+              className="aspect-[4/3] w-full bg-cover bg-center"
+              style={{ backgroundImage: `url(${p.image})` }}
+              aria-label={p.title}
+              role="img"
+            />
+            <div className="px-3 py-2.5">
+              <div className="text-[12px] font-semibold leading-tight">
+                {p.title}
+              </div>
+              <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug line-clamp-2">
+                {p.subtitle}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VouchPickerVisual() {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background/40 p-4 text-left">
+      <p className="mb-3 text-xs text-muted-foreground">How do you know them?</p>
+      <div className="space-y-2.5">
+        <PickerOption
+          icon={<Shield className="h-4 w-4" />}
+          iconBg="bg-blue-100"
+          iconFg="text-blue-700"
+          title="Vouch"
+          subtitle="I know them"
+        />
+        <PickerOption
+          icon={<Star className="h-4 w-4" />}
+          iconBg="bg-amber-100"
+          iconFg="text-amber-700"
+          title="Vouch+"
+          subtitle="I know them very well"
+        />
+      </div>
+    </div>
+  );
+}
+
+function PickerOption({
+  icon,
+  iconBg,
+  iconFg,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  iconFg: string;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border/60 p-2.5">
+      <div
+        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${iconBg} ${iconFg}`}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold leading-tight">{title}</div>
+        <p className="mt-0.5 text-xs text-muted-foreground leading-tight">
+          {subtitle}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// TODO(loren): revisit this visual — placeholder mock of the in-app
+// trust-detail panel; needs a follow-up design pass before B3.
+function TrustDetailVisual() {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background/40 p-4 text-left">
+      <div className="flex items-center gap-2">
+        <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="text-[13px] font-semibold leading-tight">
+          Hana Yoon is connected to you via 1 connection
+        </div>
+      </div>
+      <div className="mt-1 text-[11px] text-muted-foreground">
+        Trust Score:{" "}
+        <span className="font-semibold text-foreground">9 pts (Weak)</span>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-border/60 bg-background/30 p-3">
+        <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+          Path 1 · via Cassidy
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-1">
+          <ChainNode initials="HY" label="Hana" />
+          <ChainChip value="9" />
+          <ChainNode initials="CL" label="Cassidy" />
+          <ChainChip value="9" />
+          <ChainNode initials="You" label="You" tone="self" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChainNode({
+  initials,
+  label,
+  tone = "neutral",
+}: {
+  initials: string;
+  label: string;
+  tone?: "neutral" | "self";
+}) {
+  const styles =
+    tone === "self"
+      ? "bg-brand-300 text-brand-foreground"
+      : "bg-secondary text-foreground border border-border/60";
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div
+        className={`grid h-9 w-9 place-items-center rounded-full text-[10px] font-semibold ${styles}`}
+      >
+        {initials}
+      </div>
+      <span className="text-[10px] font-medium text-muted-foreground">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function ChainChip({ value }: { value: string }) {
+  return (
+    <span
+      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
+      style={{ backgroundColor: "#FAF5FF", color: "#6B21A8" }}
+    >
+      {value}
+    </span>
+  );
+}
+
+// TODO(loren): revisit this visual — placeholder mock of the listing
+// visibility settings; needs a follow-up design pass before B3.
+function VisibilityVisual() {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background/40 p-4 text-left">
+      <p className="mb-3 text-xs text-muted-foreground">Listing visibility</p>
+      <div className="space-y-2.5">
+        <ScopeRow
+          icon={<Lock className="h-4 w-4" />}
+          title="Private"
+          subtitle="Only people you invite"
+          active={false}
+        />
+        <ScopeRow
+          icon={<Eye className="h-4 w-4" />}
+          title="Preview"
+          subtitle="Network sees a teaser, not the address"
+          active={true}
+        />
+        <ScopeRow
+          icon={<Users className="h-4 w-4" />}
+          title="Friends of friends"
+          subtitle="Up to 2° from you"
+          active={false}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ScopeRow({
+  icon,
+  title,
+  subtitle,
+  active,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  active: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-xl border p-2.5 ${
+        active ? "border-brand-300/60 bg-brand-300/10" : "border-border/60"
+      }`}
+    >
+      <div
+        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
+          active
+            ? "bg-brand-300 text-brand-foreground"
+            : "bg-secondary text-muted-foreground"
+        }`}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold leading-tight">{title}</div>
+        <p className="mt-0.5 text-xs text-muted-foreground leading-tight">
+          {subtitle}
+        </p>
+      </div>
+      {active && <Check className="h-4 w-4 shrink-0 text-brand-300" />}
+    </div>
   );
 }

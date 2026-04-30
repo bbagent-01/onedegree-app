@@ -24,6 +24,13 @@ interface InviteData {
   expires_at: string;
   status: string;
   claimed_by: string | null;
+  // B2: only set when the row came from pending_vouches. Drives
+  // the InviteAcceptCard mode-aware copy. Legacy `invites` rows
+  // implicitly act like Mode A (phone) for the recipient card.
+  mode?: "phone" | "open_individual" | "open_group";
+  group_label?: string | null;
+  max_claims?: number | null;
+  claim_count?: number | null;
 }
 
 interface InviterData {
@@ -33,6 +40,15 @@ interface InviterData {
   location: string | null;
 }
 
+/**
+ * Resolve the token against both invite tables. The B1 pre-vouch
+ * flow (`pending_vouches`, migration 047) and the legacy Twilio
+ * invite flow (`invites`, migration 003) share the /join/[token]
+ * URL space — token format differs (base64url ~32 vs hex 64) so
+ * collisions are vanishingly unlikely. Try invites first because
+ * legacy rows existed before this dispatch was wired up; pending
+ * vouches is the fallback.
+ */
 async function lookupInvite(token: string): Promise<InviteLookup> {
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
@@ -43,7 +59,9 @@ async function lookupInvite(token: string): Promise<InviteLookup> {
     .eq("token", token)
     .maybeSingle();
 
-  if (!data) return { kind: "not_found" };
+  if (!data) {
+    return await lookupPendingVouch(token);
+  }
 
   if (data.claimed_by) {
     const { data: claimedUser } = await supabase
@@ -79,6 +97,86 @@ async function lookupInvite(token: string): Promise<InviteLookup> {
       expires_at: data.expires_at as string,
       status: data.status as string,
       claimed_by: null,
+    },
+    inviter: {
+      id: inviter.id as string,
+      name: (inviter.name as string) || "A friend",
+      avatar_url: (inviter.avatar_url as string) ?? null,
+      location: (inviter.location as string) ?? null,
+    },
+  };
+}
+
+async function lookupPendingVouch(token: string): Promise<InviteLookup> {
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("pending_vouches")
+    .select(
+      "id, token, sender_id, recipient_name, vouch_type, years_known_bucket, expires_at, status, claimed_by, mode, group_label, max_claims, claim_count"
+    )
+    .eq("token", token)
+    .maybeSingle();
+
+  if (!data) return { kind: "not_found" };
+
+  const mode = (data.mode as string | null) ?? "phone";
+  const claimCount = (data.claim_count as number | null) ?? 0;
+  const maxClaims = (data.max_claims as number | null) ?? null;
+
+  // status drives the rendered card. We deliberately do NOT lean on
+  // expires_at alone — the cron sweeper (see /api/cron/expire-pending-vouches)
+  // flips status to 'expired' so a stale row + ungroomed status can't
+  // trick a recipient into thinking the link is still live.
+  //
+  // Mode C (open_group) special-cases status='pending' && claim_count>=max_claims:
+  // the row stays 'pending' (so the cron sweep + cancel/resend flows work
+  // unchanged), but new claimants see a "this group invite is full" card
+  // instead of the join CTA.
+  if (data.status === "claimed") {
+    const { data: claimedUser } = await supabase
+      .from("users")
+      .select("name")
+      .eq("id", data.claimed_by as string)
+      .maybeSingle();
+    return { kind: "consumed", claimedUserName: (claimedUser?.name as string) ?? null };
+  }
+  if (data.status === "canceled" || data.status === "expired") {
+    return { kind: "expired" };
+  }
+  if (data.expires_at && new Date(data.expires_at as string) < new Date()) {
+    return { kind: "expired" };
+  }
+  if (mode === "open_group" && maxClaims !== null && claimCount >= maxClaims) {
+    return { kind: "expired" };
+  }
+
+  const { data: inviter } = await supabase
+    .from("users")
+    .select("id, name, avatar_url, location")
+    .eq("id", data.sender_id as string)
+    .maybeSingle();
+  if (!inviter) return { kind: "not_found" };
+
+  return {
+    kind: "valid",
+    invite: {
+      id: data.id as string,
+      token: data.token as string,
+      invitee_name: (data.recipient_name as string | null) ?? null,
+      // Phone intentionally NOT surfaced to the public card — we know
+      // it server-side for the auto-claim, but it's PII and the
+      // recipient already knows their own number.
+      invitee_phone: null,
+      invitee_email: null,
+      vouch_type: data.vouch_type as string,
+      years_known_bucket: data.years_known_bucket as string,
+      expires_at: data.expires_at as string,
+      status: data.status as string,
+      claimed_by: null,
+      mode: mode as "phone" | "open_individual" | "open_group",
+      group_label: (data.group_label as string | null) ?? null,
+      max_claims: maxClaims,
+      claim_count: claimCount,
     },
     inviter: {
       id: inviter.id as string,
@@ -143,8 +241,8 @@ export default async function JoinPage({
   if (result.kind === "expired") {
     return (
       <DeadEndCard
-        headline="This invite has expired"
-        body="Invites are valid for 7 days. Reach out to whoever sent this to you and ask for a fresh one. You can still create an account on Trustead, but this particular pre-vouch won't apply."
+        headline="This invite has expired or is no longer valid"
+        body="Reach out to whoever sent this to you and ask for a fresh one. You can still create an account on Trustead, but this particular pre-vouch won't apply."
       />
     );
   }
@@ -169,6 +267,10 @@ export default async function JoinPage({
       inviteeName={result.invite.invitee_name}
       vouchType={result.invite.vouch_type}
       yearsKnownBucket={result.invite.years_known_bucket}
+      mode={result.invite.mode}
+      claimCount={result.invite.claim_count ?? undefined}
+      maxClaims={result.invite.max_claims ?? undefined}
+      groupLabel={result.invite.group_label ?? null}
     />
   );
 }

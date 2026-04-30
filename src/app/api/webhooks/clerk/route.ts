@@ -178,6 +178,13 @@ export async function POST(req: Request) {
     // On new user creation, claim any pending invites
     if (evt.type === "user.created" && user) {
       await claimPendingInvites(supabase, user.id, email ?? null, phone);
+      // B1: parallel pending_vouches claim. The two flows live in
+      // separate tables (see migration 047) — invites is the legacy
+      // Twilio-sent flow with email fallback, pending_vouches is the
+      // sender-shares-via-their-own-Messages flow. Both can match on
+      // phone, both can produce vouch rows. Order doesn't matter
+      // because vouches.upsert is keyed on (voucher_id, vouchee_id).
+      await claimPendingVouches(supabase, user.id, phone);
     }
   }
 
@@ -246,6 +253,77 @@ async function claimPendingInvites(
     } catch (e) {
       // Log but don't fail the webhook for invite claim errors
       console.error(`Failed to claim invite ${invite.id}:`, e);
+    }
+  }
+}
+
+/**
+ * B1: Auto-claim pending_vouches on user creation. Mirrors the
+ * invites flow above but against the new pending_vouches table.
+ *
+ * Differences from claimPendingInvites:
+ *   - Phone-only match (the table has no email column — share links
+ *     are SMS-shaped from day one).
+ *   - Multi-claim: the same phone can claim multiple pending rows,
+ *     one per sender. We loop through all matches, each becoming a
+ *     real vouch.
+ *   - Mismatch logging happens in /join/[token]/complete (it has the
+ *     URL token, the webhook does not). This function only fires the
+ *     happy-path phone match.
+ */
+async function claimPendingVouches(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  newUserId: string,
+  phone: string | null
+) {
+  if (!phone) return;
+
+  const { data: rows } = await supabase
+    .from("pending_vouches")
+    .select("id, sender_id, vouch_type, years_known_bucket")
+    .eq("status", "pending")
+    .eq("recipient_phone", phone)
+    .gt("expires_at", new Date().toISOString());
+
+  if (!rows || rows.length === 0) return;
+
+  for (const row of rows) {
+    try {
+      // Self-vouch guard. The create endpoint already blocks the
+      // sender's own phone, but a sender who later changes their
+      // own phone could end up matching their old pending row.
+      if (row.sender_id === newUserId) {
+        console.warn(
+          `[clerk-webhook] skipping self-claim of pending_vouch ${row.id}`
+        );
+        continue;
+      }
+
+      await supabase.from("vouches").upsert(
+        {
+          voucher_id: row.sender_id,
+          vouchee_id: newUserId,
+          vouch_type: row.vouch_type,
+          years_known_bucket: row.years_known_bucket,
+          is_post_stay: false,
+          is_staked: false,
+        },
+        { onConflict: "voucher_id,vouchee_id" }
+      );
+
+      // Mark this pending_vouch claimed. The phone stays on the row
+      // (claimed != terminal-scrub) so we can reconcile later if the
+      // user disputes.
+      await supabase
+        .from("pending_vouches")
+        .update({
+          status: "claimed",
+          claimed_by: newUserId,
+          claimed_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+    } catch (e) {
+      console.error(`Failed to claim pending_vouch ${row.id}:`, e);
     }
   }
 }

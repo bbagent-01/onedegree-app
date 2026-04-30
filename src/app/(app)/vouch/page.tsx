@@ -11,7 +11,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VouchModal } from "@/components/trust/vouch-modal";
-import { Search, Shield, UserCheck, Users, UserPlus } from "lucide-react";
+import { Search, Shield, UserCheck, Users, Send } from "lucide-react";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 const BIG_INPUT =
   "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
@@ -34,6 +35,21 @@ function initials(name: string) {
       .join("")
       .toUpperCase() || "U"
   );
+}
+
+/**
+ * If the search query parses as a possible phone number, propagate
+ * it to /invite/share so the user doesn't have to retype it.
+ * Otherwise just deep-link to the share form.
+ */
+function emptyStateInviteHref(query: string): string {
+  const trimmed = query.trim();
+  if (!trimmed) return "/invite/share";
+  const parsed = parsePhoneNumberFromString(trimmed, "US");
+  if (parsed?.isPossible()) {
+    return `/invite/share?phone=${encodeURIComponent(parsed.format("E.164"))}`;
+  }
+  return "/invite/share";
 }
 
 export default function VouchPage() {
@@ -133,12 +149,16 @@ export default function VouchPage() {
               No members found for &ldquo;{query}&rdquo;
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              They might not be on Trustead yet. Invite them to join!
+              They might not be on Trustead yet — pre-vouch them with a
+              link you can text yourself.
             </p>
-            <Link href="/invite">
+            {/* Pass the phone forward when the search input was a
+                phone-shaped string. /invite/share parses it and prefills
+                the recipient phone field. */}
+            <Link href={emptyStateInviteHref(query)}>
               <Button size="lg" className="mt-4 gap-1.5">
-                <UserPlus className="h-4 w-4" />
-                Invite them to Trustead
+                <Send className="h-4 w-4" />
+                Invite + pre-vouch a friend
               </Button>
             </Link>
           </div>
@@ -208,11 +228,11 @@ export default function VouchPage() {
               Don&rsquo;t see who you&rsquo;re looking for?
             </p>
             <Link
-              href="/invite"
+              href={emptyStateInviteHref(query)}
               className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
             >
-              <UserPlus className="h-3.5 w-3.5" />
-              Invite them to join
+              <Send className="h-3.5 w-3.5" />
+              Invite + pre-vouch them
             </Link>
           </div>
         )}

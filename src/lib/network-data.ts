@@ -13,6 +13,11 @@ export interface NetworkPerson {
   /** Vouchee's guest_rating average if they've received any reviews. */
   guest_rating: number | null;
   guest_review_count: number;
+  /** B2: true when this vouch landed via an open invite link (Mode B
+   *  or Mode C). Drives the "from open link — review?" badge in the
+   *  network section so the sender can quickly revoke if the wrong
+   *  person claimed their link. Only meaningful on the vouchedFor side. */
+  from_open_link?: boolean;
 }
 
 export interface PendingInvite {
@@ -116,6 +121,53 @@ export async function getNetworkData(): Promise<NetworkData | null> {
         vouchedFor.push(person);
       } else {
         vouchedBy.push(person);
+      }
+    }
+  }
+
+  // Tag vouches that came from open invite links (Mode B / Mode C)
+  // so the network section can show a "from open link — review?"
+  // badge — the safety valve for the auto-vouch trust model. Done
+  // as two queries (vouches → pending_vouches) instead of a PostgREST
+  // join because the from_pending_vouch_id FK was added in 048 and
+  // hasn't necessarily been reloaded by PostgREST's schema cache.
+  if (vouchedFor.length > 0) {
+    const voucheeIds = vouchedFor.map((p) => p.user_id);
+    const { data: openVouches } = await supabase
+      .from("vouches")
+      .select("vouchee_id, from_pending_vouch_id")
+      .eq("voucher_id", user.id)
+      .in("vouchee_id", voucheeIds)
+      .not("from_pending_vouch_id", "is", null);
+
+    const pvIds = Array.from(
+      new Set(
+        (openVouches ?? [])
+          .map((v) => v.from_pending_vouch_id as string | null)
+          .filter((id): id is string => !!id)
+      )
+    );
+    if (pvIds.length > 0) {
+      const { data: pvRows } = await supabase
+        .from("pending_vouches")
+        .select("id, mode")
+        .in("id", pvIds);
+      const openModeIds = new Set(
+        (pvRows ?? [])
+          .filter((r) => {
+            const m = r.mode as string;
+            return m === "open_individual" || m === "open_group";
+          })
+          .map((r) => r.id as string)
+      );
+      const fromOpen = new Set<string>();
+      for (const v of openVouches ?? []) {
+        if (openModeIds.has(v.from_pending_vouch_id as string)) {
+          fromOpen.add(v.vouchee_id as string);
+        }
+      }
+      for (const p of vouchedFor) {
+        if (fromOpen.has(p.user_id)) p.from_open_link = true;
       }
     }
   }
