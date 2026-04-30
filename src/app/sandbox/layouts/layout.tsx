@@ -14,7 +14,11 @@ export const metadata = {
   title: "Layout sandbox — Trustead",
 };
 
-const ROUTES: { href: string; label: string }[] = [
+// Two route groups in the nav: "Current" iframes the live page so you
+// see exactly what's in production today; "Variants" are real React
+// implementations where we iterate alternative designs. Variants
+// always live as sibling routes, never overwrite Current.
+const CURRENT_ROUTES: { href: string; label: string }[] = [
   { href: "/sandbox/layouts", label: "Index" },
   { href: "/sandbox/layouts/landing", label: "Landing" },
   { href: "/sandbox/layouts/browse", label: "Browse" },
@@ -26,6 +30,13 @@ const ROUTES: { href: string; label: string }[] = [
   { href: "/sandbox/layouts/messages", label: "Messages" },
   { href: "/sandbox/layouts/vouch", label: "Vouch" },
   { href: "/sandbox/layouts/profile", label: "Profile" },
+];
+
+const VARIANT_ROUTES: { href: string; label: string }[] = [
+  { href: "/sandbox/layouts/home-v1", label: "Home v1" },
+  { href: "/sandbox/layouts/home-v2", label: "Home v2" },
+  { href: "/sandbox/layouts/home-v3", label: "Home v3" },
+  { href: "/sandbox/layouts/browse-with-offers", label: "Browse + Offers" },
 ];
 
 export default function SandboxLayoutsLayout({
@@ -53,7 +64,17 @@ function SandboxNav() {
           Sandbox
         </span>
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-          {ROUTES.map((r) => (
+          {CURRENT_ROUTES.map((r) => (
+            <SandboxNavLink key={r.href} href={r.href} label={r.label} />
+          ))}
+          <span
+            aria-hidden
+            className="mx-2 h-4 shrink-0 border-l border-border/70"
+          />
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Variants
+          </span>
+          {VARIANT_ROUTES.map((r) => (
             <SandboxNavLink key={r.href} href={r.href} label={r.label} />
           ))}
         </div>
