@@ -26,6 +26,9 @@ const isPublicRoute = createRouteMatcher([
   "/terms",
   "/privacy",
   "/legal-status",
+  // D3 layout sandbox — public for review. Pages live under
+  // src/app/(app)/sandbox/layouts/. Remove after B4 layout integration.
+  "/sandbox(.*)",
 ]);
 
 // ── ALPHA-ONLY (CC-Dev1 Impersonation Switcher) ─────────────────
