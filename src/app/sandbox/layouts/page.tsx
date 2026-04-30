@@ -115,6 +115,18 @@ const VARIANTS: Surface[] = [
       "Single chronological mixed-activity feed (vouches, proposals, listings interspersed). Smart single search with mode pills below. Side rail with vouch nudges, network-at-a-glance, and your listings shortcut.",
   },
   {
+    href: "/sandbox/layouts/home-v4",
+    name: "Home v4 — Sidebar shell + showcase",
+    blurb:
+      "Proposed site-wide shell: collapsible LEFT sidebar with the full app menu, fixed RIGHT rail for activity / vouch nudges, condensed search w/ Stays/People/Vouches selector inline. Marquees use live-matching card styles — horizontal proposals with concentric-ring overlay on Trip Wishes, vertical listings with TrustTag pill.",
+  },
+  {
+    href: "/sandbox/layouts/home-v5",
+    name: "Home v5 — Sidebar shell + featured hero",
+    blurb:
+      "Same shell as v4, but leads with a hero “of the moment” feature card (Host Offer or Trip Wish), then 2 marquees (proposals + listings), then a network-at-a-glance stats strip. Right rail leads with “Today’s prompts” (do this next) above activity.",
+  },
+  {
     href: "/sandbox/layouts/browse-with-offers",
     name: "Browse + Host Offers",
     blurb:
