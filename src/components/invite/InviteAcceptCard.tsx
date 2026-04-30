@@ -22,6 +22,17 @@ interface Props {
   inviteeName: string | null;
   vouchType: string;
   yearsKnownBucket: string;
+  /** B2: which invite mode created this row. Drives copy variations
+   *  on the recipient card (group-mode shows different headline +
+   *  claim count). Defaults to 'phone' for backward compat with rows
+   *  created before migration 048. */
+  mode?: "phone" | "open_individual" | "open_group";
+  /** Mode C only: how many people have claimed via this group link. */
+  claimCount?: number;
+  /** Mode C only: the cap on total claims for this group link. */
+  maxClaims?: number;
+  /** Mode C only: optional sender-set label (e.g. "Tahoe ski crew"). */
+  groupLabel?: string | null;
 }
 
 function initials(name: string) {
@@ -41,6 +52,10 @@ export function InviteAcceptCard({
   inviteeName,
   vouchType,
   yearsKnownBucket,
+  mode = "phone",
+  claimCount,
+  maxClaims,
+  groupLabel,
 }: Props) {
   const completePath = `/join/${token}/complete`;
   const signUpHref = `/sign-up?redirect_url=${encodeURIComponent(completePath)}`;
@@ -53,6 +68,13 @@ export function InviteAcceptCard({
   const yearsLabel = rawYearsLabel
     ? rawYearsLabel.charAt(0).toLowerCase() + rawYearsLabel.slice(1)
     : yearsKnownBucket;
+
+  const inviterFirst = inviter.name.split(" ")[0];
+  const isGroup = mode === "open_group";
+  const groupCountLabel =
+    isGroup && typeof claimCount === "number" && typeof maxClaims === "number"
+      ? `${claimCount}/${maxClaims} people have signed up via this link so far.`
+      : null;
 
   return (
     <div className="mx-auto mt-16 w-full max-w-[520px] rounded-2xl border border-border bg-white p-8 shadow-sm">
@@ -69,7 +91,9 @@ export function InviteAcceptCard({
           </p>
           <h1 className="mt-1 text-xl font-semibold text-foreground">
             <span className="text-foreground">{inviter.name}</span>
-            <span className="text-muted-foreground"> invited you</span>
+            <span className="text-muted-foreground">
+              {isGroup ? " is inviting their friends" : " invited you"}
+            </span>
           </h1>
           {inviter.location ? (
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -79,10 +103,16 @@ export function InviteAcceptCard({
         </div>
       </div>
 
-      {inviteeName ? (
+      {!isGroup && inviteeName ? (
         <p className="mt-6 text-sm text-muted-foreground">
           Welcome,{" "}
           <span className="font-semibold text-foreground">{inviteeName}</span>.
+        </p>
+      ) : null}
+
+      {isGroup && groupLabel ? (
+        <p className="mt-6 text-sm text-muted-foreground">
+          Group: <span className="font-semibold text-foreground">{groupLabel}</span>
         </p>
       ) : null}
 
@@ -92,13 +122,32 @@ export function InviteAcceptCard({
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div className="text-sm leading-relaxed">
-            <p className="font-medium text-foreground">Pre-vouch attached</p>
-            <p className="mt-1 text-muted-foreground">
-              {inviter.name.split(" ")[0]} has already vouched for you —{" "}
-              <span className="font-medium text-foreground">{vouchLabel}</span>,{" "}
-              {yearsLabel}. When you sign up, you&apos;ll land with a 1° connection
-              to {inviter.name.split(" ")[0]} already active.
+            <p className="font-medium text-foreground">
+              {isGroup ? "Vouch waiting for you" : "Pre-vouch attached"}
             </p>
+            <p className="mt-1 text-muted-foreground">
+              {isGroup ? (
+                <>
+                  {inviterFirst} is offering a{" "}
+                  <span className="font-medium text-foreground">{vouchLabel}</span>{" "}
+                  to everyone who signs up via this link ({yearsLabel}). When
+                  you sign up, you&apos;ll land with a 1° connection to{" "}
+                  {inviterFirst} already active.
+                </>
+              ) : (
+                <>
+                  {inviterFirst} has already vouched for you —{" "}
+                  <span className="font-medium text-foreground">{vouchLabel}</span>
+                  , {yearsLabel}. When you sign up, you&apos;ll land with a 1°
+                  connection to {inviterFirst} already active.
+                </>
+              )}
+            </p>
+            {groupCountLabel ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {groupCountLabel}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

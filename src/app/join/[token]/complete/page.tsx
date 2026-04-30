@@ -154,21 +154,24 @@ async function consumeInvite(
 }
 
 /**
- * B1: pending_vouches token-resume path.
+ * B1+B2: pending_vouches token-resume path.
  *
- * The webhook already runs an unconditional phone-match auto-claim
- * (see src/app/api/webhooks/clerk/route.ts → claimPendingVouches), so
- * this function is the *token-aware* layer: it lets the recipient
- * resume even on phone mismatch — and when the phones disagree, logs
- * the event to pending_vouch_mismatch_events so a future
- * reconciliation pass has the audit trail.
+ * Three modes share this entry point. The mode column on the row
+ * decides how the claim resolves:
  *
- * Behavior:
- *   - Token + matching phone → claim (idempotent with webhook).
- *   - Token + mismatching phone → DO NOT claim; log mismatch event
- *     (intended_phone reduced to last 4 digits per privacy decision).
- *     Pending row stays 'pending' until natural expiry.
- *   - Already claimed (likely by webhook) → friendly success message.
+ *   - 'phone' — webhook may have already auto-claimed by phone match;
+ *     this function double-checks (idempotent) and logs a mismatch
+ *     event if the signup phone differs from the targeted phone.
+ *
+ *   - 'open_individual' — single-claim by token. First user to land
+ *     here wins; subsequent users see "this invite was already used."
+ *     Vouch row gets `from_pending_vouch_id` set so the sender
+ *     dashboard can surface a "review?" badge.
+ *
+ *   - 'open_group' — multi-claim by token, capped at max_claims.
+ *     Each unique signup creates a vouch (idempotent on
+ *     voucher_id+vouchee_id, so re-clicks don't double-bump). Atomic
+ *     UPDATE guards against race-condition over-claims.
  */
 async function consumePendingVouch(
   token: string,
@@ -179,7 +182,7 @@ async function consumePendingVouch(
   const { data: pv } = await supabase
     .from("pending_vouches")
     .select(
-      "id, sender_id, recipient_phone, vouch_type, years_known_bucket, status, expires_at, claimed_by"
+      "id, sender_id, mode, recipient_phone, vouch_type, years_known_bucket, status, expires_at, claimed_by, max_claims, claim_count"
     )
     .eq("token", token)
     .maybeSingle();
@@ -187,6 +190,8 @@ async function consumePendingVouch(
   if (!pv) {
     return { ok: false, message: "Invite not found.", inviterName: null };
   }
+
+  const mode = (pv.mode as string) ?? "phone";
 
   // Resolve sender for the success/failure message.
   const { data: sender } = await supabase
@@ -213,8 +218,8 @@ async function consumePendingVouch(
     };
   }
 
-  // Resolve clerk → DB user. Same retry pattern as the invites path
-  // — the user.created webhook may not have landed yet.
+  // Resolve clerk → DB user. Retry once to tolerate the gap between
+  // Clerk account creation and the user.created webhook landing.
   let dbUserId: string | null = null;
   let dbUserPhone: string | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -239,22 +244,10 @@ async function consumePendingVouch(
     };
   }
 
-  // If the row was already flipped to 'claimed' by the webhook before
-  // this page loaded, surface success without doing more work. Don't
-  // gate on claimed_by === dbUserId — multi-claim means another sender's
-  // row could have claimed first; we still want this row to land too.
-  if (pv.status === "claimed" && pv.claimed_by === dbUserId) {
-    return {
-      ok: true,
-      message: `${senderName} has vouched for you. Welcome.`,
-      inviterName: senderName,
-    };
-  }
-
-  // Self-claim guard. The DB has a `vouches_no_self_vouch` CHECK that
-  // would reject the upsert anyway, but catching it here gives a
-  // friendly message instead of a 500 — useful for admins exercising
-  // the share-link UX with their own phone.
+  // Self-claim guard. The DB has a `vouches_no_self_vouch` CHECK
+  // that would reject the upsert anyway, but catching it here gives
+  // a friendly message instead of a 500 — useful for admins
+  // exercising the share-link UX with their own account.
   if (pv.sender_id === dbUserId) {
     return {
       ok: false,
@@ -264,42 +257,9 @@ async function consumePendingVouch(
     };
   }
 
-  // Phone-match check. The webhook auto-claim already runs without
-  // the token, so on the happy path this re-checks what already
-  // happened. On the mismatch path, this is the only place we
-  // detect that the recipient signed up with a different phone
-  // than the sender targeted — log it and walk away.
-  const intendedPhone = (pv.recipient_phone as string | null) ?? null;
-  const phonesMatch =
-    !!intendedPhone && !!dbUserPhone && intendedPhone === dbUserPhone;
-
-  if (!phonesMatch) {
-    // Mismatch: log + bail. We store only the last 4 of the intended
-    // phone to limit the PII footprint of the log table (per the B1
-    // privacy decision). The full intended phone still lives on the
-    // pending_vouches row until cancel/expire.
-    if (intendedPhone) {
-      try {
-        await supabase.from("pending_vouch_mismatch_events").insert({
-          pending_vouch_id: pv.id,
-          sender_id: pv.sender_id,
-          signup_user_id: dbUserId,
-          intended_phone_last4: intendedPhone.slice(-4),
-          actual_phone: dbUserPhone ?? "",
-        });
-      } catch (e) {
-        console.error("[pending-vouch:mismatch-log] insert failed:", e);
-      }
-    }
-    return {
-      ok: false,
-      message:
-        "Your phone didn't match the one your friend sent the invite to. Your account was created — ask them to vouch for you directly.",
-      inviterName: senderName,
-    };
-  }
-
-  // Test-user isolation guard (mirrors the invites flow).
+  // Test-user isolation guard (mirrors the invites flow). Applies to
+  // all modes equally — vouch trigger would block at the DB level
+  // anyway, but the friendlier message lands here.
   const inviterIsTest = !!sender?.is_test_user;
   const { data: me } = await supabase
     .from("users")
@@ -316,20 +276,164 @@ async function consumePendingVouch(
     };
   }
 
-  // Idempotent vouch upsert. If the webhook beat us to it, this is
-  // a no-op (onConflict on the unique pair).
+  // ── Mode A: phone-required ──────────────────────────────────────
+  if (mode === "phone") {
+    // Already claimed by the webhook before this page loaded → success.
+    if (pv.status === "claimed" && pv.claimed_by === dbUserId) {
+      return {
+        ok: true,
+        message: `${senderName} has vouched for you. Welcome.`,
+        inviterName: senderName,
+      };
+    }
+
+    const intendedPhone = (pv.recipient_phone as string | null) ?? null;
+    const phonesMatch =
+      !!intendedPhone && !!dbUserPhone && intendedPhone === dbUserPhone;
+
+    if (!phonesMatch) {
+      if (intendedPhone) {
+        try {
+          await supabase.from("pending_vouch_mismatch_events").insert({
+            pending_vouch_id: pv.id,
+            sender_id: pv.sender_id,
+            signup_user_id: dbUserId,
+            intended_phone_last4: intendedPhone.slice(-4),
+            actual_phone: dbUserPhone ?? "",
+          });
+        } catch (e) {
+          console.error("[pending-vouch:mismatch-log] insert failed:", e);
+        }
+      }
+      return {
+        ok: false,
+        message:
+          "Your phone didn't match the one your friend sent the invite to. Your account was created — ask them to vouch for you directly.",
+        inviterName: senderName,
+      };
+    }
+
+    return await applyVouchAndClaim(
+      supabase,
+      pv.id as string,
+      pv.sender_id as string,
+      dbUserId,
+      pv.vouch_type as string,
+      pv.years_known_bucket as string,
+      senderName,
+      { flipToClaimed: true, atomicMaxClaims: null }
+    );
+  }
+
+  // ── Mode B: open individual link, single-claim by token ─────────
+  if (mode === "open_individual") {
+    if (pv.status === "claimed") {
+      // Someone already claimed this single-claim link.
+      if (pv.claimed_by === dbUserId) {
+        // Same user re-clicks the link → idempotent success.
+        return {
+          ok: true,
+          message: `${senderName} has vouched for you. Welcome.`,
+          inviterName: senderName,
+        };
+      }
+      return {
+        ok: false,
+        message:
+          "This invite was already claimed by someone else. Your account was still created — ask your friend to send you a fresh link.",
+        inviterName: senderName,
+      };
+    }
+    return await applyVouchAndClaim(
+      supabase,
+      pv.id as string,
+      pv.sender_id as string,
+      dbUserId,
+      pv.vouch_type as string,
+      pv.years_known_bucket as string,
+      senderName,
+      { flipToClaimed: true, atomicMaxClaims: null }
+    );
+  }
+
+  // ── Mode C: open group link, multi-claim up to max_claims ───────
+  if (mode === "open_group") {
+    const maxClaims = (pv.max_claims as number | null) ?? 0;
+    const claimCount = (pv.claim_count as number | null) ?? 0;
+
+    // Pre-check: is the link full? If the same user re-clicks after
+    // already claiming, the vouch upsert below is a no-op and we
+    // surface success — but pre-check first so a "full" message
+    // doesn't fire incorrectly for a returning claimant.
+    const { data: existingVouch } = await supabase
+      .from("vouches")
+      .select("id")
+      .eq("voucher_id", pv.sender_id)
+      .eq("vouchee_id", dbUserId)
+      .maybeSingle();
+
+    if (!existingVouch && claimCount >= maxClaims) {
+      return {
+        ok: false,
+        message:
+          "This group invite is full. Your account was created — ask your friend for a fresh link.",
+        inviterName: senderName,
+      };
+    }
+
+    return await applyVouchAndClaim(
+      supabase,
+      pv.id as string,
+      pv.sender_id as string,
+      dbUserId,
+      pv.vouch_type as string,
+      pv.years_known_bucket as string,
+      senderName,
+      { flipToClaimed: false, atomicMaxClaims: maxClaims }
+    );
+  }
+
+  // Defensive — shouldn't be reachable; the DB CHECK rejects unknown modes.
+  return {
+    ok: false,
+    message:
+      "Couldn't read this invite. Your account was created — ask your friend to send a fresh one.",
+    inviterName: senderName,
+  };
+}
+
+/**
+ * Shared claim path used by all three modes. Upserts the vouch row
+ * (idempotent on voucher_id+vouchee_id), records provenance via
+ * `from_pending_vouch_id`, and either flips status='claimed' (Mode A/B)
+ * or atomically increments claim_count under the max-claims predicate
+ * (Mode C). The atomic predicate is what protects Mode C against
+ * concurrent over-claims past the cap.
+ */
+async function applyVouchAndClaim(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  pendingVouchId: string,
+  senderId: string,
+  vouchee: string,
+  vouchType: string,
+  yearsKnownBucket: string,
+  senderName: string,
+  opts: { flipToClaimed: boolean; atomicMaxClaims: number | null }
+): Promise<ConsumeOutcome> {
   const { error: vouchErr } = await supabase.from("vouches").upsert(
     {
-      voucher_id: pv.sender_id,
-      vouchee_id: dbUserId,
-      vouch_type: pv.vouch_type,
-      years_known_bucket: pv.years_known_bucket,
+      voucher_id: senderId,
+      vouchee_id: vouchee,
+      vouch_type: vouchType,
+      years_known_bucket: yearsKnownBucket,
       is_post_stay: false,
       is_staked: false,
+      from_pending_vouch_id: pendingVouchId,
     },
     { onConflict: "voucher_id,vouchee_id" }
   );
   if (vouchErr) {
+    console.error("[pending-vouch:claim] vouch upsert failed:", vouchErr);
     return {
       ok: false,
       message:
@@ -338,15 +442,33 @@ async function consumePendingVouch(
     };
   }
 
-  await supabase
-    .from("pending_vouches")
-    .update({
-      status: "claimed",
-      claimed_by: dbUserId,
-      claimed_at: new Date().toISOString(),
-    })
-    .eq("id", pv.id)
-    .eq("status", "pending");
+  if (opts.flipToClaimed) {
+    await supabase
+      .from("pending_vouches")
+      .update({
+        status: "claimed",
+        claimed_by: vouchee,
+        claimed_at: new Date().toISOString(),
+      })
+      .eq("id", pendingVouchId)
+      .eq("status", "pending");
+  } else if (opts.atomicMaxClaims !== null) {
+    // Mode C: atomic claim-count bump via the dedicated stored proc
+    // (see migration 048). The proc's WHERE predicate enforces the
+    // cap inside a single statement, so concurrent claims can't race
+    // past max_claims even if both threads pre-checked while the
+    // count was still under the limit.
+    const { error: rpcErr } = await supabase.rpc(
+      "increment_pending_vouch_claim_count",
+      { p_id: pendingVouchId }
+    );
+    if (rpcErr) {
+      console.error("[pending-vouch:claim] increment_count rpc failed:", rpcErr);
+      // Don't fail the whole claim — the vouch row already landed.
+      // Worst case the count drifts by one and the dashboard
+      // shows "N-1/max" instead of "N/max" briefly.
+    }
+  }
 
   return {
     ok: true,

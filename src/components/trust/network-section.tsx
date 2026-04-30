@@ -234,6 +234,19 @@ function PersonRow({
             <span className="font-medium text-foreground">{gr.toFixed(1)}</span>
           </span>
         )}
+        {showGuestRating && person.from_open_link && (
+          // B2: undo nudge for vouches that landed via Mode B / Mode C
+          // open links. Tapping the row already navigates to /profile,
+          // where the existing "remove vouch" path lives. The badge is
+          // a passive flag; sender clicks through normally to revoke.
+          <Link
+            href={`/profile/${person.user_id}?vouch=1`}
+            className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900 hover:bg-amber-100"
+            title="This vouch came from an open invite link. Tap to review or remove."
+          >
+            from open link — review?
+          </Link>
+        )}
         <Badge
           className={
             isInnerCircle

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 interface PendingRow {
   id: string;
-  recipient_name: string;
+  recipient_name: string | null;
   recipient_phone: string | null;
   status: "pending" | "claimed" | "canceled" | "expired";
   created_at: string;
@@ -19,6 +19,10 @@ interface PendingRow {
   token: string;
   claimed_at: string | null;
   vouch_type: "standard" | "inner_circle";
+  mode: "phone" | "open_individual" | "open_group";
+  group_label: string | null;
+  max_claims: number | null;
+  claim_count: number;
 }
 
 export default async function PendingVouchesPage() {
@@ -36,7 +40,7 @@ export default async function PendingVouchesPage() {
   const { data } = await supabase
     .from("pending_vouches")
     .select(
-      "id, recipient_name, recipient_phone, status, created_at, expires_at, token, claimed_at, vouch_type"
+      "id, recipient_name, recipient_phone, status, created_at, expires_at, token, claimed_at, vouch_type, mode, group_label, max_claims, claim_count"
     )
     .eq("sender_id", me.id)
     .order("created_at", { ascending: false })
@@ -47,11 +51,16 @@ export default async function PendingVouchesPage() {
   // Pre-compute the share URL + prefilled SMS text for each row server-
   // side so the client doesn't need to hit the create endpoint again
   // when the user taps "Resend" — same token, same URL, same text.
+  // Mode C uses a slightly different SMS phrasing (matches the create
+  // endpoint's group-mode phrasing).
   const senderFirstName = (me.name as string)?.split(" ")[0] || "A friend";
   const enriched = rows.map((r) => ({
     ...r,
     share_url: `${baseUrl}/join/${r.token}`,
-    prefilled_sms_text: `${senderFirstName} wants to vouch for you on Trustead — ${baseUrl}/join/${r.token}`,
+    prefilled_sms_text:
+      r.mode === "open_group"
+        ? `${senderFirstName} is inviting friends to Trustead — ${baseUrl}/join/${r.token}`
+        : `${senderFirstName} wants to vouch for you on Trustead — ${baseUrl}/join/${r.token}`,
   }));
 
   const pendingCount = enriched.filter((r) => r.status === "pending").length;
