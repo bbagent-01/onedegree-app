@@ -1,7 +1,8 @@
 export const runtime = "edge";
 
+import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { effectiveAuth } from "@/lib/impersonation/session";
+import { effectiveAuth, isAdmin } from "@/lib/impersonation/session";
 import { rateLimitOr429 } from "@/lib/rate-limit";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 
@@ -56,6 +57,16 @@ function generateToken(): string {
 export async function POST(req: Request) {
   const { userId } = await effectiveAuth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
+
+  // Admin self-invite bypass. We read the REAL Clerk user (not the
+  // impersonated identity from effectiveAuth) so admins can self-invite
+  // for testing the share-link UX without conflicting with the no-self-
+  // vouch DB constraint or the existing-member guard. Other users still
+  // get the normal blocks. The DB CHECK on vouches.no_self_vouch is the
+  // safety net — even with both API guards lifted, the actual claim
+  // can't write a self-vouch row.
+  const realAuth = await auth();
+  const callerIsAdmin = isAdmin(realAuth.userId);
 
   const blocked = await rateLimitOr429("pendingVouch", userId);
   if (blocked) return blocked;
@@ -115,35 +126,37 @@ export async function POST(req: Request) {
   // Existing-member guard. If the phone already belongs to a Trustead
   // user, point the caller at the direct vouch flow. Mirrors the
   // /api/invites POST guard so behavior is consistent across both
-  // invite paths.
-  if (phoneE164 === sender.phone_number) {
-    return Response.json(
-      {
-        error: "That's your own phone number. You can't vouch for yourself.",
-        existing: true,
-        self: true,
-      },
-      { status: 409 }
-    );
-  }
-  const { data: existingUser } = await supabase
-    .from("users")
-    .select("id, name, avatar_url")
-    .eq("phone_number", phoneE164)
-    .maybeSingle();
-  if (existingUser) {
-    return Response.json(
-      {
-        error: `${existingUser.name} is already on Trustead. Vouch for them directly instead.`,
-        existing: true,
-        user: {
-          id: existingUser.id,
-          name: existingUser.name,
-          avatar_url: existingUser.avatar_url ?? null,
+  // invite paths. Admins skip both checks (self-invite for testing).
+  if (!callerIsAdmin) {
+    if (phoneE164 === sender.phone_number) {
+      return Response.json(
+        {
+          error: "That's your own phone number. You can't vouch for yourself.",
+          existing: true,
+          self: true,
         },
-      },
-      { status: 409 }
-    );
+        { status: 409 }
+      );
+    }
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id, name, avatar_url")
+      .eq("phone_number", phoneE164)
+      .maybeSingle();
+    if (existingUser) {
+      return Response.json(
+        {
+          error: `${existingUser.name} is already on Trustead. Vouch for them directly instead.`,
+          existing: true,
+          user: {
+            id: existingUser.id,
+            name: existingUser.name,
+            avatar_url: existingUser.avatar_url ?? null,
+          },
+        },
+        { status: 409 }
+      );
+    }
   }
 
   // Per-sender cap on active pending rows. Locked at 20 in the B1
