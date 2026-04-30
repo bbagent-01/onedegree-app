@@ -1,48 +1,71 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Eye, Lock, Shield, Star, Users } from "lucide-react";
 
 type Slide = {
+  // Use explicit <br /> in titles to lock every heading to two lines
+  // regardless of viewport — Loren wants a consistent two-line shape.
   title: React.ReactNode;
   body: string;
-  Visual: React.ComponentType | null; // null = no visual on this slide
+  Visual: React.ComponentType | null;
 };
 
 const SLIDES: Slide[] = [
   {
-    // Mirrors the staytrustead.com landing hero verbatim, including the
-    // italicized "trust" emphasis Loren uses on the live page.
     title: (
       <>
-        Rent your home to people you can{" "}
-        <span className="text-brand-300">trust</span>
+        Rent your home to
+        <br />
+        people you can <span className="text-brand-300">trust</span>
       </>
     ),
     body: "Rent your primary home to friends of friends. Control who sees it on our private invite-only platform.",
     Visual: null,
   },
   {
-    title: <>Build trust by vouching for people.</>,
-    body: "A few seconds, and your circle grows.",
-    Visual: NetworkVisual,
+    title: (
+      <>
+        Build trust by vouching
+        <br />
+        for people you know
+      </>
+    ),
+    body: "Invite people you know. They invite people they know. The graph builds itself into a real trust network.",
+    Visual: VouchPickerVisual,
   },
   {
-    title: <>Rent to people connected to you.</>,
+    title: (
+      <>
+        Rent to people
+        <br />
+        connected to you.
+      </>
+    ),
     body: "See exactly how — through whom, and how strongly.",
     Visual: TrustDetailVisual,
   },
+  {
+    title: (
+      <>
+        Control who sees your
+        <br />
+        listing, or listing preview
+      </>
+    ),
+    body: "Make it fully private, share a teaser only, or open it up to friends-of-friends. Your call.",
+    Visual: VisibilityVisual,
+  },
 ];
 
-// Intro = logo draws in, holds, then reverse-draws out (in the iframe
-// HTML). Total intro lifecycle: 0–2.85s drawing, +400ms buffer, then
-// the slide phase takes over.
-const INTRO_DURATION_MS = 3300;
+// Intro tightened — no reverse-draw; the outro is a quick wipe-up +
+// fade on the iframe wrapper, which feels cleaner than the disjointed
+// stroke-undraw experiment. Logo draws in by ~1.4s, holds briefly,
+// then wipes up over ~0.4s.
+const INTRO_DURATION_MS = 2400;
+const INTRO_OUTRO_START_PCT = 80; // logo holds until 80% of intro, then wipes up
 const SWIPE_THRESHOLD_PX = 50;
 
-// Animation tokens — tuned for a smoother, less-jerky feel per Loren's
-// brightbase reference. Slower duration, expo.out easing, smaller
-// stagger, larger Y travel = motion that settles instead of snaps.
 const FADE_DURATION_MS = 1400;
 const FADE_EASING = "cubic-bezier(0.19, 1, 0.22, 1)"; // expo.out
 const FADE_Y_OFFSET_PX = 24;
@@ -71,10 +94,7 @@ export default function SandboxOnboardingPage() {
     setIndex((i) => Math.min(i + 1, SLIDES.length - 1));
   };
 
-  const prev = () => {
-    setIndex((i) => Math.max(i - 1, 0));
-  };
-
+  const prev = () => setIndex((i) => Math.max(i - 1, 0));
   const skip = () => setPhase("dismissed");
   const skipIntro = () => setPhase("slides");
 
@@ -141,9 +161,20 @@ export default function SandboxOnboardingPage() {
               from { opacity: 0; transform: translate3d(0, ${FADE_Y_OFFSET_PX}px, 0); }
               to   { opacity: 1; transform: translate3d(0, 0, 0); }
             }
-            @keyframes sb-intro-hold {
-              0%, 92% { opacity: 1; }
-              100%    { opacity: 0; }
+            /* Intro outro: hold the logo at full opacity for the first
+               ${INTRO_OUTRO_START_PCT}% of the intro window, then wipe up
+               (translateY −32px) and fade to 0 over the remaining time.
+               Cleaner than the reverse-stroke experiment — single
+               continuous motion instead of swapping render groups. */
+            @keyframes sb-intro-wipe {
+              0%, ${INTRO_OUTRO_START_PCT}% {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+              }
+              100% {
+                opacity: 0;
+                transform: translate3d(0, -32px, 0);
+              }
             }
             .sandbox-onboarding-root .anim-step {
               opacity: 0;
@@ -151,7 +182,7 @@ export default function SandboxOnboardingPage() {
               animation: sb-fade-up ${FADE_DURATION_MS}ms ${FADE_EASING} forwards;
             }
             .sandbox-onboarding-root .intro-overlay {
-              animation: sb-intro-hold ${INTRO_DURATION_MS}ms linear forwards;
+              animation: sb-intro-wipe ${INTRO_DURATION_MS}ms ${FADE_EASING} forwards;
             }
             body:has(.sandbox-onboarding-root) > div.fixed.inset-x-0.bottom-0.z-40 {
               display: none !important;
@@ -214,16 +245,14 @@ export default function SandboxOnboardingPage() {
             <div className="w-10" aria-hidden />
           </div>
 
-          {/* Centered content. Visual goes BETWEEN title and body
-              (per Loren's spec for slide 2/3 — the model + popup live
-              right under the heading). Slide 1 has no visual. */}
+          {/* Centered content. Visual sits BETWEEN heading and body. */}
           <div
             key={index}
-            className="flex flex-1 items-center justify-center px-6 pt-20 pb-10"
+            className="flex flex-1 items-center justify-center overflow-y-auto px-6 pt-20 pb-10"
           >
-            <div className="flex w-full max-w-md flex-col items-center gap-7 text-center sm:gap-9">
+            <div className="flex w-full max-w-md flex-col items-center gap-6 text-center sm:gap-8">
               <h1
-                className="anim-step font-serif text-3xl leading-tight sm:text-4xl"
+                className="anim-step font-serif !text-[26px] !leading-[1.15] !max-w-none sm:!text-4xl sm:!leading-tight"
                 style={{ animationDelay: "0ms" }}
               >
                 {slide.title}
@@ -231,7 +260,7 @@ export default function SandboxOnboardingPage() {
 
               {Visual && (
                 <div
-                  className="anim-step h-40 w-full"
+                  className="anim-step w-full"
                   style={{ animationDelay: `${FADE_STAGGER_MS}ms` }}
                 >
                   <Visual />
@@ -280,163 +309,202 @@ export default function SandboxOnboardingPage() {
 
 // ── Visuals ───────────────────────────────────────────────────────
 
-function NetworkVisual() {
-  // Slide 2 — the trust-graph model. Center "you" node, ring of direct
-  // friends (1°), outer ring of friends-of-friends (2°). Communicates
-  // how vouching grows the network without any UI chrome.
+function VouchPickerVisual() {
+  // Slide 2 — recreation of the vouch-modal type-picker step (see
+  // src/components/trust/vouch-modal.tsx ~line 203). Two stacked
+  // option cards with the production icons + colors. Static — no
+  // selection state needed for the onboarding visual.
   return (
-    <svg
-      viewBox="0 0 320 160"
-      className="h-full w-full"
-      role="img"
-      aria-label="A trust graph: you in the center, friends around you, friends of friends in an outer ring"
-    >
-      <defs>
-        <radialGradient id="sb-net-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#4FB191" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#4FB191" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      {/* Outer ring: 2° friends-of-friends */}
-      {[
-        [50, 30],
-        [50, 130],
-        [270, 30],
-        [270, 130],
-        [160, 18],
-      ].map(([cx, cy], i) => (
-        <circle
-          key={`outer-${i}`}
-          cx={cx}
-          cy={cy}
-          r="5"
-          fill="currentColor"
-          opacity="0.45"
+    <div className="rounded-2xl border border-border/60 bg-background/40 p-4 text-left">
+      <p className="mb-3 text-xs text-muted-foreground">How do you know them?</p>
+      <div className="space-y-2.5">
+        <PickerOption
+          icon={<Shield className="h-4 w-4" />}
+          iconBg="bg-blue-100"
+          iconFg="text-blue-700"
+          title="Vouch"
+          subtitle="I know them"
         />
-      ))}
-      {/* Vouch lines — center → 1° → 2° */}
-      <g stroke="#4FB191" strokeOpacity="0.4" strokeWidth="1">
-        <line x1="160" y1="80" x2="100" y2="50" />
-        <line x1="160" y1="80" x2="100" y2="110" />
-        <line x1="160" y1="80" x2="220" y2="50" />
-        <line x1="160" y1="80" x2="220" y2="110" />
-        <line x1="100" y1="50" x2="50" y2="30" />
-        <line x1="100" y1="110" x2="50" y2="130" />
-        <line x1="220" y1="50" x2="270" y2="30" />
-        <line x1="220" y1="110" x2="270" y2="130" />
-        <line x1="220" y1="50" x2="160" y2="18" />
-      </g>
-      {/* Inner ring: 1° direct friends */}
-      {[
-        [100, 50],
-        [100, 110],
-        [220, 50],
-        [220, 110],
-      ].map(([cx, cy], i) => (
-        <circle
-          key={`inner-${i}`}
-          cx={cx}
-          cy={cy}
-          r="7"
-          fill="#4FB191"
-          opacity="0.85"
+        <PickerOption
+          icon={<Star className="h-4 w-4" />}
+          iconBg="bg-amber-100"
+          iconFg="text-amber-700"
+          title="Vouch+"
+          subtitle="I know them very well"
         />
-      ))}
-      {/* Center: you */}
-      <circle cx="160" cy="80" r="32" fill="url(#sb-net-glow)" />
-      <circle cx="160" cy="80" r="12" fill="#4FB191" />
-      <text
-        x="160"
-        y="84"
-        textAnchor="middle"
-        fontSize="9"
-        fontWeight="600"
-        fill="#0B2E25"
-        style={{ fontFamily: "var(--font-sans, system-ui)" }}
+      </div>
+    </div>
+  );
+}
+
+function PickerOption({
+  icon,
+  iconBg,
+  iconFg,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  iconFg: string;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border/60 p-2.5">
+      <div
+        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${iconBg} ${iconFg}`}
       >
-        You
-      </text>
-    </svg>
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold leading-tight">{title}</div>
+        <p className="mt-0.5 text-xs text-muted-foreground leading-tight">
+          {subtitle}
+        </p>
+      </div>
+    </div>
   );
 }
 
 function TrustDetailVisual() {
-  // Slide 3 — recreation of the in-app trust-detail popover that opens
-  // off a 2° host's pill. Rounded card, anchored arrow, header line,
-  // path row (you → connector → host) with a strength chip and link
-  // dots. Mirrors src/components/trust/connection-breakdown.tsx so the
-  // sandbox preview matches the production look.
+  // Slide 3 — recreation of ConnectionPopover's MultiHopView (see
+  // src/components/trust/connection-breakdown.tsx ~line 320). No
+  // "Hosted by ..." chrome (Loren's note) — just the panel itself.
+  // Header with Users icon → connection count, Trust Score line,
+  // PATH 1 row showing You → Cassidy → Hana with the same 9-pt link
+  // chip the production component uses.
   return (
-    <div className="relative flex h-full w-full items-center justify-center">
+    <div className="rounded-2xl border border-border/60 bg-background/40 p-4 text-left">
+      <div className="flex items-center gap-2">
+        <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="text-[13px] font-semibold leading-tight">
+          Hana Yoon is connected to you via 1 connection
+        </div>
+      </div>
+      <div className="mt-1 text-[11px] text-muted-foreground">
+        Trust Score:{" "}
+        <span className="font-semibold text-foreground">9 pts (Weak)</span>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-border/60 bg-background/30 p-3">
+        <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+          Path 1 · via Cassidy
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-1">
+          <ChainNode initials="HY" label="Hana" />
+          <ChainChip value="9" />
+          <ChainNode initials="CL" label="Cassidy" />
+          <ChainChip value="9" />
+          <ChainNode initials="You" label="You" tone="self" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChainNode({
+  initials,
+  label,
+  tone = "neutral",
+}: {
+  initials: string;
+  label: string;
+  tone?: "neutral" | "self";
+}) {
+  const styles =
+    tone === "self"
+      ? "bg-brand-300 text-brand-foreground"
+      : "bg-secondary text-foreground border border-border/60";
+  return (
+    <div className="flex flex-col items-center gap-1">
       <div
-        className="relative w-[280px] rounded-2xl border bg-white p-3 text-left shadow-2xl"
-        style={{ borderColor: "rgba(11,46,37,0.10)", color: "#0B2E25" }}
+        className={`grid h-9 w-9 place-items-center rounded-full text-[10px] font-semibold ${styles}`}
       >
-        {/* Header row: title + degree pill */}
-        <div className="mb-2.5 flex items-center justify-between">
-          <span
-            className="text-[11px] font-semibold uppercase tracking-wide"
-            style={{ color: "rgba(11,46,37,0.55)" }}
-          >
-            How you know David
-          </span>
-          <span
-            className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
-            style={{ backgroundColor: "#2A8A6B", color: "#FFFFFF" }}
-          >
-            2°
-          </span>
-        </div>
+        {initials}
+      </div>
+      <span className="text-[10px] font-medium text-muted-foreground">
+        {label}
+      </span>
+    </div>
+  );
+}
 
-        {/* Path row — anonymized intermediary, mirrors PathRow */}
-        <div
-          className="flex items-center gap-2.5 rounded-lg p-2.5"
-          style={{
-            backgroundColor: "rgba(11,46,37,0.04)",
-            border: "1px solid rgba(11,46,37,0.06)",
-          }}
-        >
-          <div
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[10px] font-semibold"
-            style={{ backgroundColor: "#BFE2D4", color: "#0B2E25" }}
-          >
-            ML
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[11px] font-semibold leading-tight">
-              via Maya L.
-            </div>
-            <div className="mt-1 flex items-center gap-1.5">
-              <span
-                className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold"
-                style={{ backgroundColor: "#FAF5FF", color: "#6B21A8" }}
-              >
-                Strong
-              </span>
-              <span className="flex items-center gap-0.5">
-                <span
-                  className="inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: "#2A8A6B" }}
-                  title="You → Maya"
-                />
-                <span
-                  className="inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: "#4FB191" }}
-                  title="Maya → David"
-                />
-              </span>
-            </div>
-          </div>
-        </div>
+function ChainChip({ value }: { value: string }) {
+  return (
+    <span
+      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
+      style={{ backgroundColor: "#FAF5FF", color: "#6B21A8" }}
+    >
+      {value}
+    </span>
+  );
+}
 
-        {/* Anchor arrow under the popover, pointing at an implicit
-            "David" pill below — visual hint that this is a popover. */}
-        <div
-          aria-hidden
-          className="absolute -bottom-2 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r bg-white"
-          style={{ borderColor: "rgba(11,46,37,0.10)" }}
+function VisibilityVisual() {
+  // Slide 4 — listing-visibility settings. Three scopes stacked: each
+  // row has an icon, label, sublabel; the active scope is highlighted
+  // with the brand chip + check. No interactivity — illustrative only.
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background/40 p-4 text-left">
+      <p className="mb-3 text-xs text-muted-foreground">Listing visibility</p>
+      <div className="space-y-2.5">
+        <ScopeRow
+          icon={<Lock className="h-4 w-4" />}
+          title="Private"
+          subtitle="Only people you invite"
+          active={false}
+        />
+        <ScopeRow
+          icon={<Eye className="h-4 w-4" />}
+          title="Preview"
+          subtitle="Network sees a teaser, not the address"
+          active={true}
+        />
+        <ScopeRow
+          icon={<Users className="h-4 w-4" />}
+          title="Friends of friends"
+          subtitle="Up to 2° from you"
+          active={false}
         />
       </div>
+    </div>
+  );
+}
+
+function ScopeRow({
+  icon,
+  title,
+  subtitle,
+  active,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  active: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-xl border p-2.5 ${
+        active ? "border-brand-300/60 bg-brand-300/10" : "border-border/60"
+      }`}
+    >
+      <div
+        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
+          active
+            ? "bg-brand-300 text-brand-foreground"
+            : "bg-secondary text-muted-foreground"
+        }`}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold leading-tight">{title}</div>
+        <p className="mt-0.5 text-xs text-muted-foreground leading-tight">
+          {subtitle}
+        </p>
+      </div>
+      {active && <Check className="h-4 w-4 shrink-0 text-brand-300" />}
     </div>
   );
 }

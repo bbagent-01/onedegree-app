@@ -27,15 +27,9 @@ svg{display:block;width:100%;height:auto;overflow:visible}
       #trustead-centerline-draw { overflow: visible; background: transparent; }
       .logo-fill { fill: #FFFFFF; }
       .ready-logo { opacity: 1; animation: hide-ready .001s steps(1, end) .001s forwards; }
-      .final-logo { opacity: 0; animation:
-        finalize-logo .001s steps(1, end) 1.374s forwards,
-        hide-construction .001s steps(1, end) 2.4s forwards; }
-      .final-piece { opacity: 0; animation:
-        finalize-logo .001s steps(1, end) var(--finish) forwards,
-        hide-construction .001s steps(1, end) 2.4s forwards; }
-      .draw-logo { opacity: 1; animation:
-        hide-construction .001s steps(1, end) 1.374s forwards,
-        finalize-logo .001s steps(1, end) 2.4s forwards; }
+      .final-logo { opacity: 0; animation: finalize-logo .001s steps(1, end) 1.374s forwards; }
+      .final-piece { opacity: 0; animation: finalize-logo .001s steps(1, end) var(--finish) forwards; }
+      .draw-logo { opacity: 1; animation: hide-construction .001s steps(1, end) 1.374s forwards; }
       .mask-stroke {
         fill: none;
         stroke: white;
@@ -43,12 +37,9 @@ svg{display:block;width:100%;height:auto;overflow:visible}
         stroke-linejoin: round;
         stroke-dasharray: 1;
         stroke-dashoffset: 1;
-        animation:
-          draw-self var(--duration) linear var(--delay) forwards,
-          undraw-self 0.45s cubic-bezier(0.65, 0, 0.35, 1) 2.4s forwards;
+        animation: draw-self var(--duration) linear var(--delay) forwards;
       }
       @keyframes draw-self { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-      @keyframes undraw-self { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 1; } }
       @keyframes finalize-logo { to { opacity: 1; } }
       @keyframes hide-construction { to { opacity: 0; } }
       @keyframes hide-ready { to { opacity: 0; } }
