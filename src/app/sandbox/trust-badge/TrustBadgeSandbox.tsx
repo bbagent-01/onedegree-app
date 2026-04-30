@@ -617,14 +617,16 @@ function InboxMockup() {
 
 // ── Surface 2: listing card grid (micro) ─────────────────────────
 
-// Mirrors src/components/listing-card.tsx — real listing image, heart
-// top-right, carousel dot indicators bottom-center, trust chip pinned
-// bottom-right. The micro pill sits inside that white chip and has to
-// compete with the photo + heart for attention.
+// Mirrors src/components/browse/live-listing-card.tsx (the actual
+// browse-grid card on trustead.app, NOT the older listing-card.tsx).
+// Image area = heart + carousel only — no trust pill overlay. Trust
+// pill lives inline below the image, alongside "Hosted by [name]".
 function ListingTile({ sample }: { sample: Sample }) {
   const { listing } = sample;
+  const firstName = sample.name.split(" ")[0];
   return (
     <div className="group block">
+      {/* Image area: photo + heart + carousel — no trust pill here */}
       <div
         className="relative rounded-xl overflow-hidden"
         style={{ aspectRatio: "4 / 3", backgroundColor: "#0B2E25" }}
@@ -636,69 +638,55 @@ function ListingTile({ sample }: { sample: Sample }) {
           className="absolute inset-0 h-full w-full object-cover"
           loading="lazy"
         />
-        {/* Heart top-right (favorite) */}
         <Heart
           className="absolute top-3 right-3 z-10 h-6 w-6 drop-shadow-md"
           style={{ color: "rgba(255,255,255,0.95)", fill: "rgba(0,0,0,0.3)" }}
           aria-hidden
         />
-
-        {/* Carousel arrows on hover (visual only) */}
-        <div className="pointer-events-none absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 group-hover:flex h-8 w-8 items-center justify-center rounded-full shadow-sm" style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
+        <div className="pointer-events-none absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 group-hover:flex h-7 w-7 items-center justify-center rounded-full shadow" style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
           <ChevronLeft className="h-4 w-4" style={{ color: "#0B2E25" }} />
         </div>
-        <div className="pointer-events-none absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 group-hover:flex h-8 w-8 items-center justify-center rounded-full shadow-sm" style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
+        <div className="pointer-events-none absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 group-hover:flex h-7 w-7 items-center justify-center rounded-full shadow" style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
           <ChevronRight className="h-4 w-4" style={{ color: "#0B2E25" }} />
         </div>
-
-        {/* Carousel dots bottom-center */}
-        <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
+        <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
           {[0, 1, 2, 3].map((i) => (
             <span
               key={i}
               className="h-1.5 w-1.5 rounded-full"
               style={{
-                backgroundColor:
-                  i === 0 ? "#FFFFFF" : "rgba(255,255,255,0.5)",
+                backgroundColor: i === 0 ? "#FFFFFF" : "rgba(255,255,255,0.5)",
               }}
             />
           ))}
         </div>
-
-        {/* Trust pill — bottom-right, white chip, micro size */}
-        <div className="absolute bottom-3 right-3 z-10">
-          <TrustBadgeSandboxPill size="micro" sample={sample} onImage />
-        </div>
       </div>
 
-      <div className="mt-3 space-y-0.5">
-        <div className="flex items-start justify-between gap-2">
-          <h4
-            className="!text-base !font-semibold !leading-tight tracking-normal line-clamp-1"
-            style={{ color: "#F5F1E6" }}
-          >
-            {listing.location}
-          </h4>
-          {sample.rating !== null && sample.reviewCount > 0 && (
-            <div className="flex shrink-0 items-center gap-1 text-sm">
-              <Star
-                className="h-3.5 w-3.5"
-                fill="currentColor"
-                style={{ color: "#F5F1E6" }}
-              />
-              <span className="font-medium" style={{ color: "#F5F1E6" }}>
-                {sample.rating.toFixed(1)}
-              </span>
-              <span style={{ color: "rgba(245,241,230,0.55)" }}>
-                ({sample.reviewCount})
-              </span>
-            </div>
-          )}
-        </div>
-        <p className="text-sm line-clamp-1" style={{ color: "rgba(245,241,230,0.62)" }}>
+      {/* Content area: location, title, hosted-by, trust pill inline,
+          then price. This mirrors live-listing-card.tsx lines 234-262. */}
+      <div className="mt-3">
+        <h4
+          className="!text-base !font-semibold !leading-tight tracking-normal line-clamp-1"
+          style={{ color: "#F5F1E6" }}
+        >
+          {listing.location}
+        </h4>
+        <p
+          className="mt-0.5 text-sm line-clamp-1"
+          style={{ color: "rgba(245,241,230,0.62)" }}
+        >
           {listing.title}
         </p>
-        <p className="pt-1 text-base">
+        <p
+          className="mt-0.5 text-sm line-clamp-1"
+          style={{ color: "rgba(245,241,230,0.62)" }}
+        >
+          Hosted by {firstName}
+        </p>
+        <div className="mt-1.5">
+          <TrustBadgeSandboxPill size="micro" sample={sample} />
+        </div>
+        <p className="mt-1.5 text-base">
           <span className="font-semibold" style={{ color: "#F5F1E6" }}>
             ${listing.price}
           </span>
@@ -710,14 +698,15 @@ function ListingTile({ sample }: { sample: Sample }) {
 }
 
 function ListingGrid() {
-  // Pick four samples that together show the range — top, mid,
-  // distant, and the cold-start case.
+  // 2×2 grid so each tile is closer to the size it actually renders
+  // at on a real browse page — same rough column width as the live
+  // browse grid on a desktop viewport.
   const ids = ["maya", "aki", "theo", "jules"];
   const tiles = ids
     .map((id) => SAMPLES.find((s) => s.id === id))
     .filter((s): s is Sample => Boolean(s));
   return (
-    <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mx-auto grid max-w-[820px] gap-6 grid-cols-1 sm:grid-cols-2">
       {tiles.map((s) => (
         <ListingTile key={s.id} sample={s} />
       ))}
@@ -1117,8 +1106,8 @@ export function TrustBadgeSandbox() {
           <section>
             <SectionHeader
               eyebrow="Size 02 · Micro"
-              title="Listing card overlay"
-              note="Floats on the listing image. Degree pill + the absolute Vouch score (purple diamond) + raw rating. Connection score is omitted at this size to keep the chip narrow; the listing tile already implies the viewer has a path to it."
+              title="Listing card"
+              note="Sits inline below the image — under the location, title, and 'Hosted by' line — same place trustead.app's LiveListingCard puts it today. Degree pill + the absolute Vouch score (purple diamond) + raw rating. Connection score is omitted at this size to keep the chip narrow; the listing tile already implies the viewer has a path to it."
             />
             <ListingGrid />
           </section>
