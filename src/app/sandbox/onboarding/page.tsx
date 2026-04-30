@@ -4,33 +4,49 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 type Slide = {
-  title: string;
+  title: React.ReactNode;
   body: string;
-  Visual: React.ComponentType;
+  Visual: React.ComponentType | null; // null = no visual on this slide
 };
 
 const SLIDES: Slide[] = [
   {
-    title: "Rent your home to people you actually know.",
-    body: "No public listings. No strangers. Trustead is a private platform for renting to friends, family, and friends of friends — instead of whoever happens to be on Airbnb that weekend.",
-    Visual: AngleVisual,
+    // Mirrors the staytrustead.com landing hero verbatim, including the
+    // italicized "trust" emphasis Loren uses on the live page.
+    title: (
+      <>
+        Rent your home to people you can{" "}
+        <span className="text-brand-300">trust</span>
+      </>
+    ),
+    body: "Rent your primary home to friends of friends. Control who sees it on our private invite-only platform.",
+    Visual: null,
   },
   {
-    title: "Invite who you trust. They invite who they trust.",
-    body: "The graph builds itself. Add a few friends, vouch for the people you'd already vouch for in real life, and your network expands every time they do the same.",
+    title: <>Build trust by vouching for people.</>,
+    body: "A few seconds, and your circle grows.",
     Visual: NetworkVisual,
   },
   {
-    title: "Stay one degree from a stranger.",
-    body: "Every guest is connected to you through someone you both know. You can see exactly how — so 'friend of a friend' actually means something.",
-    Visual: TrustChainVisual,
+    title: <>Rent to people connected to you.</>,
+    body: "See exactly how — through whom, and how strongly.",
+    Visual: TrustDetailVisual,
   },
 ];
 
-const INTRO_DURATION_MS = 3500;
+// Intro = logo draws in, holds, then reverse-draws out (in the iframe
+// HTML). Total intro lifecycle: 0–2.85s drawing, +400ms buffer, then
+// the slide phase takes over.
+const INTRO_DURATION_MS = 3300;
 const SWIPE_THRESHOLD_PX = 50;
-const FADE_DURATION_MS = 1000;
-const FADE_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+
+// Animation tokens — tuned for a smoother, less-jerky feel per Loren's
+// brightbase reference. Slower duration, expo.out easing, smaller
+// stagger, larger Y travel = motion that settles instead of snaps.
+const FADE_DURATION_MS = 1400;
+const FADE_EASING = "cubic-bezier(0.19, 1, 0.22, 1)"; // expo.out
+const FADE_Y_OFFSET_PX = 24;
+const FADE_STAGGER_MS = 90;
 
 type Phase = "intro" | "slides" | "dismissed";
 
@@ -121,11 +137,25 @@ export default function SandboxOnboardingPage() {
       <style
         dangerouslySetInnerHTML={{
           __html: `
-            @keyframes sb-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes sb-intro-hold { 0%, 88% { opacity: 1; } 100% { opacity: 0; } }
-            .sandbox-onboarding-root .anim-step { opacity: 0; animation: sb-fade-up ${FADE_DURATION_MS}ms ${FADE_EASING} forwards; }
-            .sandbox-onboarding-root .intro-overlay { animation: sb-intro-hold ${INTRO_DURATION_MS}ms ease-out forwards; }
-            body:has(.sandbox-onboarding-root) > div.fixed.inset-x-0.bottom-0.z-40 { display: none !important; }
+            @keyframes sb-fade-up {
+              from { opacity: 0; transform: translate3d(0, ${FADE_Y_OFFSET_PX}px, 0); }
+              to   { opacity: 1; transform: translate3d(0, 0, 0); }
+            }
+            @keyframes sb-intro-hold {
+              0%, 92% { opacity: 1; }
+              100%    { opacity: 0; }
+            }
+            .sandbox-onboarding-root .anim-step {
+              opacity: 0;
+              will-change: opacity, transform;
+              animation: sb-fade-up ${FADE_DURATION_MS}ms ${FADE_EASING} forwards;
+            }
+            .sandbox-onboarding-root .intro-overlay {
+              animation: sb-intro-hold ${INTRO_DURATION_MS}ms linear forwards;
+            }
+            body:has(.sandbox-onboarding-root) > div.fixed.inset-x-0.bottom-0.z-40 {
+              display: none !important;
+            }
             @media (prefers-reduced-motion: reduce) {
               .sandbox-onboarding-root .anim-step,
               .sandbox-onboarding-root .intro-overlay {
@@ -184,36 +214,44 @@ export default function SandboxOnboardingPage() {
             <div className="w-10" aria-hidden />
           </div>
 
-          {/* Centered content — visual, title, body, primary CTA, skip */}
+          {/* Centered content. Visual goes BETWEEN title and body
+              (per Loren's spec for slide 2/3 — the model + popup live
+              right under the heading). Slide 1 has no visual. */}
           <div
             key={index}
             className="flex flex-1 items-center justify-center px-6 pt-20 pb-10"
           >
             <div className="flex w-full max-w-md flex-col items-center gap-7 text-center sm:gap-9">
-              <div
-                className="anim-step h-40 w-full"
-                style={{ animationDelay: "0ms" }}
-              >
-                <Visual />
-              </div>
-
               <h1
                 className="anim-step font-serif text-3xl leading-tight sm:text-4xl"
-                style={{ animationDelay: "150ms" }}
+                style={{ animationDelay: "0ms" }}
               >
                 {slide.title}
               </h1>
 
+              {Visual && (
+                <div
+                  className="anim-step h-40 w-full"
+                  style={{ animationDelay: `${FADE_STAGGER_MS}ms` }}
+                >
+                  <Visual />
+                </div>
+              )}
+
               <p
                 className="anim-step text-base leading-relaxed text-muted-foreground sm:text-lg"
-                style={{ animationDelay: "300ms" }}
+                style={{
+                  animationDelay: `${(Visual ? 2 : 1) * FADE_STAGGER_MS}ms`,
+                }}
               >
                 {slide.body}
               </p>
 
               <div
                 className="anim-step flex w-full flex-col items-center gap-3"
-                style={{ animationDelay: "450ms" }}
+                style={{
+                  animationDelay: `${(Visual ? 3 : 2) * FADE_STAGGER_MS}ms`,
+                }}
               >
                 <button
                   type="button"
@@ -241,64 +279,17 @@ export default function SandboxOnboardingPage() {
 }
 
 // ── Visuals ───────────────────────────────────────────────────────
-// Each slide gets one. Designed to live in a 160px-tall slot, scale
-// fluidly with the text-block max width, and inherit foreground color
-// so they read on the dark Trustead surface.
-
-function AngleVisual() {
-  // Slide 1 — quiet contrast: a public-listing strip (greyed) vs a
-  // small ring of network nodes (live, glowing). Communicates the
-  // "strangers vs your network" angle without text in the visual.
-  return (
-    <svg
-      viewBox="0 0 320 160"
-      className="h-full w-full"
-      role="img"
-      aria-label="Public listings on the left, your trusted network on the right"
-    >
-      {/* Left: greyed listing tiles, suggesting public/anonymous */}
-      <g opacity="0.35">
-        <rect x="14" y="40" width="44" height="32" rx="4" fill="currentColor" />
-        <rect x="64" y="40" width="44" height="32" rx="4" fill="currentColor" />
-        <rect x="14" y="78" width="44" height="32" rx="4" fill="currentColor" />
-        <rect x="64" y="78" width="44" height="32" rx="4" fill="currentColor" />
-      </g>
-      {/* Divider */}
-      <line
-        x1="160"
-        y1="20"
-        x2="160"
-        y2="140"
-        stroke="currentColor"
-        strokeOpacity="0.18"
-        strokeDasharray="2 4"
-      />
-      {/* Right: small network around the viewer node */}
-      <g>
-        <line x1="240" y1="80" x2="200" y2="50" stroke="#4FB191" strokeOpacity="0.6" strokeWidth="1.2" />
-        <line x1="240" y1="80" x2="200" y2="110" stroke="#4FB191" strokeOpacity="0.6" strokeWidth="1.2" />
-        <line x1="240" y1="80" x2="290" y2="50" stroke="#4FB191" strokeOpacity="0.6" strokeWidth="1.2" />
-        <line x1="240" y1="80" x2="290" y2="110" stroke="#4FB191" strokeOpacity="0.6" strokeWidth="1.2" />
-        <circle cx="200" cy="50" r="6" fill="#4FB191" opacity="0.7" />
-        <circle cx="200" cy="110" r="6" fill="#4FB191" opacity="0.7" />
-        <circle cx="290" cy="50" r="6" fill="#4FB191" opacity="0.7" />
-        <circle cx="290" cy="110" r="6" fill="#4FB191" opacity="0.7" />
-        <circle cx="240" cy="80" r="10" fill="#4FB191" />
-      </g>
-    </svg>
-  );
-}
 
 function NetworkVisual() {
-  // Slide 2 — the trust graph model. Center "you" node, ring of direct
-  // friends (1°), outer ring of friends-of-friends (2°). Lines denote
-  // vouches. Two outer nodes pulse softly to suggest the graph growing.
+  // Slide 2 — the trust-graph model. Center "you" node, ring of direct
+  // friends (1°), outer ring of friends-of-friends (2°). Communicates
+  // how vouching grows the network without any UI chrome.
   return (
     <svg
       viewBox="0 0 320 160"
       className="h-full w-full"
       role="img"
-      aria-label="A network graph: you in the center, friends around you, friends of friends in an outer ring"
+      aria-label="A trust graph: you in the center, friends around you, friends of friends in an outer ring"
     >
       <defs>
         <radialGradient id="sb-net-glow" cx="50%" cy="50%" r="50%">
@@ -323,7 +314,7 @@ function NetworkVisual() {
           opacity="0.45"
         />
       ))}
-      {/* Connection lines — center → 1° → 2° */}
+      {/* Vouch lines — center → 1° → 2° */}
       <g stroke="#4FB191" strokeOpacity="0.4" strokeWidth="1">
         <line x1="160" y1="80" x2="100" y2="50" />
         <line x1="160" y1="80" x2="100" y2="110" />
@@ -353,7 +344,7 @@ function NetworkVisual() {
       ))}
       {/* Center: you */}
       <circle cx="160" cy="80" r="32" fill="url(#sb-net-glow)" />
-      <circle cx="160" cy="80" r="11" fill="#4FB191" />
+      <circle cx="160" cy="80" r="12" fill="#4FB191" />
       <text
         x="160"
         y="84"
@@ -369,115 +360,83 @@ function NetworkVisual() {
   );
 }
 
-function TrustChainVisual() {
-  // Slide 3 — three avatars connected left-to-right, with a "2°"
-  // medium-sized trust badge on the host. The chain makes the
-  // degree-of-separation concept concrete: You → Maya → David.
+function TrustDetailVisual() {
+  // Slide 3 — recreation of the in-app trust-detail popover that opens
+  // off a 2° host's pill. Rounded card, anchored arrow, header line,
+  // path row (you → connector → host) with a strength chip and link
+  // dots. Mirrors src/components/trust/connection-breakdown.tsx so the
+  // sandbox preview matches the production look.
   return (
-    <div className="flex h-full w-full items-center justify-center">
-      <div className="flex items-center gap-2">
-        <ChainAvatar initials="You" tone="self" />
-        <ChainLink />
-        <ChainAvatar initials="ML" tone="mutual" label="Maya" />
-        <ChainLink />
-        <div className="flex flex-col items-center gap-1.5">
-          <ChainAvatar initials="DR" tone="host" label="David" />
-          <TrustBadgeMedium degree={2} vouch={6.4} rating={4.7} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ChainAvatar({
-  initials,
-  tone,
-  label,
-}: {
-  initials: string;
-  tone: "self" | "mutual" | "host";
-  label?: string;
-}) {
-  const styles =
-    tone === "self"
-      ? "bg-brand-300 text-brand-foreground"
-      : tone === "mutual"
-        ? "bg-secondary text-foreground border border-border"
-        : "bg-secondary text-foreground border border-border";
-  return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="relative flex h-full w-full items-center justify-center">
       <div
-        className={`grid h-12 w-12 place-items-center rounded-full text-xs font-semibold ${styles}`}
+        className="relative w-[280px] rounded-2xl border bg-white p-3 text-left shadow-2xl"
+        style={{ borderColor: "rgba(11,46,37,0.10)", color: "#0B2E25" }}
       >
-        {initials}
+        {/* Header row: title + degree pill */}
+        <div className="mb-2.5 flex items-center justify-between">
+          <span
+            className="text-[11px] font-semibold uppercase tracking-wide"
+            style={{ color: "rgba(11,46,37,0.55)" }}
+          >
+            How you know David
+          </span>
+          <span
+            className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+            style={{ backgroundColor: "#2A8A6B", color: "#FFFFFF" }}
+          >
+            2°
+          </span>
+        </div>
+
+        {/* Path row — anonymized intermediary, mirrors PathRow */}
+        <div
+          className="flex items-center gap-2.5 rounded-lg p-2.5"
+          style={{
+            backgroundColor: "rgba(11,46,37,0.04)",
+            border: "1px solid rgba(11,46,37,0.06)",
+          }}
+        >
+          <div
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[10px] font-semibold"
+            style={{ backgroundColor: "#BFE2D4", color: "#0B2E25" }}
+          >
+            ML
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[11px] font-semibold leading-tight">
+              via Maya L.
+            </div>
+            <div className="mt-1 flex items-center gap-1.5">
+              <span
+                className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold"
+                style={{ backgroundColor: "#FAF5FF", color: "#6B21A8" }}
+              >
+                Strong
+              </span>
+              <span className="flex items-center gap-0.5">
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "#2A8A6B" }}
+                  title="You → Maya"
+                />
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "#4FB191" }}
+                  title="Maya → David"
+                />
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Anchor arrow under the popover, pointing at an implicit
+            "David" pill below — visual hint that this is a popover. */}
+        <div
+          aria-hidden
+          className="absolute -bottom-2 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r bg-white"
+          style={{ borderColor: "rgba(11,46,37,0.10)" }}
+        />
       </div>
-      {label && (
-        <span className="text-[10px] font-medium text-muted-foreground">
-          {label}
-        </span>
-      )}
     </div>
-  );
-}
-
-function ChainLink() {
-  return (
-    <span
-      aria-hidden
-      className="block h-px w-6 bg-border"
-      style={{ marginBottom: "20px" }}
-    />
-  );
-}
-
-function TrustBadgeMedium({
-  degree,
-  vouch,
-  rating,
-}: {
-  degree: 1 | 2 | 3 | 4;
-  vouch: number;
-  rating: number;
-}) {
-  // Recreation of the medium-size trust badge — degree pill + vouch
-  // diamond + rating star. Tokens mirror the trust-badge sandbox so
-  // the look stays consistent if Loren tunes them there later.
-  const degreePalette: Record<
-    1 | 2 | 3 | 4,
-    { bg: string; fg: string; label: string }
-  > = {
-    1: { bg: "#BFE2D4", fg: "#0B2E25", label: "1°" },
-    2: { bg: "#2A8A6B", fg: "#FFFFFF", label: "2°" },
-    3: { bg: "#BF8A0D", fg: "#FFFFFF", label: "3°" },
-    4: { bg: "#525252", fg: "#FFFFFF", label: "4°+" },
-  };
-  const d = degreePalette[degree];
-  return (
-    <span className="inline-flex items-center gap-1 rounded-pill bg-secondary/80 px-1 py-0.5">
-      <span
-        className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
-        style={{ backgroundColor: d.bg, color: d.fg }}
-      >
-        {d.label}
-      </span>
-      <span
-        className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-        style={{ backgroundColor: "#FAF5FF", color: "#6B21A8" }}
-      >
-        <svg viewBox="0 0 24 24" className="h-2 w-2" fill="currentColor">
-          <path d="M12 2L22 12L12 22L2 12Z" />
-        </svg>
-        {vouch.toFixed(1)}
-      </span>
-      <span
-        className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-        style={{ backgroundColor: "#FFFBEB", color: "#B45309" }}
-      >
-        <svg viewBox="0 0 24 24" className="h-2 w-2" fill="currentColor">
-          <path d="M12 2l2.9 6.5 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.1l7.1-.6L12 2z" />
-        </svg>
-        {rating.toFixed(1)}
-      </span>
-    </span>
   );
 }
