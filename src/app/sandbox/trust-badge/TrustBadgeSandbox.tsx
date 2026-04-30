@@ -386,8 +386,10 @@ function NewMemberPill({ size }: { size: BadgeSize }) {
   );
 }
 
-// Outlined vouch pill — transparent fill, color = vouch tier color
-// (matches the degree color scale based on the score itself).
+// Uncontained vouch indicator — no background, no border. Just the
+// shield + number, both colored by the vouch tier scale (same scale
+// as the degree pills, picked from the score itself). Sits next to
+// the rating chip the same way and behaves identically.
 function VouchPill({
   score,
   size,
@@ -398,22 +400,15 @@ function VouchPill({
   onImage: boolean;
 }) {
   const color = vouchTierColor(score, onImage);
-  const sz =
-    size === "micro"
-      ? "gap-0.5 px-1.5 py-[1px] text-[11px]"
-      : "gap-1 px-2 py-0.5 text-xs";
+  const sz = size === "micro" ? "gap-0.5 text-[11px]" : "gap-1 text-xs";
   const iconSize = size === "micro" ? "h-2.5 w-2.5" : "h-3 w-3";
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full font-semibold tabular-nums",
+        "inline-flex items-center font-semibold tabular-nums",
         sz
       )}
-      style={{
-        backgroundColor: "transparent",
-        color,
-        border: `1px solid ${color}`,
-      }}
+      style={{ color }}
     >
       <span className={iconSize}>{ICON_SHIELD}</span>
       <span>{score.toFixed(1)}</span>
@@ -1448,88 +1443,26 @@ type Palette = {
   id: string;
   name: string;
   note: string;
-  active?: boolean; // tag the live one so Loren can recognize the current state
   d1: DegreeColor;
   d2: DegreeColor;
   d3: DegreeColor;
   d4: DegreeColor;
 };
 
-const FIXED_D2: DegreeColor = {
-  bg: "#2A8A6B",
-  fg: "#FFFFFF",
-  outline: "#2A8A6B",
-};
-const FIXED_D3: DegreeColor = {
-  bg: "#BF8A0D",
-  fg: "#FFFFFF",
-  outline: "#BF8A0D",
-};
-
+// Single starting palette. Loren's working values from the most recent
+// design pass — a sky-blue 1°, mint 2°, mustard 3°, neutral gray 4°+.
+// Use the row's Duplicate button to fork an iteration; the duplicate
+// inherits the source's *current* picker values (not these defaults),
+// so refinements compound row-by-row.
 const INITIAL_PALETTES: Palette[] = [
   {
-    id: "current",
-    name: "Current — White / Zinc",
-    note: "What's shipping right now. Pure white 1°, dark zinc 4°+.",
-    active: true,
-    d1: { bg: "#FFFFFF", fg: "#0B2E25", outline: "#FFFFFF" },
-    d2: FIXED_D2,
-    d3: FIXED_D3,
-    d4: { bg: "#525252", fg: "#FFFFFF", outline: "#525252" },
-  },
-  {
-    id: "cream-olive",
-    name: "Option A — Cream / Olive",
-    note: "Brand-warm cream 1° (out of the green ramp without going stark white) + desaturated olive 4° that still feels related.",
-    d1: { bg: "#F5F1E6", fg: "#0B2E25", outline: "#F5F1E6" },
-    d2: FIXED_D2,
-    d3: FIXED_D3,
-    d4: { bg: "#6B7569", fg: "#FFFFFF", outline: "#6B7569" },
-  },
-  {
-    id: "forest-slate",
-    name: "Option B — Deep Forest / Cool Slate",
-    note: "Extends the green ramp at the top — 1° is the darkest deepest green. 4°+ flips to neutral cool slate so distance reads as 'outside the ramp.'",
-    d1: { bg: "#0F4A36", fg: "#FFFFFF", outline: "#0F4A36" },
-    d2: FIXED_D2,
-    d3: FIXED_D3,
-    d4: { bg: "#94A3B8", fg: "#0B2E25", outline: "#94A3B8" },
-  },
-  {
-    id: "sky-slate",
-    name: "Option C — Sky / Slate",
-    note: "Cool sky 1° contrasts with the warm 2°/3° middle; slate 4° matches the cool temperature so distance reads as 'cool fade.'",
-    d1: { bg: "#38BDF8", fg: "#0B2E25", outline: "#38BDF8" },
-    d2: FIXED_D2,
-    d3: FIXED_D3,
-    d4: { bg: "#64748B", fg: "#FFFFFF", outline: "#64748B" },
-  },
-  {
-    id: "coral-stone",
-    name: "Option D — Coral / Stone",
-    note: "Warm coral 1° as a friendly top-tier signal; stone 4° stays neutral and earthy without going stark gray.",
-    d1: { bg: "#FB7185", fg: "#FFFFFF", outline: "#FB7185" },
-    d2: FIXED_D2,
-    d3: FIXED_D3,
-    d4: { bg: "#A8A29E", fg: "#0B2E25", outline: "#A8A29E" },
-  },
-  {
-    id: "ink-pale",
-    name: "Option E — Ink / Pale",
-    note: "Inverts the contrast direction — dark ink 1° reads as anchored/serious; pale 4° disappears into the background instead of demanding attention.",
-    d1: { bg: "#0F172A", fg: "#FFFFFF", outline: "#0F172A" },
-    d2: FIXED_D2,
-    d3: FIXED_D3,
-    d4: { bg: "#D4D4D8", fg: "#0B2E25", outline: "#D4D4D8" },
-  },
-  {
-    id: "sage-bark",
-    name: "Option F — Sage / Bark",
-    note: "All warm/earthy — pale sage 1° extends the green ramp lighter; bark 4° stays grounded in the same family instead of jumping to gray.",
-    d1: { bg: "#86EFAC", fg: "#0B2E25", outline: "#86EFAC" },
-    d2: FIXED_D2,
-    d3: FIXED_D3,
-    d4: { bg: "#57534E", fg: "#FFFFFF", outline: "#57534E" },
+    id: "base",
+    name: "Base",
+    note: "Starting palette — duplicate to iterate without losing this baseline. Each tier is editable; the vouch power chip in the preview follows the same color scale based on its score, so a 3° contact can still display a high-vouch color and vice versa.",
+    d1: { bg: "#3ABFF8", fg: "#0B2E25", outline: "#3ABFF8" },
+    d2: { bg: "#1AEAA5", fg: "#0B2E25", outline: "#1AEAA5" },
+    d3: { bg: "#FDD34D", fg: "#0B2E25", outline: "#FDD34D" },
+    d4: { bg: "#BABABA", fg: "#0B2E25", outline: "#BABABA" },
   },
 ];
 
@@ -1653,17 +1586,119 @@ function ColorSwatchInput({
   );
 }
 
-function PaletteRow({ initial }: { initial: Palette }) {
-  // Each row owns its own color state so Loren can tinker with one
-  // option without affecting the others. Initial values come from
-  // INITIAL_PALETTES; resetting back is just a page reload.
+// Resolve a vouch score to its tier color under the *palette's*
+// current color choices (not the canonical hardcoded scale). The
+// preview pills want to show how vouch coloring shifts as the user
+// retunes the palette.
+function paletteVouchColor(
+  score: number,
+  d1: DegreeColor,
+  d2: DegreeColor,
+  d3: DegreeColor,
+  d4: DegreeColor
+): string {
+  if (score >= 5) return d1.bg;
+  if (score >= 4) return d2.bg;
+  if (score >= 3) return d3.bg;
+  return d4.bg;
+}
+
+// Sample combinations rendered in each palette's preview row. Mixes
+// degree tiers with vouch scores that don't all line up — a 3° host
+// with strong vouch power, a 4°+ host with low vouch — so the preview
+// shows how degree and vouch coloring interact under the chosen
+// palette, not just the "everything matches" diagonal.
+const PREVIEW_COMBOS: Array<{
+  tier: 1 | 2 | 3 | 4;
+  connection?: string;
+  vouch: number;
+}> = [
+  { tier: 1, vouch: 8.5 },
+  { tier: 2, connection: "6.4", vouch: 4.0 },
+  { tier: 3, connection: "3.2", vouch: 7.2 },
+  { tier: 4, vouch: 1.2 },
+];
+
+function PreviewCombo({
+  tier,
+  connection,
+  vouch,
+  d1,
+  d2,
+  d3,
+  d4,
+}: {
+  tier: 1 | 2 | 3 | 4;
+  connection?: string;
+  vouch: number;
+  d1: DegreeColor;
+  d2: DegreeColor;
+  d3: DegreeColor;
+  d4: DegreeColor;
+}) {
+  const tierColor = [d1, d2, d3, d4][tier - 1];
+  const tierLabel = tier === 4 ? "4°+" : `${tier}°`;
+  const vouchColor = paletteVouchColor(vouch, d1, d2, d3, d4);
+  return (
+    <span className="inline-flex items-center gap-1">
+      {connection ? (
+        <ComboSwatchPill
+          label={tierLabel}
+          score={connection}
+          color={tierColor}
+        />
+      ) : (
+        <SwatchPill
+          label={tierLabel}
+          color={tierColor}
+          hairline={isVeryLight(tierColor.bg)}
+        />
+      )}
+      <span
+        className="inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums"
+        style={{ color: vouchColor }}
+      >
+        <Shield
+          className="h-3 w-3"
+          fill="currentColor"
+          strokeWidth={0}
+        />
+        <span>{vouch.toFixed(1)}</span>
+      </span>
+    </span>
+  );
+}
+
+function PaletteRow({
+  initial,
+  onDuplicate,
+  onRemove,
+  canRemove,
+}: {
+  initial: Palette;
+  onDuplicate: (
+    sourceId: string,
+    snapshot: {
+      d1: DegreeColor;
+      d2: DegreeColor;
+      d3: DegreeColor;
+      d4: DegreeColor;
+    }
+  ) => void;
+  onRemove: (id: string) => void;
+  canRemove: boolean;
+}) {
+  // Each row owns its own color state so editing one palette never
+  // affects another. Initial values come from the palette definition
+  // (either INITIAL_PALETTES or a duplicate-snapshot). Reload page to
+  // reset.
   const [d1, setD1] = useState<DegreeColor>(initial.d1);
   const [d2, setD2] = useState<DegreeColor>(initial.d2);
   const [d3, setD3] = useState<DegreeColor>(initial.d3);
   const [d4, setD4] = useState<DegreeColor>(initial.d4);
-  // Default the live option to expanded so the picker UX is visible
-  // without requiring a click; all other options collapse for density.
-  const [open, setOpen] = useState(Boolean(initial.active));
+  // Default open so freshly-created (and base) palettes immediately
+  // show their picker UX; collapse manually if the list grows long.
+  const [open, setOpen] = useState(true);
 
   const setBg = (
     setter: (c: DegreeColor) => void
@@ -1671,20 +1706,16 @@ function PaletteRow({ initial }: { initial: Palette }) {
     (next: string) =>
       setter({ bg: next, fg: pickFg(next), outline: next });
 
-  const lightBg = isVeryLight(d1.bg);
-
   return (
     <div
       className="overflow-hidden rounded-xl"
       style={{
         backgroundColor: "rgba(7,34,27,0.55)",
-        border: initial.active
-          ? "1px solid rgba(79,177,145,0.45)"
-          : "1px solid rgba(245,241,230,0.12)",
+        border: "1px solid rgba(245,241,230,0.12)",
       }}
     >
-      {/* Toggle row — chevron + name (+ Live badge) on the left, the
-          four live pills on the right. One line, no wrap on desktop. */}
+      {/* Toggle row — chevron + name on the left, four sample combos
+          (degree pill + vouch chip) on the right. */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -1705,22 +1736,19 @@ function PaletteRow({ initial }: { initial: Palette }) {
         >
           {initial.name}
         </h4>
-        {initial.active && (
-          <span
-            className="inline-flex shrink-0 items-center rounded-full px-2 py-[1px] text-[10px] font-mono uppercase tracking-wider"
-            style={{
-              backgroundColor: "rgba(79,177,145,0.18)",
-              color: "#BFE2D4",
-            }}
-          >
-            Live
-          </span>
-        )}
-        <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
-          <SwatchPill label="1°" color={d1} hairline={lightBg} />
-          <ComboSwatchPill label="2°" score="6.4" color={d2} />
-          <ComboSwatchPill label="3°" score="3.2" color={d3} />
-          <SwatchPill label="4°+" color={d4} />
+        <span className="ml-auto flex flex-wrap items-center justify-end gap-3">
+          {PREVIEW_COMBOS.map((c, i) => (
+            <PreviewCombo
+              key={i}
+              tier={c.tier}
+              connection={c.connection}
+              vouch={c.vouch}
+              d1={d1}
+              d2={d2}
+              d3={d3}
+              d4={d4}
+            />
+          ))}
         </span>
       </button>
 
@@ -1758,6 +1786,37 @@ function PaletteRow({ initial }: { initial: Palette }) {
               onChange={setBg(setD4)}
             />
           </div>
+          {/* Action footer — Duplicate forks a copy below with the
+              current picker values; Delete removes this row (hidden
+              when only one palette is left). */}
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                onDuplicate(initial.id, { d1, d2, d3, d4 })
+              }
+              className="inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.08em] transition-colors hover:bg-[rgba(245,241,230,0.08)]"
+              style={{
+                color: "rgba(245,241,230,0.78)",
+                border: "1px solid rgba(245,241,230,0.2)",
+              }}
+            >
+              Duplicate
+            </button>
+            {canRemove && (
+              <button
+                type="button"
+                onClick={() => onRemove(initial.id)}
+                className="inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.08em] transition-colors hover:bg-[rgba(248,113,113,0.12)]"
+                style={{
+                  color: "rgba(252,165,165,0.85)",
+                  border: "1px solid rgba(252,165,165,0.3)",
+                }}
+              >
+                Delete
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -1765,10 +1824,59 @@ function PaletteRow({ initial }: { initial: Palette }) {
 }
 
 function PaletteOptions() {
+  // Lift the palette list up so Duplicate / Delete can mutate it.
+  // Each row still owns its own picker state (keyed by stable id), so
+  // edits to one row never disturb another.
+  const [palettes, setPalettes] = useState<Palette[]>(INITIAL_PALETTES);
+
+  const handleDuplicate = (
+    sourceId: string,
+    snapshot: {
+      d1: DegreeColor;
+      d2: DegreeColor;
+      d3: DegreeColor;
+      d4: DegreeColor;
+    }
+  ) => {
+    setPalettes((prev) => {
+      const idx = prev.findIndex((p) => p.id === sourceId);
+      if (idx < 0) return prev;
+      const source = prev[idx];
+      // Count existing copies to suffix a stable name.
+      const copyCount = prev.filter((p) =>
+        p.name.startsWith(`${source.name} copy`)
+      ).length;
+      const copy: Palette = {
+        id: `${sourceId}-copy-${Date.now()}`,
+        name: copyCount === 0
+          ? `${source.name} copy`
+          : `${source.name} copy ${copyCount + 1}`,
+        note: source.note,
+        d1: snapshot.d1,
+        d2: snapshot.d2,
+        d3: snapshot.d3,
+        d4: snapshot.d4,
+      };
+      return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+    });
+  };
+
+  const handleRemove = (id: string) => {
+    setPalettes((prev) =>
+      prev.length > 1 ? prev.filter((p) => p.id !== id) : prev
+    );
+  };
+
   return (
     <div className="grid gap-3">
-      {INITIAL_PALETTES.map((p) => (
-        <PaletteRow key={p.id} initial={p} />
+      {palettes.map((p) => (
+        <PaletteRow
+          key={p.id}
+          initial={p}
+          onDuplicate={handleDuplicate}
+          onRemove={handleRemove}
+          canRemove={palettes.length > 1}
+        />
       ))}
     </div>
   );
@@ -1804,7 +1912,7 @@ export function TrustBadgeSandbox() {
           <SectionHeader
             eyebrow="Palette · review"
             title="Degree color scale options"
-            note="2° (emerald) and 3° (mustard) are held fixed across all options — only 1° and 4° vary. Each row shows the four pills in a real combo: single 1°, then 2°/3° as combo pills (so the outline color is visible), then single 4°+. Pick a direction and we'll roll it into the rest of the page."
+            note="Tinker with all four tiers per palette. Each row's preview pairs a degree pill with a sample vouch chip — including asymmetric combos (3° host with high vouch, 4°+ host with low vouch) — so you can see how degree and vouch coloring interact under the chosen palette. Duplicate any row to fork an iteration; delete the ones that aren't working."
           />
           <PaletteOptions />
         </section>
