@@ -5,6 +5,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveAuth, isAdmin } from "@/lib/impersonation/session";
 import { rateLimitOr429 } from "@/lib/rate-limit";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { sendPendingVouchSMS } from "@/lib/sms/send-pending-vouch";
+import { OptedOutError } from "@/lib/sms/opt-out";
 
 /**
  * POST /api/pending-vouches/create
@@ -267,13 +269,66 @@ export async function POST(req: Request) {
   const shareUrl = `${baseUrl}/join/${row.token}`;
   const senderFirstName = (sender.name ?? "").split(" ")[0] || "A friend";
 
-  // Prefilled SMS text varies slightly by mode so the recipient gets
-  // appropriate context. All three include the share URL at the end
-  // (some apps append text + url, some surface them separately).
+  // Three SMS body shapes. The mode + send-channel split:
+  //   - Mode A auto-send (Trustead → recipient via Twilio): third-
+  //     person, names the sender so the recipient knows who's behind
+  //     the unfamiliar Trustead Twilio number.
+  //   - Mode A "send from own phone" + Mode B (sender's own phone is
+  //     the source): first-person, no name needed since the recipient
+  //     already sees who it's from in their Messages thread.
+  //   - Mode C group (sender's own phone, group chat audience):
+  //     "Hey friends!" framing with full platform tagline since the
+  //     audience may not know what Trustead is at all.
+  // Em-dashes were swapped for hyphens to keep the body GSM-7 (1
+  // segment instead of UCS-2 4-segment), saving Twilio cost.
+  const autoSendBody =
+    `${senderFirstName} just vouched for you on Trustead - ` +
+    `a platform for renting your home to people in a trust network. ` +
+    `Come check it out and sign up for free at: ${shareUrl}`;
+
+  const personalShareBody =
+    `Hey, I just vouched for you on Trustead. ` +
+    `Come check it out and sign up for free at: ${shareUrl}`;
+
+  const groupShareBody =
+    `Hey friends! I'm inviting you to this new platform for renting ` +
+    `your home to people in a trust network called Trustead. ` +
+    `Come check it out and sign up for free at: ${shareUrl}`;
+
+  // Trigger Twilio auto-send for Mode A only. Open modes (B, C) ship
+  // the prefilled text in the response and let the sender share via
+  // their own messaging app (no recipient phone to send to anyway).
+  let smsSent = false;
+  let smsError: string | null = null;
+  if (mode === "phone" && phoneE164) {
+    try {
+      const result = await sendPendingVouchSMS({
+        toPhone: phoneE164,
+        body: autoSendBody,
+      });
+      smsSent = result.success;
+      smsError = result.error ?? null;
+    } catch (e) {
+      // Opt-out is a known soft-failure — fall back to share-sheet so
+      // the sender can still text the recipient via their own number
+      // (which the opt-out list doesn't apply to).
+      if (e instanceof OptedOutError) {
+        smsSent = false;
+        smsError = "opted_out";
+      } else {
+        console.error("[pending-vouches:create] SMS send threw:", e);
+        smsSent = false;
+        smsError = "send_failed";
+      }
+    }
+  }
+
+  // The prefilled text we return to the client is the SHARE-SHEET
+  // copy, not the auto-send copy. For Mode A this is the secondary
+  // "send from your own phone" body (no name); for B/C it's the
+  // primary share body. Keeps a single field on the response.
   const prefilledSmsText =
-    mode === "open_group"
-      ? `${senderFirstName} is inviting friends to Trustead — ${shareUrl}`
-      : `${senderFirstName} wants to vouch for you on Trustead — ${shareUrl}`;
+    mode === "open_group" ? groupShareBody : personalShareBody;
 
   return Response.json({
     id: row.id,
@@ -283,5 +338,7 @@ export async function POST(req: Request) {
     prefilled_sms_text: prefilledSmsText,
     expires_at: row.expires_at,
     recipient_phone: phoneE164 ?? undefined,
+    sms_sent: smsSent,
+    sms_error: smsError,
   });
 }

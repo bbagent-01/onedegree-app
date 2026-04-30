@@ -53,15 +53,23 @@ export default async function PendingVouchesPage() {
   // when the user taps "Resend" — same token, same URL, same text.
   // Mode C uses a slightly different SMS phrasing (matches the create
   // endpoint's group-mode phrasing).
-  const senderFirstName = (me.name as string)?.split(" ")[0] || "A friend";
-  const enriched = rows.map((r) => ({
-    ...r,
-    share_url: `${baseUrl}/join/${r.token}`,
-    prefilled_sms_text:
+  // Resend prefills go through the share-sheet path (sender's own
+  // phone), so we use the user-sent body shapes — NOT the third-person
+  // Trustead Twilio body. Mode A and B share the personal first-person
+  // copy; Mode C uses the group-friendly framing. These mirror the
+  // copy in /api/pending-vouches/create, which is the canonical source.
+  const enriched = rows.map((r) => {
+    const url = `${baseUrl}/join/${r.token}`;
+    const text =
       r.mode === "open_group"
-        ? `${senderFirstName} is inviting friends to Trustead — ${baseUrl}/join/${r.token}`
-        : `${senderFirstName} wants to vouch for you on Trustead — ${baseUrl}/join/${r.token}`,
-  }));
+        ? `Hey friends! I'm inviting you to this new platform for renting your home to people in a trust network called Trustead. Come check it out and sign up for free at: ${url}`
+        : `Hey, I just vouched for you on Trustead. Come check it out and sign up for free at: ${url}`;
+    return {
+      ...r,
+      share_url: url,
+      prefilled_sms_text: text,
+    };
+  });
 
   const pendingCount = enriched.filter((r) => r.status === "pending").length;
 

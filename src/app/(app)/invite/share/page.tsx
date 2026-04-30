@@ -49,6 +49,13 @@ interface CreatedVouch {
   prefilled_sms_text: string;
   /** Only present for mode='phone'; absent for open modes. */
   recipient_phone?: string;
+  /** True when Trustead's Twilio number successfully sent the auto-SMS
+   *  for Mode A. Always false for Mode B/C (no recipient phone). */
+  sms_sent?: boolean;
+  /** Reason auto-send didn't fire (twilio_not_configured / opted_out /
+   *  send_failed / Twilio error message). Drives the share-sheet
+   *  fallback notice on the success card. */
+  sms_error?: string | null;
 }
 
 type ExistingCheck =
@@ -462,7 +469,7 @@ function InviteShareContent() {
                 disabled={!canProceedDetails || submitting}
                 onClick={handleSubmit}
               >
-                {submitting ? "Creating..." : "Create invite link"}
+                {submitting ? "Sending..." : "Send invite"}
               </Button>
             </div>
           </div>
@@ -774,10 +781,78 @@ function ShareStep({
   }, [created]);
 
   const isOpenMode = created.mode !== "phone";
+  const isModeAAutoSent = created.mode === "phone" && created.sms_sent === true;
+  const isModeAFallback =
+    created.mode === "phone" && created.sms_sent === false;
   const headlineRecipient =
     created.mode === "open_group"
       ? `your group`
       : displayName.split(" ")[0] || "your friend";
+
+  // Mode A + auto-send succeeded → primary state is "sent confirmed",
+  // share-sheet becomes a secondary option (sender can add a personal
+  // touch). Mode A + auto-send failed (Twilio not configured, opted-out
+  // recipient, network error) → fall straight back to the share-sheet
+  // flow with a notice. Open modes always use the share-sheet flow.
+  if (isModeAAutoSent && created.recipient_phone) {
+    return (
+      <div>
+        <div className="text-center">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+            <Check className="h-5 w-5" />
+          </div>
+          <h2 className="mt-3 text-base font-semibold">Sent</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Trustead just texted {headlineRecipient} at{" "}
+            <span className="font-medium text-foreground">
+              {formatNationalLite(created.recipient_phone)}
+            </span>
+            . They&apos;ll get a 1° connection to you when they sign up.
+          </p>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Want to add a personal note?
+          </div>
+          <p className="mt-1.5 select-all text-sm leading-relaxed text-foreground">
+            {created.prefilled_sms_text}
+          </p>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-3">
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={handleShare}
+            disabled={sharing}
+            className="gap-2"
+          >
+            <Share2 className="h-4 w-4" />
+            {sharing ? "Opening..." : "Send a personal message yourself"}
+          </Button>
+          <Button
+            size="lg"
+            onClick={onSent}
+          >
+            Done
+          </Button>
+          {shareError && (
+            <p className="text-xs text-destructive">{shareError}</p>
+          )}
+        </div>
+
+        <div className="mt-5 text-center">
+          <Link
+            href="/dashboard/pending-vouches"
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+          >
+            See all pending invites
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -785,11 +860,15 @@ function ShareStep({
         <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
           <Check className="h-5 w-5" />
         </div>
-        <h2 className="mt-3 text-base font-semibold">Link ready</h2>
+        <h2 className="mt-3 text-base font-semibold">
+          {isModeAFallback ? "Couldn't auto-send" : "Link ready"}
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {isOpenMode
-            ? `Send this to ${headlineRecipient} from your own messaging app. We'll auto-vouch when they sign up via the link.`
-            : `Send this to ${headlineRecipient} from your own messaging app. We'll auto-vouch when they sign up with the phone you entered.`}
+          {isModeAFallback
+            ? `Trustead couldn't text ${headlineRecipient} automatically (${friendlySmsError(created.sms_error)}). Send the link from your own phone instead — we'll still auto-vouch when they sign up.`
+            : isOpenMode
+              ? `Send this to ${headlineRecipient} from your own messaging app. We'll auto-vouch when they sign up via the link.`
+              : `Send this to ${headlineRecipient} from your own messaging app. We'll auto-vouch when they sign up with the phone you entered.`}
         </p>
       </div>
 
@@ -849,4 +928,23 @@ function ShareStep({
       </div>
     </div>
   );
+}
+
+/** Lightweight (XXX) XXX-XXXX format for the success card without
+ *  re-parsing through libphonenumber-js client-side. Falls back to
+ *  the raw E.164 if the input doesn't match the expected shape. */
+function formatNationalLite(e164: string | null | undefined): string {
+  if (!e164) return "";
+  const m = e164.match(/^\+1(\d{3})(\d{3})(\d{4})$/);
+  if (!m) return e164;
+  return `(${m[1]}) ${m[2]}-${m[3]}`;
+}
+
+function friendlySmsError(code: string | null | undefined): string {
+  if (!code) return "unknown error";
+  if (code === "twilio_not_configured") return "SMS service not configured";
+  if (code === "opted_out") return "they opted out of SMS";
+  if (code === "send_failed") return "send failed";
+  // Anything else is a Twilio-returned error message — pass through truncated.
+  return code.length > 80 ? code.slice(0, 77) + "..." : code;
 }
