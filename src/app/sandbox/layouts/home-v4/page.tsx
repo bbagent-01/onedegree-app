@@ -43,7 +43,6 @@ import {
   ArrowRight,
   Heart,
   Bell,
-  Sparkles,
 } from "lucide-react";
 
 // ── Sidebar nav items ──────────────────────────────────────────
@@ -209,12 +208,6 @@ const NOTIFICATIONS = [
   { who: "Beatriz F.", body: "joined Trustead via Sofía A.", ago: "3d", actionable: false },
 ];
 
-const RECENT_VOUCHES = [
-  { name: "Maya R.", note: "trusted house guest" },
-  { name: "Sofía A.", note: "longtime friend" },
-  { name: "Jonas T.", note: "thoughtful traveler" },
-];
-
 // ── Page ───────────────────────────────────────────────────────
 
 export default function HomeV4() {
@@ -227,8 +220,8 @@ export default function HomeV4() {
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="flex flex-1 gap-0">
             <div className="min-w-0 flex-1 px-6 lg:px-10">
-              {/* Greeting + condensed search — centered, generous vertical padding */}
-              <header className="flex flex-col items-center py-16 text-center md:py-20">
+              {/* Greeting + condensed search — centered, viewport-height padding */}
+              <header className="flex flex-col items-center pb-[10vh] pt-[12vh] text-center md:pb-[15vh] md:pt-[20vh]">
                 <p className="text-sm text-muted-foreground">
                   Welcome back, {USER.firstName}.
                 </p>
@@ -238,7 +231,20 @@ export default function HomeV4() {
                 <CondensedSearch />
               </header>
 
-              {/* Marquee rows */}
+              {/* Marquee rows — People-in-your-network leads. New users
+                  with small networks see this first; the page surfaces
+                  who you can vouch for before what's available to book. */}
+              <MarqueeSection
+                title="People in your network"
+                subtitle="Folks you might want to vouch for"
+                link={{ label: "Vouch flow", href: "/sandbox/layouts/vouch" }}
+                direction="left"
+              >
+                {PEOPLE_TO_VOUCH.map((p) => (
+                  <PersonCard key={p.name} person={p} />
+                ))}
+              </MarqueeSection>
+
               <MarqueeSection
                 title="Trip Wishes from your network"
                 subtitle="Members looking for a place to stay"
@@ -271,20 +277,7 @@ export default function HomeV4() {
                   <HostOfferCardHorizontal key={h.id} item={h} />
                 ))}
               </MarqueeSection>
-
-              <MarqueeSection
-                title="People in your network"
-                subtitle="Folks you might want to vouch for"
-                link={{ label: "Vouch flow", href: "/sandbox/layouts/vouch" }}
-                direction="left"
-              >
-                {PEOPLE_TO_VOUCH.map((p) => (
-                  <PersonCard key={p.name} person={p} />
-                ))}
-              </MarqueeSection>
             </div>
-
-            <RightRail />
           </div>
         </main>
       </div>
@@ -562,10 +555,10 @@ function ConcentricRings() {
 
 function TripWishCardHorizontal({ item }: { item: TripWish }) {
   return (
-    <article className="group flex h-[240px] w-[420px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* Visual pane with concentric rings on a colored destination field */}
+    <article className="group flex h-[260px] w-[510px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
+      {/* Visual pane — square, with concentric rings on a colored destination field */}
       <div
-        className={`relative w-[170px] shrink-0 overflow-hidden bg-gradient-to-br ${item.palette}`}
+        className={`relative h-[260px] w-[260px] shrink-0 overflow-hidden bg-gradient-to-br ${item.palette}`}
       >
         <ConcentricRings />
         <div className="relative z-[1] flex h-full w-full flex-col items-center justify-center px-3 text-center">
@@ -639,9 +632,9 @@ function TripWishCardHorizontal({ item }: { item: TripWish }) {
 
 function HostOfferCardHorizontal({ item }: { item: HostOffer }) {
   return (
-    <article className="group flex h-[240px] w-[440px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* Photo pane */}
-      <div className="relative w-[180px] shrink-0">
+    <article className="group flex h-[260px] w-[520px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
+      {/* Photo pane — square */}
+      <div className="relative h-[260px] w-[260px] shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={item.photo}
@@ -706,7 +699,7 @@ function ListingCardVertical({ item }: { item: Listing }) {
   return (
     <Link
       href="/sandbox/layouts/listing"
-      className="group block w-[260px] shrink-0"
+      className="group block w-[300px] shrink-0"
     >
       <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -779,7 +772,7 @@ function PersonCard({ person }: { person: Person }) {
         ? `via ${connectorList[0]}`
         : `via ${connectorList[0]} & ${connectorList.length - 1} other${connectorList.length - 1 === 1 ? "" : "s"}`;
   return (
-    <article className="flex h-[240px] w-[340px] shrink-0 flex-col rounded-2xl border border-border bg-card/40 p-5">
+    <article className="flex h-[260px] w-[380px] shrink-0 flex-col rounded-2xl border border-border bg-card/40 p-5">
       <div className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -831,45 +824,6 @@ function PersonCard({ person }: { person: Person }) {
         Vouch for {person.name.split(" ")[0]}
       </button>
     </article>
-  );
-}
-
-// ── Right rail (notifications + recent vouches) ────────────────
-
-function RightRail() {
-  return (
-    <aside
-      className="sticky top-9 hidden h-[calc(100vh-36px)] w-[300px] shrink-0 overflow-y-auto border-l border-border bg-card/20 px-5 py-6 lg:block"
-      aria-label="Vouches"
-    >
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-muted-foreground" />
-        <h2 className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Recent vouches received
-        </h2>
-      </div>
-      <ul className="mt-3 space-y-2">
-        {RECENT_VOUCHES.map((v, i) => (
-          <li
-            key={i}
-            className="rounded-xl border border-border bg-background/40 p-3"
-          >
-            <p className="text-xs font-semibold text-foreground">{v.name}</p>
-            <p className="mt-0.5 line-clamp-2 text-[11px] italic text-muted-foreground">
-              &ldquo;{v.note}&rdquo;
-            </p>
-          </li>
-        ))}
-      </ul>
-
-      <Link
-        href="/sandbox/layouts/network"
-        className="mt-6 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-      >
-        Open network
-        <ChevronRight className="h-3 w-3" />
-      </Link>
-    </aside>
   );
 }
 

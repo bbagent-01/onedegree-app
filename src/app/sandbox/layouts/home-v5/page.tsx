@@ -39,7 +39,6 @@ import {
   ArrowUpRight,
   Heart,
   Bell,
-  Zap,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -119,12 +118,6 @@ const NETWORK_STATS = [
   { label: "Vouches received", value: 11 },
   { label: "1° connections", value: 9 },
   { label: "2° reach", value: 47 },
-];
-
-const TODAY_PROMPTS = [
-  { primary: "Vouch back for Maya R.", sub: "She vouched for you 2 days ago.", action: "Vouch back" },
-  { primary: "Reply to Diego's CDMX proposal", sub: "Awaiting your response since yesterday.", action: "Reply" },
-  { primary: "Add a phone number", sub: "Hosts see verified phones — yours isn't yet.", action: "Add" },
 ];
 
 const ACTIVITY = [
@@ -218,8 +211,8 @@ export default function HomeV5() {
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="flex flex-1 gap-0">
             <div className="min-w-0 flex-1 px-6 lg:px-10">
-              {/* Greeting + condensed search — centered, generous vertical padding */}
-              <header className="flex flex-col items-center py-16 text-center md:py-20">
+              {/* Greeting + condensed search — centered, viewport-height padding */}
+              <header className="flex flex-col items-center pb-[10vh] pt-[12vh] text-center md:pb-[15vh] md:pt-[20vh]">
                 <p className="text-sm text-muted-foreground">
                   Welcome back, {USER.firstName}.
                 </p>
@@ -301,6 +294,18 @@ export default function HomeV5() {
                 </article>
               </section>
 
+              {/* Marquee — People-in-your-network leads */}
+              <MarqueeSection
+                title="People in your network"
+                subtitle="Folks you might want to vouch for"
+                link={{ label: "Vouch flow", href: "/sandbox/layouts/vouch" }}
+                direction="left"
+              >
+                {PEOPLE_TO_VOUCH.map((p) => (
+                  <PersonCard key={p.name} person={p} />
+                ))}
+              </MarqueeSection>
+
               {/* Marquee — Trip Wishes */}
               <MarqueeSection
                 title="Trip Wishes from your network"
@@ -325,20 +330,8 @@ export default function HomeV5() {
                 ))}
               </MarqueeSection>
 
-              {/* Marquee — People in your network */}
-              <MarqueeSection
-                title="People in your network"
-                subtitle="Folks you might want to vouch for"
-                link={{ label: "Vouch flow", href: "/sandbox/layouts/vouch" }}
-                direction="right"
-              >
-                {PEOPLE_TO_VOUCH.map((p) => (
-                  <PersonCard key={p.name} person={p} />
-                ))}
-              </MarqueeSection>
-
               {/* Network at a glance */}
-              <section className="mt-12 rounded-2xl border border-border bg-card/40 p-6">
+              <section className="mt-12 mb-8 rounded-2xl border border-border bg-card/40 p-6">
                 <div className="flex items-baseline justify-between">
                   <h2 className="whitespace-nowrap text-lg font-semibold text-foreground md:text-xl">
                     Your network at a glance
@@ -368,8 +361,6 @@ export default function HomeV5() {
                 </div>
               </section>
             </div>
-
-            <RightRail />
           </div>
         </main>
       </div>
@@ -633,9 +624,9 @@ function ConcentricRings() {
 
 function TripWishCardHorizontal({ item }: { item: TripWish }) {
   return (
-    <article className="group flex h-[240px] w-[420px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
+    <article className="group flex h-[260px] w-[510px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
       <div
-        className={`relative w-[170px] shrink-0 overflow-hidden bg-gradient-to-br ${item.palette}`}
+        className={`relative h-[260px] w-[260px] shrink-0 overflow-hidden bg-gradient-to-br ${item.palette}`}
       >
         <ConcentricRings />
         <div className="relative z-[1] flex h-full w-full flex-col items-center justify-center px-3 text-center">
@@ -710,7 +701,7 @@ function ListingCardVertical({ item }: { item: Listing }) {
   return (
     <Link
       href="/sandbox/layouts/listing"
-      className="group block w-[260px] shrink-0"
+      className="group block w-[300px] shrink-0"
     >
       <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -769,7 +760,7 @@ function PersonCard({ person }: { person: Person }) {
         ? `via ${connectorList[0]}`
         : `via ${connectorList[0]} & ${connectorList.length - 1} other${connectorList.length - 1 === 1 ? "" : "s"}`;
   return (
-    <article className="flex h-[240px] w-[340px] shrink-0 flex-col rounded-2xl border border-border bg-card/40 p-5">
+    <article className="flex h-[260px] w-[380px] shrink-0 flex-col rounded-2xl border border-border bg-card/40 p-5">
       <div className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -819,39 +810,6 @@ function PersonCard({ person }: { person: Person }) {
         Vouch for {person.name.split(" ")[0]}
       </button>
     </article>
-  );
-}
-
-// ── Right rail (today's prompts) ───────────────────────────────
-
-function RightRail() {
-  return (
-    <aside
-      className="sticky top-9 hidden h-[calc(100vh-36px)] w-[300px] shrink-0 overflow-y-auto border-l border-border bg-card/20 px-5 py-6 lg:block"
-      aria-label="Today's prompts"
-    >
-      <div className="flex items-center gap-2">
-        <Zap className="h-4 w-4 text-warning" />
-        <h2 className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-warning">
-          Today&rsquo;s prompts
-        </h2>
-      </div>
-      <ul className="mt-3 space-y-2">
-        {TODAY_PROMPTS.map((p, i) => (
-          <li
-            key={i}
-            className="rounded-xl border border-warning/30 bg-warning/10 p-3"
-          >
-            <p className="text-xs font-semibold text-foreground">{p.primary}</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">{p.sub}</p>
-            <button className="mt-2 inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90">
-              {p.action}
-              <ArrowRight className="h-3 w-3" />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </aside>
   );
 }
 
