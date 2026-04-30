@@ -1293,6 +1293,213 @@ function MacroStack() {
   );
 }
 
+// ── Palette comparator (top-of-page review section) ─────────────
+// Shows alternative color scales for the degree pill. 2° (emerald)
+// and 3° (mustard) are held fixed across all options — only 1° and
+// 4° vary. Each row shows the four pills in the same order they'd
+// appear on a real badge: a single 1° pill, then 2°/3° as combo
+// pills (so the outline-color is visible), then a single 4°+ pill.
+
+type DegreeColor = { bg: string; fg: string; outline: string };
+type Palette = {
+  id: string;
+  name: string;
+  note: string;
+  active?: boolean; // tag the live one so Loren can recognize the current state
+  d1: DegreeColor;
+  d2: DegreeColor;
+  d3: DegreeColor;
+  d4: DegreeColor;
+};
+
+const FIXED_D2: DegreeColor = {
+  bg: "#2A8A6B",
+  fg: "#FFFFFF",
+  outline: "#2A8A6B",
+};
+const FIXED_D3: DegreeColor = {
+  bg: "#BF8A0D",
+  fg: "#FFFFFF",
+  outline: "#BF8A0D",
+};
+
+const PALETTE_OPTIONS: Palette[] = [
+  {
+    id: "current",
+    name: "Current — White / Zinc",
+    note: "What's shipping right now. Pure white 1°, dark zinc 4°+.",
+    active: true,
+    d1: { bg: "#FFFFFF", fg: "#0B2E25", outline: "#FFFFFF" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#525252", fg: "#FFFFFF", outline: "#525252" },
+  },
+  {
+    id: "cream-olive",
+    name: "Option A — Cream / Olive",
+    note: "Brand-warm cream 1° (pulls out of the green ramp without going stark white) + a desaturated olive 4° that still feels related to the green tones.",
+    d1: { bg: "#F5F1E6", fg: "#0B2E25", outline: "#F5F1E6" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#6B7569", fg: "#FFFFFF", outline: "#6B7569" },
+  },
+  {
+    id: "forest-slate",
+    name: "Option B — Deep Forest / Cool Slate",
+    note: "Extends the green ramp at the top — 1° is the darkest, deepest green, signaling 'highest tier within the family.' 4°+ flips to a clearly neutral cool slate so distance reads as 'outside the trust ramp.'",
+    d1: { bg: "#0F4A36", fg: "#FFFFFF", outline: "#0F4A36" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#94A3B8", fg: "#0B2E25", outline: "#94A3B8" },
+  },
+  {
+    id: "gold-stone",
+    name: "Option C — Gold / Stone",
+    note: "Premium gold for 1° (rare, awarded, top-of-network) — most visually distinct option. 4° goes to a warm stone gray that feels softer than current zinc.",
+    d1: { bg: "#C9A24E", fg: "#0B2E25", outline: "#C9A24E" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#A8A29E", fg: "#0B2E25", outline: "#A8A29E" },
+  },
+  {
+    id: "black-silver",
+    name: "Option D — Near-Black / Silver",
+    note: "High-contrast Trustead deep forest for 1° — the darkest, heaviest pill of the four, reads as 'definitive.' 4° lifts to a near-ghostly cool silver so distance is visually faded rather than heavy.",
+    d1: { bg: "#0B2E25", fg: "#F5F1E6", outline: "#0B2E25" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#B8C0BC", fg: "#0B2E25", outline: "#B8C0BC" },
+  },
+];
+
+function SwatchPill({
+  label,
+  color,
+  hairline = false,
+}: {
+  label: string;
+  color: DegreeColor;
+  hairline?: boolean;
+}) {
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+      style={{
+        backgroundColor: color.bg,
+        color: color.fg,
+        border: hairline ? "1px solid rgba(11,46,37,0.14)" : undefined,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function ComboSwatchPill({
+  label,
+  score,
+  color,
+}: {
+  label: string;
+  score: string;
+  color: DegreeColor;
+}) {
+  return (
+    <span
+      className="inline-flex items-stretch overflow-hidden rounded-full text-xs font-semibold tabular-nums"
+      style={{ border: `1px solid ${color.outline}` }}
+    >
+      <span
+        className="inline-flex items-center px-2.5 py-0.5"
+        style={{
+          backgroundColor: color.bg,
+          color: color.fg,
+          borderRadius: 0,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        className="inline-flex items-center px-2.5 py-0.5"
+        style={{
+          color: color.outline,
+          borderLeft: `1px solid ${color.outline}`,
+          borderRadius: 0,
+        }}
+      >
+        {score}
+      </span>
+    </span>
+  );
+}
+
+function PaletteRow({ palette }: { palette: Palette }) {
+  // 1° rendered with a hairline border so very-light backgrounds
+  // (white, cream) still show clearly on the dark sandbox surface.
+  const lightBg = ["#FFFFFF", "#F5F1E6"].includes(palette.d1.bg.toUpperCase());
+  return (
+    <div
+      className="rounded-2xl p-5"
+      style={{
+        backgroundColor: "rgba(7,34,27,0.55)",
+        border: palette.active
+          ? "1px solid rgba(79,177,145,0.45)"
+          : "1px solid rgba(245,241,230,0.12)",
+      }}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <div className="flex items-center gap-2">
+          <h4
+            className="!text-base !font-semibold !leading-tight tracking-normal"
+            style={{ color: "#F5F1E6" }}
+          >
+            {palette.name}
+          </h4>
+          {palette.active && (
+            <span
+              className="inline-flex items-center rounded-full px-2 py-[1px] text-[10px] font-mono uppercase tracking-wider"
+              style={{
+                backgroundColor: "rgba(79,177,145,0.18)",
+                color: "#BFE2D4",
+              }}
+            >
+              Live
+            </span>
+          )}
+        </div>
+        <div
+          className="font-mono text-[10px] uppercase tracking-[0.12em]"
+          style={{ color: "rgba(245,241,230,0.45)" }}
+        >
+          1° {palette.d1.bg} · 4°+ {palette.d4.bg}
+        </div>
+      </div>
+      <p
+        className="mt-1 max-w-3xl text-xs leading-relaxed"
+        style={{ color: "rgba(245,241,230,0.62)" }}
+      >
+        {palette.note}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <SwatchPill label="1°" color={palette.d1} hairline={lightBg} />
+        <ComboSwatchPill label="2°" score="6.4" color={palette.d2} />
+        <ComboSwatchPill label="3°" score="3.2" color={palette.d3} />
+        <SwatchPill label="4°+" color={palette.d4} />
+      </div>
+    </div>
+  );
+}
+
+function PaletteOptions() {
+  return (
+    <div className="grid gap-3">
+      {PALETTE_OPTIONS.map((p) => (
+        <PaletteRow key={p.id} palette={p} />
+      ))}
+    </div>
+  );
+}
+
 // ── Page shell ───────────────────────────────────────────────────
 
 export function TrustBadgeSandbox() {
@@ -1318,6 +1525,15 @@ export function TrustBadgeSandbox() {
             shrinks.
           </p>
         </header>
+
+        <section className="mb-12">
+          <SectionHeader
+            eyebrow="Palette · review"
+            title="Degree color scale options"
+            note="2° (emerald) and 3° (mustard) are held fixed across all options — only 1° and 4° vary. Each row shows the four pills in a real combo: single 1°, then 2°/3° as combo pills (so the outline color is visible), then single 4°+. Pick a direction and we'll roll it into the rest of the page."
+          />
+          <PaletteOptions />
+        </section>
       </div>
 
       {/* Nano + Micro row — wider than page max so we can see both in
