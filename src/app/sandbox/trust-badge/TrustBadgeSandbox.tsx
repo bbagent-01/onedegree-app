@@ -474,7 +474,10 @@ function TrustBadgeSandboxPill({
       </span>
     );
   } else if (showConnectionInPill && sample.connection !== null) {
-    // Two-segment combo pill — degree (filled) | connection score (outlined)
+    // Two-segment combo pill — degree (filled) | connection score (outlined).
+    // Inner segments use borderRadius: 0 to defeat globals.css's
+    // "rounded corners guarantee" rule that auto-rounds bare <span>
+    // elements to 6px (which made the inner edges look curved).
     degreeChip = (
       <span
         className="inline-flex items-stretch overflow-hidden rounded-full font-semibold tabular-nums"
@@ -484,7 +487,11 @@ function TrustBadgeSandboxPill({
       >
         <span
           className={cn("inline-flex items-center", degreeSizeCls)}
-          style={{ backgroundColor: degreeStyle.bg, color: degreeStyle.fg }}
+          style={{
+            backgroundColor: degreeStyle.bg,
+            color: degreeStyle.fg,
+            borderRadius: 0,
+          }}
         >
           {degreeStyle.label}
         </span>
@@ -494,6 +501,7 @@ function TrustBadgeSandboxPill({
             backgroundColor: "transparent",
             color: degreeStyle.outlineColor,
             borderLeft: `1px solid ${degreeStyle.outlineColor}`,
+            borderRadius: 0,
           }}
         >
           {sample.connection.toFixed(1)}
@@ -1051,7 +1059,11 @@ function MacroBlock({ sample }: { sample: Sample }) {
                 >
                   <span
                     className="inline-flex items-center px-3 py-0.5"
-                    style={{ backgroundColor: degreeStyle.bg, color: degreeStyle.fg }}
+                    style={{
+                      backgroundColor: degreeStyle.bg,
+                      color: degreeStyle.fg,
+                      borderRadius: 0,
+                    }}
                   >
                     {degreeStyle.label}
                   </span>
@@ -1060,6 +1072,7 @@ function MacroBlock({ sample }: { sample: Sample }) {
                     style={{
                       color: degreeStyle.outlineColor,
                       borderLeft: `1px solid ${degreeStyle.outlineColor}`,
+                      borderRadius: 0,
                     }}
                   >
                     {sample.connection.toFixed(1)}
