@@ -43,6 +43,10 @@ import {
   ArrowRight,
   Heart,
   Bell,
+  SlidersHorizontal,
+  Plus,
+  UserPlus,
+  Sparkles,
 } from "lucide-react";
 
 // ── Sidebar nav items ──────────────────────────────────────────
@@ -70,17 +74,76 @@ type TripWish = {
   destination: string;
   subdest?: string;
   dates: string;
+  title: string;
   body: string;
   guests: number;
-  palette: string;
+  photo: string;
 };
 
 const TRIP_WISHES: TripWish[] = [
-  { id: "tw1", author: "Erin Q.", avatar: "https://picsum.photos/seed/erin-q/120/120", trust: "1°", destination: "Brooklyn", subdest: "Park Slope", dates: "Jun 14 → 20", guests: 1, body: "Quiet 1-bed for a week of writing. Bonus if there's a desk.", palette: "from-amber-300 via-orange-400 to-rose-500" },
-  { id: "tw2", author: "Theo L.", avatar: "https://picsum.photos/seed/theo-l/120/120", trust: "2°", destination: "Coastal Maine", dates: "Late September", guests: 4, body: "Family-of-4. Kids school-age. 5–7 nights, beach access ideal.", palette: "from-sky-300 via-blue-500 to-indigo-600" },
-  { id: "tw3", author: "Dev S.", avatar: "https://picsum.photos/seed/dev-s/120/120", trust: "1°", destination: "Mexico City", subdest: "Roma Norte", dates: "Aug 10 → 24", guests: 2, body: "Two weeks remote-working. Roma Norte / Condesa preferred.", palette: "from-emerald-300 via-teal-500 to-cyan-600" },
-  { id: "tw4", author: "Aliyah J.", avatar: "https://picsum.photos/seed/aliyah-j/120/120", trust: "2°", destination: "Lisbon", dates: "Oct 02 → 09", guests: 2, body: "First time in Portugal. Open to neighborhoods near the river.", palette: "from-fuchsia-300 via-pink-500 to-rose-500" },
-  { id: "tw5", author: "Cass W.", avatar: "https://picsum.photos/seed/cass-w/120/120", trust: "2°", destination: "Barcelona", subdest: "Gracia", dates: "Sep 18 → 24", guests: 1, body: "Solo trip. Quiet apartment, walking distance to cafes.", palette: "from-violet-300 via-purple-500 to-indigo-600" },
+  {
+    id: "tw1",
+    author: "Erin Q.",
+    avatar: "https://picsum.photos/seed/erin-q/120/120",
+    trust: "1°",
+    destination: "Brooklyn",
+    subdest: "Park Slope",
+    dates: "Jun 14 → 20",
+    guests: 1,
+    title: "A quiet 1-bed in Brooklyn for a week of writing",
+    body: "Working on a deadline — need somewhere I can settle in. Bonus if there's a desk or kitchen table I can claim. Solo, no pets, no late nights.",
+    photo: "https://picsum.photos/seed/brooklyn-bridge/600/600",
+  },
+  {
+    id: "tw2",
+    author: "Theo L.",
+    avatar: "https://picsum.photos/seed/theo-l/120/120",
+    trust: "2°",
+    destination: "Coastal Maine",
+    dates: "Late September",
+    guests: 4,
+    title: "Family-of-4 looking for coastal stay, 5–7 nights",
+    body: "Two kids, school-age. Easy to travel with. Open to suggestions on location — Maine, Outer Banks, somewhere on the Gulf.",
+    photo: "https://picsum.photos/seed/maine-coast/600/600",
+  },
+  {
+    id: "tw3",
+    author: "Dev S.",
+    avatar: "https://picsum.photos/seed/dev-s/120/120",
+    trust: "1°",
+    destination: "Mexico City",
+    subdest: "Roma Norte",
+    dates: "Aug 10 → 24",
+    guests: 2,
+    title: "Two weeks remote working in CDMX",
+    body: "Roma Norte / Condesa preferred. Need wifi that won't quit. Open to a few different places stitched together if anyone has shorter windows.",
+    photo: "https://picsum.photos/seed/cdmx-roma/600/600",
+  },
+  {
+    id: "tw4",
+    author: "Aliyah J.",
+    avatar: "https://picsum.photos/seed/aliyah-j/120/120",
+    trust: "2°",
+    destination: "Lisbon",
+    dates: "Oct 02 → 09",
+    guests: 2,
+    title: "First time in Lisbon — neighborhoods near the river",
+    body: "Want somewhere walkable, with a view of the Tagus if possible. Two of us, easy guests.",
+    photo: "https://picsum.photos/seed/lisbon-tile/600/600",
+  },
+  {
+    id: "tw5",
+    author: "Cass W.",
+    avatar: "https://picsum.photos/seed/cass-w/120/120",
+    trust: "2°",
+    destination: "Barcelona",
+    subdest: "Gracia",
+    dates: "Sep 18 → 24",
+    guests: 1,
+    title: "Solo trip to Barcelona — Gracia preferred",
+    body: "Quiet apartment, walking distance to cafes. Just me, mostly working from a laptop in the mornings and exploring afternoons.",
+    photo: "https://picsum.photos/seed/barcelona-arch/600/600",
+  },
 ];
 
 type HostOffer = {
@@ -231,9 +294,18 @@ export default function HomeV4() {
                 <CondensedSearch />
               </header>
 
-              {/* Marquee rows — People-in-your-network leads. New users
-                  with small networks see this first; the page surfaces
-                  who you can vouch for before what's available to book. */}
+              {/* Marquee rows: Trip Wishes → People → Host Offers → Stays */}
+              <MarqueeSection
+                title="Trip Wishes from your network"
+                subtitle="Members looking for a place to stay"
+                link={{ label: "All proposals", href: "/sandbox/layouts/proposals" }}
+                direction="right"
+              >
+                {TRIP_WISHES.map((t) => (
+                  <TripWishCardHorizontal key={t.id} item={t} />
+                ))}
+              </MarqueeSection>
+
               <MarqueeSection
                 title="People in your network"
                 subtitle="Folks you might want to vouch for"
@@ -246,13 +318,13 @@ export default function HomeV4() {
               </MarqueeSection>
 
               <MarqueeSection
-                title="Trip Wishes from your network"
-                subtitle="Members looking for a place to stay"
-                link={{ label: "All proposals", href: "/sandbox/layouts/proposals" }}
+                title="Host Offers"
+                subtitle="Members opening their homes for specific dates"
+                link={{ label: "All offers", href: "/sandbox/layouts/proposals" }}
                 direction="right"
               >
-                {TRIP_WISHES.map((t) => (
-                  <TripWishCardHorizontal key={t.id} item={t} />
+                {HOST_OFFERS.map((h) => (
+                  <HostOfferCardHorizontal key={h.id} item={h} />
                 ))}
               </MarqueeSection>
 
@@ -267,16 +339,8 @@ export default function HomeV4() {
                 ))}
               </MarqueeSection>
 
-              <MarqueeSection
-                title="Host Offers"
-                subtitle="Members opening their homes for specific dates"
-                link={{ label: "All offers", href: "/sandbox/layouts/proposals" }}
-                direction="right"
-              >
-                {HOST_OFFERS.map((h) => (
-                  <HostOfferCardHorizontal key={h.id} item={h} />
-                ))}
-              </MarqueeSection>
+              {/* CTA section — quick actions to seed the network */}
+              <CTASection />
             </div>
           </div>
         </main>
@@ -423,49 +487,78 @@ function SiteSidebar({
 
 function CondensedSearch() {
   return (
-    <div className="mt-6 flex h-14 w-full max-w-[820px] items-stretch gap-1 rounded-2xl border border-border bg-card/40 p-1 shadow-search">
-      {/* Mode segmented selector */}
-      <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-background/40 p-0.5">
-        <ModeButton icon={HomeIcon} label="Stays" active />
-        <ModeButton icon={Users} label="People" />
-        <ModeButton icon={ShieldCheck} label="Vouches" />
+    <div className="mt-8 flex w-full max-w-[920px] items-center justify-center gap-3">
+      {/* Big white search pill — matches live /browse style with an
+          extended Travel/Host segment on the left. */}
+      <div className="flex h-[68px] flex-1 items-stretch overflow-hidden rounded-full bg-white shadow-search">
+        {/* Travel/Host segmented selector */}
+        <div className="flex shrink-0 items-center gap-1 px-2">
+          <button
+            type="button"
+            className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Travel
+          </button>
+          <button
+            type="button"
+            className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+          >
+            Host
+          </button>
+        </div>
+
+        {/* Divider */}
+        <span className="my-3 w-px bg-zinc-200" aria-hidden />
+
+        {/* Where */}
+        <div className="flex flex-1 flex-col justify-center px-6">
+          <p className="text-[11px] font-bold leading-tight text-zinc-900">
+            Where
+          </p>
+          <p className="text-sm leading-tight text-zinc-500">
+            Search destinations
+          </p>
+        </div>
+
+        <span className="my-3 w-px bg-zinc-200" aria-hidden />
+
+        {/* When */}
+        <div className="flex shrink-0 flex-col justify-center px-6">
+          <p className="text-[11px] font-bold leading-tight text-zinc-900">
+            When
+          </p>
+          <p className="text-sm leading-tight text-zinc-500">Any week</p>
+        </div>
+
+        <span className="my-3 w-px bg-zinc-200" aria-hidden />
+
+        {/* Who + search circle */}
+        <div className="flex shrink-0 items-center pl-6 pr-2">
+          <div className="mr-3">
+            <p className="text-[11px] font-bold leading-tight text-zinc-900">
+              Who
+            </p>
+            <p className="text-sm leading-tight text-zinc-500">Add guests</p>
+          </div>
+          <button
+            type="button"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-brand-foreground hover:bg-brand-300"
+            aria-label="Search"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+        </div>
       </div>
-      {/* Search input */}
-      <div className="flex flex-1 items-center gap-2 rounded-xl px-4">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <span className="truncate text-sm text-muted-foreground">
-          Anywhere · Any week · Add guests
-        </span>
-      </div>
-      {/* Search button */}
-      <button className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
-        Search
-        <ArrowRight className="h-3.5 w-3.5" />
+
+      {/* Filters — separate pill */}
+      <button
+        type="button"
+        className="inline-flex h-[68px] shrink-0 items-center gap-2 rounded-full border border-border bg-card/40 px-6 text-sm font-medium text-foreground hover:bg-card/60"
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+        Filters
       </button>
     </div>
-  );
-}
-
-function ModeButton({
-  icon: Icon,
-  label,
-  active,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <button
-      className={
-        active
-          ? "inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background"
-          : "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-      }
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {label}
-    </button>
   );
 }
 
@@ -486,27 +579,27 @@ function MarqueeSection({
 }) {
   const animClass = direction === "right" ? "marquee-right" : "marquee-left";
   return (
-    <section className="mt-12">
-      <div className="flex items-baseline justify-between gap-4">
-        <div>
-          <h2 className="whitespace-nowrap text-lg font-semibold text-foreground md:text-xl">
-            {title}
-          </h2>
-          <p className="mt-0.5 whitespace-nowrap text-xs text-muted-foreground md:text-sm">
-            {subtitle}
-          </p>
-        </div>
+    <section className="mt-14">
+      {/* Title row: title | divider | subtitle | divider | ghost link */}
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="whitespace-nowrap text-xl font-semibold text-foreground md:text-2xl">
+          {title}
+        </h2>
+        <span className="h-5 w-px bg-border/70" aria-hidden />
+        <p className="whitespace-nowrap text-sm text-muted-foreground">
+          {subtitle}
+        </p>
+        <span className="h-5 w-px bg-border/70" aria-hidden />
         <Link
           href={link.href}
-          className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded-full border border-border bg-card/30 px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-card/60"
         >
           {link.label}
           <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
-      <div className="relative mt-4 overflow-hidden">
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-background to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-background to-transparent" />
+      {/* Marquee — items run to the container edge with no fade overlays. */}
+      <div className="relative mt-5 overflow-hidden">
         <div className={`flex w-max gap-4 ${animClass}`}>
           <div className="flex shrink-0 gap-4">{children}</div>
           <div className="flex shrink-0 gap-4" aria-hidden>
@@ -555,29 +648,33 @@ function ConcentricRings() {
 
 function TripWishCardHorizontal({ item }: { item: TripWish }) {
   return (
-    <article className="group flex h-[260px] w-[510px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* Visual pane — square, with concentric rings on a colored destination field */}
-      <div
-        className={`relative h-[260px] w-[260px] shrink-0 overflow-hidden bg-gradient-to-br ${item.palette}`}
-      >
+    <article className="group flex h-[275px] w-[600px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
+      {/* Visual pane — square, destination photo with concentric-ring overlay */}
+      <div className="relative h-[275px] w-[275px] shrink-0 overflow-hidden bg-zinc-200">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={item.photo}
+          alt={item.destination}
+          className="h-full w-full object-cover"
+        />
         <ConcentricRings />
         <div className="relative z-[1] flex h-full w-full flex-col items-center justify-center px-3 text-center">
           <div
             className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white"
-            style={{ textShadow: "0 1px 6px rgba(0,0,0,0.45)" }}
+            style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}
           >
             Trip Wish
           </div>
           <div
-            className="mt-2 line-clamp-2 text-xl font-semibold leading-tight text-white"
-            style={{ textShadow: "0 2px 10px rgba(0,0,0,0.55)" }}
+            className="mt-2 line-clamp-2 text-2xl font-semibold leading-tight text-white"
+            style={{ textShadow: "0 2px 10px rgba(0,0,0,0.6)" }}
           >
             {item.destination}
           </div>
           {item.subdest && (
             <div
               className="mt-1 text-[11px] font-medium text-white/95"
-              style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}
+              style={{ textShadow: "0 1px 6px rgba(0,0,0,0.6)" }}
             >
               {item.subdest}
             </div>
@@ -585,68 +682,7 @@ function TripWishCardHorizontal({ item }: { item: TripWish }) {
         </div>
       </div>
       {/* Info pane */}
-      <div className="flex min-w-0 flex-1 flex-col p-4">
-        <div className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={item.avatar}
-            alt={item.author}
-            className="h-7 w-7 rounded-full object-cover"
-          />
-          <span className="truncate text-xs font-semibold text-zinc-900">
-            {item.author}
-          </span>
-          <span className="rounded-full bg-sky-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-sky-900">
-            Trip Wish
-          </span>
-        </div>
-        <h3 className="mt-2 line-clamp-3 text-sm font-semibold leading-snug text-zinc-900">
-          {item.body}
-        </h3>
-        <div className="mt-auto space-y-1.5">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-600">
-            <span className="inline-flex items-center gap-1">
-              <CalendarDays className="h-3 w-3" />
-              {item.dates}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              {item.guests} guest{item.guests === 1 ? "" : "s"}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-zinc-800">
-              Offer a place
-            </button>
-            <span className="rounded-full bg-brand/15 px-1.5 py-0 text-[9px] font-semibold text-brand">
-              {item.trust}
-            </span>
-          </div>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-// ── Host Offer card (horizontal, photo on left) ────────────────
-
-function HostOfferCardHorizontal({ item }: { item: HostOffer }) {
-  return (
-    <article className="group flex h-[260px] w-[520px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* Photo pane — square */}
-      <div className="relative h-[260px] w-[260px] shrink-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={item.photo}
-          alt={item.listing}
-          className="h-full w-full object-cover"
-        />
-        <span className="absolute left-2 top-2 rounded-full bg-emerald-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-emerald-900">
-          Host Offer
-        </span>
-      </div>
-      {/* Info pane */}
-      <div className="flex min-w-0 flex-1 flex-col p-4">
+      <div className="flex min-w-0 flex-1 flex-col p-5">
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -660,18 +696,89 @@ function HostOfferCardHorizontal({ item }: { item: HostOffer }) {
           <span className="rounded-full bg-brand/15 px-1.5 py-0 text-[9px] font-semibold text-brand">
             {item.trust}
           </span>
+          <span className="ml-auto rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-900">
+            Trip Wish
+          </span>
         </div>
-        <h3 className="mt-2 line-clamp-1 text-sm font-semibold text-zinc-900">
-          {item.listing}
+        {/* Title — bigger, the focal point */}
+        <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-snug text-zinc-900">
+          {item.title}
         </h3>
-        <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-zinc-600">
+        {/* Body copy */}
+        <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-zinc-600">
           {item.body}
         </p>
-        <div className="mt-auto space-y-1.5">
+        <div className="mt-auto space-y-2 pt-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-600">
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="h-3 w-3" />
+              {item.dates}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {item.guests} guest{item.guests === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+              Offer a place
+            </button>
+            <button className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+// ── Host Offer card (horizontal, photo on left) ────────────────
+
+function HostOfferCardHorizontal({ item }: { item: HostOffer }) {
+  return (
+    <article className="group flex h-[275px] w-[600px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
+      {/* Photo pane — square */}
+      <div className="relative h-[275px] w-[275px] shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={item.photo}
+          alt={item.listing}
+          className="h-full w-full object-cover"
+        />
+      </div>
+      {/* Info pane */}
+      <div className="flex min-w-0 flex-1 flex-col p-5">
+        <div className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={item.avatar}
+            alt={item.author}
+            className="h-7 w-7 rounded-full object-cover"
+          />
+          <span className="truncate text-xs font-semibold text-zinc-900">
+            {item.author}
+          </span>
+          <span className="rounded-full bg-brand/15 px-1.5 py-0 text-[9px] font-semibold text-brand">
+            {item.trust}
+          </span>
+          <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+            Host Offer
+          </span>
+        </div>
+        {/* Title — bigger */}
+        <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-snug text-zinc-900">
+          {item.listing}
+        </h3>
+        {/* Body copy */}
+        <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-zinc-600">
+          {item.body}
+        </p>
+        <div className="mt-auto space-y-2 pt-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-600">
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-3 w-3" />
-              {item.area}
+              {item.area}, {item.city.split(",")[0]}
             </span>
             <span className="inline-flex items-center gap-1">
               <CalendarDays className="h-3 w-3" />
@@ -679,11 +786,16 @@ function HostOfferCardHorizontal({ item }: { item: HostOffer }) {
             </span>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <button className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-zinc-800">
-              Request to book
-            </button>
-            <span className="text-[11px] text-zinc-900">
-              <span className="font-semibold">${item.price}</span>
+            <div className="flex items-center gap-2">
+              <button className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+                Request to book
+              </button>
+              <button className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                Save
+              </button>
+            </div>
+            <span className="shrink-0 text-xs text-zinc-900">
+              <span className="text-base font-semibold">${item.price}</span>
               <span className="text-zinc-600">/night</span>
             </span>
           </div>
@@ -790,13 +902,17 @@ function PersonCard({ person }: { person: Person }) {
         </div>
       </div>
 
-      {/* Medium trust badge — degree + connectors + mutuals */}
-      <div className="mt-3 rounded-xl border border-brand/30 bg-brand/10 p-3">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-brand">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          <span>{person.degree}</span>
+      {/* Medium trust badge — high contrast: solid mint degree pill,
+          dark wash box, cream text for the rest. Replaces the
+          cream-on-cream treatment that was blown out. */}
+      <div className="mt-3 rounded-xl border border-border bg-background/50 p-3">
+        <div className="flex items-center gap-2 text-xs text-foreground">
+          <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold text-brand-foreground">
+            <ShieldCheck className="h-3 w-3" />
+            {person.degree}
+          </span>
           {trustPath && (
-            <span className="font-normal text-foreground">· {trustPath}</span>
+            <span className="truncate font-medium">{trustPath}</span>
           )}
         </div>
         <div className="mt-2 flex items-center gap-2">
@@ -824,6 +940,80 @@ function PersonCard({ person }: { person: Person }) {
         Vouch for {person.name.split(" ")[0]}
       </button>
     </article>
+  );
+}
+
+// ── CTA section ────────────────────────────────────────────────
+
+function CTASection() {
+  const ctas = [
+    {
+      icon: Plus,
+      title: "Create your first listing",
+      body: "Open your home to people in your network. Set your own visibility and pricing.",
+      action: "Add a listing",
+      href: "/sandbox/layouts/dashboard",
+    },
+    {
+      icon: Plane,
+      title: "Post a trip wish",
+      body: "Tell your network where you want to go. People who know people will reach out.",
+      action: "Post a wish",
+      href: "/sandbox/layouts/proposals",
+    },
+    {
+      icon: UserPlus,
+      title: "Find people you know",
+      body: "Search by name, email, or phone — vouch for friends already on Trustead.",
+      action: "Find people",
+      href: "/sandbox/layouts/vouch",
+    },
+    {
+      icon: Sparkles,
+      title: "Vouch for someone",
+      body: "Vouches power what you and your friends can see and book. Vouch a few to get started.",
+      action: "Start vouching",
+      href: "/sandbox/layouts/vouch",
+    },
+  ];
+  return (
+    <section className="mt-16">
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="whitespace-nowrap text-xl font-semibold text-foreground md:text-2xl">
+          Get more from your network
+        </h2>
+        <span className="h-5 w-px bg-border/70" aria-hidden />
+        <p className="whitespace-nowrap text-sm text-muted-foreground">
+          A few ways to grow your reach on Trustead
+        </p>
+      </div>
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {ctas.map((c) => {
+          const Icon = c.icon;
+          return (
+            <Link
+              key={c.title}
+              href={c.href}
+              className="group flex flex-col rounded-2xl border border-border bg-card/40 p-5 transition-colors hover:border-brand/40 hover:bg-card/60"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15 text-brand">
+                <Icon className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-foreground">
+                {c.title}
+              </h3>
+              <p className="mt-1.5 flex-1 text-xs leading-relaxed text-muted-foreground">
+                {c.body}
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-foreground transition-colors group-hover:text-brand">
+                {c.action}
+                <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
