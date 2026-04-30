@@ -12,8 +12,21 @@
 // Edit `SAMPLES` below to retune values and see all three contexts
 // react together.
 
-import { Star } from "lucide-react";
+import { useState } from "react";
+import {
+  Star,
+  Heart,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight,
+  ArrowLeft,
+  Shield,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Alert orange used for the 1° asymmetric vouch-back chip. Eventually
+// this is a clickable affordance that opens the vouch-back modal.
+const ASYMMETRY_ORANGE = "#EA580C";
 
 // ── Sample data ───────────────────────────────────────────────────
 // Per FT-1 spec the four metrics are independent — no composite. Each
@@ -26,12 +39,27 @@ import { cn } from "@/lib/utils";
 
 type DegreeBucket = 1 | 2 | 3 | 4 | null;
 
+type Connector = {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  viewerKnows: boolean;
+};
+
+// 1° vouch direction: who has vouched for whom.
+//   "mutual"   = both directions (default for 1°)
+//   "outgoing" = viewer vouched for them, no return vouch yet
+//   "incoming" = they vouched for the viewer, viewer hasn't vouched back
+type VouchDirection = "mutual" | "outgoing" | "incoming";
+
 type Sample = {
   id: string;
   name: string;
   initials: string;
   archetype: string;
+  avatarUrl: string;
   degree: DegreeBucket;
+  vouchDirection?: VouchDirection; // only meaningful when degree === 1
   connection: number | null;
   vouch: number | null;
   rating: number | null;
@@ -39,40 +67,95 @@ type Sample = {
   // Inbox row content
   preview: string;
   time: string;
+  unread?: boolean;
   // Listing tile content (only used in the micro grid)
   listing: {
     title: string;
     location: string;
     price: number;
-    image: string; // tailwind gradient class for the placeholder image
+    imageUrl: string;
   };
+  // Macro-only profile-page content
+  profile: {
+    headline: string;
+    bio: string;
+    chains: number;
+    vouchers: number;
+  };
+  // People who connect the viewer to this host. Empty for 1° (direct)
+  // and cold-start/4°+; 2°/3° show 1–3 avatars (some viewer_knows=false
+  // = anonymous intermediary, rendered as silhouette).
+  connectors: Connector[];
 };
 
+// Royalty-free placeholder image services. Picsum gives stable seeded
+// photos for listings; Pravatar gives stable seeded avatars for people.
+// Swap any URL inline if you want a different image without touching
+// the structure.
 const SAMPLES: Sample[] = [
   {
     id: "maya",
     name: "Maya L.",
     initials: "ML",
-    archetype: "1° · top tier",
+    archetype: "1° · mutual",
+    avatarUrl: "https://i.pravatar.cc/200?img=47",
     degree: 1,
+    vouchDirection: "mutual",
     connection: 9.4,
     vouch: 8.2,
     rating: 4.9,
     reviewCount: 23,
     preview: "Yes! The lake house is yours for the long weekend.",
     time: "12m",
+    unread: true,
     listing: {
       title: "Cedar A-frame on Lake Superior",
       location: "Bayfield, WI",
       price: 184,
-      image: "from-emerald-700 via-emerald-600 to-emerald-900",
+      imageUrl: "https://picsum.photos/seed/cedar-aframe/800/600",
     },
+    profile: {
+      headline: "Architect & cabin builder · Madison, WI",
+      bio: "Designed and built the cabin myself in 2019. Coffee on the dock most mornings if you want company.",
+      chains: 4,
+      vouchers: 9,
+    },
+    connectors: [], // 1° = direct, no chain
+  },
+  {
+    id: "casey",
+    name: "Casey W.",
+    initials: "CW",
+    archetype: "1° · I vouched, no return",
+    avatarUrl: "https://i.pravatar.cc/200?img=32",
+    degree: 1,
+    vouchDirection: "outgoing",
+    connection: null, // not shown for 1°
+    vouch: 6.8,
+    rating: 4.6,
+    reviewCount: 7,
+    preview: "Was great seeing you in PDX last fall. Stop by anytime.",
+    time: "30m",
+    listing: {
+      title: "Backyard cottage with sauna",
+      location: "Portland, OR",
+      price: 122,
+      imageUrl: "https://picsum.photos/seed/portland-cottage/800/600",
+    },
+    profile: {
+      headline: "Carpenter & climber · Portland, OR",
+      bio: "Detached one-bedroom cottage with private entrance and a wood-fired sauna in back.",
+      chains: 0,
+      vouchers: 5,
+    },
+    connectors: [],
   },
   {
     id: "aki",
     name: "Aki N.",
     initials: "AN",
     archetype: "2° · solid",
+    avatarUrl: "https://i.pravatar.cc/200?img=12",
     degree: 2,
     connection: 6.4,
     vouch: 5.7,
@@ -80,18 +163,31 @@ const SAMPLES: Sample[] = [
     reviewCount: 12,
     preview: "Happy to host — I'll send the door code on arrival day.",
     time: "1h",
+    unread: true,
     listing: {
       title: "Sunlit loft above the bakery",
       location: "Brooklyn, NY",
       price: 142,
-      image: "from-amber-700 via-orange-700 to-red-900",
+      imageUrl: "https://picsum.photos/seed/brooklyn-loft/800/600",
     },
+    profile: {
+      headline: "Bakery owner · Brooklyn, NY",
+      bio: "Sourdough at 6am, coffee on the roof at sunset. Two-bedroom loft above the shop, separate entrance.",
+      chains: 2,
+      vouchers: 6,
+    },
+    // 2° via two of the viewer's friends
+    connectors: [
+      { id: "c1", name: "Sam Park", avatarUrl: "https://i.pravatar.cc/100?img=5", viewerKnows: true },
+      { id: "c2", name: "Eli Hart", avatarUrl: "https://i.pravatar.cc/100?img=33", viewerKnows: true },
+    ],
   },
   {
     id: "robin",
     name: "Robin K.",
     initials: "RK",
     archetype: "3° · weaker",
+    avatarUrl: "https://i.pravatar.cc/200?img=26",
     degree: 3,
     connection: 3.2,
     vouch: 4.1,
@@ -103,14 +199,26 @@ const SAMPLES: Sample[] = [
       title: "Garden cottage near the river",
       location: "Asheville, NC",
       price: 96,
-      image: "from-stone-600 via-stone-700 to-stone-900",
+      imageUrl: "https://picsum.photos/seed/asheville-cottage/800/600",
     },
+    profile: {
+      headline: "Permaculture grower · Asheville, NC",
+      bio: "Two-acre garden, swimming hole on the property, four hens. Quiet weeknights, busier weekends.",
+      chains: 2,
+      vouchers: 3,
+    },
+    // 3° = your friend → their friend → host. Show 1 known + 1 anon.
+    connectors: [
+      { id: "c3", name: "Maya L.", avatarUrl: "https://i.pravatar.cc/100?img=47", viewerKnows: true },
+      { id: "c4", name: "Mutual connection", avatarUrl: "", viewerKnows: false },
+    ],
   },
   {
     id: "theo",
     name: "Theo R.",
     initials: "TR",
     archetype: "4°+ · distant",
+    avatarUrl: "https://i.pravatar.cc/200?img=68",
     degree: 4,
     connection: null,
     vouch: 6.0,
@@ -122,14 +230,27 @@ const SAMPLES: Sample[] = [
       title: "Studio with rooftop access",
       location: "Lisbon, PT",
       price: 78,
-      image: "from-sky-800 via-indigo-900 to-slate-900",
+      imageUrl: "https://picsum.photos/seed/lisbon-rooftop/800/600",
     },
+    profile: {
+      headline: "Translator · Lisbon, PT",
+      bio: "Quiet studio in Alfama with a rooftop terrace. Walk to the river in 10 min.",
+      chains: 3,
+      vouchers: 4,
+    },
+    // 4°+ = no connection score; chain length too long. One bridge avatar.
+    connectors: [
+      { id: "c5", name: "Maya L.", avatarUrl: "https://i.pravatar.cc/100?img=47", viewerKnows: true },
+      { id: "c6", name: "Mutual connection", avatarUrl: "", viewerKnows: false },
+      { id: "c7", name: "Mutual connection", avatarUrl: "", viewerKnows: false },
+    ],
   },
   {
     id: "jules",
     name: "Jules P.",
     initials: "JP",
     archetype: "new member",
+    avatarUrl: "https://i.pravatar.cc/200?img=15",
     degree: null,
     connection: null,
     vouch: null,
@@ -141,16 +262,25 @@ const SAMPLES: Sample[] = [
       title: "Hand-built tiny house",
       location: "Hood River, OR",
       price: 110,
-      image: "from-teal-700 via-cyan-800 to-emerald-900",
+      imageUrl: "https://picsum.photos/seed/hood-river-tiny/800/600",
     },
+    profile: {
+      headline: "New to Trustead · Hood River, OR",
+      bio: "Built this tiny house with my partner this spring. We're new to the platform — would love to host our first guest.",
+      chains: 0,
+      vouchers: 0,
+    },
+    connectors: [],
   },
   {
     id: "drew",
     name: "Drew M.",
     initials: "DM",
-    archetype: "low rating",
-    degree: 2,
-    connection: 5.0,
+    archetype: "1° · they vouched, low rating",
+    avatarUrl: "https://i.pravatar.cc/200?img=60",
+    degree: 1,
+    vouchDirection: "incoming",
+    connection: null,
     vouch: 4.8,
     rating: 2.8,
     reviewCount: 15,
@@ -160,8 +290,15 @@ const SAMPLES: Sample[] = [
       title: "Old farmhouse, three acres",
       location: "Hudson Valley, NY",
       price: 132,
-      image: "from-rose-800 via-amber-900 to-stone-900",
+      imageUrl: "https://picsum.photos/seed/hudson-farmhouse/800/600",
     },
+    profile: {
+      headline: "Farmer · Hudson Valley, NY",
+      bio: "Working farm with two guest rooms. Goats, chickens, two dogs. Strict 9pm quiet hours.",
+      chains: 0,
+      vouchers: 5,
+    },
+    connectors: [],
   },
 ];
 
@@ -174,36 +311,52 @@ const SAMPLES: Sample[] = [
 // the global stylesheet rewrites them to.
 const DEGREE_PILL: Record<
   1 | 2 | 3 | 4,
-  { bg: string; fg: string; label: string }
+  { bg: string; fg: string; label: string; outlineColor: string }
 > = {
-  1: { bg: "#BFE2D4", fg: "#0B2E25", label: "1°" }, // mint, dark text
-  2: { bg: "#2A8A6B", fg: "#FFFFFF", label: "2°" }, // emerald
-  3: { bg: "#BF8A0D", fg: "#FFFFFF", label: "3°" }, // mustard
-  4: { bg: "#525252", fg: "#FFFFFF", label: "4°+" }, // zinc
+  // 1° = white pill with dark text. The strongest trust state earns the
+  // highest contrast — pulled out of the green ramp entirely.
+  1: { bg: "#FFFFFF", fg: "#0B2E25", label: "1°", outlineColor: "#FFFFFF" },
+  2: { bg: "#2A8A6B", fg: "#FFFFFF", label: "2°", outlineColor: "#2A8A6B" },
+  3: { bg: "#BF8A0D", fg: "#FFFFFF", label: "3°", outlineColor: "#BF8A0D" },
+  4: { bg: "#525252", fg: "#FFFFFF", label: "4°+", outlineColor: "#525252" },
 };
 
 const METRIC_TONE: Record<
-  "connection" | "vouch" | "rating-good" | "rating-bad",
+  "connection" | "vouch" | "vouch-outlined" | "rating-good" | "rating-bad",
   { bg: string; fg: string; border: string }
 > = {
   connection: { bg: "#EFF6FF", fg: "#1D4ED8", border: "#BFDBFE" },
   vouch: { bg: "#FAF5FF", fg: "#6B21A8", border: "#E9D5FF" },
+  // Outlined variant for the inline metric pill (micro/medium). The
+  // macro Vouch tile keeps the filled "vouch" tone.
+  "vouch-outlined": { bg: "transparent", fg: "#7C3AED", border: "#7C3AED" },
   "rating-good": { bg: "#FFFBEB", fg: "#B45309", border: "#FDE68A" },
   "rating-bad": { bg: "#FEF2F2", fg: "#B91C1C", border: "#FECACA" },
 };
 
-// Per trust-icons.html top-pick: ● circle for connection (blue), ◆
-// diamond for vouch (purple), ★ star for rating (amber-gold, locked).
+// Connection = ● circle (blue, viewer-relative).
+// Vouch = small shield, color follows the degree color scale based on
+// the vouch score itself (≥5 → 1° tier, 4–5 → 2°, 3–4 → 3°, <3 → 4°+).
+// Rating = lucide Star (amber, locked from FT-1 spec).
 const ICON_CIRCLE = (
   <svg viewBox="0 0 24 24" fill="currentColor" className="h-full w-full">
     <circle cx="12" cy="12" r="10" />
   </svg>
 );
-const ICON_DIAMOND = (
-  <svg viewBox="0 0 24 24" fill="currentColor" className="h-full w-full">
-    <path d="M12 2L22 12L12 22L2 12Z" />
-  </svg>
+const ICON_SHIELD = (
+  <Shield className="h-full w-full" fill="currentColor" strokeWidth={0} />
 );
+
+// Map a vouch score (0-10) to the same tier color as the degree pill.
+// For tier-1 we need to pick a different base color depending on the
+// surface — pure white shows on dark forest but disappears on a white
+// listing-card chip, so we swap to deep forest there.
+function vouchTierColor(score: number, onImage: boolean): string {
+  if (score >= 5) return onImage ? "#0B2E25" : "#FFFFFF"; // tier 1
+  if (score >= 4) return "#2A8A6B"; // tier 2 — emerald
+  if (score >= 3) return "#BF8A0D"; // tier 3 — mustard
+  return onImage ? "#525252" : "#B0BBB7"; // tier 4 — zinc / light slate
+}
 
 // ── Badge primitive ───────────────────────────────────────────────
 // One component, three sizes. Builds off the existing TrustTag's
@@ -233,6 +386,41 @@ function NewMemberPill({ size }: { size: BadgeSize }) {
   );
 }
 
+// Outlined vouch pill — transparent fill, color = vouch tier color
+// (matches the degree color scale based on the score itself).
+function VouchPill({
+  score,
+  size,
+  onImage,
+}: {
+  score: number;
+  size: "micro" | "medium";
+  onImage: boolean;
+}) {
+  const color = vouchTierColor(score, onImage);
+  const sz =
+    size === "micro"
+      ? "gap-0.5 px-1.5 py-[1px] text-[11px]"
+      : "gap-1 px-2 py-0.5 text-xs";
+  const iconSize = size === "micro" ? "h-2.5 w-2.5" : "h-3 w-3";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full font-semibold tabular-nums",
+        sz
+      )}
+      style={{
+        backgroundColor: "transparent",
+        color,
+        border: `1px solid ${color}`,
+      }}
+    >
+      <span className={iconSize}>{ICON_SHIELD}</span>
+      <span>{score.toFixed(1)}</span>
+    </span>
+  );
+}
+
 function MetricPill({
   icon,
   value,
@@ -241,7 +429,7 @@ function MetricPill({
 }: {
   icon: React.ReactNode;
   value: string;
-  tone: "connection" | "vouch" | "rating-good" | "rating-bad";
+  tone: "connection" | "vouch" | "vouch-outlined" | "rating-good" | "rating-bad";
   size: "micro" | "medium";
 }) {
   const palette = METRIC_TONE[tone];
@@ -288,7 +476,12 @@ function TrustBadgeSandboxPill({
     sample.rating === null;
   if (isColdStart) return <NewMemberPill size={size} />;
 
-  // Degree pill — the visual anchor every size shares.
+  // Degree pill is the anchor of every badge size. For 2°/3° (and any
+  // other connected state with a connection score) the pill is a
+  // two-segment combo: the LEFT segment is filled with the degree
+  // color, a thin vertical divider separates the segments, and the
+  // RIGHT segment is outlined-only (transparent fill, colored border)
+  // and contains the viewer-relative connection score.
   const degreeStyle = sample.degree ? DEGREE_PILL[sample.degree] : null;
   const degreeSizeCls =
     size === "nano"
@@ -296,107 +489,233 @@ function TrustBadgeSandboxPill({
       : size === "micro"
         ? "px-2 py-[1px] text-[11px]"
         : "px-2.5 py-0.5 text-xs";
-  const degreeChip = degreeStyle ? (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full font-semibold",
-        degreeSizeCls
-      )}
-      style={{ backgroundColor: degreeStyle.bg, color: degreeStyle.fg }}
-    >
-      {degreeStyle.label}
-    </span>
-  ) : (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full font-semibold",
-        size === "nano" ? "px-1.5 py-[1px] text-[10px]" : "px-2 py-[1px] text-[11px]"
-      )}
-      style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
-    >
-      No path
-    </span>
-  );
 
-  // Nano = degree-only. The whole point of this size is "tiny visual
-  // anchor next to a name in a list" — don't add metric pills.
-  if (size === "nano") {
-    return <span className="inline-flex items-center">{degreeChip}</span>;
+  // Connection score lives INSIDE the degree pill now. Only shown when
+  // the host is 2° or 3° (FT-1 spec: 4°+ has no connection score, 1°
+  // intentionally suppresses it because direct vouch is the whole story).
+  const showConnectionInPill =
+    sample.degree === 2 || sample.degree === 3;
+
+  // Asymmetric vouch indicator — only meaningful at 1°. Mutual = no
+  // arrow. Outgoing = "→" (you vouched for them). Incoming = "←" (they
+  // vouched for you).
+  const vouchArrow =
+    sample.degree === 1 && sample.vouchDirection && sample.vouchDirection !== "mutual"
+      ? sample.vouchDirection === "outgoing"
+        ? "outgoing"
+        : "incoming"
+      : null;
+
+  function ArrowGlyph({ size: sz }: { size: BadgeSize }) {
+    const dim = sz === "nano" ? 10 : sz === "micro" ? 11 : 12;
+    if (vouchArrow === "outgoing")
+      return <ArrowRight style={{ width: dim, height: dim }} />;
+    if (vouchArrow === "incoming")
+      return <ArrowLeft style={{ width: dim, height: dim }} />;
+    return null;
   }
 
-  // Decide which metrics to show.
-  // Per FT-1 cold-start rules: hide pillars the user has no data in.
-  const showConnection =
-    size === "medium" && sample.connection !== null && sample.degree !== null && sample.degree < 4;
-  const showVouch = sample.vouch !== null;
-  const showRating = sample.rating !== null && sample.reviewCount > 0;
-  const ratingWarn = sample.rating !== null && sample.rating < 3.5;
+  let degreeChip: React.ReactNode;
+  if (!degreeStyle) {
+    degreeChip = (
+      <span
+        className={cn(
+          "inline-flex items-center rounded-full font-semibold",
+          size === "nano" ? "px-1.5 py-[1px] text-[10px]" : "px-2 py-[1px] text-[11px]"
+        )}
+        style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
+      >
+        No path
+      </span>
+    );
+  } else if (showConnectionInPill && sample.connection !== null) {
+    // Two-segment combo pill — degree (filled) | connection score (outlined).
+    // Inner segments use borderRadius: 0 to defeat globals.css's
+    // "rounded corners guarantee" rule that auto-rounds bare <span>
+    // elements to 6px (which made the inner edges look curved).
+    degreeChip = (
+      <span
+        className="inline-flex items-stretch overflow-hidden rounded-full font-semibold tabular-nums"
+        style={{
+          border: `1px solid ${degreeStyle.outlineColor}`,
+        }}
+      >
+        <span
+          className={cn("inline-flex items-center", degreeSizeCls)}
+          style={{
+            backgroundColor: degreeStyle.bg,
+            color: degreeStyle.fg,
+            borderRadius: 0,
+          }}
+        >
+          {degreeStyle.label}
+        </span>
+        <span
+          className={cn("inline-flex items-center", degreeSizeCls)}
+          style={{
+            backgroundColor: "transparent",
+            color: degreeStyle.outlineColor,
+            borderLeft: `1px solid ${degreeStyle.outlineColor}`,
+            borderRadius: 0,
+          }}
+        >
+          {sample.connection.toFixed(1)}
+        </span>
+      </span>
+    );
+  } else if (vouchArrow) {
+    // 1° asymmetric — same combo-pill structure as 2°/3° (one outer
+    // rounded shape with two segments and a flat divider) BUT both
+    // segments are filled and the divider is a 2px transparent gap
+    // instead of a 1px line, so the surface behind the badge shows
+    // through. The right segment is a real <button> — eventually a
+    // click opens the vouch-back modal / nudge flow.
+    const arrowDim = size === "nano" ? 10 : size === "micro" ? 12 : 14;
+    const isOutgoing = vouchArrow === "outgoing";
+    const arrowTitle = isOutgoing
+      ? "You vouched for them — they haven't vouched back. Click to nudge."
+      : "They vouched for you — you haven't vouched back. Click to vouch back.";
+    degreeChip = (
+      <span
+        className="inline-flex items-stretch overflow-hidden rounded-full font-semibold"
+        style={{
+          gap: "2px",
+          // Hairline always visible on degree=1 so the white segment
+          // doesn't disappear when the badge sits on a white chip
+          // (listing-card overlay or macro profile block).
+          border: "1px solid rgba(11,46,37,0.14)",
+        }}
+      >
+        <span
+          className={cn("inline-flex items-center", degreeSizeCls)}
+          style={{
+            backgroundColor: degreeStyle.bg,
+            color: degreeStyle.fg,
+            borderRadius: 0,
+          }}
+        >
+          {degreeStyle.label}
+        </span>
+        <button
+          type="button"
+          title={arrowTitle}
+          aria-label={
+            isOutgoing
+              ? "Vouch-back pending — nudge for return vouch"
+              : "Vouch them back"
+          }
+          className={cn(
+            "inline-flex items-center transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1",
+            degreeSizeCls
+          )}
+          style={{
+            backgroundColor: ASYMMETRY_ORANGE,
+            color: "#FFFFFF",
+            borderRadius: 0,
+          }}
+          onClick={(e) => e.preventDefault()}
+        >
+          {isOutgoing ? (
+            <ArrowRight style={{ width: arrowDim, height: arrowDim }} />
+          ) : (
+            <ArrowLeft style={{ width: arrowDim, height: arrowDim }} />
+          )}
+        </button>
+      </span>
+    );
+  } else {
+    // Single-segment pill — 1° mutual (white), 4°+ (zinc). White 1°
+    // gets a hairline border so it shows clearly on the cream
+    // listing-card chip background.
+    const needsHairline = sample.degree === 1;
+    degreeChip = (
+      <span
+        className={cn(
+          "inline-flex items-center rounded-full font-semibold",
+          degreeSizeCls
+        )}
+        style={{
+          backgroundColor: degreeStyle.bg,
+          color: degreeStyle.fg,
+          border: needsHairline ? "1px solid rgba(11,46,37,0.14)" : undefined,
+        }}
+      >
+        {degreeStyle.label}
+      </span>
+    );
+  }
 
-  // Micro picks ONE metric pill — Vouch is the absolute signal that
-  // travels best to a card-tile context. Rating goes alongside.
-  const microMetric =
-    size === "micro" && showVouch ? (
-      <MetricPill
-        icon={ICON_DIAMOND}
-        value={sample.vouch!.toFixed(1)}
-        tone="vouch"
-        size="micro"
+  // No more separate arrow chip — when degree=1 asymmetric, the chip
+  // is now baked into the combo pill above. degreeBlock = degreeChip.
+  const degreeBlock = degreeChip;
+
+  // Nano = degree-only. Tiny visual anchor next to a name in a list.
+  if (size === "nano") {
+    return <span className="inline-flex items-center">{degreeBlock}</span>;
+  }
+
+  // For 1°, FT-1 says direct vouch is the whole story — skip the
+  // separate Vouch metric pill at micro/medium. Rating still shows
+  // because it's independent of trust direction.
+  const showVouch = sample.vouch !== null && sample.degree !== 1;
+  const showRating = sample.rating !== null && sample.reviewCount > 0;
+
+  // Rating now uncontained — plain white-text star + value + (count).
+  const ratingWarn = sample.rating !== null && sample.rating < 3.5;
+  const ratingTextColor = onImage
+    ? ratingWarn
+      ? "#B91C1C"
+      : "#0B2E25"
+    : ratingWarn
+      ? "#FCA5A5"
+      : "#F5F1E6";
+  const ratingMutedColor = onImage
+    ? "rgba(11,46,37,0.55)"
+    : "rgba(245,241,230,0.55)";
+  const ratingDim = size === "micro" ? 12 : 14;
+  const ratingTextSize = size === "micro" ? "text-[11px]" : "text-xs";
+  const ratingNode = showRating ? (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 font-semibold tabular-nums",
+        ratingTextSize
+      )}
+      style={{ color: ratingTextColor }}
+    >
+      <Star
+        style={{ width: ratingDim, height: ratingDim, color: ratingTextColor }}
+        fill="currentColor"
       />
-    ) : null;
-  const ratingTone = ratingWarn ? "rating-bad" : "rating-good";
+      <span>{sample.rating!.toFixed(1)}</span>
+      <span className="font-normal" style={{ color: ratingMutedColor }}>
+        ({sample.reviewCount})
+      </span>
+    </span>
+  ) : null;
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full",
+        "inline-flex items-center gap-1.5 rounded-full",
         onImage && "px-1.5 py-0.5 shadow-sm"
       )}
       style={onImage ? { backgroundColor: "rgba(255,255,255,0.95)" } : undefined}
     >
-      {degreeChip}
+      {degreeBlock}
       {size === "micro" && (
         <>
-          {microMetric}
-          {showRating && (
-            <MetricPill
-              icon={
-                <Star className="h-full w-full" fill="currentColor" />
-              }
-              value={sample.rating!.toFixed(1)}
-              tone={ratingTone}
-              size="micro"
-            />
+          {showVouch && (
+            <VouchPill score={sample.vouch!} size="micro" onImage={onImage} />
           )}
+          {ratingNode}
         </>
       )}
       {size === "medium" && (
         <>
-          {showConnection && (
-            <MetricPill
-              icon={ICON_CIRCLE}
-              value={sample.connection!.toFixed(1)}
-              tone="connection"
-              size="medium"
-            />
-          )}
           {showVouch && (
-            <MetricPill
-              icon={ICON_DIAMOND}
-              value={sample.vouch!.toFixed(1)}
-              tone="vouch"
-              size="medium"
-            />
+            <VouchPill score={sample.vouch!} size="medium" onImage={onImage} />
           )}
-          {showRating && (
-            <MetricPill
-              icon={
-                <Star className="h-full w-full" fill="currentColor" />
-              }
-              value={`${sample.rating!.toFixed(1)} (${sample.reviewCount})`}
-              tone={ratingTone}
-              size="medium"
-            />
-          )}
+          {ratingNode}
         </>
       )}
     </span>
@@ -430,45 +749,90 @@ function SectionHeader({
 }
 
 // ── Surface 1: inbox thread list (nano) ──────────────────────────
+// 360px-wide dark-theme card matching the desktop inbox sidebar.
+// Real avatar photos so we can see how much room the nano badge has
+// next to a name + a real photo.
 
-function Avatar({ initials }: { initials: string }) {
+function InboxAvatar({ name, avatarUrl }: { name: string; avatarUrl: string }) {
   return (
-    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[rgba(245,241,230,0.12)] text-xs font-semibold text-[#F5F1E6]">
-      {initials}
-    </div>
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={avatarUrl}
+      alt={name}
+      className="h-12 w-12 shrink-0 rounded-full object-cover"
+    />
   );
 }
 
 function InboxRow({ sample }: { sample: Sample }) {
   return (
-    <li className="flex items-start gap-3 px-4 py-3 border-b border-[rgba(245,241,230,0.08)] last:border-b-0 hover:bg-[rgba(245,241,230,0.04)] transition-colors">
-      <Avatar initials={sample.initials} />
+    <li className="flex w-full items-start gap-3 border-b border-[rgba(245,241,230,0.08)] px-3 py-3 last:border-b-0">
+      <InboxAvatar name={sample.name} avatarUrl={sample.avatarUrl} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-sm font-semibold text-[#F5F1E6]">
+            <span
+              className={cn(
+                "truncate text-sm",
+                sample.unread ? "font-semibold" : "font-medium"
+              )}
+              style={{ color: "#F5F1E6" }}
+            >
               {sample.name}
             </span>
             <TrustBadgeSandboxPill size="nano" sample={sample} />
           </div>
-          <span className="shrink-0 text-[11px] text-[rgba(245,241,230,0.55)]">
+          <span
+            className="shrink-0 text-[11px]"
+            style={{ color: "rgba(245,241,230,0.55)" }}
+          >
             {sample.time}
           </span>
         </div>
-        <div className="mt-0.5 truncate text-xs text-[rgba(245,241,230,0.62)]">
+        <div
+          className="mt-0.5 truncate text-xs"
+          style={{ color: "rgba(245,241,230,0.55)" }}
+        >
+          {sample.listing.title}
+        </div>
+        <div
+          className={cn("mt-0.5 line-clamp-1 text-xs", sample.unread ? "font-semibold" : "")}
+          style={{ color: sample.unread ? "#F5F1E6" : "rgba(245,241,230,0.62)" }}
+        >
           {sample.preview}
         </div>
       </div>
+      {sample.unread && (
+        <span
+          className="mt-1 h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: "#4FB191" }}
+          aria-label="Unread"
+        />
+      )}
     </li>
   );
 }
 
 function InboxMockup() {
   return (
-    <div className="rounded-2xl border border-[rgba(245,241,230,0.14)] bg-[rgba(7,34,27,0.55)] overflow-hidden max-w-[480px]">
-      <div className="px-4 py-3 border-b border-[rgba(245,241,230,0.1)] flex items-center justify-between">
-        <div className="text-sm font-semibold text-[#F5F1E6]">Inbox</div>
-        <div className="text-[11px] text-[rgba(245,241,230,0.55)]">
+    <div
+      className="overflow-hidden rounded-2xl"
+      style={{
+        width: 360,
+        maxWidth: "100%",
+        backgroundColor: "rgba(7,34,27,0.55)",
+        border: "1px solid rgba(245,241,230,0.14)",
+      }}
+    >
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{
+          borderBottom: "1px solid rgba(245,241,230,0.1)",
+          color: "#F5F1E6",
+        }}
+      >
+        <div className="text-sm font-semibold">Messages</div>
+        <div className="text-[11px]" style={{ color: "rgba(245,241,230,0.55)" }}>
           {SAMPLES.length} threads
         </div>
       </div>
@@ -483,58 +847,80 @@ function InboxMockup() {
 
 // ── Surface 2: listing card grid (micro) ─────────────────────────
 
+// Mirrors src/components/browse/live-listing-card.tsx (the actual
+// browse-grid card on trustead.app, NOT the older listing-card.tsx).
+// Image area = heart + carousel only — no trust pill overlay. Trust
+// pill lives inline below the image, alongside "Hosted by [name]".
 function ListingTile({ sample }: { sample: Sample }) {
   const { listing } = sample;
+  const firstName = sample.name.split(" ")[0];
   return (
     <div className="group block">
+      {/* Image area: photo + heart + carousel — no trust pill here */}
       <div
-        className={cn(
-          "relative rounded-xl overflow-hidden bg-gradient-to-br",
-          listing.image
-        )}
-        style={{ aspectRatio: "4 / 3" }}
+        className="relative rounded-xl overflow-hidden"
+        style={{ aspectRatio: "4 / 3", backgroundColor: "#0B2E25" }}
       >
-        {/* Heart icon — non-functional, just visual parity */}
-        <div className="absolute top-3 right-3 z-10 text-white/85 drop-shadow">
-          <svg
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="h-6 w-6"
-            aria-hidden
-          >
-            <path d="M12 21s-7.5-4.6-7.5-10.4A4.6 4.6 0 0 1 12 6.5a4.6 4.6 0 0 1 7.5 4.1C19.5 16.4 12 21 12 21Z" opacity="0.4" />
-          </svg>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={listing.imageUrl}
+          alt={listing.title}
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+        />
+        <Heart
+          className="absolute top-3 right-3 z-10 h-6 w-6 drop-shadow-md"
+          style={{ color: "rgba(255,255,255,0.95)", fill: "rgba(0,0,0,0.3)" }}
+          aria-hidden
+        />
+        <div className="pointer-events-none absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 group-hover:flex h-7 w-7 items-center justify-center rounded-full shadow" style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
+          <ChevronLeft className="h-4 w-4" style={{ color: "#0B2E25" }} />
         </div>
-
-        {/* Trust pill — micro size, on white chip overlay */}
-        <div className="absolute bottom-3 left-3 z-10">
-          <TrustBadgeSandboxPill size="micro" sample={sample} onImage />
+        <div className="pointer-events-none absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 group-hover:flex h-7 w-7 items-center justify-center rounded-full shadow" style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
+          <ChevronRight className="h-4 w-4" style={{ color: "#0B2E25" }} />
+        </div>
+        <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
+          {[0, 1, 2, 3].map((i) => (
+            <span
+              key={i}
+              className="h-1.5 w-1.5 rounded-full"
+              style={{
+                backgroundColor: i === 0 ? "#FFFFFF" : "rgba(255,255,255,0.5)",
+              }}
+            />
+          ))}
         </div>
       </div>
 
-      <div className="mt-3 space-y-0.5">
-        <div className="flex items-start justify-between gap-2">
-          <h4 className="!text-sm !font-semibold !leading-tight text-[#F5F1E6] tracking-normal line-clamp-1">
-            {listing.location}
-          </h4>
-          {sample.rating !== null && sample.reviewCount > 0 && (
-            <div className="flex shrink-0 items-center gap-1 text-xs">
-              <Star
-                className="h-3 w-3 text-[#F5F1E6]"
-                fill="currentColor"
-              />
-              <span className="font-medium text-[#F5F1E6]">
-                {sample.rating.toFixed(1)}
-              </span>
-            </div>
-          )}
-        </div>
-        <p className="text-xs text-[rgba(245,241,230,0.62)] line-clamp-1">
+      {/* Content area: location, title, hosted-by, trust pill inline,
+          then price. This mirrors live-listing-card.tsx lines 234-262. */}
+      <div className="mt-3">
+        <h4
+          className="!text-base !font-semibold !leading-tight tracking-normal line-clamp-1"
+          style={{ color: "#F5F1E6" }}
+        >
+          {listing.location}
+        </h4>
+        <p
+          className="mt-0.5 text-sm line-clamp-1"
+          style={{ color: "rgba(245,241,230,0.62)" }}
+        >
           {listing.title}
         </p>
-        <p className="pt-1 text-sm">
-          <span className="font-semibold text-[#F5F1E6]">${listing.price}</span>
-          <span className="text-[rgba(245,241,230,0.62)]"> night</span>
+        <p
+          className="mt-0.5 text-sm line-clamp-1"
+          style={{ color: "rgba(245,241,230,0.62)" }}
+        >
+          Hosted by {firstName}
+        </p>
+        <div className="mt-1.5">
+          <TrustBadgeSandboxPill size="micro" sample={sample} />
+        </div>
+        <p className="mt-1.5 text-base">
+          <span className="font-semibold" style={{ color: "#F5F1E6" }}>
+            ${listing.price}
+          </span>
+          <span style={{ color: "rgba(245,241,230,0.62)" }}> night</span>
         </p>
       </div>
     </div>
@@ -542,14 +928,15 @@ function ListingTile({ sample }: { sample: Sample }) {
 }
 
 function ListingGrid() {
-  // Pick four samples that together show the range — top, mid,
-  // distant, and the cold-start case.
+  // 2×2 grid so each tile is closer to the size it actually renders
+  // at on a real browse page — same rough column width as the live
+  // browse grid on a desktop viewport.
   const ids = ["maya", "aki", "theo", "jules"];
   const tiles = ids
     .map((id) => SAMPLES.find((s) => s.id === id))
     .filter((s): s is Sample => Boolean(s));
   return (
-    <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mx-auto grid max-w-[820px] gap-6 grid-cols-1 sm:grid-cols-2">
       {tiles.map((s) => (
         <ListingTile key={s.id} sample={s} />
       ))}
@@ -558,24 +945,80 @@ function ListingGrid() {
 }
 
 // ── Surface 3: profile / host card row (medium) ──────────────────
+// Mirrors the host-card pattern in gated-listing-view.tsx — real
+// avatar photo + medium TrustTag + the connector avatars (people who
+// connect the viewer to the host) shown alongside the badge.
+
+function ConnectorStrip({
+  connectors,
+  size = "h-6 w-6",
+}: {
+  connectors: Connector[];
+  size?: string;
+}) {
+  if (!connectors.length) return null;
+  return (
+    <span className="inline-flex items-center -space-x-1.5">
+      {connectors.slice(0, 4).map((c) => (
+        <span
+          key={c.id}
+          title={c.viewerKnows ? c.name : "Mutual connection"}
+          className={cn(
+            "inline-flex items-center justify-center overflow-hidden rounded-full",
+            size
+          )}
+          style={{
+            border: "2px solid #07221B", // ring punches through the dark surface
+            backgroundColor: "rgba(245,241,230,0.18)",
+          }}
+        >
+          {c.viewerKnows && c.avatarUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={c.avatarUrl}
+              alt={c.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <svg
+              viewBox="0 0 24 24"
+              fill="rgba(245,241,230,0.65)"
+              className="h-3.5 w-3.5"
+              aria-hidden
+            >
+              <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5Z" />
+            </svg>
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function HostRow({ sample }: { sample: Sample }) {
+  const showConnectors = sample.connectors.length > 0;
   return (
     <div className="flex items-center gap-4 rounded-xl border border-[rgba(245,241,230,0.12)] bg-[rgba(7,34,27,0.5)] p-4">
-      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[rgba(245,241,230,0.12)] text-base font-semibold text-[#F5F1E6]">
-        {sample.initials}
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={sample.avatarUrl}
+        alt={sample.name}
+        className="h-14 w-14 shrink-0 rounded-full object-cover"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <h4 className="!text-base !font-semibold !leading-tight text-[#F5F1E6] tracking-normal">
             Hosted by {sample.name}
           </h4>
         </div>
-        <div className="mt-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <TrustBadgeSandboxPill size="medium" sample={sample} />
+          {showConnectors && <ConnectorStrip connectors={sample.connectors} />}
         </div>
-        <div className="mt-1 text-[11px] text-[rgba(245,241,230,0.55)]">
-          {sample.archetype}
+        <div className="mt-1.5 text-[11px] text-[rgba(245,241,230,0.55)]">
+          {showConnectors
+            ? `${sample.archetype} · ${sample.connectors.filter((c) => c.viewerKnows).map((c) => c.name).join(" · ") || "via mutual connections"}`
+            : sample.archetype}
         </div>
       </div>
     </div>
@@ -592,11 +1035,753 @@ function HostRowGrid() {
   );
 }
 
+// ── Surface 4: profile-page macro block ──────────────────────────
+// Big, fully-labeled detail card. Used on the host's profile page
+// where there's room to spell out each metric ("4.7★ (12 reviews)"
+// rather than "4.7"). FT-1 phase 3 deliverable: full breakdown with
+// supporting counts.
+
+function MacroMetric({
+  icon,
+  label,
+  value,
+  unit,
+  sub,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  unit: string;
+  sub: string;
+  tone: "connection" | "vouch" | "rating-good" | "rating-bad" | "muted";
+}) {
+  const palette =
+    tone === "muted"
+      ? { bg: "#F1F5F4", fg: "#525252", border: "#E5E5E5" }
+      : METRIC_TONE[tone];
+  return (
+    <div
+      className="rounded-xl p-4"
+      style={{
+        backgroundColor: palette.bg,
+        border: `1px solid ${palette.border}`,
+      }}
+    >
+      <div
+        className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.12em]"
+        style={{ color: palette.fg }}
+      >
+        <span className="h-3 w-3">{icon}</span>
+        <span>{label}</span>
+      </div>
+      <div className="mt-2 flex items-baseline gap-1">
+        <span
+          className="text-2xl font-semibold tabular-nums"
+          style={{ color: palette.fg }}
+        >
+          {value}
+        </span>
+        <span
+          className="text-xs"
+          style={{ color: palette.fg, opacity: 0.65 }}
+        >
+          {unit}
+        </span>
+      </div>
+      <div
+        className="mt-1 text-[11px]"
+        style={{ color: palette.fg, opacity: 0.75 }}
+      >
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+function MacroBlock({ sample }: { sample: Sample }) {
+  const isColdStart =
+    sample.degree === null &&
+    sample.connection === null &&
+    sample.vouch === null &&
+    sample.rating === null;
+
+  // 1° intentionally skips Connection and Vouch tiles per Loren's
+  // direction — direct vouch is the whole story; rating is the only
+  // independent signal worth surfacing.
+  const isFirstDegree = sample.degree === 1;
+  const showConnection =
+    !isFirstDegree &&
+    sample.connection !== null &&
+    sample.degree !== null &&
+    sample.degree < 4;
+  const showVouch = !isFirstDegree && sample.vouch !== null;
+  const showRating = sample.rating !== null && sample.reviewCount > 0;
+  const ratingWarn = sample.rating !== null && sample.rating < 3.5;
+
+  const degreeStyle = sample.degree ? DEGREE_PILL[sample.degree] : null;
+  const showConnectors = sample.connectors.length > 0;
+  const vouchDirCopy =
+    sample.vouchDirection === "mutual"
+      ? "You and " + sample.name + " have vouched for each other"
+      : sample.vouchDirection === "outgoing"
+        ? "You vouched for " + sample.name + " · no return vouch yet"
+        : sample.vouchDirection === "incoming"
+          ? sample.name + " vouched for you · you haven't vouched back"
+          : null;
+
+  return (
+    <div
+      className="rounded-2xl p-6 sm:p-8"
+      style={{
+        backgroundColor: "#FFFFFF",
+        border: "1px solid rgba(11,46,37,0.14)",
+        color: "#0B2E25",
+      }}
+    >
+      {/* Header: big avatar photo + name + degree pill + headline + bio */}
+      <div className="flex items-start gap-5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={sample.avatarUrl}
+          alt={sample.name}
+          className="h-20 w-20 shrink-0 rounded-full object-cover sm:h-24 sm:w-24"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4
+              className="!text-2xl !font-semibold !leading-tight tracking-normal"
+              style={{ color: "#0B2E25" }}
+            >
+              {sample.name}
+            </h4>
+            {degreeStyle ? (
+              // 2°/3° get the combo pill (degree | connection); 1° and
+              // 4°+ stay single-segment. 1° optionally appends an arrow
+              // for asymmetric vouch direction.
+              (sample.degree === 2 || sample.degree === 3) &&
+              sample.connection !== null ? (
+                <span
+                  className="inline-flex items-stretch overflow-hidden rounded-full text-sm font-semibold tabular-nums"
+                  style={{ border: `1px solid ${degreeStyle.outlineColor}` }}
+                >
+                  <span
+                    className="inline-flex items-center px-3 py-0.5"
+                    style={{
+                      backgroundColor: degreeStyle.bg,
+                      color: degreeStyle.fg,
+                      borderRadius: 0,
+                    }}
+                  >
+                    {degreeStyle.label}
+                  </span>
+                  <span
+                    className="inline-flex items-center px-3 py-0.5"
+                    style={{
+                      color: degreeStyle.outlineColor,
+                      borderLeft: `1px solid ${degreeStyle.outlineColor}`,
+                      borderRadius: 0,
+                    }}
+                  >
+                    {sample.connection.toFixed(1)}
+                  </span>
+                </span>
+              ) : sample.degree === 1 &&
+                sample.vouchDirection &&
+                sample.vouchDirection !== "mutual" ? (
+                // 1° asymmetric — combo pill (white | gap | orange arrow)
+                <span
+                  className="inline-flex items-stretch overflow-hidden rounded-full text-sm font-semibold"
+                  style={{
+                    gap: "2px",
+                    border: "1px solid rgba(11,46,37,0.14)",
+                  }}
+                >
+                  <span
+                    className="inline-flex items-center px-3 py-0.5"
+                    style={{
+                      backgroundColor: degreeStyle.bg,
+                      color: degreeStyle.fg,
+                      borderRadius: 0,
+                    }}
+                  >
+                    {degreeStyle.label}
+                  </span>
+                  <button
+                    type="button"
+                    title={
+                      sample.vouchDirection === "outgoing"
+                        ? "You vouched for them — they haven't vouched back. Click to nudge."
+                        : "They vouched for you — you haven't vouched back. Click to vouch back."
+                    }
+                    className="inline-flex items-center px-2.5 py-0.5 transition-opacity hover:opacity-90"
+                    style={{
+                      backgroundColor: ASYMMETRY_ORANGE,
+                      color: "#FFFFFF",
+                      borderRadius: 0,
+                    }}
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    {sample.vouchDirection === "outgoing" ? (
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center rounded-full px-3 py-0.5 text-sm font-semibold"
+                  style={{
+                    backgroundColor: degreeStyle.bg,
+                    color: degreeStyle.fg,
+                    border:
+                      sample.degree === 1
+                        ? "1px solid rgba(11,46,37,0.14)"
+                        : undefined,
+                  }}
+                >
+                  {degreeStyle.label}
+                </span>
+              )
+            ) : (
+              <span
+                className="inline-flex items-center rounded-full px-3 py-0.5 text-sm font-semibold"
+                style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
+              >
+                {isColdStart ? "New member" : "No path"}
+              </span>
+            )}
+          </div>
+          <div
+            className="mt-1 text-sm"
+            style={{ color: "rgba(11,46,37,0.62)" }}
+          >
+            {sample.profile.headline}
+          </div>
+          <p
+            className="mt-3 text-sm leading-relaxed"
+            style={{ color: "rgba(11,46,37,0.78)" }}
+          >
+            {sample.profile.bio}
+          </p>
+
+          {/* Connector strip — same pattern as the medium card, just
+              white-bg-friendly ring color */}
+          {showConnectors && (
+            <div className="mt-4 flex items-center gap-2">
+              <span className="inline-flex items-center -space-x-1.5">
+                {sample.connectors.slice(0, 4).map((c) => (
+                  <span
+                    key={c.id}
+                    title={c.viewerKnows ? c.name : "Mutual connection"}
+                    className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-full"
+                    style={{
+                      border: "2px solid #FFFFFF",
+                      backgroundColor: "#F1F5F4",
+                    }}
+                  >
+                    {c.viewerKnows && c.avatarUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={c.avatarUrl}
+                        alt={c.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="rgba(11,46,37,0.5)"
+                        className="h-4 w-4"
+                        aria-hidden
+                      >
+                        <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5Z" />
+                      </svg>
+                    )}
+                  </span>
+                ))}
+              </span>
+              <span
+                className="text-xs"
+                style={{ color: "rgba(11,46,37,0.62)" }}
+              >
+                {sample.connectors.filter((c) => c.viewerKnows).map((c) => c.name).join(", ")}
+                {sample.connectors.some((c) => !c.viewerKnows) &&
+                  ` + ${sample.connectors.filter((c) => !c.viewerKnows).length} mutual`}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Metric tile row */}
+      {isColdStart ? (
+        <div
+          className="mt-6 rounded-xl p-5 text-sm"
+          style={{
+            backgroundColor: "#F1F5F4",
+            border: "1px solid #E5E5E5",
+            color: "rgba(11,46,37,0.7)",
+          }}
+        >
+          New to Trustead — no vouches or reviews yet. Invite a friend to
+          vouch and start a chain.
+        </div>
+      ) : isFirstDegree ? (
+        // 1° — direct vouch is the whole story. Show a vouch-direction
+        // callout + the rating tile only.
+        <div className="mt-6 grid gap-3 grid-cols-1 sm:grid-cols-2">
+          <div
+            className="rounded-xl p-4"
+            style={{
+              backgroundColor: "#ECFDF5",
+              border: "1px solid #A7F3D0",
+              color: "#065F46",
+            }}
+          >
+            <div className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#047857]">
+              Direct vouch
+            </div>
+            <div className="mt-1.5 text-sm font-semibold leading-snug">
+              {vouchDirCopy}
+            </div>
+          </div>
+          {showRating ? (
+            <MacroMetric
+              icon={<Star className="h-full w-full" fill="currentColor" />}
+              label="Rating"
+              value={sample.rating!.toFixed(1)}
+              unit="★"
+              sub={`Across ${sample.reviewCount} ${sample.reviewCount === 1 ? "review" : "reviews"}`}
+              tone={ratingWarn ? "rating-bad" : "rating-good"}
+            />
+          ) : (
+            <MacroMetric
+              icon={<Star className="h-full w-full" fill="currentColor" />}
+              label="Rating"
+              value="—"
+              unit=""
+              sub="No reviews yet"
+              tone="muted"
+            />
+          )}
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-3 grid-cols-1 sm:grid-cols-3">
+          {showConnection ? (
+            <MacroMetric
+              icon={ICON_CIRCLE}
+              label="Connection"
+              value={sample.connection!.toFixed(1)}
+              unit="/ 10"
+              sub={`Reachable through ${sample.profile.chains} ${sample.profile.chains === 1 ? "chain" : "chains"} in your network`}
+              tone="connection"
+            />
+          ) : (
+            <MacroMetric
+              icon={ICON_CIRCLE}
+              label="Connection"
+              value="—"
+              unit=""
+              sub="Too far in the network to score"
+              tone="muted"
+            />
+          )}
+          {showVouch && (
+            <MacroMetric
+              icon={ICON_SHIELD}
+              label="Vouch"
+              value={sample.vouch!.toFixed(1)}
+              unit="/ 10"
+              sub={`From ${sample.profile.vouchers} ${sample.profile.vouchers === 1 ? "voucher" : "vouchers"} platform-wide`}
+              tone="vouch"
+            />
+          )}
+          {showRating ? (
+            <MacroMetric
+              icon={<Star className="h-full w-full" fill="currentColor" />}
+              label="Rating"
+              value={sample.rating!.toFixed(1)}
+              unit="★"
+              sub={`Across ${sample.reviewCount} ${sample.reviewCount === 1 ? "review" : "reviews"}`}
+              tone={ratingWarn ? "rating-bad" : "rating-good"}
+            />
+          ) : (
+            <MacroMetric
+              icon={<Star className="h-full w-full" fill="currentColor" />}
+              label="Rating"
+              value="—"
+              unit=""
+              sub="No reviews yet"
+              tone="muted"
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MacroStack() {
+  // Full-width stack — the macro block lives on a profile page, which
+  // is a single-column surface. Show all six samples so every state
+  // is visible (top tier, 2°/3° with connectors, 4°+, cold-start,
+  // penalized).
+  return (
+    <div className="grid gap-5">
+      {SAMPLES.map((s) => (
+        <MacroBlock key={s.id} sample={s} />
+      ))}
+    </div>
+  );
+}
+
+// ── Palette comparator (top-of-page review section) ─────────────
+// Shows alternative color scales for the degree pill. 2° (emerald)
+// and 3° (mustard) are held fixed across all options — only 1° and
+// 4° vary. Each row shows the four pills in the same order they'd
+// appear on a real badge: a single 1° pill, then 2°/3° as combo
+// pills (so the outline-color is visible), then a single 4°+ pill.
+
+type DegreeColor = { bg: string; fg: string; outline: string };
+type Palette = {
+  id: string;
+  name: string;
+  note: string;
+  active?: boolean; // tag the live one so Loren can recognize the current state
+  d1: DegreeColor;
+  d2: DegreeColor;
+  d3: DegreeColor;
+  d4: DegreeColor;
+};
+
+const FIXED_D2: DegreeColor = {
+  bg: "#2A8A6B",
+  fg: "#FFFFFF",
+  outline: "#2A8A6B",
+};
+const FIXED_D3: DegreeColor = {
+  bg: "#BF8A0D",
+  fg: "#FFFFFF",
+  outline: "#BF8A0D",
+};
+
+const INITIAL_PALETTES: Palette[] = [
+  {
+    id: "current",
+    name: "Current — White / Zinc",
+    note: "What's shipping right now. Pure white 1°, dark zinc 4°+.",
+    active: true,
+    d1: { bg: "#FFFFFF", fg: "#0B2E25", outline: "#FFFFFF" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#525252", fg: "#FFFFFF", outline: "#525252" },
+  },
+  {
+    id: "cream-olive",
+    name: "Option A — Cream / Olive",
+    note: "Brand-warm cream 1° (out of the green ramp without going stark white) + desaturated olive 4° that still feels related.",
+    d1: { bg: "#F5F1E6", fg: "#0B2E25", outline: "#F5F1E6" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#6B7569", fg: "#FFFFFF", outline: "#6B7569" },
+  },
+  {
+    id: "forest-slate",
+    name: "Option B — Deep Forest / Cool Slate",
+    note: "Extends the green ramp at the top — 1° is the darkest deepest green. 4°+ flips to neutral cool slate so distance reads as 'outside the ramp.'",
+    d1: { bg: "#0F4A36", fg: "#FFFFFF", outline: "#0F4A36" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#94A3B8", fg: "#0B2E25", outline: "#94A3B8" },
+  },
+  {
+    id: "sky-slate",
+    name: "Option C — Sky / Slate",
+    note: "Cool sky 1° contrasts with the warm 2°/3° middle; slate 4° matches the cool temperature so distance reads as 'cool fade.'",
+    d1: { bg: "#38BDF8", fg: "#0B2E25", outline: "#38BDF8" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#64748B", fg: "#FFFFFF", outline: "#64748B" },
+  },
+  {
+    id: "coral-stone",
+    name: "Option D — Coral / Stone",
+    note: "Warm coral 1° as a friendly top-tier signal; stone 4° stays neutral and earthy without going stark gray.",
+    d1: { bg: "#FB7185", fg: "#FFFFFF", outline: "#FB7185" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#A8A29E", fg: "#0B2E25", outline: "#A8A29E" },
+  },
+  {
+    id: "ink-pale",
+    name: "Option E — Ink / Pale",
+    note: "Inverts the contrast direction — dark ink 1° reads as anchored/serious; pale 4° disappears into the background instead of demanding attention.",
+    d1: { bg: "#0F172A", fg: "#FFFFFF", outline: "#0F172A" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#D4D4D8", fg: "#0B2E25", outline: "#D4D4D8" },
+  },
+  {
+    id: "sage-bark",
+    name: "Option F — Sage / Bark",
+    note: "All warm/earthy — pale sage 1° extends the green ramp lighter; bark 4° stays grounded in the same family instead of jumping to gray.",
+    d1: { bg: "#86EFAC", fg: "#0B2E25", outline: "#86EFAC" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#57534E", fg: "#FFFFFF", outline: "#57534E" },
+  },
+];
+
+// Pick a readable text color for a given background. Good-enough
+// luminance check — keeps the picker UX simple (one color input per
+// segment instead of two).
+function pickFg(hex: string): string {
+  const m = hex.replace("#", "");
+  if (m.length !== 6) return "#FFFFFF";
+  const r = parseInt(m.slice(0, 2), 16);
+  const g = parseInt(m.slice(2, 4), 16);
+  const b = parseInt(m.slice(4, 6), 16);
+  const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luma > 150 ? "#0B2E25" : "#FFFFFF";
+}
+
+// Very-light backgrounds (white, cream, pale gray) need a hairline border so
+// the pill still reads as a defined shape against the dark sandbox surface.
+// Stricter threshold than pickFg's "needs-dark-text" cutoff.
+function isVeryLight(hex: string): boolean {
+  const m = hex.replace("#", "");
+  if (m.length !== 6) return false;
+  const r = parseInt(m.slice(0, 2), 16);
+  const g = parseInt(m.slice(2, 4), 16);
+  const b = parseInt(m.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b > 200;
+}
+
+function SwatchPill({
+  label,
+  color,
+  hairline = false,
+}: {
+  label: string;
+  color: DegreeColor;
+  hairline?: boolean;
+}) {
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+      style={{
+        backgroundColor: color.bg,
+        color: color.fg,
+        border: hairline ? "1px solid rgba(11,46,37,0.14)" : undefined,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function ComboSwatchPill({
+  label,
+  score,
+  color,
+}: {
+  label: string;
+  score: string;
+  color: DegreeColor;
+}) {
+  return (
+    <span
+      className="inline-flex items-stretch overflow-hidden rounded-full text-xs font-semibold tabular-nums"
+      style={{ border: `1px solid ${color.outline}` }}
+    >
+      <span
+        className="inline-flex items-center px-2.5 py-0.5"
+        style={{
+          backgroundColor: color.bg,
+          color: color.fg,
+          borderRadius: 0,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        className="inline-flex items-center px-2.5 py-0.5"
+        style={{
+          color: color.outline,
+          borderLeft: `1px solid ${color.outline}`,
+          borderRadius: 0,
+        }}
+      >
+        {score}
+      </span>
+    </span>
+  );
+}
+
+function ColorSwatchInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <label
+      className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.08em]"
+      style={{ color: "rgba(245,241,230,0.62)" }}
+    >
+      <span className="w-7 shrink-0 text-right">{label}</span>
+      <span
+        className="relative inline-block h-6 w-6 shrink-0 overflow-hidden rounded-md"
+        style={{ border: "1px solid rgba(245,241,230,0.2)" }}
+      >
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 h-full w-full cursor-pointer border-0 bg-transparent p-0"
+          aria-label={`${label} color`}
+        />
+      </span>
+      <span style={{ color: "rgba(245,241,230,0.45)" }}>
+        {value.toUpperCase()}
+      </span>
+    </label>
+  );
+}
+
+function PaletteRow({ initial }: { initial: Palette }) {
+  // Each row owns its own color state so Loren can tinker with one
+  // option without affecting the others. Initial values come from
+  // INITIAL_PALETTES; resetting back is just a page reload.
+  const [d1, setD1] = useState<DegreeColor>(initial.d1);
+  const [d2, setD2] = useState<DegreeColor>(initial.d2);
+  const [d3, setD3] = useState<DegreeColor>(initial.d3);
+  const [d4, setD4] = useState<DegreeColor>(initial.d4);
+  // Default the live option to expanded so the picker UX is visible
+  // without requiring a click; all other options collapse for density.
+  const [open, setOpen] = useState(Boolean(initial.active));
+
+  const setBg = (
+    setter: (c: DegreeColor) => void
+  ): ((next: string) => void) =>
+    (next: string) =>
+      setter({ bg: next, fg: pickFg(next), outline: next });
+
+  const lightBg = isVeryLight(d1.bg);
+
+  return (
+    <div
+      className="overflow-hidden rounded-xl"
+      style={{
+        backgroundColor: "rgba(7,34,27,0.55)",
+        border: initial.active
+          ? "1px solid rgba(79,177,145,0.45)"
+          : "1px solid rgba(245,241,230,0.12)",
+      }}
+    >
+      {/* Toggle row — chevron + name (+ Live badge) on the left, the
+          four live pills on the right. One line, no wrap on desktop. */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[rgba(245,241,230,0.04)]"
+      >
+        <ChevronRight
+          className="h-3.5 w-3.5 shrink-0 transition-transform"
+          style={{
+            color: "rgba(245,241,230,0.55)",
+            transform: open ? "rotate(90deg)" : "none",
+          }}
+          aria-hidden
+        />
+        <h4
+          className="!text-sm !font-semibold !leading-tight tracking-normal shrink-0"
+          style={{ color: "#F5F1E6" }}
+        >
+          {initial.name}
+        </h4>
+        {initial.active && (
+          <span
+            className="inline-flex shrink-0 items-center rounded-full px-2 py-[1px] text-[10px] font-mono uppercase tracking-wider"
+            style={{
+              backgroundColor: "rgba(79,177,145,0.18)",
+              color: "#BFE2D4",
+            }}
+          >
+            Live
+          </span>
+        )}
+        <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <SwatchPill label="1°" color={d1} hairline={lightBg} />
+          <ComboSwatchPill label="2°" score="6.4" color={d2} />
+          <ComboSwatchPill label="3°" score="3.2" color={d3} />
+          <SwatchPill label="4°+" color={d4} />
+        </span>
+      </button>
+
+      {open && (
+        <div
+          className="px-4 pb-4 pt-3"
+          style={{ borderTop: "1px solid rgba(245,241,230,0.08)" }}
+        >
+          <p
+            className="mb-3 max-w-3xl text-xs leading-relaxed"
+            style={{ color: "rgba(245,241,230,0.62)" }}
+          >
+            {initial.note}
+          </p>
+          {/* 2x2 picker grid — keeps the expanded row compact. */}
+          <div className="grid gap-1.5 sm:grid-cols-2 sm:gap-x-6">
+            <ColorSwatchInput
+              label="1°"
+              value={d1.bg}
+              onChange={setBg(setD1)}
+            />
+            <ColorSwatchInput
+              label="2°"
+              value={d2.bg}
+              onChange={setBg(setD2)}
+            />
+            <ColorSwatchInput
+              label="3°"
+              value={d3.bg}
+              onChange={setBg(setD3)}
+            />
+            <ColorSwatchInput
+              label="4°+"
+              value={d4.bg}
+              onChange={setBg(setD4)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaletteOptions() {
+  return (
+    <div className="grid gap-3">
+      {INITIAL_PALETTES.map((p) => (
+        <PaletteRow key={p.id} initial={p} />
+      ))}
+    </div>
+  );
+}
+
 // ── Page shell ───────────────────────────────────────────────────
 
 export function TrustBadgeSandbox() {
   return (
     <div className="min-h-screen bg-[var(--tt-body-bg)] text-[#F5F1E6] py-10 sm:py-14">
+      {/* Page header is constrained, but the nano + micro side-by-side
+          row below uses a wider container so the listings can render at
+          something close to their real width without crowding the inbox. */}
       <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8">
         <header className="mb-10">
           <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-[rgba(245,241,230,0.55)]">
@@ -606,40 +1791,67 @@ export function TrustBadgeSandbox() {
             Trust badge sizes
           </h1>
           <p className="mt-3 max-w-2xl text-sm text-[rgba(245,241,230,0.78)] leading-relaxed">
-            One badge, three sizes — each shown in the surface where it
-            actually appears in the app. Pulls from the same FT-1 four-metric
-            model (degree · connection · vouch · rating); detail collapses
-            as the badge shrinks. Macro lives on the profile page and is out
-            of scope for this round.
+            One badge, four sizes — each shown in the surface where it
+            actually appears in the app: nano in the inbox row, micro on
+            a listing tile, medium on a host card, macro on a profile page.
+            All four pull from the same FT-1 four-metric model (degree ·
+            connection · vouch · rating); detail collapses as the badge
+            shrinks.
           </p>
         </header>
 
-        <div className="space-y-12">
-          <section>
+        <section className="mb-12">
+          <SectionHeader
+            eyebrow="Palette · review"
+            title="Degree color scale options"
+            note="2° (emerald) and 3° (mustard) are held fixed across all options — only 1° and 4° vary. Each row shows the four pills in a real combo: single 1°, then 2°/3° as combo pills (so the outline color is visible), then single 4°+. Pick a direction and we'll roll it into the rest of the page."
+          />
+          <PaletteOptions />
+        </section>
+      </div>
+
+      {/* Nano + Micro row — wider than page max so we can see both in
+          context next to each other. */}
+      <div className="mx-auto w-full max-w-[1600px] px-5 sm:px-8">
+        <div className="flex flex-col gap-10 lg:flex-row lg:gap-12">
+          <section className="shrink-0">
             <SectionHeader
               eyebrow="Size 01 · Nano"
               title="Inbox thread row"
-              note="Smallest size. Just the degree pill — a tiny visual anchor next to the name. No metrics, no rating star. Cold-start renders as a 'New member' chip."
+              note="Smallest size. Just the degree pill — a tiny visual anchor next to the name. Cold-start renders as a 'New member' chip."
             />
             <InboxMockup />
           </section>
 
-          <section>
+          <section className="min-w-0 flex-1">
             <SectionHeader
               eyebrow="Size 02 · Micro"
-              title="Listing card overlay"
-              note="Floats on the listing image. Degree pill + the absolute Vouch score (purple diamond) + raw rating. Connection score is omitted at this size to keep the chip narrow; the listing tile already implies the viewer has a path to it."
+              title="Listing card"
+              note="Sits inline below the image — under the location, title, and 'Hosted by' line — same spot LiveListingCard puts it today. Two-segment combo pill (degree · connection) + Vouch diamond + uncontained rating with count."
             />
             <ListingGrid />
           </section>
+        </div>
+      </div>
 
+      <div className="mx-auto mt-12 w-full max-w-[1200px] px-5 sm:px-8">
+        <div className="space-y-12">
           <section>
             <SectionHeader
               eyebrow="Size 03 · Medium"
               title="Host card on a full listings page"
-              note="Full four-metric display. Connection circle (blue, viewer-relative) + Vouch diamond (purple, absolute) + Rating star (amber, with review count in parens). 4°+ hides the connection pill per spec; cold-start collapses to a 'New member' chip."
+              note="Combo degree pill (with connection score baked in) + Vouch diamond + uncontained rating + connector strip showing the people who connect you to this host. 1° drops the metric pills since direct vouch is the whole story."
             />
             <HostRowGrid />
+          </section>
+
+          <section>
+            <SectionHeader
+              eyebrow="Size 04 · Macro"
+              title="Profile page block"
+              note="The biggest size. Full-width profile-page block with avatar photo, bio, connector strip, and three labeled metric tiles. Connection collapses to '—' for 4°+; whole block collapses to a 'New member' empty state for cold-start users."
+            />
+            <MacroStack />
           </section>
         </div>
 

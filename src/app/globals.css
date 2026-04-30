@@ -301,7 +301,7 @@
 [class*="bg-gray-200"],
 [class*="bg-slate-50"],
 [class*="bg-slate-100"],
-button[class*="bg-brand"],
+button[class~="bg-brand"],
 [class*="bg-amber-100"] {
   --tone-fg: var(--tt-modal-bg);
   --tone-fg-muted: rgba(11, 46, 37, 0.65);
@@ -428,19 +428,21 @@ em.accent {
 
 /* ── BRAND BUTTON (the mint pill) ─────────────────────────────
    Padding override gated to text buttons — small fixed-size icon
-   buttons skip it so the icon doesn't get pushed out of a circle. */
-button[class*="bg-brand"] {
+   buttons skip it so the icon doesn't get pushed out of a circle.
+   [class~="bg-brand"] matches the solid mint button only, not alpha
+   variants like bg-brand/5 used as selected-state tints on cards. */
+button[class~="bg-brand"] {
   border-radius: 999px !important;
   font-weight: 600 !important;
   background-color: var(--tt-mint) !important;
   color: var(--tt-modal-bg) !important;
   border-color: transparent !important;
 }
-button[class*="bg-brand"]:not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="w-12"]):not([class*="aspect-square"]) {
+button[class~="bg-brand"]:not([class*="w-8"]):not([class*="w-9"]):not([class*="w-10"]):not([class*="w-12"]):not([class*="aspect-square"]) {
   padding-left: 1.25rem !important;
   padding-right: 1.25rem !important;
 }
-button[class*="bg-brand"]:hover {
+button[class~="bg-brand"]:hover {
   background-color: var(--tt-mint-mid) !important;
 }
 

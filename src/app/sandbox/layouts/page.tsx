@@ -1,148 +1,225 @@
 // D3 LAYOUT SANDBOX — INDEX
 // ----------------------------------------------------------------
-// Six full-page layout variants (2 each for landing, browse,
-// dashboard). Loren picks one variant per surface; B4 integration
-// session ports the locked layouts into the real app surfaces.
-//
-// HARD RULE: NO new functionality. Every element in every variant
-// must already exist somewhere in the live app — this is
-// rearrangement + visual treatment, not product spec.
+// Two groups:
+//   Current — iframes the live route so you see exactly what
+//             production shows today, no interpretation.
+//   Variants — real React implementations of alternative designs.
+//             Variants always live as sibling routes; they never
+//             overwrite the Current entry.
+// Use the fixed top nav for quick jumping. Once you pick a variant
+// to iterate on, we add another sibling route (e.g. home-v4) — it
+// joins the nav automatically.
 // ----------------------------------------------------------------
 
 import Link from "next/link";
 
 export const runtime = "edge";
 
-type Variant = {
+type Surface = {
   href: string;
-  surface: "Landing" | "Browse" | "Dashboard";
-  letter: "A" | "B";
   name: string;
   blurb: string;
-  contrast: string;
+  liveLink?: string;
 };
 
-const VARIANTS: Variant[] = [
+const CURRENT: Surface[] = [
   {
-    href: "/sandbox/layouts/landing-a",
-    surface: "Landing",
-    letter: "A",
-    name: "Centered hero · 3-col value props",
-    blurb: "Single strong CTA, value props in a tight three-column grid.",
-    contrast: "vs B: centered hero, one CTA, horizontal value-prop grid.",
+    href: "/sandbox/layouts/landing",
+    name: "Landing",
+    blurb:
+      "There's no live landing today (/ redirects to /browse). Frames /join — the closest current public-facing surface.",
+    liveLink: "/join",
   },
   {
-    href: "/sandbox/layouts/landing-b",
-    surface: "Landing",
-    letter: "B",
-    name: "Split hero · stacked value props",
-    blurb: "Hero text left + visual right; value props stack vertically with iconography.",
-    contrast: "vs A: split hero, primary + secondary CTA, vertical stack.",
+    href: "/sandbox/layouts/browse",
+    name: "Browse",
+    blurb:
+      "Listing discovery feed with search + filters, trust gating, save-for-later.",
+    liveLink: "/browse",
   },
   {
-    href: "/sandbox/layouts/browse-a",
-    surface: "Browse",
-    letter: "A",
-    name: "Large 4:3 cards · top filter bar",
-    blurb: "Roomy three-column grid, photo-forward, filter chips across the top.",
-    contrast: "vs B: large cards, top filters, photo-forward feel.",
+    href: "/sandbox/layouts/listing",
+    name: "Listing detail",
+    blurb:
+      "Single listing page — photos, host, trust path, amenities, price, availability.",
+    liveLink: "/listings/[id]",
   },
   {
-    href: "/sandbox/layouts/browse-b",
-    surface: "Browse",
-    letter: "B",
-    name: "Compact list · inline filter chips",
-    blurb: "Dense list-style cards with 16:9 thumbnails, scrollable filter chips inline.",
-    contrast: "vs A: compact list, inline chips, scan-many-fast feel.",
+    href: "/sandbox/layouts/dashboard",
+    name: "Dashboard",
+    blurb:
+      "Welcome banner, stats, hosting reservations, listings, earnings, traveling, network, proposals (tabbed).",
+    liveLink: "/dashboard",
   },
   {
-    href: "/sandbox/layouts/dashboard-a",
-    surface: "Dashboard",
-    letter: "A",
-    name: "Top metrics · proactive next steps",
-    blurb: "Metric tiles top-of-page, then a prompt-driven 'do this next' panel.",
-    contrast: "vs B: metrics top, proactive prompts pull you to action.",
+    href: "/sandbox/layouts/network",
+    name: "Network",
+    blurb:
+      "Vouch power, vouches given/received, pending invites, vouch-back prompts.",
+    liveLink: "/dashboard?tab=network",
   },
   {
-    href: "/sandbox/layouts/dashboard-b",
-    surface: "Dashboard",
-    letter: "B",
-    name: "Side-rail metrics · activity recap",
-    blurb: "Metrics in a left side-rail, main column shows a passive recap timeline.",
-    contrast: "vs A: side-rail metrics, recap-driven, calmer vibe.",
+    href: "/sandbox/layouts/trips",
+    name: "Trips",
+    blurb:
+      "Tabbed list of upcoming, completed, cancelled stays as guest.",
+    liveLink: "/dashboard?tab=traveling",
+  },
+  {
+    href: "/sandbox/layouts/proposals",
+    name: "Proposals",
+    blurb:
+      "Trip Wishes + Host Offers feed scoped to your network, with kind-filter tabs and search.",
+    liveLink: "/proposals",
+  },
+  {
+    href: "/sandbox/layouts/messages",
+    name: "Messages",
+    blurb:
+      "Inbox split-view — thread list left, conversation right. Includes intro requests.",
+    liveLink: "/inbox",
+  },
+  {
+    href: "/sandbox/layouts/vouch",
+    name: "Vouch",
+    blurb:
+      "Search-by-name flow that lets a member vouch for someone they trust.",
+    liveLink: "/vouch",
+  },
+  {
+    href: "/sandbox/layouts/profile",
+    name: "Profile",
+    blurb:
+      "Member profile — trust score, bio, listings, proposals, reviews.",
+    liveLink: "/profile/[id]",
+  },
+];
+
+const VARIANTS: Surface[] = [
+  {
+    href: "/sandbox/layouts/home-v1",
+    name: "Home v1 — Showcase rows",
+    blurb:
+      "Auto-scrolling horizontal rows that alternate direction: Trip Wishes →, Stays ←, Host Offers →, People to vouch for ←. Tabbed multi-mode search at top (Stays · People · Vouches). Vouch activity strip at the bottom.",
+  },
+  {
+    href: "/sandbox/layouts/home-v2",
+    name: "Home v2 — Magazine",
+    blurb:
+      "Three quick-action search cards (Stay · People · Vouch), a hero 'of the moment' feature card, then asymmetric editorial body — Trip Wishes feed left, vouch nudges + featured stays + host offers spotlight in the side rail.",
+  },
+  {
+    href: "/sandbox/layouts/home-v3",
+    name: "Home v3 — Personal feed",
+    blurb:
+      "Single chronological mixed-activity feed (vouches, proposals, listings interspersed). Smart single search with mode pills below. Side rail with vouch nudges, network-at-a-glance, and your listings shortcut.",
+  },
+  {
+    href: "/sandbox/layouts/home-v4",
+    name: "Home v4 — Sidebar shell + showcase",
+    blurb:
+      "Proposed site-wide shell: collapsible LEFT sidebar with the full app menu, fixed RIGHT rail for activity / vouch nudges, condensed search w/ Stays/People/Vouches selector inline. Marquees use live-matching card styles — horizontal proposals with concentric-ring overlay on Trip Wishes, vertical listings with TrustTag pill.",
+  },
+  {
+    href: "/sandbox/layouts/home-v5",
+    name: "Home v5 — Sidebar shell + featured hero",
+    blurb:
+      "Same shell as v4, but leads with a hero “of the moment” feature card (Host Offer or Trip Wish), then 2 marquees (proposals + listings), then a network-at-a-glance stats strip. Right rail leads with “Today’s prompts” (do this next) above activity.",
+  },
+  {
+    href: "/sandbox/layouts/browse-with-offers",
+    name: "Browse + Host Offers",
+    blurb:
+      "Same browse layout, but with a 'Host Offers in this location' horizontal row inserted at the top of results. Surfaces the proposal feature inline with the discovery flow.",
   },
 ];
 
 export default function SandboxLayoutsIndex() {
-  const grouped: Record<string, Variant[]> = {
-    Landing: VARIANTS.filter((v) => v.surface === "Landing"),
-    Browse: VARIANTS.filter((v) => v.surface === "Browse"),
-    Dashboard: VARIANTS.filter((v) => v.surface === "Dashboard"),
-  };
-
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-6 py-12 lg:px-10">
-      <SampleDataBadge />
-      <h1 className="mt-6 font-serif text-4xl text-foreground md:text-5xl">
+    <div className="mx-auto w-full max-w-[1100px] px-6 py-10 lg:px-10">
+      <h1 className="font-serif text-4xl text-foreground md:text-5xl">
         Layout sandbox
       </h1>
-      <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
-        Six full-page layout variants — two each for{" "}
-        <span className="text-foreground">landing</span>,{" "}
-        <span className="text-foreground">browse</span>, and{" "}
-        <span className="text-foreground">dashboard</span>. Pick one per
-        surface; the B4 integration session ports the locked layouts into the
-        real app routes.
-      </p>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        Sample data only. No real users, no DB queries, no new features —
-        every element in every variant already exists in the live app today.
-        This is rearrangement and visual treatment, nothing else.
+      <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
+        Use the fixed top nav to jump between surfaces. <strong className="font-semibold text-foreground">Current</strong>{" "}
+        entries iframe the live page; <strong className="font-semibold text-foreground">Variants</strong>{" "}
+        are real React implementations of alternative designs. Variants
+        always live as sibling routes — Current is never overwritten.
       </p>
 
-      <div className="mt-12 space-y-12">
-        {(["Landing", "Browse", "Dashboard"] as const).map((surface) => (
-          <section key={surface}>
-            <h2 className="font-serif text-2xl text-foreground">{surface}</h2>
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-              {grouped[surface].map((v) => (
-                <Link
-                  key={v.href}
-                  href={v.href}
-                  className="group rounded-2xl border border-border bg-card/40 p-6 transition-colors hover:border-brand/40 hover:bg-card/60"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-brand">
-                      {surface} · Variant {v.letter}
-                    </span>
-                    <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground">
-                      open →
-                    </span>
-                  </div>
-                  <h3 className="mt-4 text-lg font-semibold text-foreground">
-                    {v.name}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {v.blurb}
-                  </p>
-                  <p className="mt-3 text-xs italic text-subtle">
-                    {v.contrast}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+      <Section title="Variants" subtitle="Alternative designs we&rsquo;re iterating on right now">
+        <SurfaceGrid surfaces={VARIANTS} accent />
+      </Section>
+
+      <Section title="Current" subtitle="Each entry frames the EXACT live page on trustead.app">
+        <SurfaceGrid surfaces={CURRENT} />
+      </Section>
     </div>
   );
 }
 
-function SampleDataBadge() {
+function Section({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-warning">
-      <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" />
-      Sample data — sandbox only
-    </span>
+    <section className="mt-12">
+      <div className="flex items-baseline gap-3">
+        <h2 className="font-serif text-2xl text-foreground md:text-3xl">
+          {title}
+        </h2>
+        <p className="text-xs text-muted-foreground md:text-sm">
+          {subtitle}
+        </p>
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function SurfaceGrid({
+  surfaces,
+  accent,
+}: {
+  surfaces: Surface[];
+  accent?: boolean;
+}) {
+  return (
+    <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      {surfaces.map((s) => (
+        <li key={s.href}>
+          <Link
+            href={s.href}
+            className={
+              accent
+                ? "group block rounded-2xl border border-brand/30 bg-brand/5 p-5 transition-colors hover:border-brand/60 hover:bg-brand/10"
+                : "group block rounded-2xl border border-border bg-card/40 p-5 transition-colors hover:border-brand/40 hover:bg-card/60"
+            }
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-base font-semibold text-foreground md:text-lg">
+                {s.name}
+              </h3>
+              <span className="text-xs text-muted-foreground transition-colors group-hover:text-foreground">
+                open →
+              </span>
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {s.blurb}
+            </p>
+            {s.liveLink && (
+              <p className="mt-2 font-mono text-[11px] text-subtle">
+                Live: {s.liveLink}
+              </p>
+            )}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }

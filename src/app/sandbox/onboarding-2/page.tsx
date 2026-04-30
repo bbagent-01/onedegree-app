@@ -20,6 +20,10 @@ type Slide = {
   titleEmphasis?: { word: string; className: string };
   body: string;
   Visual: React.ComponentType | null;
+  // When true, the slide renders with the orbit canvases bookending
+  // the text content (top arcs above eyebrow, bottom arcs below CTA).
+  // The inline Visual slot is skipped on this layout.
+  orbitLayout?: boolean;
 };
 
 // STRANGERS_OPTION_ONE — the vertical-cycling pain-points list lives
@@ -36,10 +40,11 @@ const SLIDES: Slide[] = [
   },
   {
     eyebrow: "The solution",
-    titleLines: ["Rent your home to", "people you can trust"],
-    titleEmphasis: { word: "trust", className: "italic text-brand-300" },
-    body: "Rent your primary home to friends of friends. Control who sees it on our private invite-only platform.",
+    titleLines: ["Rent only to", "friends of friends"],
+    titleEmphasis: { word: "only", className: "italic text-brand-300" },
+    body: "Establish trust by connecting through friends and keeping your listing private.",
     Visual: null,
+    orbitLayout: true,
   },
   {
     eyebrow: "How it works",
@@ -172,6 +177,55 @@ export default function SandboxOnboardingPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, isLast, isFirst, index]);
+
+  // Lazy-load the orbit JS once, then re-init each time the orbit
+  // slide becomes active (the canvases get re-created with the same
+  // IDs whenever index changes, so we have to re-bind).
+  const orbitScriptLoadedRef = useRef(false);
+  useEffect(() => {
+    if (phase !== "slides") return;
+    const slide = SLIDES[index];
+    if (!slide?.orbitLayout) return;
+
+    const tryInit = () => {
+      const w = window as unknown as {
+        initOrbitHero?: (id: string) => void;
+        initOrbitTop?: (id: string) => void;
+      };
+      // Wait a frame so the canvases are in the DOM before init reads
+      // their bounding rects.
+      requestAnimationFrame(() => {
+        try {
+          w.initOrbitHero?.("sb-orbit-canvas");
+          w.initOrbitTop?.("sb-orbit-canvas-top");
+        } catch {
+          // swallow — sandbox iteration; the worst case is no orbit
+        }
+      });
+    };
+
+    if (orbitScriptLoadedRef.current) {
+      tryInit();
+      return;
+    }
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[data-sb-orbit="1"]'
+    );
+    if (existing) {
+      orbitScriptLoadedRef.current = true;
+      tryInit();
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "/assets/orbit-animation/orbit-lite.js";
+    s.async = true;
+    s.dataset.sbOrbit = "1";
+    s.onload = () => {
+      orbitScriptLoadedRef.current = true;
+      tryInit();
+    };
+    document.head.appendChild(s);
+  }, [phase, index]);
 
   if (phase === "dismissed") {
     return (
@@ -407,6 +461,34 @@ export default function SandboxOnboardingPage() {
 
       {phase === "slides" && (
         <>
+          {/* Orbit canvases bookend the slide. Top half = top canvas
+              (avatars sweep down from the top); bottom half = main
+              canvas (avatars sweep up from the bottom). Their
+              "empty" centers meet in the middle of the screen where
+              the text content sits. Both canvases are width-capped
+              so the orbit JS reliably hits its mobile dual-arc
+              rendering path (≤ 680px wide). */}
+          {slide.orbitLayout && (
+            <>
+              <div className="absolute top-0 left-0 right-0 h-1/2 z-0 pointer-events-none">
+                <div className="mx-auto h-full w-full max-w-[680px]">
+                  <canvas
+                    id="sb-orbit-canvas-top"
+                    className="block h-full w-full"
+                  />
+                </div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-1/2 z-0 pointer-events-none">
+                <div className="mx-auto h-full w-full max-w-[680px]">
+                  <canvas
+                    id="sb-orbit-canvas"
+                    className="block h-full w-full"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
           <div
             key={index}
             className="slide-content relative z-10 flex flex-1 items-center justify-center overflow-y-auto px-6 pt-32 pb-20 sm:pt-36 sm:pb-24"
@@ -427,7 +509,7 @@ export default function SandboxOnboardingPage() {
                 baseDelay={titleStartDelay}
               />
 
-              {Visual && (
+              {Visual && !slide.orbitLayout && (
                 <div
                   className="block-rise w-full"
                   style={{ animationDelay: `${visualDelay}ms` }}
