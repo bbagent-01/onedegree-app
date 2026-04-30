@@ -110,6 +110,58 @@ const LOGO_TOTAL_MORPH_MS = Math.max(
 // we just flip the React phase early.
 const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
 
+// Tagline exit — delayed and slow so it reads as "trying to follow"
+// the logo up rather than vanishing first. The wrapper begins moving
+// up immediately on morph; the tagline waits a beat, then drifts up
+// + fades while the logo continues its journey.
+const TAGLINE_EXIT_DELAY_MS = 300;
+const TAGLINE_EXIT_DURATION_MS = 800;
+const TAGLINE_EXIT_TRANSLATE_PX = 24;
+
+// Orbit avatar filenames — used both by the orbit JS (which has its
+// own copy of these paths) and by the React preloader on this page,
+// which fires `new Image()` for each on mount so the orbit slide can
+// init from cache instead of waiting on the network.
+const ORBIT_AVATAR_FILES = [
+  "avatar-03-black-woman.jpg",
+  "avatar-04-white-woman.jpg",
+  "avatar-05-indian-woman.jpg",
+  "avatar-06-latina-woman.jpg",
+  "avatar-07-white-woman-2.jpg",
+  "avatar-08-mixed-woman.jpg",
+  "avatar-09-blonde-woman.jpg",
+  "avatar-10-asian-woman.jpg",
+  "avatar-11-middleeast-woman.jpg",
+  "avatar-12-black-woman-2.jpg",
+  "avatar-13-white-man.jpg",
+  "avatar-14-white-man-2.jpg",
+  "avatar-15-latino-man.jpg",
+  "avatar-16-black-man.jpg",
+  "avatar-17-white-man-3.jpg",
+  "avatar-18-black-man-2.jpg",
+  "avatar-19-indian-man.jpg",
+  "avatar-20-middleeast-man.jpg",
+  "avatar-21-asian-man.jpg",
+  "avatar-22-mixed-man.jpg",
+  "avatar-anna.jpg",
+  "avatar-guest.jpg",
+  "avatar-host.jpg",
+  "avatar-james.jpg",
+  "avatar-luke.jpg",
+  "avatar-maya.jpg",
+  "avatar-og-1.jpg",
+  "avatar-og-2.jpg",
+];
+
+// Breakpoint for desktop orbit — above this width, render ONE
+// full-bleed canvas (full circular orbit around centered text, like
+// the v7 landing page hero). Below it, dual-canvas top + bottom arcs.
+// 768px matches Tailwind's `md` so the layout switch lines up with
+// the rest of the responsive system. The orbit JS internally goes
+// into "desktop mode" at canvas widths > 680, so any breakpoint
+// above 680 does the right thing.
+const ORBIT_DESKTOP_BREAKPOINT_PX = 768;
+
 type Phase = "intro" | "morphing" | "slides" | "dismissed";
 
 export default function SandboxOnboardingPage() {
@@ -178,28 +230,70 @@ export default function SandboxOnboardingPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, isLast, isFirst, index]);
 
-  // Lazy-load the orbit JS once, then re-init each time the orbit
-  // slide becomes active (the canvases get re-created with the same
-  // IDs whenever index changes, so we have to re-bind).
+  // Track viewport so we can render either the desktop full-bleed
+  // single canvas (full circular orbit around centered text) or the
+  // mobile dual-canvas bookend layout (top arc + bottom arc).
+  const [isOrbitDesktop, setIsOrbitDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(
+      `(min-width: ${ORBIT_DESKTOP_BREAKPOINT_PX}px)`
+    );
+    const sync = () => setIsOrbitDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  // Preload — kick off avatar image fetches and inject the orbit
+  // script as soon as the page mounts. By the time the user lands on
+  // slide 2, both are warm in cache: the orbit JS is parsed, and its
+  // Promise.all over `new Image()` resolves immediately, so init →
+  // first frame is effectively instant.
   const orbitScriptLoadedRef = useRef(false);
   useEffect(() => {
+    ORBIT_AVATAR_FILES.forEach((name) => {
+      const img = new Image();
+      img.src = `/assets/orbit-animation/avatars/${name}`;
+    });
+    if (
+      !document.querySelector<HTMLScriptElement>('script[data-sb-orbit="1"]')
+    ) {
+      const s = document.createElement("script");
+      s.src = "/assets/orbit-animation/orbit-lite.js";
+      s.async = true;
+      s.dataset.sbOrbit = "1";
+      s.onload = () => {
+        orbitScriptLoadedRef.current = true;
+      };
+      document.head.appendChild(s);
+    } else {
+      orbitScriptLoadedRef.current = true;
+    }
+  }, []);
+
+  // Init the orbit each time the orbit slide becomes active. Picks
+  // the right canvas IDs based on viewport: one big canvas on
+  // desktop, top + bottom arc canvases on mobile.
+  useEffect(() => {
     if (phase !== "slides") return;
-    const slide = SLIDES[index];
-    if (!slide?.orbitLayout) return;
+    const s = SLIDES[index];
+    if (!s?.orbitLayout) return;
 
     const tryInit = () => {
       const w = window as unknown as {
         initOrbitHero?: (id: string) => void;
         initOrbitTop?: (id: string) => void;
       };
-      // Wait a frame so the canvases are in the DOM before init reads
-      // their bounding rects.
       requestAnimationFrame(() => {
         try {
-          w.initOrbitHero?.("sb-orbit-canvas");
-          w.initOrbitTop?.("sb-orbit-canvas-top");
+          if (isOrbitDesktop) {
+            w.initOrbitHero?.("sb-orbit-canvas-desktop");
+          } else {
+            w.initOrbitHero?.("sb-orbit-canvas");
+            w.initOrbitTop?.("sb-orbit-canvas-top");
+          }
         } catch {
-          // swallow — sandbox iteration; the worst case is no orbit
+          // swallow — sandbox iteration; worst case is no orbit
         }
       });
     };
@@ -208,24 +302,15 @@ export default function SandboxOnboardingPage() {
       tryInit();
       return;
     }
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[data-sb-orbit="1"]'
-    );
-    if (existing) {
-      orbitScriptLoadedRef.current = true;
-      tryInit();
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = "/assets/orbit-animation/orbit-lite.js";
-    s.async = true;
-    s.dataset.sbOrbit = "1";
-    s.onload = () => {
-      orbitScriptLoadedRef.current = true;
-      tryInit();
-    };
-    document.head.appendChild(s);
-  }, [phase, index]);
+    // Script still loading — poll briefly for it to finish, then init.
+    const id = window.setInterval(() => {
+      if (orbitScriptLoadedRef.current) {
+        window.clearInterval(id);
+        tryInit();
+      }
+    }, 50);
+    return () => window.clearInterval(id);
+  }, [phase, index, isOrbitDesktop]);
 
   if (phase === "dismissed") {
     return (
@@ -363,6 +448,14 @@ export default function SandboxOnboardingPage() {
               animation: sb-pain-cycle 18s linear infinite;
               will-change: transform;
             }
+            .sandbox-orbit-fade-in {
+              animation: sb-orbit-fade-in 700ms ${WORD_EASING} forwards;
+              opacity: 0;
+            }
+            @keyframes sb-orbit-fade-in {
+              to { opacity: 1; }
+            }
+
             .sandbox-onboarding-root .pain-window {
               -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
                       mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
@@ -435,9 +528,11 @@ export default function SandboxOnboardingPage() {
         />
         {/* Tagline — animates in word-by-word like the slide text
             (same rise-from-baseline mask). Waits until the wordmark
-            has mostly drawn before its first word lifts. When the
-            phase flips to morphing the wrapper fades + lifts up so
-            the line clears as the logo begins its move. */}
+            has mostly drawn before its first word lifts. On morph,
+            the logo wrapper carries the tagline up; the tagline
+            ALSO fades + drifts up extra after a short delay so it
+            reads as "trying to follow the logo, then dissolving"
+            — instead of disappearing before the logo moves. */}
         <div
           className="mt-4 text-center"
           style={{
@@ -445,8 +540,8 @@ export default function SandboxOnboardingPage() {
             transform:
               phase === "intro"
                 ? "translate3d(0, 0, 0)"
-                : "translate3d(0, -16px, 0)",
-            transition: `opacity ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING}, transform ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING}`,
+                : `translate3d(0, -${TAGLINE_EXIT_TRANSLATE_PX}px, 0)`,
+            transition: `opacity ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms, transform ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms`,
           }}
         >
           <p className="text-lg text-muted-foreground sm:text-xl">
@@ -461,33 +556,55 @@ export default function SandboxOnboardingPage() {
 
       {phase === "slides" && (
         <>
-          {/* Orbit canvases bookend the slide. Top half = top canvas
-              (avatars sweep down from the top); bottom half = main
-              canvas (avatars sweep up from the bottom). Their
-              "empty" centers meet in the middle of the screen where
-              the text content sits. Both canvases are width-capped
-              so the orbit JS reliably hits its mobile dual-arc
-              rendering path (≤ 680px wide). */}
-          {slide.orbitLayout && (
-            <>
-              <div className="absolute top-0 left-0 right-0 h-1/2 z-0 pointer-events-none">
-                <div className="mx-auto h-full w-full max-w-[680px]">
-                  <canvas
-                    id="sb-orbit-canvas-top"
-                    className="block h-full w-full"
-                  />
-                </div>
+          {/* Orbit canvases — two layouts:
+              - Desktop (≥ md): one full-bleed canvas, the orbit JS
+                renders a full circle centered on the canvas with a
+                radial fade in the middle so the text reads cleanly.
+                Mirrors the v7 landing-page hero exactly.
+              - Mobile (< md): two stacked canvases (top half + bottom
+                half). The orbit JS pushes the orbit center off the
+                canvas on mobile so each renders just an arc — text
+                sits in the empty middle band where they meet.
+              Both layouts fade in (opacity 0 → 1) when the orbit slide
+              is active so the canvas appears smoothly after init
+              instead of popping in. */}
+          {slide.orbitLayout &&
+            (isOrbitDesktop ? (
+              <div
+                key="orbit-desktop"
+                className="sandbox-orbit-fade-in absolute inset-0 z-0 pointer-events-none"
+              >
+                <canvas
+                  id="sb-orbit-canvas-desktop"
+                  className="block h-full w-full"
+                />
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-1/2 z-0 pointer-events-none">
-                <div className="mx-auto h-full w-full max-w-[680px]">
-                  <canvas
-                    id="sb-orbit-canvas"
-                    className="block h-full w-full"
-                  />
+            ) : (
+              <>
+                <div
+                  key="orbit-mobile-top"
+                  className="sandbox-orbit-fade-in absolute top-0 left-0 right-0 h-1/2 z-0 pointer-events-none"
+                >
+                  <div className="mx-auto h-full w-full max-w-[680px]">
+                    <canvas
+                      id="sb-orbit-canvas-top"
+                      className="block h-full w-full"
+                    />
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
+                <div
+                  key="orbit-mobile-bottom"
+                  className="sandbox-orbit-fade-in absolute bottom-0 left-0 right-0 h-1/2 z-0 pointer-events-none"
+                >
+                  <div className="mx-auto h-full w-full max-w-[680px]">
+                    <canvas
+                      id="sb-orbit-canvas"
+                      className="block h-full w-full"
+                    />
+                  </div>
+                </div>
+              </>
+            ))}
 
           <div
             key={index}
@@ -786,15 +903,19 @@ const PROBLEM_CARDS = [
 
 function PainPointsCardsVisual() {
   // Track is the cards duplicated so the right→left scroll wraps
-  // seamlessly when the first set scrolls fully out.
+  // seamlessly when the first set scrolls fully out. Uses mr-3 on
+  // every card (rather than flex gap) so each card occupies an
+  // identical "slot" of card_width + 12px and the keyframe's -50%
+  // translation lands exactly one set's slot-width over — no gap
+  // arithmetic mismatch at the seam, no blank-space hiccup.
   const cards = [...PROBLEM_CARDS, ...PROBLEM_CARDS];
   return (
     <div className="cards-window relative w-full overflow-hidden">
-      <div className="cards-track flex gap-3" style={{ width: "max-content" }}>
+      <div className="cards-track flex" style={{ width: "max-content" }}>
         {cards.map((p, i) => (
           <div
             key={`${p.title}-${i}`}
-            className="flex w-[44vw] max-w-[180px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/40 text-left sm:w-[180px]"
+            className="mr-3 flex w-[44vw] max-w-[180px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/40 text-left sm:w-[180px]"
           >
             <div
               className="aspect-[4/3] w-full bg-cover bg-center"
