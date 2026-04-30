@@ -12,6 +12,7 @@
 // Edit `SAMPLES` below to retune values and see all three contexts
 // react together.
 
+import { useState } from "react";
 import {
   Star,
   Heart,
@@ -21,6 +22,10 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Alert orange used for the 1° asymmetric vouch-back chip. Eventually
+// this is a clickable affordance that opens the vouch-back modal.
+const ASYMMETRY_ORANGE = "#EA580C";
 
 // ── Sample data ───────────────────────────────────────────────────
 // Per FT-1 spec the four metrics are independent — no composite. Each
@@ -516,7 +521,7 @@ function TrustBadgeSandboxPill({
     degreeChip = (
       <span
         className={cn(
-          "inline-flex items-center gap-1 rounded-full font-semibold",
+          "inline-flex items-center rounded-full font-semibold",
           degreeSizeCls
         )}
         style={{
@@ -525,15 +530,68 @@ function TrustBadgeSandboxPill({
           border: needsHairline ? "1px solid rgba(11,46,37,0.14)" : undefined,
         }}
       >
-        <span>{degreeStyle.label}</span>
-        {vouchArrow && <ArrowGlyph size={size} />}
+        {degreeStyle.label}
       </span>
     );
   }
 
+  // Asymmetric vouch chip — a separate filled orange pill that sits
+  // next to the 1° pill with a small gap. Shape mirrors the degree
+  // pill (same height, same rounded-full); button-like so it's
+  // recognizable as a future click target (opens the vouch-back
+  // modal). Only meaningful at 1°.
+  const arrowChipSizeCls =
+    size === "nano"
+      ? "px-1.5 py-[1px]"
+      : size === "micro"
+        ? "px-2 py-[1px]"
+        : "px-2 py-0.5";
+  const arrowDim = size === "nano" ? 10 : size === "micro" ? 12 : 14;
+  const arrowChip = vouchArrow ? (
+    <button
+      type="button"
+      title={
+        vouchArrow === "outgoing"
+          ? "You vouched for them — they haven't vouched back. Click to nudge."
+          : "They vouched for you — you haven't vouched back. Click to vouch back."
+      }
+      aria-label={
+        vouchArrow === "outgoing"
+          ? "Vouch-back pending — nudge for return vouch"
+          : "Vouch them back"
+      }
+      className={cn(
+        "inline-flex items-center rounded-full font-semibold leading-none transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1",
+        arrowChipSizeCls
+      )}
+      style={{
+        backgroundColor: ASYMMETRY_ORANGE,
+        color: "#FFFFFF",
+      }}
+      onClick={(e) => e.preventDefault()}
+    >
+      {vouchArrow === "outgoing" ? (
+        <ArrowRight style={{ width: arrowDim, height: arrowDim }} />
+      ) : (
+        <ArrowLeft style={{ width: arrowDim, height: arrowDim }} />
+      )}
+    </button>
+  ) : null;
+
+  // Wrap the degree pill + optional asymmetric chip together with a
+  // small gap so they read as two halves of one logical badge.
+  const degreeBlock = arrowChip ? (
+    <span className="inline-flex items-center gap-0.5">
+      {degreeChip}
+      {arrowChip}
+    </span>
+  ) : (
+    degreeChip
+  );
+
   // Nano = degree-only. Tiny visual anchor next to a name in a list.
   if (size === "nano") {
-    return <span className="inline-flex items-center">{degreeChip}</span>;
+    return <span className="inline-flex items-center">{degreeBlock}</span>;
   }
 
   // For 1°, FT-1 says direct vouch is the whole story — skip the
@@ -583,7 +641,7 @@ function TrustBadgeSandboxPill({
       )}
       style={onImage ? { backgroundColor: "rgba(255,255,255,0.95)" } : undefined}
     >
-      {degreeChip}
+      {degreeBlock}
       {size === "micro" && (
         <>
           {showVouch && (
@@ -1079,25 +1137,43 @@ function MacroBlock({ sample }: { sample: Sample }) {
                   </span>
                 </span>
               ) : (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-sm font-semibold"
-                  style={{
-                    backgroundColor: degreeStyle.bg,
-                    color: degreeStyle.fg,
-                    border:
-                      sample.degree === 1
-                        ? "1px solid rgba(11,46,37,0.14)"
-                        : undefined,
-                  }}
-                >
-                  <span>{degreeStyle.label}</span>
+                <span className="inline-flex items-center gap-1">
+                  <span
+                    className="inline-flex items-center rounded-full px-3 py-0.5 text-sm font-semibold"
+                    style={{
+                      backgroundColor: degreeStyle.bg,
+                      color: degreeStyle.fg,
+                      border:
+                        sample.degree === 1
+                          ? "1px solid rgba(11,46,37,0.14)"
+                          : undefined,
+                    }}
+                  >
+                    {degreeStyle.label}
+                  </span>
                   {sample.degree === 1 &&
-                    sample.vouchDirection === "outgoing" && (
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    )}
-                  {sample.degree === 1 &&
-                    sample.vouchDirection === "incoming" && (
-                      <ArrowLeft className="h-3.5 w-3.5" />
+                    sample.vouchDirection &&
+                    sample.vouchDirection !== "mutual" && (
+                      <button
+                        type="button"
+                        title={
+                          sample.vouchDirection === "outgoing"
+                            ? "You vouched for them — they haven't vouched back. Click to nudge."
+                            : "They vouched for you — you haven't vouched back. Click to vouch back."
+                        }
+                        className="inline-flex items-center rounded-full px-2.5 py-0.5 transition-opacity hover:opacity-90"
+                        style={{
+                          backgroundColor: ASYMMETRY_ORANGE,
+                          color: "#FFFFFF",
+                        }}
+                        onClick={(e) => e.preventDefault()}
+                      >
+                        {sample.vouchDirection === "outgoing" ? (
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        ) : (
+                          <ArrowLeft className="h-3.5 w-3.5" />
+                        )}
+                      </button>
                     )}
                 </span>
               )
@@ -1323,7 +1399,7 @@ const FIXED_D3: DegreeColor = {
   outline: "#BF8A0D",
 };
 
-const PALETTE_OPTIONS: Palette[] = [
+const INITIAL_PALETTES: Palette[] = [
   {
     id: "current",
     name: "Current — White / Zinc",
@@ -1337,7 +1413,7 @@ const PALETTE_OPTIONS: Palette[] = [
   {
     id: "cream-olive",
     name: "Option A — Cream / Olive",
-    note: "Brand-warm cream 1° (pulls out of the green ramp without going stark white) + a desaturated olive 4° that still feels related to the green tones.",
+    note: "Brand-warm cream 1° (out of the green ramp without going stark white) + desaturated olive 4° that still feels related.",
     d1: { bg: "#F5F1E6", fg: "#0B2E25", outline: "#F5F1E6" },
     d2: FIXED_D2,
     d3: FIXED_D3,
@@ -1346,31 +1422,26 @@ const PALETTE_OPTIONS: Palette[] = [
   {
     id: "forest-slate",
     name: "Option B — Deep Forest / Cool Slate",
-    note: "Extends the green ramp at the top — 1° is the darkest, deepest green, signaling 'highest tier within the family.' 4°+ flips to a clearly neutral cool slate so distance reads as 'outside the trust ramp.'",
+    note: "Extends the green ramp at the top — 1° is the darkest deepest green. 4°+ flips to neutral cool slate so distance reads as 'outside the ramp.'",
     d1: { bg: "#0F4A36", fg: "#FFFFFF", outline: "#0F4A36" },
     d2: FIXED_D2,
     d3: FIXED_D3,
     d4: { bg: "#94A3B8", fg: "#0B2E25", outline: "#94A3B8" },
   },
-  {
-    id: "gold-stone",
-    name: "Option C — Gold / Stone",
-    note: "Premium gold for 1° (rare, awarded, top-of-network) — most visually distinct option. 4° goes to a warm stone gray that feels softer than current zinc.",
-    d1: { bg: "#C9A24E", fg: "#0B2E25", outline: "#C9A24E" },
-    d2: FIXED_D2,
-    d3: FIXED_D3,
-    d4: { bg: "#A8A29E", fg: "#0B2E25", outline: "#A8A29E" },
-  },
-  {
-    id: "black-silver",
-    name: "Option D — Near-Black / Silver",
-    note: "High-contrast Trustead deep forest for 1° — the darkest, heaviest pill of the four, reads as 'definitive.' 4° lifts to a near-ghostly cool silver so distance is visually faded rather than heavy.",
-    d1: { bg: "#0B2E25", fg: "#F5F1E6", outline: "#0B2E25" },
-    d2: FIXED_D2,
-    d3: FIXED_D3,
-    d4: { bg: "#B8C0BC", fg: "#0B2E25", outline: "#B8C0BC" },
-  },
 ];
+
+// Pick a readable text color for a given background. Good-enough
+// luminance check — keeps the picker UX simple (one color input per
+// segment instead of two).
+function pickFg(hex: string): string {
+  const m = hex.replace("#", "");
+  if (m.length !== 6) return "#FFFFFF";
+  const r = parseInt(m.slice(0, 2), 16);
+  const g = parseInt(m.slice(2, 4), 16);
+  const b = parseInt(m.slice(4, 6), 16);
+  const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luma > 150 ? "#0B2E25" : "#FFFFFF";
+}
 
 function SwatchPill({
   label,
@@ -1433,16 +1504,65 @@ function ComboSwatchPill({
   );
 }
 
-function PaletteRow({ palette }: { palette: Palette }) {
+function ColorSwatchInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <label
+      className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.08em]"
+      style={{ color: "rgba(245,241,230,0.62)" }}
+    >
+      <span className="w-7 shrink-0 text-right">{label}</span>
+      <span
+        className="relative inline-block h-6 w-6 shrink-0 overflow-hidden rounded-md"
+        style={{ border: "1px solid rgba(245,241,230,0.2)" }}
+      >
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 h-full w-full cursor-pointer border-0 bg-transparent p-0"
+          aria-label={`${label} color`}
+        />
+      </span>
+      <span style={{ color: "rgba(245,241,230,0.45)" }}>
+        {value.toUpperCase()}
+      </span>
+    </label>
+  );
+}
+
+function PaletteRow({ initial }: { initial: Palette }) {
+  // Each row owns its own color state so Loren can tinker with one
+  // option without affecting the others. Initial values come from
+  // INITIAL_PALETTES; resetting back is just a page reload.
+  const [d1, setD1] = useState<DegreeColor>(initial.d1);
+  const [d2, setD2] = useState<DegreeColor>(initial.d2);
+  const [d3, setD3] = useState<DegreeColor>(initial.d3);
+  const [d4, setD4] = useState<DegreeColor>(initial.d4);
+
+  const setBg = (
+    setter: (c: DegreeColor) => void
+  ): ((next: string) => void) =>
+    (next: string) =>
+      setter({ bg: next, fg: pickFg(next), outline: next });
+
   // 1° rendered with a hairline border so very-light backgrounds
   // (white, cream) still show clearly on the dark sandbox surface.
-  const lightBg = ["#FFFFFF", "#F5F1E6"].includes(palette.d1.bg.toUpperCase());
+  const lightBg = ["#FFFFFF", "#F5F1E6"].includes(d1.bg.toUpperCase());
+
   return (
     <div
       className="rounded-2xl p-5"
       style={{
         backgroundColor: "rgba(7,34,27,0.55)",
-        border: palette.active
+        border: initial.active
           ? "1px solid rgba(79,177,145,0.45)"
           : "1px solid rgba(245,241,230,0.12)",
       }}
@@ -1453,9 +1573,9 @@ function PaletteRow({ palette }: { palette: Palette }) {
             className="!text-base !font-semibold !leading-tight tracking-normal"
             style={{ color: "#F5F1E6" }}
           >
-            {palette.name}
+            {initial.name}
           </h4>
-          {palette.active && (
+          {initial.active && (
             <span
               className="inline-flex items-center rounded-full px-2 py-[1px] text-[10px] font-mono uppercase tracking-wider"
               style={{
@@ -1467,24 +1587,45 @@ function PaletteRow({ palette }: { palette: Palette }) {
             </span>
           )}
         </div>
-        <div
-          className="font-mono text-[10px] uppercase tracking-[0.12em]"
-          style={{ color: "rgba(245,241,230,0.45)" }}
-        >
-          1° {palette.d1.bg} · 4°+ {palette.d4.bg}
-        </div>
       </div>
       <p
         className="mt-1 max-w-3xl text-xs leading-relaxed"
         style={{ color: "rgba(245,241,230,0.62)" }}
       >
-        {palette.note}
+        {initial.note}
       </p>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <SwatchPill label="1°" color={palette.d1} hairline={lightBg} />
-        <ComboSwatchPill label="2°" score="6.4" color={palette.d2} />
-        <ComboSwatchPill label="3°" score="3.2" color={palette.d3} />
-        <SwatchPill label="4°+" color={palette.d4} />
+      <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:gap-6">
+        {/* Pills preview — re-renders on color changes */}
+        <div className="flex flex-wrap items-center gap-3">
+          <SwatchPill label="1°" color={d1} hairline={lightBg} />
+          <ComboSwatchPill label="2°" score="6.4" color={d2} />
+          <ComboSwatchPill label="3°" score="3.2" color={d3} />
+          <SwatchPill label="4°+" color={d4} />
+        </div>
+
+        {/* Per-degree color pickers */}
+        <div className="grid gap-1.5 sm:min-w-[210px]">
+          <ColorSwatchInput
+            label="1°"
+            value={d1.bg}
+            onChange={setBg(setD1)}
+          />
+          <ColorSwatchInput
+            label="2°"
+            value={d2.bg}
+            onChange={setBg(setD2)}
+          />
+          <ColorSwatchInput
+            label="3°"
+            value={d3.bg}
+            onChange={setBg(setD3)}
+          />
+          <ColorSwatchInput
+            label="4°+"
+            value={d4.bg}
+            onChange={setBg(setD4)}
+          />
+        </div>
       </div>
     </div>
   );
@@ -1493,8 +1634,8 @@ function PaletteRow({ palette }: { palette: Palette }) {
 function PaletteOptions() {
   return (
     <div className="grid gap-3">
-      {PALETTE_OPTIONS.map((p) => (
-        <PaletteRow key={p.id} palette={p} />
+      {INITIAL_PALETTES.map((p) => (
+        <PaletteRow key={p.id} initial={p} />
       ))}
     </div>
   );
