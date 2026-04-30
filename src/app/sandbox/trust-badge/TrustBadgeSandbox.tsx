@@ -2,513 +2,592 @@
 
 // Trust badge sandbox — design exploration only.
 //
-// Edit `SAMPLE_PROFILES` below to retune scores and see all 3 variants
-// react in lock-step. Edit `VARIANT_COPY` to tweak the row labels.
-// Tooltips open on hover (desktop) and on click/tap (everywhere) so
-// touch users can explore without hover.
+// Shows the trust badge at THREE responsive sizes (nano, micro, medium),
+// each rendered in the surface where it actually appears in the app:
+//
+//   nano   → inbox thread row (next to avatar)
+//   micro  → listing card image overlay
+//   medium → host card on a full listings page / profile row
+//
+// Edit `SAMPLES` below to retune values and see all three contexts
+// react together.
 
-import { useState, useId } from "react";
+import { Star } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // ── Sample data ───────────────────────────────────────────────────
-// 6 edge-case profiles. `composite` is null when we don't have one
-// (degree-only, cold-start). `degreeLabel` is what variant A shows in
-// the halo; the numeric `degree` field is the composite-input score.
+// Per FT-1 spec the four metrics are independent — no composite. Each
+// can be null when the user has no data in that pillar yet.
+//
+//   degree     1 | 2 | 3 | 4 | null         (4 = "4°+", null = no path)
+//   connection 0–10 viewer-relative         (only present 1°–3°)
+//   vouch      0–10 absolute                (always available unless cold-start)
+//   rating     0–5 + count                  (raw avg, "—" when count=0)
 
-type VouchChain = {
-  via: string;
-  hops: number;
-  type: "stayed" | "lived" | "worked" | "knew";
-  yearsKnown: number;
-};
+type DegreeBucket = 1 | 2 | 3 | 4 | null;
 
-type Profile = {
+type Sample = {
   id: string;
   name: string;
+  initials: string;
   archetype: string;
-  // Sub-metrics that feed the composite (0–100)
-  degree: number | null;
+  degree: DegreeBucket;
   connection: number | null;
   vouch: number | null;
-  rating: number | null; // 0–5
-  // Display-only fields
-  degreeLabel: string; // "1°" / "2°" / "5° via 3 chains" / "—"
-  composite: number | null; // null for degree-only / cold-start
-  vouchChains: VouchChain[];
-  // Cold-start sentinel (changes copy in tooltips + enumeration)
-  isColdStart?: boolean;
+  rating: number | null;
+  reviewCount: number;
+  // Inbox row content
+  preview: string;
+  time: string;
+  // Listing tile content (only used in the micro grid)
+  listing: {
+    title: string;
+    location: string;
+    price: number;
+    image: string; // tailwind gradient class for the placeholder image
+  };
 };
 
-const SAMPLE_PROFILES: Profile[] = [
+const SAMPLES: Sample[] = [
   {
-    id: "degree-only",
-    name: "Theo R.",
-    archetype: "degree-only (4°+)",
-    degree: null,
-    connection: null,
-    vouch: null,
-    rating: null,
-    degreeLabel: "5°",
-    composite: null,
-    vouchChains: [
-      { via: "Mira → Sasha → Ruth", hops: 5, type: "knew", yearsKnown: 3 },
-      { via: "Jonah → Lin → Pete", hops: 5, type: "stayed", yearsKnown: 2 },
-      { via: "Ben → Dev → Cole", hops: 5, type: "worked", yearsKnown: 1 },
-    ],
-  },
-  {
-    id: "composite-1deg",
+    id: "maya",
     name: "Maya L.",
-    archetype: "composite · 1° · top tier",
-    degree: 100,
-    connection: 95,
-    vouch: 98,
+    initials: "ML",
+    archetype: "1° · top tier",
+    degree: 1,
+    connection: 9.4,
+    vouch: 8.2,
     rating: 4.9,
-    degreeLabel: "1°",
-    composite: 97,
-    vouchChains: [
-      { via: "Direct (Loren)", hops: 1, type: "lived", yearsKnown: 9 },
-      { via: "Direct (Sam)", hops: 1, type: "stayed", yearsKnown: 5 },
-      { via: "Direct (Eli)", hops: 1, type: "worked", yearsKnown: 7 },
-    ],
+    reviewCount: 23,
+    preview: "Yes! The lake house is yours for the long weekend.",
+    time: "12m",
+    listing: {
+      title: "Cedar A-frame on Lake Superior",
+      location: "Bayfield, WI",
+      price: 184,
+      image: "from-emerald-700 via-emerald-600 to-emerald-900",
+    },
   },
   {
-    id: "composite-2deg",
+    id: "aki",
     name: "Aki N.",
-    archetype: "composite · 2° · solid",
-    degree: 92,
-    connection: 75,
-    vouch: 88,
+    initials: "AN",
+    archetype: "2° · solid",
+    degree: 2,
+    connection: 6.4,
+    vouch: 5.7,
     rating: 4.7,
-    degreeLabel: "2°",
-    composite: 84,
-    vouchChains: [
-      { via: "Maya → Aki", hops: 2, type: "stayed", yearsKnown: 4 },
-      { via: "Sam → Aki", hops: 2, type: "knew", yearsKnown: 3 },
-    ],
+    reviewCount: 12,
+    preview: "Happy to host — I'll send the door code on arrival day.",
+    time: "1h",
+    listing: {
+      title: "Sunlit loft above the bakery",
+      location: "Brooklyn, NY",
+      price: 142,
+      image: "from-amber-700 via-orange-700 to-red-900",
+    },
   },
   {
-    id: "composite-3deg",
+    id: "robin",
     name: "Robin K.",
-    archetype: "composite · 3° · weaker",
-    degree: 68,
-    connection: 55,
-    vouch: 60,
-    rating: 4.2,
-    degreeLabel: "3°",
-    composite: 61,
-    vouchChains: [
-      { via: "Maya → Aki → Robin", hops: 3, type: "knew", yearsKnown: 2 },
-      { via: "Eli → Pat → Robin", hops: 3, type: "worked", yearsKnown: 1 },
-    ],
+    initials: "RK",
+    archetype: "3° · weaker",
+    degree: 3,
+    connection: 3.2,
+    vouch: 4.1,
+    rating: 4.4,
+    reviewCount: 8,
+    preview: "Cool, dates work. Want to set up an intro call first?",
+    time: "Yesterday",
+    listing: {
+      title: "Garden cottage near the river",
+      location: "Asheville, NC",
+      price: 96,
+      image: "from-stone-600 via-stone-700 to-stone-900",
+    },
   },
   {
-    id: "cold-start",
+    id: "theo",
+    name: "Theo R.",
+    initials: "TR",
+    archetype: "4°+ · distant",
+    degree: 4,
+    connection: null,
+    vouch: 6.0,
+    rating: 4.6,
+    reviewCount: 5,
+    preview: "Hi! Saw your trip post — happy to share the keys.",
+    time: "2d",
+    listing: {
+      title: "Studio with rooftop access",
+      location: "Lisbon, PT",
+      price: 78,
+      image: "from-sky-800 via-indigo-900 to-slate-900",
+    },
+  },
+  {
+    id: "jules",
     name: "Jules P.",
-    archetype: "cold-start (brand new)",
+    initials: "JP",
+    archetype: "new member",
     degree: null,
     connection: null,
     vouch: null,
     rating: null,
-    degreeLabel: "—",
-    composite: null,
-    vouchChains: [],
-    isColdStart: true,
+    reviewCount: 0,
+    preview: "Hi there — would love to host you in May!",
+    time: "3d",
+    listing: {
+      title: "Hand-built tiny house",
+      location: "Hood River, OR",
+      price: 110,
+      image: "from-teal-700 via-cyan-800 to-emerald-900",
+    },
   },
   {
-    id: "penalized",
+    id: "drew",
     name: "Drew M.",
-    archetype: "penalized (low rating)",
-    degree: 80,
-    connection: 70,
-    vouch: 65,
+    initials: "DM",
+    archetype: "low rating",
+    degree: 2,
+    connection: 5.0,
+    vouch: 4.8,
     rating: 2.8,
-    degreeLabel: "2°",
-    composite: 56,
-    vouchChains: [
-      { via: "Maya → Drew", hops: 2, type: "stayed", yearsKnown: 4 },
-      { via: "Sam → Drew", hops: 2, type: "worked", yearsKnown: 6 },
-    ],
+    reviewCount: 15,
+    preview: "Confirmed for the 14th. Bring slippers, please.",
+    time: "5d",
+    listing: {
+      title: "Old farmhouse, three acres",
+      location: "Hudson Valley, NY",
+      price: 132,
+      image: "from-rose-800 via-amber-900 to-stone-900",
+    },
   },
 ];
 
-// ── Shared helpers ────────────────────────────────────────────────
+// ── Tokens ────────────────────────────────────────────────────────
+//
+// Inline-styled colors throughout so globals.css's !important degree-
+// pill rewrites don't blank out arbitrary-value Tailwind classes
+// (`.bg-[#bf8a0d]` is one of several mapped to the canonical tokens).
+// The sandbox should preview with the colors I pick, not the ones
+// the global stylesheet rewrites them to.
+const DEGREE_PILL: Record<
+  1 | 2 | 3 | 4,
+  { bg: string; fg: string; label: string }
+> = {
+  1: { bg: "#BFE2D4", fg: "#0B2E25", label: "1°" }, // mint, dark text
+  2: { bg: "#2A8A6B", fg: "#FFFFFF", label: "2°" }, // emerald
+  3: { bg: "#BF8A0D", fg: "#FFFFFF", label: "3°" }, // mustard
+  4: { bg: "#525252", fg: "#FFFFFF", label: "4°+" }, // zinc
+};
 
-function compositeTone(score: number | null): {
-  ring: string;
-  text: string;
-  band: string;
-} {
-  if (score === null)
-    return {
-      ring: "rgba(245,241,230,0.25)",
-      text: "rgba(245,241,230,0.55)",
-      band: "neutral",
-    };
-  if (score >= 85) return { ring: "#4FB191", text: "#BFE2D4", band: "solid" };
-  if (score >= 70) return { ring: "#2A8A6B", text: "#BFE2D4", band: "building" };
-  if (score >= 55) return { ring: "#FBBF24", text: "#FBBF24", band: "watch" };
-  return { ring: "#FB923C", text: "#FB923C", band: "low" };
-}
+const METRIC_TONE: Record<
+  "connection" | "vouch" | "rating-good" | "rating-bad",
+  { bg: string; fg: string; border: string }
+> = {
+  connection: { bg: "#EFF6FF", fg: "#1D4ED8", border: "#BFDBFE" },
+  vouch: { bg: "#FAF5FF", fg: "#6B21A8", border: "#E9D5FF" },
+  "rating-good": { bg: "#FFFBEB", fg: "#B45309", border: "#FDE68A" },
+  "rating-bad": { bg: "#FEF2F2", fg: "#B91C1C", border: "#FECACA" },
+};
 
-function degreeTone(label: string): string {
-  if (label === "1°") return "var(--tt-degree-1)";
-  if (label === "2°") return "var(--tt-degree-2)";
-  if (label === "3°") return "var(--tt-degree-3)";
-  if (label === "—") return "var(--tt-degree-none)";
-  return "var(--tt-degree-4)"; // 4°, 5°, etc.
-}
+// Per trust-icons.html top-pick: ● circle for connection (blue), ◆
+// diamond for vouch (purple), ★ star for rating (amber-gold, locked).
+const ICON_CIRCLE = (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="h-full w-full">
+    <circle cx="12" cy="12" r="10" />
+  </svg>
+);
+const ICON_DIAMOND = (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="h-full w-full">
+    <path d="M12 2L22 12L12 22L2 12Z" />
+  </svg>
+);
 
-function bandLabel(score: number | null): string {
-  if (score === null) return "—";
-  if (score >= 85) return "Solid";
-  if (score >= 70) return "Building";
-  if (score >= 55) return "Watch";
-  return "Low";
-}
+// ── Badge primitive ───────────────────────────────────────────────
+// One component, three sizes. Builds off the existing TrustTag's
+// degree-pill anchor and adds the FT-1 four-metric structure
+// (Connection circle, Vouch diamond, Rating star).
+//
+//   nano   → degree pill only, no metrics, no rating
+//   micro  → degree + the highest-signal metric pill + rating
+//   medium → degree + connection + vouch + rating, full breakdown
 
-// ── Tooltip / popover (shared across variants) ────────────────────
+type BadgeSize = "nano" | "micro" | "medium";
 
-function MetricsPopover({ profile }: { profile: Profile }) {
-  if (profile.isColdStart) {
-    return (
-      <div className="absolute z-30 left-1/2 top-full mt-3 -translate-x-1/2 w-[220px] rounded-xl border border-[rgba(245,241,230,0.16)] bg-[#0B2E25] p-3 text-xs shadow-2xl">
-        <div className="font-semibold text-[#F5F1E6]">No data yet</div>
-        <div className="mt-1 text-[rgba(245,241,230,0.62)] leading-snug">
-          New to Trustead. Invite a friend to vouch and start a chain.
-        </div>
-      </div>
-    );
-  }
-  if (profile.composite === null) {
-    return (
-      <div className="absolute z-30 left-1/2 top-full mt-3 -translate-x-1/2 w-[240px] rounded-xl border border-[rgba(245,241,230,0.16)] bg-[#0B2E25] p-3 text-xs shadow-2xl">
-        <div className="font-semibold text-[#F5F1E6]">
-          Degree-only ({profile.degreeLabel})
-        </div>
-        <div className="mt-1 text-[rgba(245,241,230,0.62)] leading-snug">
-          Too far in the network for a composite score. Reachable through{" "}
-          {profile.vouchChains.length} chain
-          {profile.vouchChains.length === 1 ? "" : "s"}.
-        </div>
-      </div>
-    );
-  }
+function NewMemberPill({ size }: { size: BadgeSize }) {
+  const cls =
+    size === "nano"
+      ? "px-1.5 py-[1px] text-[10px]"
+      : size === "micro"
+        ? "px-2 py-[1px] text-[11px]"
+        : "px-2.5 py-0.5 text-xs";
   return (
-    <div className="absolute z-30 left-1/2 top-full mt-3 -translate-x-1/2 w-[240px] rounded-xl border border-[rgba(245,241,230,0.16)] bg-[#0B2E25] p-3 text-xs shadow-2xl">
-      <div className="flex items-baseline justify-between">
-        <div className="font-semibold text-[#F5F1E6]">{profile.name}</div>
-        <div className="font-mono text-[11px] text-[rgba(245,241,230,0.62)]">
-          {profile.degreeLabel} · {bandLabel(profile.composite)}
-        </div>
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-y-1.5 gap-x-3">
-        <MetricRow label="Degree" value={profile.degree} />
-        <MetricRow label="Connection" value={profile.connection} />
-        <MetricRow label="Vouch" value={profile.vouch} />
-        <MetricRow
-          label="Rating"
-          value={profile.rating}
-          format={(v) => v.toFixed(1)}
-          warn={(v) => v < 3.5}
-        />
-      </div>
-    </div>
-  );
-}
-
-function MetricRow({
-  label,
-  value,
-  format,
-  warn,
-}: {
-  label: string;
-  value: number | null;
-  format?: (v: number) => string;
-  warn?: (v: number) => boolean;
-}) {
-  const display =
-    value === null ? "—" : format ? format(value) : Math.round(value).toString();
-  const isWarn = value !== null && warn?.(value);
-  return (
-    <div className="flex items-center justify-between">
-      <div className="text-[rgba(245,241,230,0.62)]">{label}</div>
-      <div
-        className="font-mono"
-        style={{ color: isWarn ? "#FB923C" : "#F5F1E6" }}
-      >
-        {display}
-      </div>
-    </div>
-  );
-}
-
-// ── Hover/click wrapper for tooltips ──────────────────────────────
-
-function BadgeWithPopover({
-  profile,
-  children,
-}: {
-  profile: Profile;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const id = useId();
-  return (
-    <div
-      className="relative inline-flex flex-col items-center"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+    <span
+      className={cn("inline-flex items-center rounded-full font-semibold", cls)}
+      style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
     >
-      <button
-        type="button"
-        aria-describedby={open ? id : undefined}
-        className="rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[#4FB191]"
-        onClick={() => setOpen((v) => !v)}
-      >
-        {children}
-      </button>
-      {open && (
-        <div id={id} role="tooltip">
-          <MetricsPopover profile={profile} />
-        </div>
+      New member
+    </span>
+  );
+}
+
+function MetricPill({
+  icon,
+  value,
+  tone,
+  size,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  tone: "connection" | "vouch" | "rating-good" | "rating-bad";
+  size: "micro" | "medium";
+}) {
+  const palette = METRIC_TONE[tone];
+  const sz =
+    size === "micro"
+      ? "gap-0.5 px-1.5 py-[1px] text-[11px]"
+      : "gap-1 px-2 py-0.5 text-xs";
+  const iconSize = size === "micro" ? "h-2.5 w-2.5" : "h-3 w-3";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full font-semibold tabular-nums",
+        sz
       )}
-    </div>
+      style={{
+        backgroundColor: palette.bg,
+        color: palette.fg,
+        border: `1px solid ${palette.border}`,
+      }}
+    >
+      <span className={iconSize}>{icon}</span>
+      <span>{value}</span>
+    </span>
   );
 }
 
-// ── Variant A: composite primary, degree halo ────────────────────
+function TrustBadgeSandboxPill({
+  size,
+  sample,
+  // When the badge sits on top of an image (listing card overlay), use
+  // a white chip background. Inside an inbox row or profile row it
+  // sits on the parent surface, so leave transparent.
+  onImage = false,
+}: {
+  size: BadgeSize;
+  sample: Sample;
+  onImage?: boolean;
+}) {
+  // Cold-start short-circuit. No data anywhere → "New member".
+  const isColdStart =
+    sample.degree === null &&
+    sample.connection === null &&
+    sample.vouch === null &&
+    sample.rating === null;
+  if (isColdStart) return <NewMemberPill size={size} />;
 
-function VariantA({ profile }: { profile: Profile }) {
-  const tone = compositeTone(profile.composite);
-  const ringColor = degreeTone(profile.degreeLabel);
+  // Degree pill — the visual anchor every size shares.
+  const degreeStyle = sample.degree ? DEGREE_PILL[sample.degree] : null;
+  const degreeSizeCls =
+    size === "nano"
+      ? "px-1.5 py-[1px] text-[10px] leading-[1.1]"
+      : size === "micro"
+        ? "px-2 py-[1px] text-[11px]"
+        : "px-2.5 py-0.5 text-xs";
+  const degreeChip = degreeStyle ? (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full font-semibold",
+        degreeSizeCls
+      )}
+      style={{ backgroundColor: degreeStyle.bg, color: degreeStyle.fg }}
+    >
+      {degreeStyle.label}
+    </span>
+  ) : (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full font-semibold",
+        size === "nano" ? "px-1.5 py-[1px] text-[10px]" : "px-2 py-[1px] text-[11px]"
+      )}
+      style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
+    >
+      No path
+    </span>
+  );
+
+  // Nano = degree-only. The whole point of this size is "tiny visual
+  // anchor next to a name in a list" — don't add metric pills.
+  if (size === "nano") {
+    return <span className="inline-flex items-center">{degreeChip}</span>;
+  }
+
+  // Decide which metrics to show.
+  // Per FT-1 cold-start rules: hide pillars the user has no data in.
+  const showConnection =
+    size === "medium" && sample.connection !== null && sample.degree !== null && sample.degree < 4;
+  const showVouch = sample.vouch !== null;
+  const showRating = sample.rating !== null && sample.reviewCount > 0;
+  const ratingWarn = sample.rating !== null && sample.rating < 3.5;
+
+  // Micro picks ONE metric pill — Vouch is the absolute signal that
+  // travels best to a card-tile context. Rating goes alongside.
+  const microMetric =
+    size === "micro" && showVouch ? (
+      <MetricPill
+        icon={ICON_DIAMOND}
+        value={sample.vouch!.toFixed(1)}
+        tone="vouch"
+        size="micro"
+      />
+    ) : null;
+  const ratingTone = ratingWarn ? "rating-bad" : "rating-good";
+
   return (
-    <BadgeWithPopover profile={profile}>
-      <div className="relative h-[88px] w-[88px]">
-        {/* Outer halo = degree band */}
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{
-            background: `conic-gradient(${ringColor} 0deg 360deg)`,
-            opacity: 0.85,
-          }}
-          aria-hidden
-        />
-        {/* Inner well */}
-        <div className="absolute inset-[6px] rounded-full bg-[#07221B] flex flex-col items-center justify-center">
-          <div
-            className="font-mono text-2xl font-semibold leading-none"
-            style={{ color: tone.text }}
-          >
-            {profile.composite ?? "—"}
-          </div>
-          <div className="mt-1 text-[10px] uppercase tracking-wider text-[rgba(245,241,230,0.62)]">
-            {profile.degreeLabel}
-          </div>
-        </div>
-      </div>
-      <div className="mt-2 text-xs text-[rgba(245,241,230,0.78)] truncate max-w-[120px]">
-        {profile.name}
-      </div>
-    </BadgeWithPopover>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full",
+        onImage && "px-1.5 py-0.5 shadow-sm"
+      )}
+      style={onImage ? { backgroundColor: "rgba(255,255,255,0.95)" } : undefined}
+    >
+      {degreeChip}
+      {size === "micro" && (
+        <>
+          {microMetric}
+          {showRating && (
+            <MetricPill
+              icon={
+                <Star className="h-full w-full" fill="currentColor" />
+              }
+              value={sample.rating!.toFixed(1)}
+              tone={ratingTone}
+              size="micro"
+            />
+          )}
+        </>
+      )}
+      {size === "medium" && (
+        <>
+          {showConnection && (
+            <MetricPill
+              icon={ICON_CIRCLE}
+              value={sample.connection!.toFixed(1)}
+              tone="connection"
+              size="medium"
+            />
+          )}
+          {showVouch && (
+            <MetricPill
+              icon={ICON_DIAMOND}
+              value={sample.vouch!.toFixed(1)}
+              tone="vouch"
+              size="medium"
+            />
+          )}
+          {showRating && (
+            <MetricPill
+              icon={
+                <Star className="h-full w-full" fill="currentColor" />
+              }
+              value={`${sample.rating!.toFixed(1)} (${sample.reviewCount})`}
+              tone={ratingTone}
+              size="medium"
+            />
+          )}
+        </>
+      )}
+    </span>
   );
 }
 
-// ── Variant B: four-quadrant tile ────────────────────────────────
+// ── Section header ────────────────────────────────────────────────
 
-function VariantB({ profile }: { profile: Profile }) {
-  const items: Array<{
-    label: string;
-    value: number | null;
-    format?: (v: number) => string;
-  }> = [
-    { label: "Degree", value: profile.degree },
-    { label: "Connection", value: profile.connection },
-    { label: "Vouch", value: profile.vouch },
-    { label: "Rating", value: profile.rating, format: (v) => v.toFixed(1) },
-  ];
-  return (
-    <BadgeWithPopover profile={profile}>
-      <div className="grid grid-cols-2 grid-rows-2 gap-px h-[104px] w-[132px] rounded-xl overflow-hidden bg-[rgba(245,241,230,0.14)]">
-        {items.map((it) => {
-          const tone =
-            it.label === "Rating" && it.value !== null && it.value < 3.5
-              ? "#FB923C"
-              : it.value === null
-                ? "rgba(245,241,230,0.45)"
-                : "#F5F1E6";
-          const display =
-            it.value === null
-              ? "—"
-              : it.format
-                ? it.format(it.value)
-                : Math.round(it.value).toString();
-          return (
-            <div
-              key={it.label}
-              className="bg-[#0B2E25] flex flex-col items-center justify-center px-1"
-            >
-              <div
-                className="font-mono text-lg font-semibold leading-none"
-                style={{ color: tone }}
-              >
-                {display}
-              </div>
-              <div className="mt-1 text-[9px] uppercase tracking-wider text-[rgba(245,241,230,0.55)]">
-                {it.label}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-2 text-xs text-[rgba(245,241,230,0.78)] truncate max-w-[120px]">
-        {profile.name}
-      </div>
-    </BadgeWithPopover>
-  );
-}
-
-// ── Variant C: minimalist single number ──────────────────────────
-
-function VariantC({ profile }: { profile: Profile }) {
-  const tone = compositeTone(profile.composite);
-  const display = profile.composite ?? "—";
-  return (
-    <BadgeWithPopover profile={profile}>
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[rgba(245,241,230,0.18)] bg-[rgba(245,241,230,0.04)]">
-        <span
-          className="h-1.5 w-1.5 rounded-full"
-          style={{ background: tone.ring }}
-          aria-hidden
-        />
-        <span
-          className="font-mono text-base font-semibold leading-none"
-          style={{ color: tone.text }}
-        >
-          {display}
-        </span>
-        <span className="font-mono text-[11px] text-[rgba(245,241,230,0.55)]">
-          {profile.degreeLabel}
-        </span>
-      </div>
-      <div className="mt-2 text-xs text-[rgba(245,241,230,0.78)] truncate max-w-[120px]">
-        {profile.name}
-      </div>
-    </BadgeWithPopover>
-  );
-}
-
-// ── Variant row ──────────────────────────────────────────────────
-
-const VARIANT_COPY = [
-  {
-    key: "A",
-    title: "A — Composite primary, degree halo",
-    note:
-      "One bold number with a colored ring that encodes how close the connection is. Ring tone steps from 1° → 4°+.",
-    Component: VariantA,
-  },
-  {
-    key: "B",
-    title: "B — Four-quadrant tile",
-    note:
-      "All four sub-metrics visible at a glance. No composite — the reader does their own weighting. Rating goes amber when < 3.5.",
-    Component: VariantB,
-  },
-  {
-    key: "C",
-    title: "C — Minimalist pill",
-    note:
-      "One number, one dot, one degree label. Hover/tap to expand the breakdown. Highest density for list views.",
-    Component: VariantC,
-  },
-] as const;
-
-function VariantRow({
+function SectionHeader({
+  eyebrow,
   title,
   note,
-  Component,
 }: {
+  eyebrow: string;
   title: string;
   note: string;
-  Component: (props: { profile: Profile }) => React.ReactElement;
 }) {
   return (
-    <section className="rounded-2xl border border-[rgba(245,241,230,0.14)] bg-[rgba(7,34,27,0.55)] p-5 sm:p-6">
-      <header className="mb-4">
-        <h3 className="!text-base !font-semibold text-[#F5F1E6] tracking-normal">
-          {title}
-        </h3>
-        <p className="mt-1 text-xs text-[rgba(245,241,230,0.62)] leading-snug max-w-3xl">
-          {note}
-        </p>
-      </header>
-      <div className="grid gap-x-4 gap-y-6 grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 sm:[&>*]:justify-self-center">
-        {SAMPLE_PROFILES.map((p) => (
-          <div
-            key={p.id}
-            className="flex flex-col items-center gap-1.5 min-w-0"
-          >
-            <Component profile={p} />
-            <div className="text-[10px] uppercase tracking-wider text-[rgba(245,241,230,0.45)] text-center">
-              {p.archetype}
-            </div>
-          </div>
-        ))}
+    <header className="mb-5">
+      <div className="text-[11px] font-mono uppercase tracking-[0.18em] text-[rgba(245,241,230,0.55)]">
+        {eyebrow}
       </div>
-    </section>
+      <h3 className="mt-1 !text-lg !font-semibold !leading-snug text-[#F5F1E6] tracking-normal">
+        {title}
+      </h3>
+      <p className="mt-1.5 max-w-3xl text-xs text-[rgba(245,241,230,0.62)] leading-relaxed">
+        {note}
+      </p>
+    </header>
   );
 }
 
-// ── Trust-detail enumeration view ────────────────────────────────
+// ── Surface 1: inbox thread list (nano) ──────────────────────────
 
-function VouchChainRow({ chain }: { chain: VouchChain }) {
+function Avatar({ initials }: { initials: string }) {
   return (
-    <li className="grid grid-cols-[1fr_auto] items-center gap-x-3 py-2 border-b border-[rgba(245,241,230,0.08)] last:border-b-0">
-      <div className="min-w-0">
-        <div className="text-sm text-[#F5F1E6] truncate">{chain.via}</div>
-        <div className="text-[11px] text-[rgba(245,241,230,0.55)] mt-0.5">
-          {chain.type} · {chain.yearsKnown} yr
-          {chain.yearsKnown === 1 ? "" : "s"} known
+    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[rgba(245,241,230,0.12)] text-xs font-semibold text-[#F5F1E6]">
+      {initials}
+    </div>
+  );
+}
+
+function InboxRow({ sample }: { sample: Sample }) {
+  return (
+    <li className="flex items-start gap-3 px-4 py-3 border-b border-[rgba(245,241,230,0.08)] last:border-b-0 hover:bg-[rgba(245,241,230,0.04)] transition-colors">
+      <Avatar initials={sample.initials} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-semibold text-[#F5F1E6]">
+              {sample.name}
+            </span>
+            <TrustBadgeSandboxPill size="nano" sample={sample} />
+          </div>
+          <span className="shrink-0 text-[11px] text-[rgba(245,241,230,0.55)]">
+            {sample.time}
+          </span>
         </div>
-      </div>
-      <div className="font-mono text-[11px] text-[rgba(245,241,230,0.62)] whitespace-nowrap">
-        {chain.hops} hop{chain.hops === 1 ? "" : "s"}
+        <div className="mt-0.5 truncate text-xs text-[rgba(245,241,230,0.62)]">
+          {sample.preview}
+        </div>
       </div>
     </li>
   );
 }
 
-function EnumerationCard({ profile }: { profile: Profile }) {
+function InboxMockup() {
   return (
-    <div className="rounded-xl border border-[rgba(245,241,230,0.14)] bg-[rgba(7,34,27,0.5)] p-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-[#F5F1E6] truncate">
-            {profile.name}
-          </div>
-          <div className="text-[11px] text-[rgba(245,241,230,0.55)] mt-0.5">
-            {profile.archetype}
-          </div>
-        </div>
-        <div className="font-mono text-[11px] text-[rgba(245,241,230,0.62)] whitespace-nowrap">
-          {profile.degreeLabel}
-          {profile.composite !== null ? ` · ${profile.composite}` : ""}
+    <div className="rounded-2xl border border-[rgba(245,241,230,0.14)] bg-[rgba(7,34,27,0.55)] overflow-hidden max-w-[480px]">
+      <div className="px-4 py-3 border-b border-[rgba(245,241,230,0.1)] flex items-center justify-between">
+        <div className="text-sm font-semibold text-[#F5F1E6]">Inbox</div>
+        <div className="text-[11px] text-[rgba(245,241,230,0.55)]">
+          {SAMPLES.length} threads
         </div>
       </div>
-      <div className="mt-3">
-        {profile.isColdStart || profile.vouchChains.length === 0 ? (
-          <div className="text-xs text-[rgba(245,241,230,0.62)] leading-snug py-2">
-            No vouches yet — invite a friend to vouch for you.
-          </div>
-        ) : (
-          <ul className="m-0 p-0 list-none">
-            {profile.vouchChains.map((c, i) => (
-              <VouchChainRow key={i} chain={c} />
-            ))}
-          </ul>
+      <ul className="m-0 p-0 list-none">
+        {SAMPLES.map((s) => (
+          <InboxRow key={s.id} sample={s} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ── Surface 2: listing card grid (micro) ─────────────────────────
+
+function ListingTile({ sample }: { sample: Sample }) {
+  const { listing } = sample;
+  return (
+    <div className="group block">
+      <div
+        className={cn(
+          "relative rounded-xl overflow-hidden bg-gradient-to-br",
+          listing.image
         )}
+        style={{ aspectRatio: "4 / 3" }}
+      >
+        {/* Heart icon — non-functional, just visual parity */}
+        <div className="absolute top-3 right-3 z-10 text-white/85 drop-shadow">
+          <svg
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="h-6 w-6"
+            aria-hidden
+          >
+            <path d="M12 21s-7.5-4.6-7.5-10.4A4.6 4.6 0 0 1 12 6.5a4.6 4.6 0 0 1 7.5 4.1C19.5 16.4 12 21 12 21Z" opacity="0.4" />
+          </svg>
+        </div>
+
+        {/* Trust pill — micro size, on white chip overlay */}
+        <div className="absolute bottom-3 left-3 z-10">
+          <TrustBadgeSandboxPill size="micro" sample={sample} onImage />
+        </div>
       </div>
+
+      <div className="mt-3 space-y-0.5">
+        <div className="flex items-start justify-between gap-2">
+          <h4 className="!text-sm !font-semibold !leading-tight text-[#F5F1E6] tracking-normal line-clamp-1">
+            {listing.location}
+          </h4>
+          {sample.rating !== null && sample.reviewCount > 0 && (
+            <div className="flex shrink-0 items-center gap-1 text-xs">
+              <Star
+                className="h-3 w-3 text-[#F5F1E6]"
+                fill="currentColor"
+              />
+              <span className="font-medium text-[#F5F1E6]">
+                {sample.rating.toFixed(1)}
+              </span>
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-[rgba(245,241,230,0.62)] line-clamp-1">
+          {listing.title}
+        </p>
+        <p className="pt-1 text-sm">
+          <span className="font-semibold text-[#F5F1E6]">${listing.price}</span>
+          <span className="text-[rgba(245,241,230,0.62)]"> night</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ListingGrid() {
+  // Pick four samples that together show the range — top, mid,
+  // distant, and the cold-start case.
+  const ids = ["maya", "aki", "theo", "jules"];
+  const tiles = ids
+    .map((id) => SAMPLES.find((s) => s.id === id))
+    .filter((s): s is Sample => Boolean(s));
+  return (
+    <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      {tiles.map((s) => (
+        <ListingTile key={s.id} sample={s} />
+      ))}
+    </div>
+  );
+}
+
+// ── Surface 3: profile / host card row (medium) ──────────────────
+
+function HostRow({ sample }: { sample: Sample }) {
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-[rgba(245,241,230,0.12)] bg-[rgba(7,34,27,0.5)] p-4">
+      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[rgba(245,241,230,0.12)] text-base font-semibold text-[#F5F1E6]">
+        {sample.initials}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <h4 className="!text-base !font-semibold !leading-tight text-[#F5F1E6] tracking-normal">
+            Hosted by {sample.name}
+          </h4>
+        </div>
+        <div className="mt-2">
+          <TrustBadgeSandboxPill size="medium" sample={sample} />
+        </div>
+        <div className="mt-1 text-[11px] text-[rgba(245,241,230,0.55)]">
+          {sample.archetype}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HostRowGrid() {
+  return (
+    <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+      {SAMPLES.map((s) => (
+        <HostRow key={s.id} sample={s} />
+      ))}
     </div>
   );
 }
@@ -519,54 +598,55 @@ export function TrustBadgeSandbox() {
   return (
     <div className="min-h-screen bg-[var(--tt-body-bg)] text-[#F5F1E6] py-10 sm:py-14">
       <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8">
-        <header className="mb-8 sm:mb-10">
-          <div className="text-[11px] uppercase tracking-[0.2em] text-[rgba(245,241,230,0.55)]">
+        <header className="mb-10">
+          <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-[rgba(245,241,230,0.55)]">
             Trustead · sandbox
           </div>
-          <h1 className="mt-2 font-serif text-3xl sm:text-4xl text-[#F5F1E6]">
-            Trust badge variants
+          <h1 className="mt-2 !text-4xl sm:!text-5xl !leading-[1.05] text-[#F5F1E6]">
+            Trust badge sizes
           </h1>
           <p className="mt-3 max-w-2xl text-sm text-[rgba(245,241,230,0.78)] leading-relaxed">
-            Three ways to render the same four signals — degree, connection,
-            vouch, rating. Hover or tap any badge to see the full breakdown.
-            Below the grid: the same six profiles as a full trust-detail
-            enumeration, so you can compare badge-as-summary against
-            full-disclosure side by side.
+            One badge, three sizes — each shown in the surface where it
+            actually appears in the app. Pulls from the same FT-1 four-metric
+            model (degree · connection · vouch · rating); detail collapses
+            as the badge shrinks. Macro lives on the profile page and is out
+            of scope for this round.
           </p>
         </header>
 
-        <div className="space-y-6">
-          {VARIANT_COPY.map((v) => (
-            <VariantRow
-              key={v.key}
-              title={v.title}
-              note={v.note}
-              Component={v.Component}
+        <div className="space-y-12">
+          <section>
+            <SectionHeader
+              eyebrow="Size 01 · Nano"
+              title="Inbox thread row"
+              note="Smallest size. Just the degree pill — a tiny visual anchor next to the name. No metrics, no rating star. Cold-start renders as a 'New member' chip."
             />
-          ))}
+            <InboxMockup />
+          </section>
+
+          <section>
+            <SectionHeader
+              eyebrow="Size 02 · Micro"
+              title="Listing card overlay"
+              note="Floats on the listing image. Degree pill + the absolute Vouch score (purple diamond) + raw rating. Connection score is omitted at this size to keep the chip narrow; the listing tile already implies the viewer has a path to it."
+            />
+            <ListingGrid />
+          </section>
+
+          <section>
+            <SectionHeader
+              eyebrow="Size 03 · Medium"
+              title="Host card on a full listings page"
+              note="Full four-metric display. Connection circle (blue, viewer-relative) + Vouch diamond (purple, absolute) + Rating star (amber, with review count in parens). 4°+ hides the connection pill per spec; cold-start collapses to a 'New member' chip."
+            />
+            <HostRowGrid />
+          </section>
         </div>
 
-        <section className="mt-12">
-          <header className="mb-4">
-            <h2 className="!text-2xl !leading-tight text-[#F5F1E6]">
-              Trust-detail enumeration
-            </h2>
-            <p className="mt-2 max-w-2xl text-xs text-[rgba(245,241,230,0.62)] leading-snug">
-              Every vouch chain rendered as its own row. This is the
-              full-disclosure view that lives behind the badge — same six
-              profiles, no summary score.
-            </p>
-          </header>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {SAMPLE_PROFILES.map((p) => (
-              <EnumerationCard key={p.id} profile={p} />
-            ))}
-          </div>
-        </section>
-
-        <footer className="mt-12 text-[11px] text-[rgba(245,241,230,0.45)]">
+        <footer className="mt-14 text-[11px] text-[rgba(245,241,230,0.45)]">
           Sandbox only · no DB · sample data lives in
-          <span className="font-mono ml-1">SAMPLE_PROFILES</span>
+          <span className="font-mono ml-1">SAMPLES</span> at the top of
+          <span className="font-mono ml-1">TrustBadgeSandbox.tsx</span>
         </footer>
       </div>
     </div>
