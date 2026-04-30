@@ -335,8 +335,8 @@ const METRIC_TONE: Record<
 };
 
 // Connection = ● circle (blue, viewer-relative).
-// Vouch = small shield (purple, absolute trust signal) — replaces the
-// earlier diamond now that connection is baked into the degree pill.
+// Vouch = small shield, color follows the degree color scale based on
+// the vouch score itself (≥5 → 1° tier, 4–5 → 2°, 3–4 → 3°, <3 → 4°+).
 // Rating = lucide Star (amber, locked from FT-1 spec).
 const ICON_CIRCLE = (
   <svg viewBox="0 0 24 24" fill="currentColor" className="h-full w-full">
@@ -346,6 +346,17 @@ const ICON_CIRCLE = (
 const ICON_SHIELD = (
   <Shield className="h-full w-full" fill="currentColor" strokeWidth={0} />
 );
+
+// Map a vouch score (0-10) to the same tier color as the degree pill.
+// For tier-1 we need to pick a different base color depending on the
+// surface — pure white shows on dark forest but disappears on a white
+// listing-card chip, so we swap to deep forest there.
+function vouchTierColor(score: number, onImage: boolean): string {
+  if (score >= 5) return onImage ? "#0B2E25" : "#FFFFFF"; // tier 1
+  if (score >= 4) return "#2A8A6B"; // tier 2 — emerald
+  if (score >= 3) return "#BF8A0D"; // tier 3 — mustard
+  return onImage ? "#525252" : "#B0BBB7"; // tier 4 — zinc / light slate
+}
 
 // ── Badge primitive ───────────────────────────────────────────────
 // One component, three sizes. Builds off the existing TrustTag's
@@ -371,6 +382,41 @@ function NewMemberPill({ size }: { size: BadgeSize }) {
       style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
     >
       New member
+    </span>
+  );
+}
+
+// Outlined vouch pill — transparent fill, color = vouch tier color
+// (matches the degree color scale based on the score itself).
+function VouchPill({
+  score,
+  size,
+  onImage,
+}: {
+  score: number;
+  size: "micro" | "medium";
+  onImage: boolean;
+}) {
+  const color = vouchTierColor(score, onImage);
+  const sz =
+    size === "micro"
+      ? "gap-0.5 px-1.5 py-[1px] text-[11px]"
+      : "gap-1 px-2 py-0.5 text-xs";
+  const iconSize = size === "micro" ? "h-2.5 w-2.5" : "h-3 w-3";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full font-semibold tabular-nums",
+        sz
+      )}
+      style={{
+        backgroundColor: "transparent",
+        color,
+        border: `1px solid ${color}`,
+      }}
+    >
+      <span className={iconSize}>{ICON_SHIELD}</span>
+      <span>{score.toFixed(1)}</span>
     </span>
   );
 }
@@ -659,12 +705,7 @@ function TrustBadgeSandboxPill({
       {size === "micro" && (
         <>
           {showVouch && (
-            <MetricPill
-              icon={ICON_SHIELD}
-              value={sample.vouch!.toFixed(1)}
-              tone="vouch-outlined"
-              size="micro"
-            />
+            <VouchPill score={sample.vouch!} size="micro" onImage={onImage} />
           )}
           {ratingNode}
         </>
@@ -672,12 +713,7 @@ function TrustBadgeSandboxPill({
       {size === "medium" && (
         <>
           {showVouch && (
-            <MetricPill
-              icon={ICON_SHIELD}
-              value={sample.vouch!.toFixed(1)}
-              tone="vouch-outlined"
-              size="medium"
-            />
+            <VouchPill score={sample.vouch!} size="medium" onImage={onImage} />
           )}
           {ratingNode}
         </>
