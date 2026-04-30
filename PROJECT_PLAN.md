@@ -23,8 +23,7 @@ Trustead is a trust-based short-term rental platform — "Airbnb meets Hinge." L
 
 | Folder | Branch | Purpose |
 |---|---|---|
-| `~/Claude/Projects/onedegree-app-track-b` | `track-b/1db-overlay` | Primary build (Alpha-C) |
-| `~/Claude/Projects/onedegree-app` | `main` | Track A (abandoned) |
+| `~/Claude/Projects/trustead` | `main` | Primary build (trustead.app) |
 | `~/Claude/Projects/onedegree-bnb` | `main` | Landing page |
 
 ## Branch Safety
@@ -33,10 +32,7 @@ Trustead is a trust-based short-term rental platform — "Airbnb meets Hinge." L
 
 | Folder | Expected Branch | If Wrong |
 |---|---|---|
-| onedegree-app-track-b | `track-b/1db-overlay` | STOP — wrong branch. Never checkout main. |
-
-**Never run `git checkout main` from the Track B folder.**
-**Never commit to `main` from the Track B folder.**
+| trustead | `main` | STOP — wrong branch. |
 
 ## Stack
 
@@ -175,10 +171,7 @@ The recap must be wrapped in a single copy-paste-ready block. No markdown tables
 
 | Folder | Expected Branch | If Wrong |
 |---|---|---|
-| onedegree-app-track-b | `track-b/1db-overlay` | STOP — wrong branch. Never checkout main. |
-
-**Never run `git checkout main` from the Track B folder.**
-**Never commit to `main` from the Track B folder.**
+| trustead | `main` | STOP — wrong branch. |
 
 ## 4. Testing Handoff (Claude Tells Loren What to Test)
 

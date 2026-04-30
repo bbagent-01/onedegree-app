@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOrCreateThread } from "@/lib/messaging-data";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { rateLimitOr429 } from "@/lib/rate-limit";
 
 /**
  * POST /api/message-threads
@@ -15,6 +16,9 @@ import { effectiveAuth } from "@/lib/impersonation/session";
 export async function POST(req: Request) {
   const { userId } = await effectiveAuth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  const blocked = await rateLimitOr429("messageThread", userId);
+  if (blocked) return blocked;
 
   const supabase = getSupabaseAdmin();
   const { data: currentUser } = await supabase

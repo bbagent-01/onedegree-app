@@ -41,7 +41,7 @@ export async function GET(req: Request) {
     const res = await fetch(url.toString(), {
       headers: {
         // Nominatim requires a valid User-Agent identifying the app.
-        "User-Agent": "onedegreebnb-alpha-b (contact: hello@onedegreebnb.com)",
+        "User-Agent": "trustead-app (contact: hello@trustead.app)",
         Accept: "application/json",
       },
     });

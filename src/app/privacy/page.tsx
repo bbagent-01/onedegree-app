@@ -51,7 +51,7 @@ export default function PrivacyPage() {
       <p>
         Trustead is operated by Loren Polster LLC, a New York limited liability
         company. Contact:{" "}
-        <a href="mailto:hello@staytrustead.com">hello@staytrustead.com</a>, 367
+        <a href="mailto:hello@trustead.app">hello@trustead.app</a>, 367
         St Marks Ave #1087, Brooklyn, NY 11238.
       </p>
 
@@ -182,7 +182,7 @@ export default function PrivacyPage() {
       <p>
         <em>6.1. All Users.</em> You can access, update, or delete your account
         information through the Platform, or by contacting{" "}
-        <a href="mailto:hello@staytrustead.com">hello@staytrustead.com</a>. You
+        <a href="mailto:hello@trustead.app">hello@trustead.app</a>. You
         can opt out of non-transactional emails via the unsubscribe link or in
         your account preferences.
       </p>
@@ -194,7 +194,7 @@ export default function PrivacyPage() {
         inaccurate personal information; (e) limit use of sensitive personal
         information; and (f) not be discriminated against for exercising these
         rights. To exercise these rights, email{" "}
-        <a href="mailto:hello@staytrustead.com">hello@staytrustead.com</a>. We
+        <a href="mailto:hello@trustead.app">hello@trustead.app</a>. We
         will verify your identity before responding. We do not sell personal
         information and do not share it for cross-context behavioral
         advertising.
@@ -205,7 +205,7 @@ export default function PrivacyPage() {
         Utah, Oregon, Texas, Montana, New Jersey, Delaware, New Hampshire,
         Iowa, Indiana, Tennessee, Nebraska, and others) may have similar
         rights. Contact{" "}
-        <a href="mailto:hello@staytrustead.com">hello@staytrustead.com</a> to
+        <a href="mailto:hello@trustead.app">hello@trustead.app</a> to
         exercise applicable rights.
       </p>
       <p>
@@ -244,7 +244,7 @@ export default function PrivacyPage() {
         or older. If we learn we have collected personal information from a
         child under 13, we will delete it. Parents or guardians who believe
         their child has provided information should contact{" "}
-        <a href="mailto:hello@staytrustead.com">hello@staytrustead.com</a>.
+        <a href="mailto:hello@trustead.app">hello@trustead.app</a>.
       </p>
 
       <h2 id="pp-10">
@@ -271,7 +271,7 @@ export default function PrivacyPage() {
       </h2>
       <p>
         Questions about this Privacy Policy or your information:{" "}
-        <a href="mailto:hello@staytrustead.com">hello@staytrustead.com</a>, 367
+        <a href="mailto:hello@trustead.app">hello@trustead.app</a>, 367
         St Marks Ave #1087, Brooklyn, NY 11238, Attn: Privacy.
       </p>
     </LegalPageShell>

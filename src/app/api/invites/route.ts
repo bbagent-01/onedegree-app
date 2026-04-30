@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { emailInvitation } from "@/lib/email";
 import { sendInviteSMS } from "@/lib/sms/send-invite";
 import { effectiveAuth } from "@/lib/impersonation/session";
+import { rateLimitOr429 } from "@/lib/rate-limit";
 
 // GET: list current user's invites
 export async function GET() {
@@ -47,6 +48,9 @@ export async function POST(req: Request) {
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });
   }
+
+  const blocked = await rateLimitOr429("invite", userId);
+  if (blocked) return blocked;
 
   const body = await req.json();
   const { inviteeName, inviteePhone, inviteeEmail, vouchType, yearsKnownBucket } = body;
@@ -156,13 +160,23 @@ export async function POST(req: Request) {
 
   // Step 1: Try SMS if phone provided
   if (inviteePhone) {
-    const smsResult = await sendInviteSMS({
-      toPhone: inviteePhone,
-      inviterName: currentUser.name,
-      inviteeName,
-      inviteUrl,
-    });
-    smsSuccess = smsResult.success;
+    try {
+      const smsResult = await sendInviteSMS({
+        toPhone: inviteePhone,
+        inviterName: currentUser.name,
+        inviteeName,
+        inviteUrl,
+      });
+      smsSuccess = smsResult.success;
+    } catch (e) {
+      // OptedOutError surfaces here when the invitee has previously
+      // replied STOP. Treat as a soft failure so email fallback fires.
+      if (e instanceof Error && (e as { code?: string }).code === "opted_out") {
+        smsSuccess = false;
+      } else {
+        throw e;
+      }
+    }
   }
 
   // Step 2: Send email if provided AND (SMS failed OR no phone OR both)

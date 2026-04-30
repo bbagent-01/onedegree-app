@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useSignUp } from "@clerk/nextjs/legacy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,11 +51,38 @@ export default function SignUpPage() {
   );
 }
 
+// See sign-in/page.tsx for the rationale on the timeout + hard nav.
+// In short: setActive can hang on Clerk dev cross-origin, and a
+// router.push to /browse races the cookie write — server renders
+// /browse signed-out, user has to refresh manually. This pattern
+// caps the wait and forces a full request so the cookie always
+// rides along on the post-signup landing.
+const SETACTIVE_TIMEOUT_MS = 1500;
+
 function SignUpInner() {
   const { isLoaded, signUp, setActive } = useSignUp();
-  const router = useRouter();
   const params = useSearchParams();
   const redirectUrl = params.get("redirect_url") || "/browse";
+
+  const completeSignUpAndRedirect = async (sessionId: string) => {
+    // useSignUp returns setActive as part of a discriminated union
+    // narrowed by isLoaded — outside an isLoaded check (e.g. inside a
+    // helper closure) TS sees setActive as possibly undefined. Guard
+    // here so TS narrows for the actual call below; in practice
+    // setActive is always defined by the time we get here because all
+    // call sites gate on `signUp.status === "complete"` which requires
+    // useSignUp to have loaded.
+    if (!setActive) return;
+    await Promise.race([
+      setActive({ session: sessionId }),
+      new Promise<void>((resolve) =>
+        setTimeout(resolve, SETACTIVE_TIMEOUT_MS)
+      ),
+    ]).catch(() => {
+      /* see comment above completeSignInAndRedirect */
+    });
+    window.location.assign(redirectUrl);
+  };
 
   const [step, setStep] = useState<Step>("dob");
   const [dobMonth, setDobMonth] = useState<string>("");
@@ -137,8 +164,7 @@ function SignUpInner() {
       // step regardless; if Clerk says we're already complete,
       // setActive immediately.
       if (res.status === "complete" && res.createdSessionId) {
-        await setActive({ session: res.createdSessionId });
-        router.push(redirectUrl);
+        await completeSignUpAndRedirect(res.createdSessionId);
         return;
       }
       setStep("account");
@@ -161,8 +187,7 @@ function SignUpInner() {
         password,
       });
       if (res.status === "complete" && res.createdSessionId) {
-        await setActive({ session: res.createdSessionId });
-        router.push(redirectUrl);
+        await completeSignUpAndRedirect(res.createdSessionId);
         return;
       }
       // Email verification required — Clerk's prod instance enforces
@@ -181,8 +206,7 @@ function SignUpInner() {
       // complete — retry update once before surfacing an error.
       const after = await signUp.update({});
       if (after.status === "complete" && after.createdSessionId) {
-        await setActive({ session: after.createdSessionId });
-        router.push(redirectUrl);
+        await completeSignUpAndRedirect(after.createdSessionId);
       } else {
         toast.error(
           "Couldn't finish sign-up. Refresh and try again."
@@ -230,9 +254,8 @@ function SignUpInner() {
   const advanceSignUp = async (
     res: NonNullable<ReturnType<typeof useSignUp>["signUp"]>
   ) => {
-    if (res.status === "complete" && res.createdSessionId && setActive) {
-      await setActive({ session: res.createdSessionId });
-      router.push(redirectUrl);
+    if (res.status === "complete" && res.createdSessionId) {
+      await completeSignUpAndRedirect(res.createdSessionId);
       return;
     }
     const missing = (res.missingFields as string[]) ?? [];
@@ -321,9 +344,8 @@ function SignUpInner() {
     if (!isLoaded || saving) return;
     setSaving(true);
     try {
-      if (signUp.status === "complete" && signUp.createdSessionId && setActive) {
-        await setActive({ session: signUp.createdSessionId });
-        router.push(redirectUrl);
+      if (signUp.status === "complete" && signUp.createdSessionId) {
+        await completeSignUpAndRedirect(signUp.createdSessionId);
         return;
       }
       // Try to force-complete the signUp without phone. If Clerk's
@@ -333,9 +355,8 @@ function SignUpInner() {
       const updated = (await (signUp as any).update({
         unsafeMetadata: { phone_skipped: true },
       })) as typeof signUp;
-      if (updated.status === "complete" && updated.createdSessionId && setActive) {
-        await setActive({ session: updated.createdSessionId });
-        router.push(redirectUrl);
+      if (updated.status === "complete" && updated.createdSessionId) {
+        await completeSignUpAndRedirect(updated.createdSessionId);
       } else {
         toast.error(
           "Phone is still required right now. Add a number to continue — we'll make skip available soon."

@@ -604,7 +604,6 @@ export function ThreadView({
                       <SystemMilestoneCard
                         icon={Pencil}
                         tone="amber"
-                        emphasizeBody
                         title={`${editor} updated the stay terms`}
                         subtitle="Scroll up to the terms card to review the latest details."
                       />
@@ -622,7 +621,6 @@ export function ThreadView({
                       <SystemMilestoneCard
                         icon={MessageSquare}
                         tone="amber"
-                        emphasizeBody
                         title={`${asker} requested edits to the stay terms`}
                         subtitle="See below for changes requested."
                       />

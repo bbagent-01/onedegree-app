@@ -66,7 +66,7 @@ export default function LegalStatusPage() {
       <p>
         <strong>Questions.</strong> Regulators, press, and Users with questions
         can reach us at{" "}
-        <a href="mailto:hello@staytrustead.com">hello@staytrustead.com</a>.
+        <a href="mailto:hello@trustead.app">hello@trustead.app</a>.
       </p>
     </LegalPageShell>
   );

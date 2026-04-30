@@ -23,7 +23,7 @@ Vouches are preserved (98 rows). User rating aggregates reset.
 Re-running the wipe at any time:
 
 ```
-cd ~/Claude/Projects/onedegree-app-track-b
+cd ~/Claude/Projects/trustead
 npx tsx --env-file=.env.local scripts/wipe-bookings.ts
 ```
 
@@ -164,7 +164,7 @@ days out, so you can't hit in-stay via the UI today. Seed a
 separate in-stay reservation:
 
 ```
-cd ~/Claude/Projects/onedegree-app-track-b
+cd ~/Claude/Projects/trustead
 npx tsx --env-file=.env.local scripts/seed-stage.ts in-stay
 ```
 

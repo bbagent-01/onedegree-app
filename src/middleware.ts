@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   "/profile",
   "/profile/(.*)",
   "/api/webhooks/clerk(.*)",
+  "/api/webhooks/twilio/(.*)",
   "/api/geocode(.*)",
   "/api/cron/(.*)",
   "/api/admin/seed-trip-wishes",
@@ -25,6 +26,7 @@ const isPublicRoute = createRouteMatcher([
   "/terms",
   "/privacy",
   "/legal-status",
+  "/sandbox(.*)",
 ]);
 
 // ── ALPHA-ONLY (CC-Dev1 Impersonation Switcher) ─────────────────

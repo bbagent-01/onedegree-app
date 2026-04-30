@@ -1,48 +1,52 @@
-// Always-rendered theme applier. Mounts for EVERY user on the (app)
-// layout — not admin-gated — so the Trustead theme renders as the
-// site's default look at trustead.app, not just for admin sessions.
-// Admin-only editor UI (palette circle + drawer) is in a separate
-// admin-gated tree (SandboxMount → SandboxClient).
-//
-// Lives in the dev/ folder for now since it depends on the sandbox
-// machinery, but the file itself is permanent: when dev tooling is
-// removed pre-beta, the override layer in sandbox.ts simplifies but
-// this applier (or its successor) stays.
+// Theme overlay listener. The Trustead look is now baked into
+// globals.css + tailwind.config.ts as the canonical theme — this
+// component no longer auto-enables anything on first mount. It
+// stays mounted purely so the admin brand-switcher drawer can still
+// inject overrides on top of the canonical CSS (e.g. for comparing
+// to a legacy Attio look during dev). When sandbox is not enabled
+// (the default state) this component does nothing visible.
 "use client";
 
 import { useEffect } from "react";
 import {
   applySandbox,
+  clearAll,
   SANDBOX_EVENT,
-  setEnabled,
-  setOverride,
 } from "@/lib/dev-theme/sandbox";
 import { tokensByCategory } from "@/lib/dev-theme/tokens";
-import {
-  getPresetById,
-  setActivePresetId,
-  STORAGE_KEY as PRESET_STORAGE_KEY,
-} from "@/lib/dev-theme/brand-presets";
 
-const DEFAULT_PRESET_ID = "trustead";
+// One-time migration flag. Visitors who were here before the trustead
+// canonicalization (commit f96547e) have `dev2.sandbox.enabled.v1` and
+// the override map persisted in sessionStorage from when the applier
+// auto-enabled trustead. Without this cleanup, applySandbox reads the
+// stale flag and re-injects the overlay on top of the now-canonical
+// CSS, leaving `data-theme="sandbox"` set on <html> and the user
+// stuck with two layers of the same theme. Run clearAll once per
+// fresh tab to drop the legacy state.
+const CANONICAL_MIGRATION_KEY = "dev2.canonical-migrated.v1";
 
 export default function SandboxApplier() {
   useEffect(() => {
-    // First mount in this tab: if no preset has been explicitly
-    // chosen yet, activate Trustead so the page renders in the new
-    // theme. Reloading the same tab preserves whatever's set —
-    // including "Legacy · Attio Light" if the user (admin) switched
-    // away. New tab → empty sessionStorage → Trustead again.
-    const hasExplicitChoice =
-      sessionStorage.getItem(PRESET_STORAGE_KEY) !== null;
-    if (!hasExplicitChoice) {
-      const preset = getPresetById(DEFAULT_PRESET_ID);
-      if (preset) {
-        setActivePresetId(DEFAULT_PRESET_ID);
-        for (const [id, value] of Object.entries(preset.overrides)) {
-          setOverride(id, value);
+    // Defensive: any visitor landing on this page should start with
+    // a clean canonical render. Strip data-theme + any leftover
+    // override style tags before deciding whether to re-enable the
+    // overlay. Even if a stale tab somehow has the attribute set,
+    // this guarantees it gets removed.
+    if (typeof document !== "undefined") {
+      document.documentElement.removeAttribute("data-theme");
+      document.getElementById("dev2-sandbox-style")?.remove();
+      document.getElementById("dev2-sandbox-fonts")?.remove();
+      document.getElementById("dev2-sandbox-extra")?.remove();
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        if (sessionStorage.getItem(CANONICAL_MIGRATION_KEY) !== "1") {
+          clearAll();
+          sessionStorage.setItem(CANONICAL_MIGRATION_KEY, "1");
         }
-        setEnabled(true);
+      } catch {
+        /* sessionStorage may be unavailable (private mode quirks) — fine */
       }
     }
 

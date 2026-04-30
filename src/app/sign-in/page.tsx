@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useSignIn } from "@clerk/nextjs/legacy";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,11 +32,41 @@ export default function SignInPage() {
   );
 }
 
+// Cap setActive at 1.5s — Clerk's promise can hang cross-origin on
+// the dev instance (humane-pup-20.clerk.accounts.dev → trustead.app)
+// even though the session DID land. Race it against a timer; either
+// way we then do a full page navigation so the freshly-set session
+// cookie rides along on the next request. Without the hard navigation,
+// router.push fires an RSC fetch before the cookie is written, the
+// server renders /browse with no userId, and the user lands on the
+// logged-out variant of /browse and has to refresh manually to flip
+// to the signed-in view. (Was the "post-signin shows public listings
+// then refreshes to signed-in listings" bug.)
+const SETACTIVE_TIMEOUT_MS = 1500;
+
 function SignInInner() {
   const { isLoaded, signIn, setActive } = useSignIn();
-  const router = useRouter();
   const params = useSearchParams();
   const redirectUrl = params.get("redirect_url") || "/browse";
+
+  const completeSignInAndRedirect = async (sessionId: string) => {
+    // setActive is typed nullable on useSignIn but in practice it's
+    // always present when isLoaded is true (which all callers gate
+    // on). Fall back to a resolved promise so the race still works.
+    const setActiveCall = setActive
+      ? setActive({ session: sessionId })
+      : Promise.resolve();
+    await Promise.race([
+      setActiveCall,
+      new Promise<void>((resolve) =>
+        setTimeout(resolve, SETACTIVE_TIMEOUT_MS)
+      ),
+    ]).catch(() => {
+      /* setActive can reject when its internal state machine is
+         already finalized — the cookie was set regardless. */
+    });
+    window.location.assign(redirectUrl);
+  };
 
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
@@ -82,12 +112,7 @@ function SignInInner() {
         code: otp,
       });
       if (res.status === "complete" && res.createdSessionId) {
-        // setActive's promise occasionally hangs on Clerk dev cross-origin
-        // (humane-pup-20.clerk.accounts.dev → trustead.app) even though the
-        // session does land. Fire-and-navigate so the button doesn't stick
-        // on "Verifying..." indefinitely.
-        void setActive({ session: res.createdSessionId });
-        router.push(redirectUrl);
+        await completeSignInAndRedirect(res.createdSessionId);
         return;
       }
       toast.error("Additional verification required. Try email instead.");
@@ -131,8 +156,7 @@ function SignInInner() {
         password,
       });
       if (res.status === "complete" && res.createdSessionId) {
-        void setActive({ session: res.createdSessionId });
-        router.push(redirectUrl);
+        await completeSignInAndRedirect(res.createdSessionId);
       } else {
         toast.error("Additional verification needed.");
       }

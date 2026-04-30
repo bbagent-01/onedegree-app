@@ -1,0 +1,11 @@
+{
+  "settings": {
+    "speed": 1.26,
+    "letterStart": 0,
+    "stagger": 0.83,
+    "letterDuration": 1,
+    "iconSpeed": 1,
+    "ease": "linear"
+  },
+  "total": 1.374
+}

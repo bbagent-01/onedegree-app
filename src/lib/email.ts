@@ -9,15 +9,15 @@
 import { Resend } from "resend";
 import { getSupabaseAdmin } from "./supabase";
 
-// Display name is Trustead; underlying SMTP address stays on the
-// onedegreebnb.com sending domain until staytrustead.com is verified
-// with Resend (infra task — see S9 backlog). Recipients see
-// "Trustead" in their inbox sender column regardless.
-const FROM = "Trustead <hello@staytrustead.com>";
+// trustead.app is the canonical send + reply domain. Loren-must-check:
+// verify the domain in Resend (SPF, DKIM, return-path) before this is
+// in front of testers — see https://resend.com/domains . Until verified,
+// sends will bounce or land in spam.
+const FROM = "Trustead <hello@trustead.app>";
 // Replies route back to a real mailbox so anyone hitting Reply still
 // reaches a human while we're in alpha. Future: parse inbound replies via
 // Resend's Inbound API and post them as messages into the originating thread.
-const REPLY_TO = "hello@staytrustead.com";
+const REPLY_TO = "hello@trustead.app";
 const APP_BASE_URL =
   process.env.NEXT_PUBLIC_APP_URL || "https://trustead.app";
 
@@ -124,7 +124,7 @@ const wrap = (greeting: string, body: string) => `<!DOCTYPE html>
           </tr>
           <tr>
             <td style="background-color:#F9FAFB;padding:20px 40px;text-align:center;border-top:1px solid #E5E7EB;">
-              <p style="color:#9CA3AF;font-size:12px;margin:0 0 4px;">Trustead &middot; <a href="mailto:hello@staytrustead.com" style="color:#9CA3AF;text-decoration:none;">hello@staytrustead.com</a></p>
+              <p style="color:#9CA3AF;font-size:12px;margin:0 0 4px;">Trustead &middot; <a href="mailto:hello@trustead.app" style="color:#9CA3AF;text-decoration:none;">hello@trustead.app</a></p>
               <p style="color:#9CA3AF;font-size:11px;margin:0;"><a href="${APP_BASE_URL}/settings/notifications" style="color:#9CA3AF;text-decoration:underline;">Manage email preferences</a></p>
             </td>
           </tr>
