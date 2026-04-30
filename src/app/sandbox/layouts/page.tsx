@@ -22,7 +22,8 @@ const SURFACES: Surface[] = [
     href: "/sandbox/layouts/landing",
     name: "Landing",
     blurb:
-      "Public landing page. There's no live landing today (/ redirects to /browse) — this is a current-state proposal we can vary from.",
+      "There's no live landing today (/ redirects to /browse). Frames /join — the closest current public-facing surface — as our starting point.",
+    liveLink: "/join",
   },
   {
     href: "/sandbox/layouts/browse",
@@ -96,15 +97,16 @@ export default function SandboxLayoutsIndex() {
         Layout sandbox
       </h1>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
-        Replicas of the current live app surfaces, populated with sample data.
-        Use the fixed top nav to jump between pages. Once you pick a surface,
-        we iterate variations as sibling routes (e.g.{" "}
-        <code className="font-mono text-xs">browse-v2</code>) — they join the
-        nav automatically.
+        Each entry below frames the EXACT current live page so there&rsquo;s
+        no interpretation — what you see is what trustead.app shows today.
+        Use the fixed top nav to jump between surfaces.
       </p>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        No DB queries, no auth, no real users. Every surface is a static
-        replica meant for layout exploration only.
+        Once you pick a surface to iterate on, name a variation
+        (e.g. &ldquo;try compact list density on browse&rdquo;) and I&rsquo;ll
+        clone the live components into a sibling route like{" "}
+        <code className="font-mono text-xs">browse-v2</code> where I can
+        actually make changes — and it auto-joins the nav.
       </p>
 
       <ul className="mt-10 grid grid-cols-1 gap-3 md:grid-cols-2">
