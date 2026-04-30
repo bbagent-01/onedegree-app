@@ -28,6 +28,9 @@ import {
   Share2,
   AlertCircle,
   ArrowLeft,
+  Phone,
+  Link as LinkIcon,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -35,14 +38,17 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 const BIG_INPUT =
   "h-14 rounded-xl border-2 border-border !bg-white px-4 text-base font-medium shadow-sm focus-visible:border-brand";
 
-type Step = "type" | "years" | "recipient" | "share";
+type Mode = "phone" | "open_individual" | "open_group";
+type Step = "mode" | "type" | "years" | "details" | "share";
 
 interface CreatedVouch {
   id: string;
   token: string;
+  mode: Mode;
   share_url: string;
   prefilled_sms_text: string;
-  recipient_phone: string;
+  /** Only present for mode='phone'; absent for open modes. */
+  recipient_phone?: string;
 }
 
 type ExistingCheck =
@@ -52,6 +58,8 @@ type ExistingCheck =
       kind: "existing";
       user: { id: string; name: string; avatar_url: string | null };
     };
+
+const MAX_CLAIMS_OPTIONS = [5, 10, 20] as const;
 
 export default function InviteSharePage() {
   return (
@@ -68,12 +76,26 @@ function InviteShareContent() {
   // CTA can pass ?phone= when the search input was a phone-shaped query).
   const phonePrefill = searchParams?.get("phone") ?? "";
 
-  const [step, setStep] = useState<Step>("type");
+  // Step 0 (mode) defaults to whatever the URL hints, falling back to
+  // 'phone' when the user lands without a hint. The chooser is always
+  // shown; this just primes the radio.
+  const initialMode: Mode = phonePrefill ? "phone" : "phone";
+
+  const [step, setStep] = useState<Step>("mode");
+  const [mode, setMode] = useState<Mode>(initialMode);
+
   const [vouchType, setVouchType] = useState<VouchType | null>(null);
   const [yearsKnown, setYearsKnown] = useState<YearsKnownBucket | null>(null);
   const [stakeAcknowledged, setStakeAcknowledged] = useState(false);
+
+  // Mode A + B fields
   const [recipientName, setRecipientName] = useState("");
+  // Mode A only
   const [recipientPhone, setRecipientPhone] = useState(phonePrefill);
+  // Mode C fields
+  const [groupLabel, setGroupLabel] = useState("");
+  const [maxClaims, setMaxClaims] = useState<number>(20);
+
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<CreatedVouch | null>(null);
   const [existing, setExisting] = useState<ExistingCheck>({ kind: "none" });
@@ -90,26 +112,44 @@ function InviteShareContent() {
     : null;
   const phoneValid = parsedPhone?.isPossible() ?? false;
   const phoneE164 = parsedPhone?.format("E.164") ?? "";
-  const canProceedRecipient =
-    recipientName.trim().length >= 2 &&
-    recipientName.trim().length <= 80 &&
-    phoneValid;
+
+  const nameOK =
+    recipientName.trim().length >= 2 && recipientName.trim().length <= 80;
+  const groupLabelOK =
+    groupLabel.trim().length >= 2 && groupLabel.trim().length <= 80;
+
+  const canProceedDetails =
+    mode === "phone"
+      ? nameOK && phoneValid
+      : mode === "open_individual"
+        ? nameOK
+        : groupLabelOK && MAX_CLAIMS_OPTIONS.includes(maxClaims as 5 | 10 | 20);
 
   const handleSubmit = useCallback(async () => {
-    if (!vouchType || !yearsKnown || !canProceedRecipient) return;
+    if (!vouchType || !yearsKnown || !canProceedDetails) return;
     setSubmitting(true);
     setExisting({ kind: "none" });
     try {
+      const payload: Record<string, unknown> = {
+        mode,
+        vouchType,
+        yearsKnownBucket: yearsKnown,
+        ratingStake: stakeAcknowledged,
+      };
+      if (mode === "phone") {
+        payload.recipientName = recipientName.trim();
+        payload.recipientPhone = phoneE164;
+      } else if (mode === "open_individual") {
+        payload.recipientName = recipientName.trim();
+      } else if (mode === "open_group") {
+        payload.groupLabel = groupLabel.trim();
+        payload.maxClaims = maxClaims;
+      }
+
       const res = await fetch("/api/pending-vouches/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipientName: recipientName.trim(),
-          recipientPhone: phoneE164,
-          vouchType,
-          yearsKnownBucket: yearsKnown,
-          ratingStake: stakeAcknowledged,
-        }),
+        body: JSON.stringify(payload),
       });
       if (res.status === 409) {
         const err = (await res.json().catch(() => ({}))) as {
@@ -149,13 +189,21 @@ function InviteShareContent() {
       setSubmitting(false);
     }
   }, [
+    mode,
     vouchType,
     yearsKnown,
     recipientName,
     phoneE164,
+    groupLabel,
+    maxClaims,
     stakeAcknowledged,
-    canProceedRecipient,
+    canProceedDetails,
   ]);
+
+  // Step ordering for the indicator pills. Chooser is always step 0;
+  // the rest are common across modes (the details step content varies
+  // but the position is the same).
+  const stepOrder: Step[] = ["mode", "type", "years", "details", "share"];
 
   return (
     <div className="mx-auto w-full max-w-[540px] px-4 py-8 md:px-6 md:py-12">
@@ -167,19 +215,17 @@ function InviteShareContent() {
           Invite + pre-vouch a friend
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Fill out the vouch like you would for someone already on Trustead.
-          We&apos;ll mint a link you can text them yourself.
+          Three ways to send the invite. Pick whichever fits how you know them.
         </p>
       </div>
 
       <div className="mt-8 flex items-center justify-center gap-2">
-        {(["type", "years", "recipient", "share"] as Step[]).map((s, i) => (
+        {stepOrder.map((s, i) => (
           <div
             key={s}
             className={cn(
               "h-1.5 w-8 rounded-full transition-colors",
-              step === s ||
-                (i < (["type", "years", "recipient", "share"] as Step[]).indexOf(step))
+              step === s || i < stepOrder.indexOf(step)
                 ? "bg-brand"
                 : "bg-border"
             )}
@@ -188,6 +234,14 @@ function InviteShareContent() {
       </div>
 
       <div className="mt-6 rounded-xl border border-border bg-white p-5 md:p-6">
+        {step === "mode" && (
+          <ModeChooser
+            mode={mode}
+            onChange={setMode}
+            onContinue={() => setStep("type")}
+          />
+        )}
+
         {step === "type" && (
           <div>
             <h2 className="text-base font-semibold">How do you know them?</h2>
@@ -232,7 +286,11 @@ function InviteShareContent() {
                 </button>
               ))}
             </div>
-            <div className="mt-5 flex justify-end">
+            <div className="mt-5 flex items-center justify-between">
+              <Button variant="ghost" size="lg" onClick={() => setStep("mode")}>
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
               <Button
                 size="lg"
                 disabled={!vouchType}
@@ -249,7 +307,9 @@ function InviteShareContent() {
         {step === "years" && (
           <div>
             <h2 className="text-base font-semibold">
-              How long have you known them?
+              {mode === "open_group"
+                ? "How long have you known them, on average?"
+                : "How long have you known them?"}
             </h2>
             <div className="mt-4 space-y-2">
               {YEARS_KNOWN_BUCKETS.map((b) => (
@@ -277,8 +337,9 @@ function InviteShareContent() {
                 className="mt-0.5 h-4 w-4 rounded border-border accent-brand"
               />
               <span className="text-sm text-muted-foreground leading-relaxed">
-                I understand their guest rating will affect my vouch power once
-                they join.
+                I understand their guest rating
+                {mode === "open_group" ? "s" : ""} will affect my vouch power
+                once they join.
               </span>
             </label>
 
@@ -290,7 +351,7 @@ function InviteShareContent() {
               <Button
                 size="lg"
                 disabled={!yearsKnown || !stakeAcknowledged}
-                onClick={() => setStep("recipient")}
+                onClick={() => setStep("details")}
                 className="gap-1"
               >
                 Continue
@@ -300,7 +361,7 @@ function InviteShareContent() {
           </div>
         )}
 
-        {step === "recipient" && (
+        {step === "details" && mode === "phone" && (
           <div>
             <h2 className="text-base font-semibold">Who are you inviting?</h2>
             <div className="mt-4 space-y-4">
@@ -345,7 +406,10 @@ function InviteShareContent() {
                   className={`mt-1.5 ${BIG_INPUT}`}
                 />
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  We&apos;ll auto-vouch when they sign up with this number.
+                  We&apos;ll auto-vouch when they sign up with this number.{" "}
+                  <span className="italic">
+                    In beta, you&apos;ll be able to pick from your contacts.
+                  </span>
                 </p>
               </div>
 
@@ -395,7 +459,7 @@ function InviteShareContent() {
               </Button>
               <Button
                 size="lg"
-                disabled={!canProceedRecipient || submitting}
+                disabled={!canProceedDetails || submitting}
                 onClick={handleSubmit}
               >
                 {submitting ? "Creating..." : "Create invite link"}
@@ -404,10 +468,133 @@ function InviteShareContent() {
           </div>
         )}
 
+        {step === "details" && mode === "open_individual" && (
+          <div>
+            <h2 className="text-base font-semibold">Who are you inviting?</h2>
+            <div className="mt-4 space-y-4">
+              <div>
+                <Label htmlFor="recipient-name-only">Their name</Label>
+                <Input
+                  id="recipient-name-only"
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  placeholder="Their full name"
+                  className={`mt-1.5 ${BIG_INPUT}`}
+                  maxLength={80}
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Just for your dashboard so you can keep track of who got
+                  which link.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-medium">Heads up</p>
+                <p className="mt-1 text-xs">
+                  This link auto-vouches the first person who signs up with
+                  it. Only send it to the friend you want to vouch for. You
+                  can revoke the vouch from your dashboard if the wrong
+                  person ends up there.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-between">
+              <Button variant="ghost" size="lg" onClick={() => setStep("years")}>
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
+              <Button
+                size="lg"
+                disabled={!canProceedDetails || submitting}
+                onClick={handleSubmit}
+              >
+                {submitting ? "Creating..." : "Create invite link"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === "details" && mode === "open_group" && (
+          <div>
+            <h2 className="text-base font-semibold">Group details</h2>
+            <div className="mt-4 space-y-4">
+              <div>
+                <Label htmlFor="group-label">Group name</Label>
+                <Input
+                  id="group-label"
+                  value={groupLabel}
+                  onChange={(e) => setGroupLabel(e.target.value)}
+                  placeholder="e.g. Tahoe ski crew"
+                  className={`mt-1.5 ${BIG_INPUT}`}
+                  maxLength={80}
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Just for your dashboard so you can keep track of which link
+                  is which.
+                </p>
+              </div>
+
+              <div>
+                <Label>How many people, max?</Label>
+                <div className="mt-1.5 grid grid-cols-3 gap-2">
+                  {MAX_CLAIMS_OPTIONS.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setMaxClaims(n)}
+                      className={cn(
+                        "rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-all",
+                        maxClaims === n
+                          ? "border-brand bg-brand/5 text-foreground"
+                          : "border-border hover:border-muted-foreground/30"
+                      )}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  After {maxClaims} people sign up via this link, it stops
+                  working.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-medium">Heads up</p>
+                <p className="mt-1 text-xs">
+                  Drop this link in a group chat. The first {maxClaims} people
+                  who sign up via the link all get your vouch automatically.
+                  You&apos;ll see each one in your dashboard so you can revoke
+                  any if needed.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-between">
+              <Button variant="ghost" size="lg" onClick={() => setStep("years")}>
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
+              <Button
+                size="lg"
+                disabled={!canProceedDetails || submitting}
+                onClick={handleSubmit}
+              >
+                {submitting ? "Creating..." : "Create group invite"}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {step === "share" && created && (
           <ShareStep
             created={created}
-            recipientName={recipientName.trim()}
+            displayName={
+              created.mode === "open_group"
+                ? groupLabel.trim()
+                : recipientName.trim()
+            }
             onSent={() => router.push("/dashboard/pending-vouches")}
             shareError={shareError}
             setShareError={setShareError}
@@ -418,30 +605,119 @@ function InviteShareContent() {
   );
 }
 
+function ModeChooser({
+  mode,
+  onChange,
+  onContinue,
+}: {
+  mode: Mode;
+  onChange: (m: Mode) => void;
+  onContinue: () => void;
+}) {
+  const options: {
+    value: Mode;
+    label: string;
+    description: string;
+    Icon: typeof Phone;
+  }[] = [
+    {
+      value: "phone",
+      label: "I have their phone number",
+      description:
+        "Vouch lands automatically when they sign up with that phone.",
+      Icon: Phone,
+    },
+    {
+      value: "open_individual",
+      label: "I'll just send them a link",
+      description:
+        "Vouch lands when they sign up via your link. Send it to one person — first person to sign up gets it.",
+      Icon: LinkIcon,
+    },
+    {
+      value: "open_group",
+      label: "Invite a group of friends with one link",
+      description:
+        "Drop one link in a group chat. The first N people who sign up all get vouched.",
+      Icon: Users,
+    },
+  ];
+
+  return (
+    <div>
+      <h2 className="text-base font-semibold">How do you want to invite them?</h2>
+      <div className="mt-4 space-y-3">
+        {options.map(({ value, label, description, Icon }) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onChange(value)}
+            className={cn(
+              "w-full rounded-xl border-2 p-4 text-left transition-all",
+              mode === value
+                ? "border-brand bg-brand/5 ring-1 ring-brand/20"
+                : "border-border hover:border-muted-foreground/30 hover:bg-muted/30"
+            )}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className={cn(
+                  "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                  mode === value
+                    ? "bg-brand/10 text-brand"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold">{label}</div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {description}
+                </p>
+              </div>
+              {mode === value && (
+                <Check className="h-4 w-4 shrink-0 text-brand" />
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+      <div className="mt-5 flex justify-end">
+        <Button size="lg" onClick={onContinue} className="gap-1">
+          Continue
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Share-via-Messages step. The whole point of B1 is that Trustead
  * does NOT send the SMS — the sender does, from their own messaging
- * app. We try three paths in order:
- *   1. navigator.share() — modern Web Share API. Works on iOS Safari
- *      14+, Android Chrome. Opens the native share sheet (iMessage,
- *      WhatsApp, Signal, etc.). When share() resolves we don't actually
- *      know if the user picked Messages vs canceled — so we still show
- *      "I sent it" as a manual confirm.
- *   2. sms: scheme — fallback when share() isn't available. iOS uses
- *      `&body=` (yes, ampersand, not querystring), Android uses
- *      `?body=` — see Apple's URL-Scheme reference. We sniff UA.
- *   3. Manual "I sent it" button — final fallback for desktop / weird
- *      WebViews where neither path works.
+ * app. Three paths in priority order:
+ *
+ *   1. navigator.share() — modern Web Share API. Native share sheet
+ *      lets the sender pick the messaging app + recipient. Works for
+ *      all three modes (Mode B/C just don't pre-fill a To: number;
+ *      sender picks recipients in the share sheet).
+ *
+ *   2. sms: scheme — fallback for when share() isn't available. Only
+ *      Mode A populates the To: number; Mode B/C use a bare sms:?body=
+ *      and the user picks recipients in their Messages app.
+ *
+ *   3. Manual "I sent it" button — final fallback for desktop / WebView.
  */
 function ShareStep({
   created,
-  recipientName,
+  displayName,
   onSent,
   shareError,
   setShareError,
 }: {
   created: CreatedVouch;
-  recipientName: string;
+  displayName: string;
   onSent: () => void;
   shareError: string | null;
   setShareError: (s: string | null) => void;
@@ -452,11 +728,6 @@ function ShareStep({
     setShareError(null);
     setSharing(true);
     try {
-      // Prefer Web Share API. Pass `text` (which most receivers
-      // will treat as the message body) AND `url` (so apps that
-      // surface a link card show one). Some iOS share targets
-      // concatenate the two — that's fine, the URL is at the end
-      // of the text already.
       if (typeof navigator !== "undefined" && "share" in navigator) {
         await (navigator as Navigator & {
           share: (data: ShareData) => Promise<void>;
@@ -468,11 +739,8 @@ function ShareStep({
       }
 
       // sms: fallback. iOS wants `&body=`, everything else `?body=`.
-      // Detect iOS by UA + the lack of MSStream (rules out old IE
-      // Mobile, which spoofs iPhone in some versions). The TS check
-      // earlier in this try-block narrows `navigator` past the
-      // share-API guard, so we read userAgent off `globalThis` to
-      // sidestep the narrow.
+      // The To: number is only present for Mode A; open modes leave
+      // it blank so the sender picks recipients in Messages.
       const ua = (globalThis as { navigator?: { userAgent?: string } })
         .navigator?.userAgent ?? "";
       const isIOS =
@@ -480,14 +748,12 @@ function ShareStep({
         typeof window !== "undefined" &&
         !("MSStream" in window);
       const sep = isIOS ? "&" : "?";
-      const href = `sms:${created.recipient_phone}${sep}body=${encodeURIComponent(
+      const to = created.recipient_phone ?? "";
+      const href = `sms:${to}${sep}body=${encodeURIComponent(
         created.prefilled_sms_text
       )}`;
       window.location.href = href;
     } catch (e) {
-      // AbortError fires when the user dismisses the share sheet.
-      // That's not an error worth surfacing — leave the panel as is
-      // so they can try again.
       const name = (e as { name?: string })?.name;
       if (name === "AbortError") return;
       setShareError(
@@ -507,7 +773,11 @@ function ShareStep({
     }
   }, [created]);
 
-  const firstName = recipientName.split(" ")[0] || "your friend";
+  const isOpenMode = created.mode !== "phone";
+  const headlineRecipient =
+    created.mode === "open_group"
+      ? `your group`
+      : displayName.split(" ")[0] || "your friend";
 
   return (
     <div>
@@ -517,13 +787,12 @@ function ShareStep({
         </div>
         <h2 className="mt-3 text-base font-semibold">Link ready</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Send this to {firstName} from your own messaging app. We&apos;ll
-          auto-vouch when they sign up with the phone you entered.
+          {isOpenMode
+            ? `Send this to ${headlineRecipient} from your own messaging app. We'll auto-vouch when they sign up via the link.`
+            : `Send this to ${headlineRecipient} from your own messaging app. We'll auto-vouch when they sign up with the phone you entered.`}
         </p>
       </div>
 
-      {/* Show the prefilled text so the sender can see what they're
-          about to send. Long-press to copy works on mobile too. */}
       <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
         <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Message

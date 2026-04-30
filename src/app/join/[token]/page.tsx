@@ -24,6 +24,13 @@ interface InviteData {
   expires_at: string;
   status: string;
   claimed_by: string | null;
+  // B2: only set when the row came from pending_vouches. Drives
+  // the InviteAcceptCard mode-aware copy. Legacy `invites` rows
+  // implicitly act like Mode A (phone) for the recipient card.
+  mode?: "phone" | "open_individual" | "open_group";
+  group_label?: string | null;
+  max_claims?: number | null;
+  claim_count?: number | null;
 }
 
 interface InviterData {
@@ -105,17 +112,26 @@ async function lookupPendingVouch(token: string): Promise<InviteLookup> {
   const { data } = await supabase
     .from("pending_vouches")
     .select(
-      "id, token, sender_id, recipient_name, vouch_type, years_known_bucket, expires_at, status, claimed_by"
+      "id, token, sender_id, recipient_name, vouch_type, years_known_bucket, expires_at, status, claimed_by, mode, group_label, max_claims, claim_count"
     )
     .eq("token", token)
     .maybeSingle();
 
   if (!data) return { kind: "not_found" };
 
+  const mode = (data.mode as string | null) ?? "phone";
+  const claimCount = (data.claim_count as number | null) ?? 0;
+  const maxClaims = (data.max_claims as number | null) ?? null;
+
   // status drives the rendered card. We deliberately do NOT lean on
   // expires_at alone — the cron sweeper (see /api/cron/expire-pending-vouches)
   // flips status to 'expired' so a stale row + ungroomed status can't
   // trick a recipient into thinking the link is still live.
+  //
+  // Mode C (open_group) special-cases status='pending' && claim_count>=max_claims:
+  // the row stays 'pending' (so the cron sweep + cancel/resend flows work
+  // unchanged), but new claimants see a "this group invite is full" card
+  // instead of the join CTA.
   if (data.status === "claimed") {
     const { data: claimedUser } = await supabase
       .from("users")
@@ -128,6 +144,9 @@ async function lookupPendingVouch(token: string): Promise<InviteLookup> {
     return { kind: "expired" };
   }
   if (data.expires_at && new Date(data.expires_at as string) < new Date()) {
+    return { kind: "expired" };
+  }
+  if (mode === "open_group" && maxClaims !== null && claimCount >= maxClaims) {
     return { kind: "expired" };
   }
 
@@ -154,6 +173,10 @@ async function lookupPendingVouch(token: string): Promise<InviteLookup> {
       expires_at: data.expires_at as string,
       status: data.status as string,
       claimed_by: null,
+      mode: mode as "phone" | "open_individual" | "open_group",
+      group_label: (data.group_label as string | null) ?? null,
+      max_claims: maxClaims,
+      claim_count: claimCount,
     },
     inviter: {
       id: inviter.id as string,
@@ -244,6 +267,10 @@ export default async function JoinPage({
       inviteeName={result.invite.invitee_name}
       vouchType={result.invite.vouch_type}
       yearsKnownBucket={result.invite.years_known_bucket}
+      mode={result.invite.mode}
+      claimCount={result.invite.claim_count ?? undefined}
+      maxClaims={result.invite.max_claims ?? undefined}
+      groupLabel={result.invite.group_label ?? null}
     />
   );
 }

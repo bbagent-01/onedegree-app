@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 interface Row {
   id: string;
-  recipient_name: string;
+  recipient_name: string | null;
   recipient_phone: string | null;
   status: "pending" | "claimed" | "canceled" | "expired";
   created_at: string;
@@ -16,6 +16,10 @@ interface Row {
   token: string;
   claimed_at: string | null;
   vouch_type: "standard" | "inner_circle";
+  mode: "phone" | "open_individual" | "open_group";
+  group_label: string | null;
+  max_claims: number | null;
+  claim_count: number;
   share_url: string;
   prefilled_sms_text: string;
 }
@@ -29,6 +33,28 @@ function last4(phone: string | null): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 4) return phone;
   return `••• ${digits.slice(-4)}`;
+}
+
+/**
+ * Mode-aware label resolvers. The dashboard list shows one row per
+ * pending_vouches row regardless of mode; only the labels differ.
+ */
+function primaryLabel(row: Row): string {
+  if (row.mode === "open_group") {
+    return row.group_label || "Group invite";
+  }
+  return row.recipient_name || "—";
+}
+
+function secondaryLabel(row: Row): string {
+  if (row.mode === "open_group") {
+    const max = row.max_claims ?? 0;
+    return `${row.claim_count}/${max} joined`;
+  }
+  if (row.mode === "open_individual") {
+    return "Open link";
+  }
+  return last4(row.recipient_phone);
 }
 
 function daysUntil(iso: string): number {
@@ -69,7 +95,7 @@ export function PendingVouchesList({ rows: initialRows }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const handleCancel = async (row: Row) => {
-    if (!confirm(`Cancel the invite for ${row.recipient_name}?`)) return;
+    if (!confirm(`Cancel the invite for ${primaryLabel(row)}?`)) return;
     setBusyId(row.id);
     try {
       const res = await fetch(`/api/pending-vouches/${row.id}`, {
@@ -175,7 +201,7 @@ export function PendingVouchesList({ rows: initialRows }: Props) {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="truncate text-sm font-medium">
-                  {row.recipient_name}
+                  {primaryLabel(row)}
                 </span>
                 <Badge
                   className={
@@ -193,7 +219,7 @@ export function PendingVouchesList({ rows: initialRows }: Props) {
                 </Badge>
               </div>
               <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                <span>{last4(row.recipient_phone)}</span>
+                <span>{secondaryLabel(row)}</span>
                 <span className="mx-0.5">·</span>
                 <Clock className="h-3 w-3" />
                 <span>{formatDate(row.created_at)}</span>
