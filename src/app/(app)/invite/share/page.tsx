@@ -133,7 +133,8 @@ function InviteShareContent() {
           ? nameOK
           : groupLabelOK && MAX_CLAIMS_OPTIONS.includes(maxClaims as 5 | 10 | 20);
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(
+    async (skipAutoSend = false) => {
     if (!vouchType || !yearsKnown || !canProceedDetails) return;
     setSubmitting(true);
     setExisting({ kind: "none" });
@@ -143,6 +144,11 @@ function InviteShareContent() {
         vouchType,
         yearsKnownBucket: yearsKnown,
         ratingStake: stakeAcknowledged,
+        // Mode A only — set true when sender picks "Send it myself"
+        // so the server creates the row without firing Twilio. The
+        // pending row still has the recipient phone, so the webhook's
+        // phone-match auto-claim still works on signup.
+        skipAutoSend,
       };
       if (mode === "phone") {
         payload.recipientName = recipientName.trim();
@@ -462,18 +468,34 @@ function InviteShareContent() {
               )}
             </div>
 
-            <div className="mt-5 flex items-center justify-between">
+            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Button variant="ghost" size="lg" onClick={() => setStep("years")}>
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
-              <Button
-                size="lg"
-                disabled={!canProceedDetails || submitting}
-                onClick={handleSubmit}
-              >
-                {submitting ? "Sending..." : "Send invite"}
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {/* Secondary: skip Twilio, send the link from your own
+                    phone via the existing share-sheet flow. The pending
+                    row is still created with the recipient phone so the
+                    webhook auto-claim path still applies on signup. */}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  disabled={!canProceedDetails || submitting}
+                  onClick={() => handleSubmit(true)}
+                >
+                  Send it myself
+                </Button>
+                {/* Primary: Trustead's Twilio number sends the SMS. */}
+                <Button
+                  size="lg"
+                  disabled={!canProceedDetails || submitting}
+                  onClick={() => handleSubmit(false)}
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                >
+                  {submitting ? "Sending..." : "Send invite"}
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -517,7 +539,7 @@ function InviteShareContent() {
               <Button
                 size="lg"
                 disabled={!canProceedDetails || submitting}
-                onClick={handleSubmit}
+                onClick={() => handleSubmit(false)}
               >
                 {submitting ? "Creating..." : "Create invite link"}
               </Button>
@@ -589,7 +611,7 @@ function InviteShareContent() {
               <Button
                 size="lg"
                 disabled={!canProceedDetails || submitting}
-                onClick={handleSubmit}
+                onClick={() => handleSubmit(false)}
               >
                 {submitting ? "Creating..." : "Create group invite"}
               </Button>

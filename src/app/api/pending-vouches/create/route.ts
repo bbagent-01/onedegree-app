@@ -54,6 +54,11 @@ interface CreateBody {
   vouchType?: string;
   yearsKnownBucket?: string;
   ratingStake?: boolean;
+  /** Mode A only — when true, server creates the pending row but
+   *  does NOT trigger Twilio. Sender sends the link from their own
+   *  phone via the share-sheet flow. The phone-match auto-claim
+   *  on signup still works because the recipient_phone is stored. */
+  skipAutoSend?: boolean;
 }
 
 function generateToken(): string {
@@ -298,9 +303,13 @@ export async function POST(req: Request) {
   // Trigger Twilio auto-send for Mode A only. Open modes (B, C) ship
   // the prefilled text in the response and let the sender share via
   // their own messaging app (no recipient phone to send to anyway).
+  // Caller can set skipAutoSend=true on Mode A to bypass Twilio and
+  // go straight to share-sheet — useful when the sender wants to
+  // include a personal note from their own number.
   let smsSent = false;
   let smsError: string | null = null;
-  if (mode === "phone" && phoneE164) {
+  const skipAutoSend = !!body.skipAutoSend;
+  if (mode === "phone" && phoneE164 && !skipAutoSend) {
     try {
       const result = await sendPendingVouchSMS({
         toPhone: phoneE164,
