@@ -70,14 +70,19 @@ const SWIPE_THRESHOLD_PX = 50;
 //     ≈ power2.out
 //   - 60ms stagger between words feels natural at title scale; body
 //     uses a tighter 25ms because there are more words to traverse
-const WORD_DURATION_MS = 1200;
+// Halved across the board — the prior cadence felt slow. Keep the
+// brightbase-derived feel (rise from below the baseline through a
+// mask) but resolve in ~half the time.
+const WORD_DURATION_MS = 600;
 const WORD_EASING = "cubic-bezier(0.25, 0.46, 0.45, 0.94)";
-const TITLE_WORD_STAGGER_MS = 60;
-const BODY_WORD_STAGGER_MS = 25;
-const BLOCK_FADE_DURATION_MS = 1000;
-// Logo morph duration — how long it takes to translate + scale into
-// its top-of-screen header position once the intro hold ends.
-const LOGO_MORPH_MS = 800;
+const TITLE_WORD_STAGGER_MS = 30;
+const BODY_WORD_STAGGER_MS = 12;
+const BLOCK_FADE_DURATION_MS = 500;
+// Logo morph — uses expo.out so it eases in fast and settles slowly,
+// which reads as "nicer" than the standard power2.out shared with
+// the text. Distinct easing keeps the motion from feeling mechanical.
+const LOGO_MORPH_MS = 900;
+const LOGO_MORPH_EASING = "cubic-bezier(0.19, 1, 0.22, 1)";
 
 type Phase = "intro" | "slides" | "dismissed";
 
@@ -270,7 +275,7 @@ export default function SandboxOnboardingPage() {
           width: phase === "intro" ? "min(28rem, 92vw)" : "9rem",
           transitionProperty: "top, transform, width",
           transitionDuration: `${LOGO_MORPH_MS}ms`,
-          transitionTimingFunction: WORD_EASING,
+          transitionTimingFunction: LOGO_MORPH_EASING,
         }}
       >
         <iframe
@@ -301,10 +306,12 @@ export default function SandboxOnboardingPage() {
             <div className="w-10" aria-hidden />
           </div>
 
-          {/* Centered content — heading, visual, body, CTA */}
+          {/* Centered content — heading, visual, body, CTA. Vertically
+              centered between the logo header (top) and the dot
+              indicator (bottom); padding clears both safe zones. */}
           <div
             key={index}
-            className="flex flex-1 items-start justify-center overflow-y-auto px-6 pt-32 pb-32 sm:pt-36"
+            className="flex flex-1 items-center justify-center overflow-y-auto px-6 pt-28 pb-20 sm:pt-32 sm:pb-24"
           >
             <div className="flex w-full max-w-md flex-col items-center gap-7 text-center sm:max-w-xl sm:gap-9">
               <AnimatedHeading
