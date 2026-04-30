@@ -12,7 +12,14 @@
 // Edit `SAMPLES` below to retune values and see all three contexts
 // react together.
 
-import { Star, Heart, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Star,
+  Heart,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight,
+  ArrowLeft,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Sample data ───────────────────────────────────────────────────
@@ -33,6 +40,12 @@ type Connector = {
   viewerKnows: boolean;
 };
 
+// 1° vouch direction: who has vouched for whom.
+//   "mutual"   = both directions (default for 1°)
+//   "outgoing" = viewer vouched for them, no return vouch yet
+//   "incoming" = they vouched for the viewer, viewer hasn't vouched back
+type VouchDirection = "mutual" | "outgoing" | "incoming";
+
 type Sample = {
   id: string;
   name: string;
@@ -40,6 +53,7 @@ type Sample = {
   archetype: string;
   avatarUrl: string;
   degree: DegreeBucket;
+  vouchDirection?: VouchDirection; // only meaningful when degree === 1
   connection: number | null;
   vouch: number | null;
   rating: number | null;
@@ -77,9 +91,10 @@ const SAMPLES: Sample[] = [
     id: "maya",
     name: "Maya L.",
     initials: "ML",
-    archetype: "1° · top tier",
+    archetype: "1° · mutual",
     avatarUrl: "https://i.pravatar.cc/200?img=47",
     degree: 1,
+    vouchDirection: "mutual",
     connection: 9.4,
     vouch: 8.2,
     rating: 4.9,
@@ -100,6 +115,34 @@ const SAMPLES: Sample[] = [
       vouchers: 9,
     },
     connectors: [], // 1° = direct, no chain
+  },
+  {
+    id: "casey",
+    name: "Casey W.",
+    initials: "CW",
+    archetype: "1° · I vouched, no return",
+    avatarUrl: "https://i.pravatar.cc/200?img=32",
+    degree: 1,
+    vouchDirection: "outgoing",
+    connection: null, // not shown for 1°
+    vouch: 6.8,
+    rating: 4.6,
+    reviewCount: 7,
+    preview: "Was great seeing you in PDX last fall. Stop by anytime.",
+    time: "30m",
+    listing: {
+      title: "Backyard cottage with sauna",
+      location: "Portland, OR",
+      price: 122,
+      imageUrl: "https://picsum.photos/seed/portland-cottage/800/600",
+    },
+    profile: {
+      headline: "Carpenter & climber · Portland, OR",
+      bio: "Detached one-bedroom cottage with private entrance and a wood-fired sauna in back.",
+      chains: 0,
+      vouchers: 5,
+    },
+    connectors: [],
   },
   {
     id: "aki",
@@ -227,10 +270,11 @@ const SAMPLES: Sample[] = [
     id: "drew",
     name: "Drew M.",
     initials: "DM",
-    archetype: "low rating",
+    archetype: "1° · they vouched, low rating",
     avatarUrl: "https://i.pravatar.cc/200?img=60",
-    degree: 2,
-    connection: 5.0,
+    degree: 1,
+    vouchDirection: "incoming",
+    connection: null,
     vouch: 4.8,
     rating: 2.8,
     reviewCount: 15,
@@ -245,12 +289,10 @@ const SAMPLES: Sample[] = [
     profile: {
       headline: "Farmer · Hudson Valley, NY",
       bio: "Working farm with two guest rooms. Goats, chickens, two dogs. Strict 9pm quiet hours.",
-      chains: 2,
+      chains: 0,
       vouchers: 5,
     },
-    connectors: [
-      { id: "c8", name: "Aki N.", avatarUrl: "https://i.pravatar.cc/100?img=12", viewerKnows: true },
-    ],
+    connectors: [],
   },
 ];
 
@@ -263,12 +305,14 @@ const SAMPLES: Sample[] = [
 // the global stylesheet rewrites them to.
 const DEGREE_PILL: Record<
   1 | 2 | 3 | 4,
-  { bg: string; fg: string; label: string }
+  { bg: string; fg: string; label: string; outlineColor: string }
 > = {
-  1: { bg: "#BFE2D4", fg: "#0B2E25", label: "1°" }, // mint, dark text
-  2: { bg: "#2A8A6B", fg: "#FFFFFF", label: "2°" }, // emerald
-  3: { bg: "#BF8A0D", fg: "#FFFFFF", label: "3°" }, // mustard
-  4: { bg: "#525252", fg: "#FFFFFF", label: "4°+" }, // zinc
+  // 1° = white pill with dark text. The strongest trust state earns the
+  // highest contrast — pulled out of the green ramp entirely.
+  1: { bg: "#FFFFFF", fg: "#0B2E25", label: "1°", outlineColor: "#FFFFFF" },
+  2: { bg: "#2A8A6B", fg: "#FFFFFF", label: "2°", outlineColor: "#2A8A6B" },
+  3: { bg: "#BF8A0D", fg: "#FFFFFF", label: "3°", outlineColor: "#BF8A0D" },
+  4: { bg: "#525252", fg: "#FFFFFF", label: "4°+", outlineColor: "#525252" },
 };
 
 const METRIC_TONE: Record<
@@ -377,7 +421,12 @@ function TrustBadgeSandboxPill({
     sample.rating === null;
   if (isColdStart) return <NewMemberPill size={size} />;
 
-  // Degree pill — the visual anchor every size shares.
+  // Degree pill is the anchor of every badge size. For 2°/3° (and any
+  // other connected state with a connection score) the pill is a
+  // two-segment combo: the LEFT segment is filled with the degree
+  // color, a thin vertical divider separates the segments, and the
+  // RIGHT segment is outlined-only (transparent fill, colored border)
+  // and contains the viewer-relative connection score.
   const degreeStyle = sample.degree ? DEGREE_PILL[sample.degree] : null;
   const degreeSizeCls =
     size === "nano"
@@ -385,59 +434,143 @@ function TrustBadgeSandboxPill({
       : size === "micro"
         ? "px-2 py-[1px] text-[11px]"
         : "px-2.5 py-0.5 text-xs";
-  const degreeChip = degreeStyle ? (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full font-semibold",
-        degreeSizeCls
-      )}
-      style={{ backgroundColor: degreeStyle.bg, color: degreeStyle.fg }}
-    >
-      {degreeStyle.label}
-    </span>
-  ) : (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full font-semibold",
-        size === "nano" ? "px-1.5 py-[1px] text-[10px]" : "px-2 py-[1px] text-[11px]"
-      )}
-      style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
-    >
-      No path
-    </span>
-  );
 
-  // Nano = degree-only. The whole point of this size is "tiny visual
-  // anchor next to a name in a list" — don't add metric pills.
+  // Connection score lives INSIDE the degree pill now. Only shown when
+  // the host is 2° or 3° (FT-1 spec: 4°+ has no connection score, 1°
+  // intentionally suppresses it because direct vouch is the whole story).
+  const showConnectionInPill =
+    sample.degree === 2 || sample.degree === 3;
+
+  // Asymmetric vouch indicator — only meaningful at 1°. Mutual = no
+  // arrow. Outgoing = "→" (you vouched for them). Incoming = "←" (they
+  // vouched for you).
+  const vouchArrow =
+    sample.degree === 1 && sample.vouchDirection && sample.vouchDirection !== "mutual"
+      ? sample.vouchDirection === "outgoing"
+        ? "outgoing"
+        : "incoming"
+      : null;
+
+  function ArrowGlyph({ size: sz }: { size: BadgeSize }) {
+    const dim = sz === "nano" ? 10 : sz === "micro" ? 11 : 12;
+    if (vouchArrow === "outgoing")
+      return <ArrowRight style={{ width: dim, height: dim }} />;
+    if (vouchArrow === "incoming")
+      return <ArrowLeft style={{ width: dim, height: dim }} />;
+    return null;
+  }
+
+  let degreeChip: React.ReactNode;
+  if (!degreeStyle) {
+    degreeChip = (
+      <span
+        className={cn(
+          "inline-flex items-center rounded-full font-semibold",
+          size === "nano" ? "px-1.5 py-[1px] text-[10px]" : "px-2 py-[1px] text-[11px]"
+        )}
+        style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
+      >
+        No path
+      </span>
+    );
+  } else if (showConnectionInPill && sample.connection !== null) {
+    // Two-segment combo pill — degree (filled) | connection score (outlined)
+    degreeChip = (
+      <span
+        className="inline-flex items-stretch overflow-hidden rounded-full font-semibold tabular-nums"
+        style={{
+          border: `1px solid ${degreeStyle.outlineColor}`,
+        }}
+      >
+        <span
+          className={cn("inline-flex items-center", degreeSizeCls)}
+          style={{ backgroundColor: degreeStyle.bg, color: degreeStyle.fg }}
+        >
+          {degreeStyle.label}
+        </span>
+        <span
+          className={cn("inline-flex items-center", degreeSizeCls)}
+          style={{
+            backgroundColor: "transparent",
+            color: degreeStyle.outlineColor,
+            borderLeft: `1px solid ${degreeStyle.outlineColor}`,
+          }}
+        >
+          {sample.connection.toFixed(1)}
+        </span>
+      </span>
+    );
+  } else {
+    // Single-segment pill — 1° (white), 4°+ (zinc). White 1° gets a
+    // hairline border so it shows clearly on the cream listing-card
+    // chip background.
+    const needsHairline = sample.degree === 1;
+    degreeChip = (
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full font-semibold",
+          degreeSizeCls
+        )}
+        style={{
+          backgroundColor: degreeStyle.bg,
+          color: degreeStyle.fg,
+          border: needsHairline ? "1px solid rgba(11,46,37,0.14)" : undefined,
+        }}
+      >
+        <span>{degreeStyle.label}</span>
+        {vouchArrow && <ArrowGlyph size={size} />}
+      </span>
+    );
+  }
+
+  // Nano = degree-only. Tiny visual anchor next to a name in a list.
   if (size === "nano") {
     return <span className="inline-flex items-center">{degreeChip}</span>;
   }
 
-  // Decide which metrics to show.
-  // Per FT-1 cold-start rules: hide pillars the user has no data in.
-  const showConnection =
-    size === "medium" && sample.connection !== null && sample.degree !== null && sample.degree < 4;
-  const showVouch = sample.vouch !== null;
+  // For 1°, FT-1 says direct vouch is the whole story — skip the
+  // separate Vouch metric pill at micro/medium. Rating still shows
+  // because it's independent of trust direction.
+  const showVouch = sample.vouch !== null && sample.degree !== 1;
   const showRating = sample.rating !== null && sample.reviewCount > 0;
-  const ratingWarn = sample.rating !== null && sample.rating < 3.5;
 
-  // Micro picks ONE metric pill — Vouch is the absolute signal that
-  // travels best to a card-tile context. Rating goes alongside.
-  const microMetric =
-    size === "micro" && showVouch ? (
-      <MetricPill
-        icon={ICON_DIAMOND}
-        value={sample.vouch!.toFixed(1)}
-        tone="vouch"
-        size="micro"
+  // Rating now uncontained — plain white-text star + value + (count).
+  const ratingWarn = sample.rating !== null && sample.rating < 3.5;
+  const ratingTextColor = onImage
+    ? ratingWarn
+      ? "#B91C1C"
+      : "#0B2E25"
+    : ratingWarn
+      ? "#FCA5A5"
+      : "#F5F1E6";
+  const ratingMutedColor = onImage
+    ? "rgba(11,46,37,0.55)"
+    : "rgba(245,241,230,0.55)";
+  const ratingDim = size === "micro" ? 12 : 14;
+  const ratingTextSize = size === "micro" ? "text-[11px]" : "text-xs";
+  const ratingNode = showRating ? (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 font-semibold tabular-nums",
+        ratingTextSize
+      )}
+      style={{ color: ratingTextColor }}
+    >
+      <Star
+        style={{ width: ratingDim, height: ratingDim, color: ratingTextColor }}
+        fill="currentColor"
       />
-    ) : null;
-  const ratingTone = ratingWarn ? "rating-bad" : "rating-good";
+      <span>{sample.rating!.toFixed(1)}</span>
+      <span className="font-normal" style={{ color: ratingMutedColor }}>
+        ({sample.reviewCount})
+      </span>
+    </span>
+  ) : null;
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full",
+        "inline-flex items-center gap-1.5 rounded-full",
         onImage && "px-1.5 py-0.5 shadow-sm"
       )}
       style={onImage ? { backgroundColor: "rgba(255,255,255,0.95)" } : undefined}
@@ -445,29 +578,19 @@ function TrustBadgeSandboxPill({
       {degreeChip}
       {size === "micro" && (
         <>
-          {microMetric}
-          {showRating && (
+          {showVouch && (
             <MetricPill
-              icon={
-                <Star className="h-full w-full" fill="currentColor" />
-              }
-              value={sample.rating!.toFixed(1)}
-              tone={ratingTone}
+              icon={ICON_DIAMOND}
+              value={sample.vouch!.toFixed(1)}
+              tone="vouch"
               size="micro"
             />
           )}
+          {ratingNode}
         </>
       )}
       {size === "medium" && (
         <>
-          {showConnection && (
-            <MetricPill
-              icon={ICON_CIRCLE}
-              value={sample.connection!.toFixed(1)}
-              tone="connection"
-              size="medium"
-            />
-          )}
           {showVouch && (
             <MetricPill
               icon={ICON_DIAMOND}
@@ -476,16 +599,7 @@ function TrustBadgeSandboxPill({
               size="medium"
             />
           )}
-          {showRating && (
-            <MetricPill
-              icon={
-                <Star className="h-full w-full" fill="currentColor" />
-              }
-              value={`${sample.rating!.toFixed(1)} (${sample.reviewCount})`}
-              tone={ratingTone}
-              size="medium"
-            />
-          )}
+          {ratingNode}
         </>
       )}
     </span>
@@ -876,14 +990,29 @@ function MacroBlock({ sample }: { sample: Sample }) {
     sample.vouch === null &&
     sample.rating === null;
 
+  // 1° intentionally skips Connection and Vouch tiles per Loren's
+  // direction — direct vouch is the whole story; rating is the only
+  // independent signal worth surfacing.
+  const isFirstDegree = sample.degree === 1;
   const showConnection =
-    sample.connection !== null && sample.degree !== null && sample.degree < 4;
-  const showVouch = sample.vouch !== null;
+    !isFirstDegree &&
+    sample.connection !== null &&
+    sample.degree !== null &&
+    sample.degree < 4;
+  const showVouch = !isFirstDegree && sample.vouch !== null;
   const showRating = sample.rating !== null && sample.reviewCount > 0;
   const ratingWarn = sample.rating !== null && sample.rating < 3.5;
 
   const degreeStyle = sample.degree ? DEGREE_PILL[sample.degree] : null;
   const showConnectors = sample.connectors.length > 0;
+  const vouchDirCopy =
+    sample.vouchDirection === "mutual"
+      ? "You and " + sample.name + " have vouched for each other"
+      : sample.vouchDirection === "outgoing"
+        ? "You vouched for " + sample.name + " · no return vouch yet"
+        : sample.vouchDirection === "incoming"
+          ? sample.name + " vouched for you · you haven't vouched back"
+          : null;
 
   return (
     <div
@@ -911,12 +1040,54 @@ function MacroBlock({ sample }: { sample: Sample }) {
               {sample.name}
             </h4>
             {degreeStyle ? (
-              <span
-                className="inline-flex items-center rounded-full px-3 py-0.5 text-sm font-semibold"
-                style={{ backgroundColor: degreeStyle.bg, color: degreeStyle.fg }}
-              >
-                {degreeStyle.label}
-              </span>
+              // 2°/3° get the combo pill (degree | connection); 1° and
+              // 4°+ stay single-segment. 1° optionally appends an arrow
+              // for asymmetric vouch direction.
+              (sample.degree === 2 || sample.degree === 3) &&
+              sample.connection !== null ? (
+                <span
+                  className="inline-flex items-stretch overflow-hidden rounded-full text-sm font-semibold tabular-nums"
+                  style={{ border: `1px solid ${degreeStyle.outlineColor}` }}
+                >
+                  <span
+                    className="inline-flex items-center px-3 py-0.5"
+                    style={{ backgroundColor: degreeStyle.bg, color: degreeStyle.fg }}
+                  >
+                    {degreeStyle.label}
+                  </span>
+                  <span
+                    className="inline-flex items-center px-3 py-0.5"
+                    style={{
+                      color: degreeStyle.outlineColor,
+                      borderLeft: `1px solid ${degreeStyle.outlineColor}`,
+                    }}
+                  >
+                    {sample.connection.toFixed(1)}
+                  </span>
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-sm font-semibold"
+                  style={{
+                    backgroundColor: degreeStyle.bg,
+                    color: degreeStyle.fg,
+                    border:
+                      sample.degree === 1
+                        ? "1px solid rgba(11,46,37,0.14)"
+                        : undefined,
+                  }}
+                >
+                  <span>{degreeStyle.label}</span>
+                  {sample.degree === 1 &&
+                    sample.vouchDirection === "outgoing" && (
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    )}
+                  {sample.degree === 1 &&
+                    sample.vouchDirection === "incoming" && (
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                    )}
+                </span>
+              )
             ) : (
               <span
                 className="inline-flex items-center rounded-full px-3 py-0.5 text-sm font-semibold"
@@ -1000,6 +1171,45 @@ function MacroBlock({ sample }: { sample: Sample }) {
           New to Trustead — no vouches or reviews yet. Invite a friend to
           vouch and start a chain.
         </div>
+      ) : isFirstDegree ? (
+        // 1° — direct vouch is the whole story. Show a vouch-direction
+        // callout + the rating tile only.
+        <div className="mt-6 grid gap-3 grid-cols-1 sm:grid-cols-2">
+          <div
+            className="rounded-xl p-4"
+            style={{
+              backgroundColor: "#ECFDF5",
+              border: "1px solid #A7F3D0",
+              color: "#065F46",
+            }}
+          >
+            <div className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#047857]">
+              Direct vouch
+            </div>
+            <div className="mt-1.5 text-sm font-semibold leading-snug">
+              {vouchDirCopy}
+            </div>
+          </div>
+          {showRating ? (
+            <MacroMetric
+              icon={<Star className="h-full w-full" fill="currentColor" />}
+              label="Rating"
+              value={sample.rating!.toFixed(1)}
+              unit="★"
+              sub={`Across ${sample.reviewCount} ${sample.reviewCount === 1 ? "review" : "reviews"}`}
+              tone={ratingWarn ? "rating-bad" : "rating-good"}
+            />
+          ) : (
+            <MacroMetric
+              icon={<Star className="h-full w-full" fill="currentColor" />}
+              label="Rating"
+              value="—"
+              unit=""
+              sub="No reviews yet"
+              tone="muted"
+            />
+          )}
+        </div>
       ) : (
         <div className="mt-6 grid gap-3 grid-cols-1 sm:grid-cols-3">
           {showConnection ? (
@@ -1075,6 +1285,9 @@ function MacroStack() {
 export function TrustBadgeSandbox() {
   return (
     <div className="min-h-screen bg-[var(--tt-body-bg)] text-[#F5F1E6] py-10 sm:py-14">
+      {/* Page header is constrained, but the nano + micro side-by-side
+          row below uses a wider container so the listings can render at
+          something close to their real width without crowding the inbox. */}
       <div className="mx-auto w-full max-w-[1200px] px-5 sm:px-8">
         <header className="mb-10">
           <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-[rgba(245,241,230,0.55)]">
@@ -1092,31 +1305,39 @@ export function TrustBadgeSandbox() {
             shrinks.
           </p>
         </header>
+      </div>
 
-        <div className="space-y-12">
-          <section>
+      {/* Nano + Micro row — wider than page max so we can see both in
+          context next to each other. */}
+      <div className="mx-auto w-full max-w-[1600px] px-5 sm:px-8">
+        <div className="flex flex-col gap-10 lg:flex-row lg:gap-12">
+          <section className="shrink-0">
             <SectionHeader
               eyebrow="Size 01 · Nano"
               title="Inbox thread row"
-              note="Smallest size. Just the degree pill — a tiny visual anchor next to the name. No metrics, no rating star. Cold-start renders as a 'New member' chip."
+              note="Smallest size. Just the degree pill — a tiny visual anchor next to the name. Cold-start renders as a 'New member' chip."
             />
             <InboxMockup />
           </section>
 
-          <section>
+          <section className="min-w-0 flex-1">
             <SectionHeader
               eyebrow="Size 02 · Micro"
               title="Listing card"
-              note="Sits inline below the image — under the location, title, and 'Hosted by' line — same place trustead.app's LiveListingCard puts it today. Degree pill + the absolute Vouch score (purple diamond) + raw rating. Connection score is omitted at this size to keep the chip narrow; the listing tile already implies the viewer has a path to it."
+              note="Sits inline below the image — under the location, title, and 'Hosted by' line — same spot LiveListingCard puts it today. Two-segment combo pill (degree · connection) + Vouch diamond + uncontained rating with count."
             />
             <ListingGrid />
           </section>
+        </div>
+      </div>
 
+      <div className="mx-auto mt-12 w-full max-w-[1200px] px-5 sm:px-8">
+        <div className="space-y-12">
           <section>
             <SectionHeader
               eyebrow="Size 03 · Medium"
               title="Host card on a full listings page"
-              note="Full four-metric display. Connection circle (blue, viewer-relative) + Vouch diamond (purple, absolute) + Rating star (amber, with review count in parens). 4°+ hides the connection pill per spec; cold-start collapses to a 'New member' chip."
+              note="Combo degree pill (with connection score baked in) + Vouch diamond + uncontained rating + connector strip showing the people who connect you to this host. 1° drops the metric pills since direct vouch is the whole story."
             />
             <HostRowGrid />
           </section>
@@ -1125,7 +1346,7 @@ export function TrustBadgeSandbox() {
             <SectionHeader
               eyebrow="Size 04 · Macro"
               title="Profile page block"
-              note="The biggest size. Lives on the host's profile page where each metric gets its own labeled tile with the supporting count (chains, vouchers, reviews). Connection collapses to '—' for 4°+; whole block collapses to a 'New member' empty state for cold-start users."
+              note="The biggest size. Full-width profile-page block with avatar photo, bio, connector strip, and three labeled metric tiles. Connection collapses to '—' for 4°+; whole block collapses to a 'New member' empty state for cold-start users."
             />
             <MacroStack />
           </section>
