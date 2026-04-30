@@ -27,6 +27,7 @@ import { Redis } from "@upstash/redis";
 
 export type LimitName =
   | "invite"
+  | "pendingVouch"
   | "contactRequest"
   | "dmMessage"
   | "proposal"
@@ -39,6 +40,11 @@ interface LimitSpec {
 
 const LIMITS: Record<LimitName, LimitSpec> = {
   invite: { requests: 10, windowSeconds: 3600 },
+  // Pre-vouch share-link creates. Higher than `invite` because there's
+  // no Twilio cost on each create — the hard cap is the per-sender
+  // 20-active-row ceiling enforced at the API. 20/h matches the
+  // contactRequest tier and is the rate floor the B1 spec calls out.
+  pendingVouch: { requests: 20, windowSeconds: 3600 },
   contactRequest: { requests: 20, windowSeconds: 3600 },
   dmMessage: { requests: 60, windowSeconds: 3600 },
   proposal: { requests: 5, windowSeconds: 3600 },
