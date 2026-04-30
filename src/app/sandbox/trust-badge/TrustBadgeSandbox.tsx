@@ -20,6 +20,7 @@ import {
   ChevronRight,
   ArrowRight,
   ArrowLeft,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -321,26 +322,29 @@ const DEGREE_PILL: Record<
 };
 
 const METRIC_TONE: Record<
-  "connection" | "vouch" | "rating-good" | "rating-bad",
+  "connection" | "vouch" | "vouch-outlined" | "rating-good" | "rating-bad",
   { bg: string; fg: string; border: string }
 > = {
   connection: { bg: "#EFF6FF", fg: "#1D4ED8", border: "#BFDBFE" },
   vouch: { bg: "#FAF5FF", fg: "#6B21A8", border: "#E9D5FF" },
+  // Outlined variant for the inline metric pill (micro/medium). The
+  // macro Vouch tile keeps the filled "vouch" tone.
+  "vouch-outlined": { bg: "transparent", fg: "#7C3AED", border: "#7C3AED" },
   "rating-good": { bg: "#FFFBEB", fg: "#B45309", border: "#FDE68A" },
   "rating-bad": { bg: "#FEF2F2", fg: "#B91C1C", border: "#FECACA" },
 };
 
-// Per trust-icons.html top-pick: ● circle for connection (blue), ◆
-// diamond for vouch (purple), ★ star for rating (amber-gold, locked).
+// Connection = ● circle (blue, viewer-relative).
+// Vouch = small shield (purple, absolute trust signal) — replaces the
+// earlier diamond now that connection is baked into the degree pill.
+// Rating = lucide Star (amber, locked from FT-1 spec).
 const ICON_CIRCLE = (
   <svg viewBox="0 0 24 24" fill="currentColor" className="h-full w-full">
     <circle cx="12" cy="12" r="10" />
   </svg>
 );
-const ICON_DIAMOND = (
-  <svg viewBox="0 0 24 24" fill="currentColor" className="h-full w-full">
-    <path d="M12 2L22 12L12 22L2 12Z" />
-  </svg>
+const ICON_SHIELD = (
+  <Shield className="h-full w-full" fill="currentColor" strokeWidth={0} />
 );
 
 // ── Badge primitive ───────────────────────────────────────────────
@@ -379,7 +383,7 @@ function MetricPill({
 }: {
   icon: React.ReactNode;
   value: string;
-  tone: "connection" | "vouch" | "rating-good" | "rating-bad";
+  tone: "connection" | "vouch" | "vouch-outlined" | "rating-good" | "rating-bad";
   size: "micro" | "medium";
 }) {
   const palette = METRIC_TONE[tone];
@@ -513,10 +517,70 @@ function TrustBadgeSandboxPill({
         </span>
       </span>
     );
+  } else if (vouchArrow) {
+    // 1° asymmetric — same combo-pill structure as 2°/3° (one outer
+    // rounded shape with two segments and a flat divider) BUT both
+    // segments are filled and the divider is a 2px transparent gap
+    // instead of a 1px line, so the surface behind the badge shows
+    // through. The right segment is a real <button> — eventually a
+    // click opens the vouch-back modal / nudge flow.
+    const arrowDim = size === "nano" ? 10 : size === "micro" ? 12 : 14;
+    const isOutgoing = vouchArrow === "outgoing";
+    const arrowTitle = isOutgoing
+      ? "You vouched for them — they haven't vouched back. Click to nudge."
+      : "They vouched for you — you haven't vouched back. Click to vouch back.";
+    degreeChip = (
+      <span
+        className="inline-flex items-stretch overflow-hidden rounded-full font-semibold"
+        style={{
+          gap: "2px",
+          // Hairline always visible on degree=1 so the white segment
+          // doesn't disappear when the badge sits on a white chip
+          // (listing-card overlay or macro profile block).
+          border: "1px solid rgba(11,46,37,0.14)",
+        }}
+      >
+        <span
+          className={cn("inline-flex items-center", degreeSizeCls)}
+          style={{
+            backgroundColor: degreeStyle.bg,
+            color: degreeStyle.fg,
+            borderRadius: 0,
+          }}
+        >
+          {degreeStyle.label}
+        </span>
+        <button
+          type="button"
+          title={arrowTitle}
+          aria-label={
+            isOutgoing
+              ? "Vouch-back pending — nudge for return vouch"
+              : "Vouch them back"
+          }
+          className={cn(
+            "inline-flex items-center transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1",
+            degreeSizeCls
+          )}
+          style={{
+            backgroundColor: ASYMMETRY_ORANGE,
+            color: "#FFFFFF",
+            borderRadius: 0,
+          }}
+          onClick={(e) => e.preventDefault()}
+        >
+          {isOutgoing ? (
+            <ArrowRight style={{ width: arrowDim, height: arrowDim }} />
+          ) : (
+            <ArrowLeft style={{ width: arrowDim, height: arrowDim }} />
+          )}
+        </button>
+      </span>
+    );
   } else {
-    // Single-segment pill — 1° (white), 4°+ (zinc). White 1° gets a
-    // hairline border so it shows clearly on the cream listing-card
-    // chip background.
+    // Single-segment pill — 1° mutual (white), 4°+ (zinc). White 1°
+    // gets a hairline border so it shows clearly on the cream
+    // listing-card chip background.
     const needsHairline = sample.degree === 1;
     degreeChip = (
       <span
@@ -535,59 +599,9 @@ function TrustBadgeSandboxPill({
     );
   }
 
-  // Asymmetric vouch chip — a separate filled orange pill that sits
-  // next to the 1° pill with a small gap. Shape mirrors the degree
-  // pill (same height, same rounded-full); button-like so it's
-  // recognizable as a future click target (opens the vouch-back
-  // modal). Only meaningful at 1°.
-  const arrowChipSizeCls =
-    size === "nano"
-      ? "px-1.5 py-[1px]"
-      : size === "micro"
-        ? "px-2 py-[1px]"
-        : "px-2 py-0.5";
-  const arrowDim = size === "nano" ? 10 : size === "micro" ? 12 : 14;
-  const arrowChip = vouchArrow ? (
-    <button
-      type="button"
-      title={
-        vouchArrow === "outgoing"
-          ? "You vouched for them — they haven't vouched back. Click to nudge."
-          : "They vouched for you — you haven't vouched back. Click to vouch back."
-      }
-      aria-label={
-        vouchArrow === "outgoing"
-          ? "Vouch-back pending — nudge for return vouch"
-          : "Vouch them back"
-      }
-      className={cn(
-        "inline-flex items-center rounded-full font-semibold leading-none transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1",
-        arrowChipSizeCls
-      )}
-      style={{
-        backgroundColor: ASYMMETRY_ORANGE,
-        color: "#FFFFFF",
-      }}
-      onClick={(e) => e.preventDefault()}
-    >
-      {vouchArrow === "outgoing" ? (
-        <ArrowRight style={{ width: arrowDim, height: arrowDim }} />
-      ) : (
-        <ArrowLeft style={{ width: arrowDim, height: arrowDim }} />
-      )}
-    </button>
-  ) : null;
-
-  // Wrap the degree pill + optional asymmetric chip together with a
-  // small gap so they read as two halves of one logical badge.
-  const degreeBlock = arrowChip ? (
-    <span className="inline-flex items-center gap-0.5">
-      {degreeChip}
-      {arrowChip}
-    </span>
-  ) : (
-    degreeChip
-  );
+  // No more separate arrow chip — when degree=1 asymmetric, the chip
+  // is now baked into the combo pill above. degreeBlock = degreeChip.
+  const degreeBlock = degreeChip;
 
   // Nano = degree-only. Tiny visual anchor next to a name in a list.
   if (size === "nano") {
@@ -646,9 +660,9 @@ function TrustBadgeSandboxPill({
         <>
           {showVouch && (
             <MetricPill
-              icon={ICON_DIAMOND}
+              icon={ICON_SHIELD}
               value={sample.vouch!.toFixed(1)}
-              tone="vouch"
+              tone="vouch-outlined"
               size="micro"
             />
           )}
@@ -659,9 +673,9 @@ function TrustBadgeSandboxPill({
         <>
           {showVouch && (
             <MetricPill
-              icon={ICON_DIAMOND}
+              icon={ICON_SHIELD}
               value={sample.vouch!.toFixed(1)}
-              tone="vouch"
+              tone="vouch-outlined"
               size="medium"
             />
           )}
@@ -1136,45 +1150,62 @@ function MacroBlock({ sample }: { sample: Sample }) {
                     {sample.connection.toFixed(1)}
                   </span>
                 </span>
-              ) : (
-                <span className="inline-flex items-center gap-1">
+              ) : sample.degree === 1 &&
+                sample.vouchDirection &&
+                sample.vouchDirection !== "mutual" ? (
+                // 1° asymmetric — combo pill (white | gap | orange arrow)
+                <span
+                  className="inline-flex items-stretch overflow-hidden rounded-full text-sm font-semibold"
+                  style={{
+                    gap: "2px",
+                    border: "1px solid rgba(11,46,37,0.14)",
+                  }}
+                >
                   <span
-                    className="inline-flex items-center rounded-full px-3 py-0.5 text-sm font-semibold"
+                    className="inline-flex items-center px-3 py-0.5"
                     style={{
                       backgroundColor: degreeStyle.bg,
                       color: degreeStyle.fg,
-                      border:
-                        sample.degree === 1
-                          ? "1px solid rgba(11,46,37,0.14)"
-                          : undefined,
+                      borderRadius: 0,
                     }}
                   >
                     {degreeStyle.label}
                   </span>
-                  {sample.degree === 1 &&
-                    sample.vouchDirection &&
-                    sample.vouchDirection !== "mutual" && (
-                      <button
-                        type="button"
-                        title={
-                          sample.vouchDirection === "outgoing"
-                            ? "You vouched for them — they haven't vouched back. Click to nudge."
-                            : "They vouched for you — you haven't vouched back. Click to vouch back."
-                        }
-                        className="inline-flex items-center rounded-full px-2.5 py-0.5 transition-opacity hover:opacity-90"
-                        style={{
-                          backgroundColor: ASYMMETRY_ORANGE,
-                          color: "#FFFFFF",
-                        }}
-                        onClick={(e) => e.preventDefault()}
-                      >
-                        {sample.vouchDirection === "outgoing" ? (
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        ) : (
-                          <ArrowLeft className="h-3.5 w-3.5" />
-                        )}
-                      </button>
+                  <button
+                    type="button"
+                    title={
+                      sample.vouchDirection === "outgoing"
+                        ? "You vouched for them — they haven't vouched back. Click to nudge."
+                        : "They vouched for you — you haven't vouched back. Click to vouch back."
+                    }
+                    className="inline-flex items-center px-2.5 py-0.5 transition-opacity hover:opacity-90"
+                    style={{
+                      backgroundColor: ASYMMETRY_ORANGE,
+                      color: "#FFFFFF",
+                      borderRadius: 0,
+                    }}
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    {sample.vouchDirection === "outgoing" ? (
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowLeft className="h-3.5 w-3.5" />
                     )}
+                  </button>
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center rounded-full px-3 py-0.5 text-sm font-semibold"
+                  style={{
+                    backgroundColor: degreeStyle.bg,
+                    color: degreeStyle.fg,
+                    border:
+                      sample.degree === 1
+                        ? "1px solid rgba(11,46,37,0.14)"
+                        : undefined,
+                  }}
+                >
+                  {degreeStyle.label}
                 </span>
               )
             ) : (
@@ -1322,7 +1353,7 @@ function MacroBlock({ sample }: { sample: Sample }) {
           )}
           {showVouch && (
             <MacroMetric
-              icon={ICON_DIAMOND}
+              icon={ICON_SHIELD}
               label="Vouch"
               value={sample.vouch!.toFixed(1)}
               unit="/ 10"
