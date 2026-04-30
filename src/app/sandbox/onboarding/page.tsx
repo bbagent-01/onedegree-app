@@ -105,6 +105,14 @@ const LOGO_TOTAL_MORPH_MS = Math.max(
 // we just flip the React phase early.
 const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
 
+// Tagline exit — delayed and slow so it reads as "trying to follow"
+// the logo up rather than vanishing first. The wrapper begins moving
+// up immediately on morph; the tagline waits a beat, then drifts up
+// + fades while the logo continues its journey.
+const TAGLINE_EXIT_DELAY_MS = 300;
+const TAGLINE_EXIT_DURATION_MS = 800;
+const TAGLINE_EXIT_TRANSLATE_PX = 24;
+
 type Phase = "intro" | "morphing" | "slides" | "dismissed";
 
 export default function SandboxOnboardingPage() {
@@ -381,9 +389,11 @@ export default function SandboxOnboardingPage() {
         />
         {/* Tagline — animates in word-by-word like the slide text
             (same rise-from-baseline mask). Waits until the wordmark
-            has mostly drawn before its first word lifts. When the
-            phase flips to morphing the wrapper fades + lifts up so
-            the line clears as the logo begins its move. */}
+            has mostly drawn before its first word lifts. On morph,
+            the logo wrapper carries the tagline up; the tagline
+            ALSO fades + drifts up extra after a short delay so it
+            reads as "trying to follow the logo, then dissolving"
+            — instead of disappearing before the logo moves. */}
         <div
           className="mt-4 text-center"
           style={{
@@ -391,8 +401,8 @@ export default function SandboxOnboardingPage() {
             transform:
               phase === "intro"
                 ? "translate3d(0, 0, 0)"
-                : "translate3d(0, -16px, 0)",
-            transition: `opacity ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING}, transform ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING}`,
+                : `translate3d(0, -${TAGLINE_EXIT_TRANSLATE_PX}px, 0)`,
+            transition: `opacity ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms, transform ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms`,
           }}
         >
           <p className="text-lg text-muted-foreground sm:text-xl">
@@ -704,15 +714,19 @@ const PROBLEM_CARDS = [
 
 function PainPointsCardsVisual() {
   // Track is the cards duplicated so the right→left scroll wraps
-  // seamlessly when the first set scrolls fully out.
+  // seamlessly when the first set scrolls fully out. Uses mr-3 on
+  // every card (rather than flex gap) so each card occupies an
+  // identical "slot" of card_width + 12px and the keyframe's -50%
+  // translation lands exactly one set's slot-width over — no gap
+  // arithmetic mismatch at the seam, no blank-space hiccup.
   const cards = [...PROBLEM_CARDS, ...PROBLEM_CARDS];
   return (
     <div className="cards-window relative w-full overflow-hidden">
-      <div className="cards-track flex gap-3" style={{ width: "max-content" }}>
+      <div className="cards-track flex" style={{ width: "max-content" }}>
         {cards.map((p, i) => (
           <div
             key={`${p.title}-${i}`}
-            className="flex w-[44vw] max-w-[180px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/40 text-left sm:w-[180px]"
+            className="mr-3 flex w-[44vw] max-w-[180px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/40 text-left sm:w-[180px]"
           >
             <div
               className="aspect-[4/3] w-full bg-cover bg-center"
