@@ -30,7 +30,8 @@ const SLIDES: Slide[] = [
   {
     eyebrow: "The problem",
     titleLines: ["Renting your actual home,", "actually isn't great"],
-    body: "It comes with friction you'd rather not deal with.",
+    titleEmphasis: { word: "actually", className: "italic text-brand-300" },
+    body: "So most people just don't do it. Losing out on monetizing their empty home.",
     Visual: PainPointsCardsVisual,
   },
   {
@@ -61,17 +62,21 @@ const SLIDES: Slide[] = [
 ];
 
 // Phase timeline:
-//   intro    (0 → 2800 ms)        — logo draws + tagline fades up
-//   morphing (2800 → 4400 ms)     — logo translates up + shrinks; tagline fades out; slide content NOT yet rendered
-//   slides   (4400 ms → ...)      — slide content mounts and runs its word stagger
-const INTRO_DURATION_MS = 2800;
+//   intro     (0 → 3400 ms)       — logo draws + tagline rises;
+//                                   both visible together for ~1.5s
+//   morphing  (3400 → ~6400 ms)   — logo translates up + shrinks
+//                                   slowly; tagline fades out;
+//                                   slide content NOT yet rendered
+//   slides    (~6400 ms → ...)    — slide content mounts and runs
+//                                   its word stagger
+const INTRO_DURATION_MS = 3400;
 const SWIPE_THRESHOLD_PX = 50;
 
-// Tagline waits until the wordmark draw-in is mostly complete before
-// it begins its own word-stagger. The draw-in finishes at ~1.374s, so
-// 1450ms gives the logo room to "land" before the line under it
-// starts.
-const TAGLINE_DELAY_MS = 1450;
+// Tagline starts BEFORE the wordmark finishes drawing, so they
+// resolve together. Logo draw-in lands at ~1.374s; a 900ms tagline
+// start means the first word of the tagline begins lifting while
+// the logo is still drawing.
+const TAGLINE_DELAY_MS = 900;
 
 // Word-stagger tokens.
 const WORD_DURATION_MS = 600;
@@ -81,12 +86,12 @@ const BODY_WORD_STAGGER_MS = 12;
 const BLOCK_FADE_DURATION_MS = 500;
 const WORD_EXIT_DURATION_MS = 400;
 
-// Logo morph — move + shrink overlap. The shrink begins when the
-// upward translate is ~80% complete (LOGO_SHRINK_DELAY_MS) so the
-// two motions run together at the end instead of strictly sequenced.
-// Total morph runs until the shrink finishes.
-const LOGO_MOVE_MS = 1100;
-const LOGO_SHRINK_MS = 600;
+// Logo morph — slow and deliberate. Move runs over 2000ms; shrink
+// starts at 80% of the move (1600ms) and runs another 1000ms. Reads
+// as one slow, continuous "rest into place" motion that takes ~2.6s
+// from start to settled.
+const LOGO_MOVE_MS = 2000;
+const LOGO_SHRINK_MS = 1000;
 const LOGO_SHRINK_DELAY_MS = Math.round(LOGO_MOVE_MS * 0.8);
 const LOGO_EASING = "cubic-bezier(0.83, 0, 0.17, 1)"; // dramatic ease-in-out
 const LOGO_TOTAL_MORPH_MS = Math.max(
@@ -247,9 +252,12 @@ export default function SandboxOnboardingPage() {
               will-change: opacity, transform;
               animation: sb-word-rise ${WORD_DURATION_MS}ms ${WORD_EASING} forwards;
             }
-            .sandbox-onboarding-root.is-exiting .word-fill {
-              animation: sb-word-exit ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING} forwards;
-            }
+            /* Per-word exit was causing flicker when words at later
+               delays hadn't started their entry yet — the new
+               animation would still honor the inline animation-delay
+               and snap. Replaced with a single uniform fade on the
+               .slide-content wrapper below, which is smooth from any
+               mid-entry state. */
 
             /* Block in/out — visual + button + eyebrow */
             @keyframes sb-block-rise {
@@ -264,8 +272,18 @@ export default function SandboxOnboardingPage() {
               will-change: opacity, transform;
               animation: sb-block-rise ${BLOCK_FADE_DURATION_MS}ms ${WORD_EASING} forwards;
             }
-            .sandbox-onboarding-root.is-exiting .block-rise {
-              animation: sb-block-exit ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING} forwards;
+            /* Same reasoning as above — block exits also handled by
+               the .slide-content uniform fade. */
+
+            /* Uniform exit on the slide-content wrapper. Whatever
+               state the words/blocks are in mid-entry, the parent
+               just fades + lifts a few px and disappears. Snappy
+               enough that nothing feels held up. */
+            @keyframes sb-content-exit {
+              to { opacity: 0; transform: translate3d(0, -12px, 0); }
+            }
+            .sandbox-onboarding-root.is-exiting .slide-content {
+              animation: sb-content-exit ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING} forwards;
             }
 
             /* Pain-points list (alt) — vertical cycle */
@@ -381,7 +399,7 @@ export default function SandboxOnboardingPage() {
         <>
           <div
             key={index}
-            className="relative z-10 flex flex-1 items-center justify-center overflow-y-auto px-6 pt-32 pb-20 sm:pt-36 sm:pb-24"
+            className="slide-content relative z-10 flex flex-1 items-center justify-center overflow-y-auto px-6 pt-32 pb-20 sm:pt-36 sm:pb-24"
           >
             <div className="flex w-full max-w-md flex-col items-center gap-6 text-center sm:max-w-xl sm:gap-8">
               {/* Eyebrow pill — small uppercase tag above the heading */}
@@ -493,38 +511,46 @@ function AnimatedHeading({
     // so 375px → ~39px (~1.5× the prior 26px) while still fitting
     // the longer slide-5 line. Desktop sizes unchanged.
     <h1 className="font-serif !leading-[1.08] !tracking-tight !max-w-none !text-[clamp(34px,10.5vw,44px)] sm:!text-[50px] md:!text-[60px]">
-      {titleLines.map((line, lineIdx) => (
-        // Mobile: lines flow inline so the heading wraps naturally
-        // (no forced break). sm+: each line gets its own block so
-        // the heading reads exactly as `titleLines` was authored.
-        <span key={lineIdx} className="inline sm:block">
-          {line.split(" ").map((word, wordIdx, arr) => {
-            const delay = baseDelay + globalWordIdx * stagger;
-            globalWordIdx += 1;
-            const isEmphasis =
-              emphasis && stripPunct(word) === stripPunct(emphasis.word);
-            return (
-              <span key={`${lineIdx}-${wordIdx}`}>
-                <span className="word-mask">
-                  <span
-                    className={`word-fill ${isEmphasis ? emphasis!.className : ""}`}
-                    style={{ animationDelay: `${delay}ms` }}
-                  >
-                    {word}
+      {titleLines.map((line, lineIdx) => {
+        const arr = line.split(" ");
+        return (
+          // Mobile: lines flow inline so the heading wraps naturally
+          // (no forced break). sm+: each line gets its own block so
+          // the heading reads exactly as `titleLines` was authored.
+          <span key={lineIdx} className="inline sm:block">
+            {arr.map((word, wordIdx) => {
+              const delay = baseDelay + globalWordIdx * stagger;
+              globalWordIdx += 1;
+              const isEmphasis =
+                emphasis && stripPunct(word) === stripPunct(emphasis.word);
+              const isLastInLine = wordIdx === arr.length - 1;
+              // Bind the last two words of every line with a
+              // non-breaking space so the final word never falls
+              // alone on its own wrapped line ("orphan").
+              const isPenultimateInLine = wordIdx === arr.length - 2;
+              return (
+                <span key={`${lineIdx}-${wordIdx}`}>
+                  <span className="word-mask">
+                    <span
+                      className={`word-fill ${isEmphasis ? emphasis!.className : ""}`}
+                      style={{ animationDelay: `${delay}ms` }}
+                    >
+                      {word}
+                    </span>
                   </span>
+                  {!isLastInLine && (isPenultimateInLine ? " " : " ")}
                 </span>
-                {wordIdx < arr.length - 1 && " "}
-              </span>
-            );
-          })}
-          {/* Trailing space so adjacent inline lines don't run
-              together on mobile. Hidden on sm+ where each line is
-              its own block and a trailing space is meaningless. */}
-          {lineIdx < titleLines.length - 1 && (
-            <span className="inline sm:hidden"> </span>
-          )}
-        </span>
-      ))}
+              );
+            })}
+            {/* Trailing space so adjacent inline lines don't run
+                together on mobile. Hidden on sm+ where each line is
+                its own block and a trailing space is meaningless. */}
+            {lineIdx < titleLines.length - 1 && (
+              <span className="inline sm:hidden"> </span>
+            )}
+          </span>
+        );
+      })}
     </h1>
   );
 }
@@ -634,8 +660,25 @@ function PainPointsListVisual() {
   );
 }
 
+// Loren narrowed the problem-cards copy down to just two titles.
+// Kept as a separate array (not the PAIN_POINTS list above) so the
+// `PainPointsListVisual` alt still has its full set if it gets
+// re-enabled.
+const PROBLEM_CARDS = [
+  {
+    title: "Bothering your neighbors",
+    image: "/assets/onboarding-problems/problem-03-neighbors.webp",
+  },
+  {
+    title: "Putting your stuff away and taking it out",
+    image: "/assets/onboarding-problems/problem-02-packing.webp",
+  },
+];
+
 function PainPointsCardsVisual() {
-  const cards = [...PAIN_POINTS, ...PAIN_POINTS];
+  // Track is the cards duplicated so the right→left scroll wraps
+  // seamlessly when the first set scrolls fully out.
+  const cards = [...PROBLEM_CARDS, ...PROBLEM_CARDS];
   return (
     <div className="cards-window relative w-full overflow-hidden">
       <div className="cards-track flex gap-3" style={{ width: "max-content" }}>
