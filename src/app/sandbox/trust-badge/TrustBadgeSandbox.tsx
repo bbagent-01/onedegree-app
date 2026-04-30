@@ -26,11 +26,19 @@ import { cn } from "@/lib/utils";
 
 type DegreeBucket = 1 | 2 | 3 | 4 | null;
 
+type Connector = {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  viewerKnows: boolean;
+};
+
 type Sample = {
   id: string;
   name: string;
   initials: string;
   archetype: string;
+  avatarUrl: string;
   degree: DegreeBucket;
   connection: number | null;
   vouch: number | null;
@@ -45,22 +53,32 @@ type Sample = {
     title: string;
     location: string;
     price: number;
-    image: string; // tailwind gradient class for the placeholder image
+    imageUrl: string;
   };
   // Macro-only profile-page content
   profile: {
-    headline: string; // "Architect & cabin builder · Madison, WI"
-    chains: number; // # of distinct paths reaching the host (for connection sub-label)
-    vouchers: number; // # of inbound vouches counted toward vouch_score
+    headline: string;
+    bio: string;
+    chains: number;
+    vouchers: number;
   };
+  // People who connect the viewer to this host. Empty for 1° (direct)
+  // and cold-start/4°+; 2°/3° show 1–3 avatars (some viewer_knows=false
+  // = anonymous intermediary, rendered as silhouette).
+  connectors: Connector[];
 };
 
+// Royalty-free placeholder image services. Picsum gives stable seeded
+// photos for listings; Pravatar gives stable seeded avatars for people.
+// Swap any URL inline if you want a different image without touching
+// the structure.
 const SAMPLES: Sample[] = [
   {
     id: "maya",
     name: "Maya L.",
     initials: "ML",
     archetype: "1° · top tier",
+    avatarUrl: "https://i.pravatar.cc/200?img=47",
     degree: 1,
     connection: 9.4,
     vouch: 8.2,
@@ -73,19 +91,22 @@ const SAMPLES: Sample[] = [
       title: "Cedar A-frame on Lake Superior",
       location: "Bayfield, WI",
       price: 184,
-      image: "from-emerald-700 via-emerald-600 to-emerald-900",
+      imageUrl: "https://picsum.photos/seed/cedar-aframe/800/600",
     },
     profile: {
       headline: "Architect & cabin builder · Madison, WI",
+      bio: "Designed and built the cabin myself in 2019. Coffee on the dock most mornings if you want company.",
       chains: 4,
       vouchers: 9,
     },
+    connectors: [], // 1° = direct, no chain
   },
   {
     id: "aki",
     name: "Aki N.",
     initials: "AN",
     archetype: "2° · solid",
+    avatarUrl: "https://i.pravatar.cc/200?img=12",
     degree: 2,
     connection: 6.4,
     vouch: 5.7,
@@ -98,19 +119,26 @@ const SAMPLES: Sample[] = [
       title: "Sunlit loft above the bakery",
       location: "Brooklyn, NY",
       price: 142,
-      image: "from-amber-700 via-orange-700 to-red-900",
+      imageUrl: "https://picsum.photos/seed/brooklyn-loft/800/600",
     },
     profile: {
       headline: "Bakery owner · Brooklyn, NY",
+      bio: "Sourdough at 6am, coffee on the roof at sunset. Two-bedroom loft above the shop, separate entrance.",
       chains: 2,
       vouchers: 6,
     },
+    // 2° via two of the viewer's friends
+    connectors: [
+      { id: "c1", name: "Sam Park", avatarUrl: "https://i.pravatar.cc/100?img=5", viewerKnows: true },
+      { id: "c2", name: "Eli Hart", avatarUrl: "https://i.pravatar.cc/100?img=33", viewerKnows: true },
+    ],
   },
   {
     id: "robin",
     name: "Robin K.",
     initials: "RK",
     archetype: "3° · weaker",
+    avatarUrl: "https://i.pravatar.cc/200?img=26",
     degree: 3,
     connection: 3.2,
     vouch: 4.1,
@@ -122,19 +150,26 @@ const SAMPLES: Sample[] = [
       title: "Garden cottage near the river",
       location: "Asheville, NC",
       price: 96,
-      image: "from-stone-600 via-stone-700 to-stone-900",
+      imageUrl: "https://picsum.photos/seed/asheville-cottage/800/600",
     },
     profile: {
       headline: "Permaculture grower · Asheville, NC",
+      bio: "Two-acre garden, swimming hole on the property, four hens. Quiet weeknights, busier weekends.",
       chains: 2,
       vouchers: 3,
     },
+    // 3° = your friend → their friend → host. Show 1 known + 1 anon.
+    connectors: [
+      { id: "c3", name: "Maya L.", avatarUrl: "https://i.pravatar.cc/100?img=47", viewerKnows: true },
+      { id: "c4", name: "Mutual connection", avatarUrl: "", viewerKnows: false },
+    ],
   },
   {
     id: "theo",
     name: "Theo R.",
     initials: "TR",
     archetype: "4°+ · distant",
+    avatarUrl: "https://i.pravatar.cc/200?img=68",
     degree: 4,
     connection: null,
     vouch: 6.0,
@@ -146,19 +181,27 @@ const SAMPLES: Sample[] = [
       title: "Studio with rooftop access",
       location: "Lisbon, PT",
       price: 78,
-      image: "from-sky-800 via-indigo-900 to-slate-900",
+      imageUrl: "https://picsum.photos/seed/lisbon-rooftop/800/600",
     },
     profile: {
       headline: "Translator · Lisbon, PT",
+      bio: "Quiet studio in Alfama with a rooftop terrace. Walk to the river in 10 min.",
       chains: 3,
       vouchers: 4,
     },
+    // 4°+ = no connection score; chain length too long. One bridge avatar.
+    connectors: [
+      { id: "c5", name: "Maya L.", avatarUrl: "https://i.pravatar.cc/100?img=47", viewerKnows: true },
+      { id: "c6", name: "Mutual connection", avatarUrl: "", viewerKnows: false },
+      { id: "c7", name: "Mutual connection", avatarUrl: "", viewerKnows: false },
+    ],
   },
   {
     id: "jules",
     name: "Jules P.",
     initials: "JP",
     archetype: "new member",
+    avatarUrl: "https://i.pravatar.cc/200?img=15",
     degree: null,
     connection: null,
     vouch: null,
@@ -170,19 +213,22 @@ const SAMPLES: Sample[] = [
       title: "Hand-built tiny house",
       location: "Hood River, OR",
       price: 110,
-      image: "from-teal-700 via-cyan-800 to-emerald-900",
+      imageUrl: "https://picsum.photos/seed/hood-river-tiny/800/600",
     },
     profile: {
       headline: "New to Trustead · Hood River, OR",
+      bio: "Built this tiny house with my partner this spring. We're new to the platform — would love to host our first guest.",
       chains: 0,
       vouchers: 0,
     },
+    connectors: [],
   },
   {
     id: "drew",
     name: "Drew M.",
     initials: "DM",
     archetype: "low rating",
+    avatarUrl: "https://i.pravatar.cc/200?img=60",
     degree: 2,
     connection: 5.0,
     vouch: 4.8,
@@ -194,13 +240,17 @@ const SAMPLES: Sample[] = [
       title: "Old farmhouse, three acres",
       location: "Hudson Valley, NY",
       price: 132,
-      image: "from-rose-800 via-amber-900 to-stone-900",
+      imageUrl: "https://picsum.photos/seed/hudson-farmhouse/800/600",
     },
     profile: {
       headline: "Farmer · Hudson Valley, NY",
+      bio: "Working farm with two guest rooms. Goats, chickens, two dogs. Strict 9pm quiet hours.",
       chains: 2,
       vouchers: 5,
     },
+    connectors: [
+      { id: "c8", name: "Aki N.", avatarUrl: "https://i.pravatar.cc/100?img=12", viewerKnows: true },
+    ],
   },
 ];
 
@@ -469,31 +519,25 @@ function SectionHeader({
 }
 
 // ── Surface 1: inbox thread list (nano) ──────────────────────────
-// Mirrors src/components/inbox/inbox-list.tsx — same 360px column
-// width as the desktop inbox shell, same row structure (h-12 avatar,
-// name + nano badge inline, time on right baseline, listing-title +
-// preview lines below, optional unread dot at the far right). The
-// goal is to see exactly how much horizontal room the nano badge has
-// next to a real-length name.
+// 360px-wide dark-theme card matching the desktop inbox sidebar.
+// Real avatar photos so we can see how much room the nano badge has
+// next to a name + a real photo.
 
-function InboxAvatar({ initials }: { initials: string }) {
+function InboxAvatar({ name, avatarUrl }: { name: string; avatarUrl: string }) {
   return (
-    <div
-      className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-sm font-semibold"
-      style={{ backgroundColor: "#F5F1E6", color: "#0B2E25" }}
-    >
-      {initials}
-    </div>
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={avatarUrl}
+      alt={name}
+      className="h-12 w-12 shrink-0 rounded-full object-cover"
+    />
   );
 }
 
 function InboxRow({ sample }: { sample: Sample }) {
   return (
-    <li
-      className="flex w-full items-start gap-3 border-b border-[rgba(11,46,37,0.08)] px-3 py-3 last:border-b-0"
-      style={{ backgroundColor: "#FFFFFF", color: "#0B2E25" }}
-    >
-      <InboxAvatar initials={sample.initials} />
+    <li className="flex w-full items-start gap-3 border-b border-[rgba(245,241,230,0.08)] px-3 py-3 last:border-b-0">
+      <InboxAvatar name={sample.name} avatarUrl={sample.avatarUrl} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <div className="flex min-w-0 items-center gap-1.5">
@@ -502,7 +546,7 @@ function InboxRow({ sample }: { sample: Sample }) {
                 "truncate text-sm",
                 sample.unread ? "font-semibold" : "font-medium"
               )}
-              style={{ color: "#0B2E25" }}
+              style={{ color: "#F5F1E6" }}
             >
               {sample.name}
             </span>
@@ -510,25 +554,20 @@ function InboxRow({ sample }: { sample: Sample }) {
           </div>
           <span
             className="shrink-0 text-[11px]"
-            style={{ color: "rgba(11,46,37,0.55)" }}
+            style={{ color: "rgba(245,241,230,0.55)" }}
           >
             {sample.time}
           </span>
         </div>
         <div
           className="mt-0.5 truncate text-xs"
-          style={{ color: "rgba(11,46,37,0.55)" }}
+          style={{ color: "rgba(245,241,230,0.55)" }}
         >
           {sample.listing.title}
         </div>
         <div
-          className={cn(
-            "mt-0.5 line-clamp-1 text-xs",
-            sample.unread ? "font-semibold" : ""
-          )}
-          style={{
-            color: sample.unread ? "#0B2E25" : "rgba(11,46,37,0.62)",
-          }}
+          className={cn("mt-0.5 line-clamp-1 text-xs", sample.unread ? "font-semibold" : "")}
+          style={{ color: sample.unread ? "#F5F1E6" : "rgba(245,241,230,0.62)" }}
         >
           {sample.preview}
         </div>
@@ -547,24 +586,23 @@ function InboxRow({ sample }: { sample: Sample }) {
 function InboxMockup() {
   return (
     <div
-      className="overflow-hidden rounded-xl"
+      className="overflow-hidden rounded-2xl"
       style={{
         width: 360,
         maxWidth: "100%",
-        backgroundColor: "#FFFFFF",
-        border: "1px solid rgba(11,46,37,0.14)",
+        backgroundColor: "rgba(7,34,27,0.55)",
+        border: "1px solid rgba(245,241,230,0.14)",
       }}
     >
       <div
         className="flex items-center justify-between px-4 py-3"
         style={{
-          backgroundColor: "#FFFFFF",
-          borderBottom: "1px solid rgba(11,46,37,0.08)",
-          color: "#0B2E25",
+          borderBottom: "1px solid rgba(245,241,230,0.1)",
+          color: "#F5F1E6",
         }}
       >
         <div className="text-sm font-semibold">Messages</div>
-        <div className="text-[11px]" style={{ color: "rgba(11,46,37,0.55)" }}>
+        <div className="text-[11px]" style={{ color: "rgba(245,241,230,0.55)" }}>
           {SAMPLES.length} threads
         </div>
       </div>
@@ -579,21 +617,25 @@ function InboxMockup() {
 
 // ── Surface 2: listing card grid (micro) ─────────────────────────
 
-// Mirrors src/components/listing-card.tsx — same image aspect, heart
+// Mirrors src/components/listing-card.tsx — real listing image, heart
 // top-right, carousel dot indicators bottom-center, trust chip pinned
 // bottom-right. The micro pill sits inside that white chip and has to
-// compete with photo + heart for attention.
+// compete with the photo + heart for attention.
 function ListingTile({ sample }: { sample: Sample }) {
   const { listing } = sample;
   return (
     <div className="group block">
       <div
-        className={cn(
-          "relative rounded-xl overflow-hidden bg-gradient-to-br",
-          listing.image
-        )}
-        style={{ aspectRatio: "4 / 3" }}
+        className="relative rounded-xl overflow-hidden"
+        style={{ aspectRatio: "4 / 3", backgroundColor: "#0B2E25" }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={listing.imageUrl}
+          alt={listing.title}
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="lazy"
+        />
         {/* Heart top-right (favorite) */}
         <Heart
           className="absolute top-3 right-3 z-10 h-6 w-6 drop-shadow-md"
@@ -684,24 +726,80 @@ function ListingGrid() {
 }
 
 // ── Surface 3: profile / host card row (medium) ──────────────────
+// Mirrors the host-card pattern in gated-listing-view.tsx — real
+// avatar photo + medium TrustTag + the connector avatars (people who
+// connect the viewer to the host) shown alongside the badge.
+
+function ConnectorStrip({
+  connectors,
+  size = "h-6 w-6",
+}: {
+  connectors: Connector[];
+  size?: string;
+}) {
+  if (!connectors.length) return null;
+  return (
+    <span className="inline-flex items-center -space-x-1.5">
+      {connectors.slice(0, 4).map((c) => (
+        <span
+          key={c.id}
+          title={c.viewerKnows ? c.name : "Mutual connection"}
+          className={cn(
+            "inline-flex items-center justify-center overflow-hidden rounded-full",
+            size
+          )}
+          style={{
+            border: "2px solid #07221B", // ring punches through the dark surface
+            backgroundColor: "rgba(245,241,230,0.18)",
+          }}
+        >
+          {c.viewerKnows && c.avatarUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={c.avatarUrl}
+              alt={c.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <svg
+              viewBox="0 0 24 24"
+              fill="rgba(245,241,230,0.65)"
+              className="h-3.5 w-3.5"
+              aria-hidden
+            >
+              <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5Z" />
+            </svg>
+          )}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function HostRow({ sample }: { sample: Sample }) {
+  const showConnectors = sample.connectors.length > 0;
   return (
     <div className="flex items-center gap-4 rounded-xl border border-[rgba(245,241,230,0.12)] bg-[rgba(7,34,27,0.5)] p-4">
-      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[rgba(245,241,230,0.12)] text-base font-semibold text-[#F5F1E6]">
-        {sample.initials}
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={sample.avatarUrl}
+        alt={sample.name}
+        className="h-14 w-14 shrink-0 rounded-full object-cover"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <h4 className="!text-base !font-semibold !leading-tight text-[#F5F1E6] tracking-normal">
             Hosted by {sample.name}
           </h4>
         </div>
-        <div className="mt-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <TrustBadgeSandboxPill size="medium" sample={sample} />
+          {showConnectors && <ConnectorStrip connectors={sample.connectors} />}
         </div>
-        <div className="mt-1 text-[11px] text-[rgba(245,241,230,0.55)]">
-          {sample.archetype}
+        <div className="mt-1.5 text-[11px] text-[rgba(245,241,230,0.55)]">
+          {showConnectors
+            ? `${sample.archetype} · ${sample.connectors.filter((c) => c.viewerKnows).map((c) => c.name).join(" · ") || "via mutual connections"}`
+            : sample.archetype}
         </div>
       </div>
     </div>
@@ -796,42 +894,43 @@ function MacroBlock({ sample }: { sample: Sample }) {
   const ratingWarn = sample.rating !== null && sample.rating < 3.5;
 
   const degreeStyle = sample.degree ? DEGREE_PILL[sample.degree] : null;
+  const showConnectors = sample.connectors.length > 0;
 
   return (
     <div
-      className="rounded-2xl p-6"
+      className="rounded-2xl p-6 sm:p-8"
       style={{
         backgroundColor: "#FFFFFF",
         border: "1px solid rgba(11,46,37,0.14)",
         color: "#0B2E25",
       }}
     >
-      {/* Header: avatar + name + degree pill + headline */}
-      <div className="flex items-center gap-4">
-        <div
-          className="grid h-16 w-16 shrink-0 place-items-center rounded-full text-lg font-semibold"
-          style={{ backgroundColor: "#F5F1E6", color: "#0B2E25" }}
-        >
-          {sample.initials}
-        </div>
+      {/* Header: big avatar photo + name + degree pill + headline + bio */}
+      <div className="flex items-start gap-5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={sample.avatarUrl}
+          alt={sample.name}
+          className="h-20 w-20 shrink-0 rounded-full object-cover sm:h-24 sm:w-24"
+        />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h4
-              className="!text-xl !font-semibold !leading-tight tracking-normal"
+              className="!text-2xl !font-semibold !leading-tight tracking-normal"
               style={{ color: "#0B2E25" }}
             >
               {sample.name}
             </h4>
             {degreeStyle ? (
               <span
-                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                className="inline-flex items-center rounded-full px-3 py-0.5 text-sm font-semibold"
                 style={{ backgroundColor: degreeStyle.bg, color: degreeStyle.fg }}
               >
                 {degreeStyle.label}
               </span>
             ) : (
               <span
-                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                className="inline-flex items-center rounded-full px-3 py-0.5 text-sm font-semibold"
                 style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
               >
                 {isColdStart ? "New member" : "No path"}
@@ -844,12 +943,65 @@ function MacroBlock({ sample }: { sample: Sample }) {
           >
             {sample.profile.headline}
           </div>
+          <p
+            className="mt-3 text-sm leading-relaxed"
+            style={{ color: "rgba(11,46,37,0.78)" }}
+          >
+            {sample.profile.bio}
+          </p>
+
+          {/* Connector strip — same pattern as the medium card, just
+              white-bg-friendly ring color */}
+          {showConnectors && (
+            <div className="mt-4 flex items-center gap-2">
+              <span className="inline-flex items-center -space-x-1.5">
+                {sample.connectors.slice(0, 4).map((c) => (
+                  <span
+                    key={c.id}
+                    title={c.viewerKnows ? c.name : "Mutual connection"}
+                    className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-full"
+                    style={{
+                      border: "2px solid #FFFFFF",
+                      backgroundColor: "#F1F5F4",
+                    }}
+                  >
+                    {c.viewerKnows && c.avatarUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={c.avatarUrl}
+                        alt={c.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="rgba(11,46,37,0.5)"
+                        className="h-4 w-4"
+                        aria-hidden
+                      >
+                        <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5Z" />
+                      </svg>
+                    )}
+                  </span>
+                ))}
+              </span>
+              <span
+                className="text-xs"
+                style={{ color: "rgba(11,46,37,0.62)" }}
+              >
+                {sample.connectors.filter((c) => c.viewerKnows).map((c) => c.name).join(", ")}
+                {sample.connectors.some((c) => !c.viewerKnows) &&
+                  ` + ${sample.connectors.filter((c) => !c.viewerKnows).length} mutual`}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Metric tile row */}
       {isColdStart ? (
         <div
-          className="mt-5 rounded-xl p-4 text-sm"
+          className="mt-6 rounded-xl p-5 text-sm"
           style={{
             backgroundColor: "#F1F5F4",
             border: "1px solid #E5E5E5",
@@ -860,7 +1012,7 @@ function MacroBlock({ sample }: { sample: Sample }) {
           vouch and start a chain.
         </div>
       ) : (
-        <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-3 grid-cols-1 sm:grid-cols-3">
           {showConnection ? (
             <MacroMetric
               icon={ICON_CIRCLE}
@@ -915,16 +1067,14 @@ function MacroBlock({ sample }: { sample: Sample }) {
   );
 }
 
-function MacroGrid() {
-  // Show four representative profiles — top, mid, cold-start, low rating —
-  // so the macro block's range is visible at a glance.
-  const ids = ["maya", "robin", "jules", "drew"];
-  const profiles = ids
-    .map((id) => SAMPLES.find((s) => s.id === id))
-    .filter((s): s is Sample => Boolean(s));
+function MacroStack() {
+  // Full-width stack — the macro block lives on a profile page, which
+  // is a single-column surface. Show all six samples so every state
+  // is visible (top tier, 2°/3° with connectors, 4°+, cold-start,
+  // penalized).
   return (
-    <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-      {profiles.map((s) => (
+    <div className="grid gap-5">
+      {SAMPLES.map((s) => (
         <MacroBlock key={s.id} sample={s} />
       ))}
     </div>
@@ -988,7 +1138,7 @@ export function TrustBadgeSandbox() {
               title="Profile page block"
               note="The biggest size. Lives on the host's profile page where each metric gets its own labeled tile with the supporting count (chains, vouchers, reviews). Connection collapses to '—' for 4°+; whole block collapses to a 'New member' empty state for cold-start users."
             />
-            <MacroGrid />
+            <MacroStack />
           </section>
         </div>
 
