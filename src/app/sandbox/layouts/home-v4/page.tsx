@@ -46,7 +46,6 @@ import {
   SlidersHorizontal,
   Plus,
   UserPlus,
-  Sparkles,
 } from "lucide-react";
 
 // ── Sidebar nav items ──────────────────────────────────────────
@@ -294,6 +293,11 @@ export default function HomeV4() {
                 <CondensedSearch />
               </header>
 
+              {/* Quick-action CTA strip — sits between the hero and the
+                  marquees. Three cards (Find people, Create a listing,
+                  Post a trip wish) so newcomers have an obvious move. */}
+              <CTAStrip />
+
               {/* Marquee rows: Trip Wishes → People → Host Offers → Stays */}
               <MarqueeSection
                 title="Trip Wishes from your network"
@@ -339,8 +343,9 @@ export default function HomeV4() {
                 ))}
               </MarqueeSection>
 
-              {/* CTA section — quick actions to seed the network */}
-              <CTASection />
+              {/* Generous bottom spacing so a long scroll doesn't end
+                  abruptly. */}
+              <div className="h-[20vh]" aria-hidden />
             </div>
           </div>
         </main>
@@ -487,15 +492,17 @@ function SiteSidebar({
 
 function CondensedSearch() {
   return (
-    <div className="mt-8 flex w-full max-w-[920px] items-center justify-center gap-3">
-      {/* Big white search pill — matches live /browse style with an
-          extended Travel/Host segment on the left. */}
-      <div className="flex h-[68px] flex-1 items-stretch overflow-hidden rounded-full bg-white shadow-search">
-        {/* Travel/Host segmented selector */}
-        <div className="flex shrink-0 items-center gap-1 px-2">
+    <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+      {/* Big white search pill — content-width so the centering doesn't
+          drift when Filters is rendered next to it. Full-height dividers
+          inside, matching live /browse style. */}
+      <div className="flex h-[68px] items-stretch overflow-hidden rounded-full bg-white shadow-search">
+        {/* Travel/Host segmented selector — fully white background;
+            active state is mint, inactive is plain text. */}
+        <div className="flex shrink-0 items-center gap-1 pl-2 pr-2">
           <button
             type="button"
-            className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+            className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground"
           >
             Travel
           </button>
@@ -507,11 +514,11 @@ function CondensedSearch() {
           </button>
         </div>
 
-        {/* Divider */}
-        <span className="my-3 w-px bg-zinc-200" aria-hidden />
+        {/* Full-height divider */}
+        <span className="w-px bg-zinc-200" aria-hidden />
 
         {/* Where */}
-        <div className="flex flex-1 flex-col justify-center px-6">
+        <div className="flex shrink-0 flex-col justify-center px-6 text-left">
           <p className="text-[11px] font-bold leading-tight text-zinc-900">
             Where
           </p>
@@ -520,21 +527,21 @@ function CondensedSearch() {
           </p>
         </div>
 
-        <span className="my-3 w-px bg-zinc-200" aria-hidden />
+        <span className="w-px bg-zinc-200" aria-hidden />
 
         {/* When */}
-        <div className="flex shrink-0 flex-col justify-center px-6">
+        <div className="flex shrink-0 flex-col justify-center px-6 text-left">
           <p className="text-[11px] font-bold leading-tight text-zinc-900">
             When
           </p>
           <p className="text-sm leading-tight text-zinc-500">Any week</p>
         </div>
 
-        <span className="my-3 w-px bg-zinc-200" aria-hidden />
+        <span className="w-px bg-zinc-200" aria-hidden />
 
         {/* Who + search circle */}
         <div className="flex shrink-0 items-center pl-6 pr-2">
-          <div className="mr-3">
+          <div className="mr-3 text-left">
             <p className="text-[11px] font-bold leading-tight text-zinc-900">
               Who
             </p>
@@ -580,16 +587,19 @@ function MarqueeSection({
   const animClass = direction === "right" ? "marquee-right" : "marquee-left";
   return (
     <section className="mt-14">
-      {/* Title row: title | divider | subtitle | divider | ghost link */}
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Title row: title | divider | subtitle | divider | ghost link.
+          Items align to baseline; dividers self-stretch the full row
+          height; divider color is the same faint structural-line tone
+          used throughout the rest of the design. */}
+      <div className="flex flex-wrap items-baseline gap-4">
         <h2 className="whitespace-nowrap text-xl font-semibold text-foreground md:text-2xl">
           {title}
         </h2>
-        <span className="h-5 w-px bg-border/70" aria-hidden />
+        <span className="w-px self-stretch bg-border" aria-hidden />
         <p className="whitespace-nowrap text-sm text-muted-foreground">
           {subtitle}
         </p>
-        <span className="h-5 w-px bg-border/70" aria-hidden />
+        <span className="w-px self-stretch bg-border" aria-hidden />
         <Link
           href={link.href}
           className="inline-flex items-center gap-1 rounded-full border border-border bg-card/30 px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-card/60"
@@ -619,6 +629,10 @@ function MarqueeSection({
 // as continuing infinitely; parent's overflow-hidden clips them.
 
 function ConcentricRings() {
+  // Subtle, desaturated green bands that match the Trustead theme.
+  // The tone is a muted forest-mint at incrementing opacity — keeps
+  // the destination photo readable through the inner band while
+  // tinting the outer bands toward the brand palette.
   return (
     <div
       className="pointer-events-none absolute inset-0"
@@ -627,16 +641,16 @@ function ConcentricRings() {
           "radial-gradient(circle at center,",
           "  transparent 0%,",
           "  transparent 13%,",
-          "  rgba(255,255,255,0.05) 13%,",
-          "  rgba(255,255,255,0.05) 25%,",
-          "  rgba(255,255,255,0.10) 25%,",
-          "  rgba(255,255,255,0.10) 40%,",
-          "  rgba(255,255,255,0.18) 40%,",
-          "  rgba(255,255,255,0.18) 55%,",
-          "  rgba(255,255,255,0.27) 55%,",
-          "  rgba(255,255,255,0.27) 75%,",
-          "  rgba(255,255,255,0.40) 75%,",
-          "  rgba(255,255,255,0.40) 100%",
+          "  rgba(110,150,130,0.20) 13%,",
+          "  rgba(110,150,130,0.20) 25%,",
+          "  rgba(80,130,110,0.30) 25%,",
+          "  rgba(80,130,110,0.30) 40%,",
+          "  rgba(55,105,85,0.42) 40%,",
+          "  rgba(55,105,85,0.42) 55%,",
+          "  rgba(35,80,65,0.55) 55%,",
+          "  rgba(35,80,65,0.55) 75%,",
+          "  rgba(20,55,45,0.72) 75%,",
+          "  rgba(20,55,45,0.72) 100%",
           ")",
         ].join(" "),
       }}
@@ -649,16 +663,19 @@ function ConcentricRings() {
 function TripWishCardHorizontal({ item }: { item: TripWish }) {
   return (
     <article className="group flex h-[275px] w-[600px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* Visual pane — square, destination photo with concentric-ring overlay */}
+      {/* Visual pane — square, destination photo with concentric-ring
+          overlay and centered destination label sitting on top. All
+          three elements (photo, rings, text) absolute-positioned in the
+          square so they stack precisely. */}
       <div className="relative h-[275px] w-[275px] shrink-0 overflow-hidden bg-zinc-200">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={item.photo}
           alt={item.destination}
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
         />
         <ConcentricRings />
-        <div className="relative z-[1] flex h-full w-full flex-col items-center justify-center px-3 text-center">
+        <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center px-3 text-center">
           <div
             className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white"
             style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}
@@ -943,72 +960,55 @@ function PersonCard({ person }: { person: Person }) {
   );
 }
 
-// ── CTA section ────────────────────────────────────────────────
+// ── CTA strip ──────────────────────────────────────────────────
+// Three compact horizontal cards (icon-left), centered just below
+// the hero. Order is the discovery order: find people you trust
+// first → open your home → post your trip wish.
 
-function CTASection() {
+function CTAStrip() {
   const ctas = [
+    {
+      icon: UserPlus,
+      title: "Find people you know",
+      body: "Search by name, email, or phone.",
+      href: "/sandbox/layouts/vouch",
+    },
     {
       icon: Plus,
       title: "Create your first listing",
-      body: "Open your home to people in your network. Set your own visibility and pricing.",
-      action: "Add a listing",
+      body: "Open your home to your network.",
       href: "/sandbox/layouts/dashboard",
     },
     {
       icon: Plane,
       title: "Post a trip wish",
-      body: "Tell your network where you want to go. People who know people will reach out.",
-      action: "Post a wish",
+      body: "Tell your network where you want to go.",
       href: "/sandbox/layouts/proposals",
-    },
-    {
-      icon: UserPlus,
-      title: "Find people you know",
-      body: "Search by name, email, or phone — vouch for friends already on Trustead.",
-      action: "Find people",
-      href: "/sandbox/layouts/vouch",
-    },
-    {
-      icon: Sparkles,
-      title: "Vouch for someone",
-      body: "Vouches power what you and your friends can see and book. Vouch a few to get started.",
-      action: "Start vouching",
-      href: "/sandbox/layouts/vouch",
     },
   ];
   return (
-    <section className="mt-16">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="whitespace-nowrap text-xl font-semibold text-foreground md:text-2xl">
-          Get more from your network
-        </h2>
-        <span className="h-5 w-px bg-border/70" aria-hidden />
-        <p className="whitespace-nowrap text-sm text-muted-foreground">
-          A few ways to grow your reach on Trustead
-        </p>
-      </div>
-      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <section className="mx-auto mt-12 w-full max-w-[1080px]">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {ctas.map((c) => {
           const Icon = c.icon;
           return (
             <Link
               key={c.title}
               href={c.href}
-              className="group flex flex-col rounded-2xl border border-border bg-card/40 p-5 transition-colors hover:border-brand/40 hover:bg-card/60"
+              className="group flex items-center gap-3 rounded-2xl border border-border bg-card/40 p-4 transition-colors hover:border-brand/40 hover:bg-card/60"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/15 text-brand">
-                <Icon className="h-5 w-5" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand">
+                <Icon className="h-4 w-4" />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-foreground">
-                {c.title}
-              </h3>
-              <p className="mt-1.5 flex-1 text-xs leading-relaxed text-muted-foreground">
-                {c.body}
-              </p>
-              <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-foreground transition-colors group-hover:text-brand">
-                {c.action}
-                <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-semibold text-foreground">
+                  {c.title}
+                </h3>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {c.body}
+                </p>
+              </div>
+              <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
             </Link>
           );
         })}
