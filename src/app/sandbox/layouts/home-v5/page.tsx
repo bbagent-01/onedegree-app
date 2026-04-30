@@ -128,9 +128,82 @@ const TODAY_PROMPTS = [
 ];
 
 const ACTIVITY = [
-  { who: "Priya K.", body: "vouched for you", ago: "1w" },
-  { who: "Beatriz F.", body: "joined via Sofía A.", ago: "3d" },
-  { who: "Aliyah J.", body: "posted a new listing", ago: "4d" },
+  { who: "Maya R.", body: "vouched for you", ago: "2h", actionable: true },
+  { who: "Diego M.", body: "replied to your CDMX proposal", ago: "Yesterday", actionable: false },
+  { who: "Priya K.", body: "vouched for you", ago: "1w", actionable: true },
+  { who: "Beatriz F.", body: "joined via Sofía A.", ago: "3d", actionable: false },
+  { who: "Aliyah J.", body: "posted a new listing", ago: "4d", actionable: false },
+];
+
+type Person = {
+  name: string;
+  avatar: string;
+  relation: string;
+  degree: "1°" | "2°";
+  connectors: { name: string; avatar: string }[];
+  mutual: number;
+  lastSeen: string;
+};
+
+const PEOPLE_TO_VOUCH: Person[] = [
+  {
+    name: "Erin Quinn",
+    avatar: "https://picsum.photos/seed/erin-q/120/120",
+    relation: "College roommate",
+    degree: "1°",
+    connectors: [
+      { name: "Maya R.", avatar: "https://picsum.photos/seed/maya-r/40/40" },
+      { name: "Dev S.", avatar: "https://picsum.photos/seed/dev-s/40/40" },
+    ],
+    mutual: 4,
+    lastSeen: "Stayed with you in Mar",
+  },
+  {
+    name: "Renata V.",
+    avatar: "https://picsum.photos/seed/renata-v/120/120",
+    relation: "Friend from book club",
+    degree: "2°",
+    connectors: [
+      { name: "Priya K.", avatar: "https://picsum.photos/seed/priya-k/40/40" },
+    ],
+    mutual: 2,
+    lastSeen: "You stayed with her in Feb",
+  },
+  {
+    name: "Casey W.",
+    avatar: "https://picsum.photos/seed/casey-w/120/120",
+    relation: "Worked together at Studio",
+    degree: "2°",
+    connectors: [
+      { name: "Erin Q.", avatar: "https://picsum.photos/seed/erin-q/40/40" },
+      { name: "Dev S.", avatar: "https://picsum.photos/seed/dev-s/40/40" },
+      { name: "Theo L.", avatar: "https://picsum.photos/seed/theo-l/40/40" },
+    ],
+    mutual: 6,
+    lastSeen: "Mutual via Studio days",
+  },
+  {
+    name: "Beatriz F.",
+    avatar: "https://picsum.photos/seed/bea-f/120/120",
+    relation: "Old neighbor",
+    degree: "2°",
+    connectors: [
+      { name: "Sofía A.", avatar: "https://picsum.photos/seed/sofia-a/40/40" },
+    ],
+    mutual: 1,
+    lastSeen: "Recently joined",
+  },
+  {
+    name: "Jonas T.",
+    avatar: "https://picsum.photos/seed/jonas-t/120/120",
+    relation: "Climbing partner",
+    degree: "1°",
+    connectors: [
+      { name: "Maya R.", avatar: "https://picsum.photos/seed/maya-r/40/40" },
+    ],
+    mutual: 3,
+    lastSeen: "Hosted you in Mar",
+  },
 ];
 
 // ── Page ───────────────────────────────────────────────────────
@@ -144,13 +217,13 @@ export default function HomeV5() {
         <SiteSidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="flex flex-1 gap-0">
-            <div className="min-w-0 flex-1 px-6 py-8 lg:px-10">
-              {/* Greeting + condensed search */}
-              <header>
+            <div className="min-w-0 flex-1 px-6 lg:px-10">
+              {/* Greeting + condensed search — centered, generous vertical padding */}
+              <header className="flex flex-col items-center py-16 text-center md:py-20">
                 <p className="text-sm text-muted-foreground">
                   Welcome back, {USER.firstName}.
                 </p>
-                <h1 className="mt-1 whitespace-nowrap font-serif text-4xl text-foreground md:text-5xl">
+                <h1 className="mt-2 whitespace-nowrap font-serif text-4xl text-foreground md:text-5xl">
                   What are you looking for?
                 </h1>
                 <CondensedSearch />
@@ -252,6 +325,18 @@ export default function HomeV5() {
                 ))}
               </MarqueeSection>
 
+              {/* Marquee — People in your network */}
+              <MarqueeSection
+                title="People in your network"
+                subtitle="Folks you might want to vouch for"
+                link={{ label: "Vouch flow", href: "/sandbox/layouts/vouch" }}
+                direction="right"
+              >
+                {PEOPLE_TO_VOUCH.map((p) => (
+                  <PersonCard key={p.name} person={p} />
+                ))}
+              </MarqueeSection>
+
               {/* Network at a glance */}
               <section className="mt-12 rounded-2xl border border-border bg-card/40 p-6">
                 <div className="flex items-baseline justify-between">
@@ -301,13 +386,14 @@ function SiteSidebar({
   collapsed: boolean;
   onToggle: () => void;
 }) {
-  const w = collapsed ? "w-[64px]" : "w-[220px]";
+  const w = collapsed ? "w-[64px]" : "w-[240px]";
+  const unread = ACTIVITY.filter((a) => a.actionable).length;
   return (
     <aside
       className={`sticky top-9 flex h-[calc(100vh-36px)] shrink-0 flex-col border-r border-border bg-card/30 transition-[width] duration-200 ${w}`}
       aria-label="Site navigation"
     >
-      <div className="flex h-16 items-center justify-between border-b border-border/60 px-4">
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/60 px-4">
         <Link
           href="/sandbox/layouts/home-v5"
           className="flex items-center gap-2 font-serif text-lg text-foreground"
@@ -327,7 +413,7 @@ function SiteSidebar({
           </button>
         )}
       </div>
-      <nav className="flex-1 px-2 py-3">
+      <nav className="shrink-0 px-2 py-3">
         <ul className="space-y-0.5">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -350,11 +436,67 @@ function SiteSidebar({
           })}
         </ul>
       </nav>
+
+      {/* Notifications inline below nav. Fills remaining vertical
+          space and scrolls. Collapsed sidebar shows a single bell. */}
+      {collapsed ? (
+        <div className="mt-2 flex flex-col items-center gap-2 px-2">
+          <button
+            className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-card/60 hover:text-foreground"
+            aria-label={`Notifications (${unread} unread)`}
+            title="Notifications"
+          >
+            <Bell className="h-4 w-4" />
+            {unread > 0 && (
+              <span className="absolute right-1 top-1 inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-warning px-1 text-[9px] font-bold text-black">
+                {unread}
+              </span>
+            )}
+          </button>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col border-t border-border/60">
+          <div className="flex shrink-0 items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-1.5">
+              <Bell className="h-3.5 w-3.5 text-muted-foreground" />
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Notifications
+              </h3>
+              {unread > 0 && (
+                <span className="rounded-full bg-warning px-1.5 py-0 text-[9px] font-bold text-black">
+                  {unread}
+                </span>
+              )}
+            </div>
+          </div>
+          <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 pb-3">
+            {ACTIVITY.map((a, i) => (
+              <li
+                key={i}
+                className="rounded-lg border border-border bg-background/40 p-2.5"
+              >
+                <p className="text-[11px] leading-snug text-foreground">
+                  <span className="font-semibold">{a.who}</span> {a.body}
+                </p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-subtle">{a.ago}</span>
+                  {a.actionable && (
+                    <button className="rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90">
+                      Vouch back
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {collapsed && (
         <button
           onClick={onToggle}
           aria-label="Expand sidebar"
-          className="m-2 inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-card/60 hover:text-foreground"
+          className="m-2 mt-auto inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-card/60 hover:text-foreground"
         >
           <PanelLeftOpen className="h-4 w-4" />
         </button>
@@ -491,27 +633,27 @@ function ConcentricRings() {
 
 function TripWishCardHorizontal({ item }: { item: TripWish }) {
   return (
-    <article className="group flex w-[480px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
+    <article className="group flex h-[240px] w-[420px] shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-shadow hover:shadow-md">
       <div
-        className={`relative w-[180px] shrink-0 overflow-hidden bg-gradient-to-br ${item.palette}`}
+        className={`relative w-[170px] shrink-0 overflow-hidden bg-gradient-to-br ${item.palette}`}
       >
         <ConcentricRings />
         <div className="relative z-[1] flex h-full w-full flex-col items-center justify-center px-3 text-center">
           <div
-            className="text-[9px] font-semibold uppercase tracking-[0.2em] text-white"
+            className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white"
             style={{ textShadow: "0 1px 6px rgba(0,0,0,0.45)" }}
           >
             Trip Wish
           </div>
           <div
-            className="mt-1.5 line-clamp-2 text-lg font-semibold leading-tight text-white"
+            className="mt-2 line-clamp-2 text-xl font-semibold leading-tight text-white"
             style={{ textShadow: "0 2px 10px rgba(0,0,0,0.55)" }}
           >
             {item.destination}
           </div>
           {item.subdest && (
             <div
-              className="mt-0.5 text-[10px] font-medium text-white/95"
+              className="mt-1 text-[11px] font-medium text-white/95"
               style={{ textShadow: "0 1px 6px rgba(0,0,0,0.55)" }}
             >
               {item.subdest}
@@ -519,7 +661,7 @@ function TripWishCardHorizontal({ item }: { item: TripWish }) {
           )}
         </div>
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-4">
+      <div className="flex min-w-0 flex-1 flex-col p-4">
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -534,26 +676,28 @@ function TripWishCardHorizontal({ item }: { item: TripWish }) {
             Trip Wish
           </span>
         </div>
-        <h3 className="line-clamp-2 text-sm font-semibold text-zinc-900">
+        <h3 className="mt-2 line-clamp-3 text-sm font-semibold leading-snug text-zinc-900">
           {item.body}
         </h3>
-        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-600">
-          <span className="inline-flex items-center gap-1">
-            <CalendarDays className="h-3 w-3" />
-            {item.dates}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Users className="h-3 w-3" />
-            {item.guests} guest{item.guests === 1 ? "" : "s"}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 pt-1">
-          <button className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-zinc-800">
-            Offer a place
-          </button>
-          <span className="rounded-full bg-brand/15 px-1.5 py-0 text-[9px] font-semibold text-brand">
-            {item.trust}
-          </span>
+        <div className="mt-auto space-y-1.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-600">
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays className="h-3 w-3" />
+              {item.dates}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {item.guests} guest{item.guests === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-zinc-800">
+              Offer a place
+            </button>
+            <span className="rounded-full bg-brand/15 px-1.5 py-0 text-[9px] font-semibold text-brand">
+              {item.trust}
+            </span>
+          </div>
         </div>
       </div>
     </article>
@@ -614,13 +758,77 @@ function ListingCardVertical({ item }: { item: Listing }) {
   );
 }
 
-// ── Right rail (today's prompts + activity) ────────────────────
+// ── Person card (medium trust badge with connectors) ───────────
+
+function PersonCard({ person }: { person: Person }) {
+  const connectorList = person.connectors.map((c) => c.name);
+  const trustPath =
+    connectorList.length === 0
+      ? null
+      : connectorList.length === 1
+        ? `via ${connectorList[0]}`
+        : `via ${connectorList[0]} & ${connectorList.length - 1} other${connectorList.length - 1 === 1 ? "" : "s"}`;
+  return (
+    <article className="flex h-[240px] w-[340px] shrink-0 flex-col rounded-2xl border border-border bg-card/40 p-5">
+      <div className="flex items-center gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={person.avatar}
+          alt={person.name}
+          className="h-14 w-14 rounded-full object-cover"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-base font-semibold text-foreground">
+            {person.name}
+          </p>
+          <p className="truncate text-xs text-muted-foreground">
+            {person.relation}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-brand/30 bg-brand/10 p-3">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-brand">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          <span>{person.degree}</span>
+          {trustPath && (
+            <span className="font-normal text-foreground">· {trustPath}</span>
+          )}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex -space-x-1.5">
+            {person.connectors.slice(0, 3).map((c) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={c.name}
+                src={c.avatar}
+                alt={c.name}
+                title={c.name}
+                className="h-6 w-6 rounded-full border-2 border-background object-cover"
+              />
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {person.mutual} mutual · {person.lastSeen}
+          </p>
+        </div>
+      </div>
+
+      <button className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+        <ShieldCheck className="h-3.5 w-3.5" />
+        Vouch for {person.name.split(" ")[0]}
+      </button>
+    </article>
+  );
+}
+
+// ── Right rail (today's prompts) ───────────────────────────────
 
 function RightRail() {
   return (
     <aside
       className="sticky top-9 hidden h-[calc(100vh-36px)] w-[300px] shrink-0 overflow-y-auto border-l border-border bg-card/20 px-5 py-6 lg:block"
-      aria-label="Activity"
+      aria-label="Today's prompts"
     >
       <div className="flex items-center gap-2">
         <Zap className="h-4 w-4 text-warning" />
@@ -640,26 +848,6 @@ function RightRail() {
               {p.action}
               <ArrowRight className="h-3 w-3" />
             </button>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-8 flex items-center gap-2">
-        <Bell className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Activity
-        </h2>
-      </div>
-      <ul className="mt-3 space-y-2">
-        {ACTIVITY.map((a, i) => (
-          <li
-            key={i}
-            className="rounded-xl border border-border bg-background/40 p-3"
-          >
-            <p className="text-xs text-foreground">
-              <span className="font-semibold">{a.who}</span> {a.body}
-            </p>
-            <p className="mt-0.5 text-[10px] text-subtle">{a.ago}</p>
           </li>
         ))}
       </ul>
