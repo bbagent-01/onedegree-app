@@ -34,14 +34,14 @@ const SLIDES: Slide[] = [
     Visual: PainPointsCardsVisual,
   },
   {
-    eyebrow: "The answer",
+    eyebrow: "The solution",
     titleLines: ["Rent your home to", "people you can trust"],
     titleEmphasis: { word: "trust", className: "italic text-brand-300" },
     body: "Rent your primary home to friends of friends. Control who sees it on our private invite-only platform.",
     Visual: null,
   },
   {
-    eyebrow: "Vouching",
+    eyebrow: "How it works",
     titleLines: ["Build trust by vouching", "for people you know"],
     body: "Invite people you know. They invite people they know. The graph builds itself into a real trust network.",
     Visual: VouchPickerVisual,
@@ -67,10 +67,11 @@ const SLIDES: Slide[] = [
 const INTRO_DURATION_MS = 2800;
 const SWIPE_THRESHOLD_PX = 50;
 
-// Tagline appears 700ms into the intro and stays visible until the
-// logo starts moving (when phase flips to morphing). 700ms gives the
-// logo's draw-in (~1.4s) time to feel like the lead.
-const TAGLINE_DELAY_MS = 700;
+// Tagline waits until the wordmark draw-in is mostly complete before
+// it begins its own word-stagger. The draw-in finishes at ~1.374s, so
+// 1450ms gives the logo room to "land" before the line under it
+// starts.
+const TAGLINE_DELAY_MS = 1450;
 
 // Word-stagger tokens.
 const WORD_DURATION_MS = 600;
@@ -80,14 +81,18 @@ const BODY_WORD_STAGGER_MS = 12;
 const BLOCK_FADE_DURATION_MS = 500;
 const WORD_EXIT_DURATION_MS = 400;
 
-// Logo morph — dramatic ease-in-out, tuned to start slow, accelerate
-// through the middle, settle slowly. Drama matches the deliberate
-// pace of the slide-text rise. Move first; shrink only after the
-// move lands. Total morph = LOGO_MOVE_MS + LOGO_SHRINK_MS.
+// Logo morph — move + shrink overlap. The shrink begins when the
+// upward translate is ~80% complete (LOGO_SHRINK_DELAY_MS) so the
+// two motions run together at the end instead of strictly sequenced.
+// Total morph runs until the shrink finishes.
 const LOGO_MOVE_MS = 1100;
-const LOGO_SHRINK_MS = 500;
+const LOGO_SHRINK_MS = 600;
+const LOGO_SHRINK_DELAY_MS = Math.round(LOGO_MOVE_MS * 0.8);
 const LOGO_EASING = "cubic-bezier(0.83, 0, 0.17, 1)"; // dramatic ease-in-out
-const LOGO_TOTAL_MORPH_MS = LOGO_MOVE_MS + LOGO_SHRINK_MS;
+const LOGO_TOTAL_MORPH_MS = Math.max(
+  LOGO_MOVE_MS,
+  LOGO_SHRINK_DELAY_MS + LOGO_SHRINK_MS
+);
 
 type Phase = "intro" | "morphing" | "slides" | "dismissed";
 
@@ -332,10 +337,10 @@ export default function SandboxOnboardingPage() {
           width:
             introOrMorphing && phase !== "morphing"
               ? "min(28rem, 92vw)"
-              : "9rem",
+              : "13.5rem",
           transitionProperty: "top, transform, width",
           transitionDuration: `${LOGO_MOVE_MS}ms, ${LOGO_MOVE_MS}ms, ${LOGO_SHRINK_MS}ms`,
-          transitionDelay: `0ms, 0ms, ${LOGO_MOVE_MS}ms`,
+          transitionDelay: `0ms, 0ms, ${LOGO_SHRINK_DELAY_MS}ms`,
           transitionTimingFunction: `${LOGO_EASING}, ${LOGO_EASING}, ${LOGO_EASING}`,
         }}
       >
@@ -346,13 +351,13 @@ export default function SandboxOnboardingPage() {
           tabIndex={-1}
           title="Trustead animated logo"
         />
-        {/* Tagline — plain (no italic, no brand-300). Fades up after
-            TAGLINE_DELAY_MS while the wordmark draws, stays through
-            the rest of the intro, and fades out the moment phase
-            flips to morphing (so it disappears right as the logo
-            starts moving up). */}
+        {/* Tagline — animates in word-by-word like the slide text
+            (same rise-from-baseline mask). Waits until the wordmark
+            has mostly drawn before its first word lifts. When the
+            phase flips to morphing the wrapper fades + lifts up so
+            the line clears as the logo begins its move. */}
         <div
-          className="mt-3 text-center"
+          className="mt-4 text-center"
           style={{
             opacity: phase === "intro" ? 1 : 0,
             transform:
@@ -360,15 +365,15 @@ export default function SandboxOnboardingPage() {
                 ? "translate3d(0, 0, 0)"
                 : "translate3d(0, -16px, 0)",
             transition: `opacity ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING}, transform ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING}`,
-            animation:
-              phase === "intro"
-                ? `sb-block-rise ${BLOCK_FADE_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_DELAY_MS}ms backwards`
-                : "none",
           }}
         >
-          <span className="text-base text-muted-foreground sm:text-lg">
-            Rent your home with trust
-          </span>
+          <p className="text-lg text-muted-foreground sm:text-xl">
+            <AnimatedWords
+              text="Rent your home with trust"
+              stagger={TITLE_WORD_STAGGER_MS}
+              baseDelay={TAGLINE_DELAY_MS}
+            />
+          </p>
         </div>
       </div>
 
@@ -489,7 +494,10 @@ function AnimatedHeading({
     // the longer slide-5 line. Desktop sizes unchanged.
     <h1 className="font-serif !leading-[1.08] !tracking-tight !max-w-none !text-[clamp(34px,10.5vw,44px)] sm:!text-[50px] md:!text-[60px]">
       {titleLines.map((line, lineIdx) => (
-        <span key={lineIdx} className="block">
+        // Mobile: lines flow inline so the heading wraps naturally
+        // (no forced break). sm+: each line gets its own block so
+        // the heading reads exactly as `titleLines` was authored.
+        <span key={lineIdx} className="inline sm:block">
           {line.split(" ").map((word, wordIdx, arr) => {
             const delay = baseDelay + globalWordIdx * stagger;
             globalWordIdx += 1;
@@ -509,6 +517,12 @@ function AnimatedHeading({
               </span>
             );
           })}
+          {/* Trailing space so adjacent inline lines don't run
+              together on mobile. Hidden on sm+ where each line is
+              its own block and a trailing space is meaningless. */}
+          {lineIdx < titleLines.length - 1 && (
+            <span className="inline sm:hidden"> </span>
+          )}
         </span>
       ))}
     </h1>
@@ -640,9 +654,6 @@ function PainPointsCardsVisual() {
               <div className="text-[12px] font-semibold leading-tight">
                 {p.title}
               </div>
-              <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug line-clamp-2">
-                {p.subtitle}
-              </p>
             </div>
           </div>
         ))}
