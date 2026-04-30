@@ -26,6 +26,7 @@ const isPublicRoute = createRouteMatcher([
   "/terms",
   "/privacy",
   "/legal-status",
+  "/sandbox(.*)",
 ]);
 
 // ── ALPHA-ONLY (CC-Dev1 Impersonation Switcher) ─────────────────
