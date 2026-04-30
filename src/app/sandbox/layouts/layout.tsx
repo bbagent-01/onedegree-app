@@ -36,6 +36,8 @@ const VARIANT_ROUTES: { href: string; label: string }[] = [
   { href: "/sandbox/layouts/home-v1", label: "Home v1" },
   { href: "/sandbox/layouts/home-v2", label: "Home v2" },
   { href: "/sandbox/layouts/home-v3", label: "Home v3" },
+  { href: "/sandbox/layouts/home-v4", label: "Home v4" },
+  { href: "/sandbox/layouts/home-v5", label: "Home v5" },
   { href: "/sandbox/layouts/browse-with-offers", label: "Browse + Offers" },
 ];
 
