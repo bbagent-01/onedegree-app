@@ -83,13 +83,12 @@ function InviteShareContent() {
   // CTA can pass ?phone= when the search input was a phone-shaped query).
   const phonePrefill = searchParams?.get("phone") ?? "";
 
-  // Step 0 (mode) defaults to whatever the URL hints, falling back to
-  // 'phone' when the user lands without a hint. The chooser is always
-  // shown; this just primes the radio.
-  const initialMode: Mode = phonePrefill ? "phone" : "phone";
-
+  // Step 0 starts with no mode selected — sender must explicitly pick.
+  // The phone-prefill query param still works because the Mode A
+  // details step reads it via state, but we don't pre-select Mode A
+  // for them based on it.
   const [step, setStep] = useState<Step>("mode");
-  const [mode, setMode] = useState<Mode>(initialMode);
+  const [mode, setMode] = useState<Mode | null>(null);
 
   const [vouchType, setVouchType] = useState<VouchType | null>(null);
   const [yearsKnown, setYearsKnown] = useState<YearsKnownBucket | null>(null);
@@ -126,11 +125,13 @@ function InviteShareContent() {
     groupLabel.trim().length >= 2 && groupLabel.trim().length <= 80;
 
   const canProceedDetails =
-    mode === "phone"
-      ? nameOK && phoneValid
-      : mode === "open_individual"
-        ? nameOK
-        : groupLabelOK && MAX_CLAIMS_OPTIONS.includes(maxClaims as 5 | 10 | 20);
+    mode === null
+      ? false
+      : mode === "phone"
+        ? nameOK && phoneValid
+        : mode === "open_individual"
+          ? nameOK
+          : groupLabelOK && MAX_CLAIMS_OPTIONS.includes(maxClaims as 5 | 10 | 20);
 
   const handleSubmit = useCallback(async () => {
     if (!vouchType || !yearsKnown || !canProceedDetails) return;
@@ -244,8 +245,10 @@ function InviteShareContent() {
         {step === "mode" && (
           <ModeChooser
             mode={mode}
-            onChange={setMode}
-            onContinue={() => setStep("type")}
+            onPick={(m) => {
+              setMode(m);
+              setStep("type");
+            }}
           />
         )}
 
@@ -614,12 +617,13 @@ function InviteShareContent() {
 
 function ModeChooser({
   mode,
-  onChange,
-  onContinue,
+  onPick,
 }: {
-  mode: Mode;
-  onChange: (m: Mode) => void;
-  onContinue: () => void;
+  mode: Mode | null;
+  /** Single click handler — selects the mode AND advances to the
+   *  next step. No separate Continue button: the choice IS the action.
+   *  Replaces the old onChange + onContinue split. */
+  onPick: (m: Mode) => void;
 }) {
   const options: {
     value: Mode;
@@ -658,7 +662,7 @@ function ModeChooser({
           <button
             key={value}
             type="button"
-            onClick={() => onChange(value)}
+            onClick={() => onPick(value)}
             className={cn(
               "w-full rounded-xl border-2 p-4 text-left transition-all",
               mode === value
@@ -679,7 +683,11 @@ function ModeChooser({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold">{label}</div>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                {/* Description uses foreground/75 (not muted-foreground)
+                    so it stays legible on the dark Trustead theme — the
+                    muted variable maps too dim against the deep-green
+                    background and was nearly unreadable. */}
+                <p className="mt-0.5 text-xs text-foreground/75">
                   {description}
                 </p>
               </div>
@@ -689,12 +697,6 @@ function ModeChooser({
             </div>
           </button>
         ))}
-      </div>
-      <div className="mt-5 flex justify-end">
-        <Button size="lg" onClick={onContinue} className="gap-1">
-          Continue
-          <ChevronRight className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );
