@@ -1495,6 +1495,42 @@ const INITIAL_PALETTES: Palette[] = [
     d3: FIXED_D3,
     d4: { bg: "#94A3B8", fg: "#0B2E25", outline: "#94A3B8" },
   },
+  {
+    id: "sky-slate",
+    name: "Option C — Sky / Slate",
+    note: "Cool sky 1° contrasts with the warm 2°/3° middle; slate 4° matches the cool temperature so distance reads as 'cool fade.'",
+    d1: { bg: "#38BDF8", fg: "#0B2E25", outline: "#38BDF8" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#64748B", fg: "#FFFFFF", outline: "#64748B" },
+  },
+  {
+    id: "coral-stone",
+    name: "Option D — Coral / Stone",
+    note: "Warm coral 1° as a friendly top-tier signal; stone 4° stays neutral and earthy without going stark gray.",
+    d1: { bg: "#FB7185", fg: "#FFFFFF", outline: "#FB7185" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#A8A29E", fg: "#0B2E25", outline: "#A8A29E" },
+  },
+  {
+    id: "ink-pale",
+    name: "Option E — Ink / Pale",
+    note: "Inverts the contrast direction — dark ink 1° reads as anchored/serious; pale 4° disappears into the background instead of demanding attention.",
+    d1: { bg: "#0F172A", fg: "#FFFFFF", outline: "#0F172A" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#D4D4D8", fg: "#0B2E25", outline: "#D4D4D8" },
+  },
+  {
+    id: "sage-bark",
+    name: "Option F — Sage / Bark",
+    note: "All warm/earthy — pale sage 1° extends the green ramp lighter; bark 4° stays grounded in the same family instead of jumping to gray.",
+    d1: { bg: "#86EFAC", fg: "#0B2E25", outline: "#86EFAC" },
+    d2: FIXED_D2,
+    d3: FIXED_D3,
+    d4: { bg: "#57534E", fg: "#FFFFFF", outline: "#57534E" },
+  },
 ];
 
 // Pick a readable text color for a given background. Good-enough
@@ -1508,6 +1544,18 @@ function pickFg(hex: string): string {
   const b = parseInt(m.slice(4, 6), 16);
   const luma = 0.299 * r + 0.587 * g + 0.114 * b;
   return luma > 150 ? "#0B2E25" : "#FFFFFF";
+}
+
+// Very-light backgrounds (white, cream, pale gray) need a hairline border so
+// the pill still reads as a defined shape against the dark sandbox surface.
+// Stricter threshold than pickFg's "needs-dark-text" cutoff.
+function isVeryLight(hex: string): boolean {
+  const m = hex.replace("#", "");
+  if (m.length !== 6) return false;
+  const r = parseInt(m.slice(0, 2), 16);
+  const g = parseInt(m.slice(2, 4), 16);
+  const b = parseInt(m.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b > 200;
 }
 
 function SwatchPill({
@@ -1613,6 +1661,9 @@ function PaletteRow({ initial }: { initial: Palette }) {
   const [d2, setD2] = useState<DegreeColor>(initial.d2);
   const [d3, setD3] = useState<DegreeColor>(initial.d3);
   const [d4, setD4] = useState<DegreeColor>(initial.d4);
+  // Default the live option to expanded so the picker UX is visible
+  // without requiring a click; all other options collapse for density.
+  const [open, setOpen] = useState(Boolean(initial.active));
 
   const setBg = (
     setter: (c: DegreeColor) => void
@@ -1620,13 +1671,11 @@ function PaletteRow({ initial }: { initial: Palette }) {
     (next: string) =>
       setter({ bg: next, fg: pickFg(next), outline: next });
 
-  // 1° rendered with a hairline border so very-light backgrounds
-  // (white, cream) still show clearly on the dark sandbox surface.
-  const lightBg = ["#FFFFFF", "#F5F1E6"].includes(d1.bg.toUpperCase());
+  const lightBg = isVeryLight(d1.bg);
 
   return (
     <div
-      className="rounded-2xl p-5"
+      className="overflow-hidden rounded-xl"
       style={{
         backgroundColor: "rgba(7,34,27,0.55)",
         border: initial.active
@@ -1634,66 +1683,83 @@ function PaletteRow({ initial }: { initial: Palette }) {
           : "1px solid rgba(245,241,230,0.12)",
       }}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <div className="flex items-center gap-2">
-          <h4
-            className="!text-base !font-semibold !leading-tight tracking-normal"
-            style={{ color: "#F5F1E6" }}
-          >
-            {initial.name}
-          </h4>
-          {initial.active && (
-            <span
-              className="inline-flex items-center rounded-full px-2 py-[1px] text-[10px] font-mono uppercase tracking-wider"
-              style={{
-                backgroundColor: "rgba(79,177,145,0.18)",
-                color: "#BFE2D4",
-              }}
-            >
-              Live
-            </span>
-          )}
-        </div>
-      </div>
-      <p
-        className="mt-1 max-w-3xl text-xs leading-relaxed"
-        style={{ color: "rgba(245,241,230,0.62)" }}
+      {/* Toggle row — chevron + name (+ Live badge) on the left, the
+          four live pills on the right. One line, no wrap on desktop. */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[rgba(245,241,230,0.04)]"
       >
-        {initial.note}
-      </p>
-      <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:gap-6">
-        {/* Pills preview — re-renders on color changes */}
-        <div className="flex flex-wrap items-center gap-3">
+        <ChevronRight
+          className="h-3.5 w-3.5 shrink-0 transition-transform"
+          style={{
+            color: "rgba(245,241,230,0.55)",
+            transform: open ? "rotate(90deg)" : "none",
+          }}
+          aria-hidden
+        />
+        <h4
+          className="!text-sm !font-semibold !leading-tight tracking-normal shrink-0"
+          style={{ color: "#F5F1E6" }}
+        >
+          {initial.name}
+        </h4>
+        {initial.active && (
+          <span
+            className="inline-flex shrink-0 items-center rounded-full px-2 py-[1px] text-[10px] font-mono uppercase tracking-wider"
+            style={{
+              backgroundColor: "rgba(79,177,145,0.18)",
+              color: "#BFE2D4",
+            }}
+          >
+            Live
+          </span>
+        )}
+        <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <SwatchPill label="1°" color={d1} hairline={lightBg} />
           <ComboSwatchPill label="2°" score="6.4" color={d2} />
           <ComboSwatchPill label="3°" score="3.2" color={d3} />
           <SwatchPill label="4°+" color={d4} />
-        </div>
+        </span>
+      </button>
 
-        {/* Per-degree color pickers */}
-        <div className="grid gap-1.5 sm:min-w-[210px]">
-          <ColorSwatchInput
-            label="1°"
-            value={d1.bg}
-            onChange={setBg(setD1)}
-          />
-          <ColorSwatchInput
-            label="2°"
-            value={d2.bg}
-            onChange={setBg(setD2)}
-          />
-          <ColorSwatchInput
-            label="3°"
-            value={d3.bg}
-            onChange={setBg(setD3)}
-          />
-          <ColorSwatchInput
-            label="4°+"
-            value={d4.bg}
-            onChange={setBg(setD4)}
-          />
+      {open && (
+        <div
+          className="px-4 pb-4 pt-3"
+          style={{ borderTop: "1px solid rgba(245,241,230,0.08)" }}
+        >
+          <p
+            className="mb-3 max-w-3xl text-xs leading-relaxed"
+            style={{ color: "rgba(245,241,230,0.62)" }}
+          >
+            {initial.note}
+          </p>
+          {/* 2x2 picker grid — keeps the expanded row compact. */}
+          <div className="grid gap-1.5 sm:grid-cols-2 sm:gap-x-6">
+            <ColorSwatchInput
+              label="1°"
+              value={d1.bg}
+              onChange={setBg(setD1)}
+            />
+            <ColorSwatchInput
+              label="2°"
+              value={d2.bg}
+              onChange={setBg(setD2)}
+            />
+            <ColorSwatchInput
+              label="3°"
+              value={d3.bg}
+              onChange={setBg(setD3)}
+            />
+            <ColorSwatchInput
+              label="4°+"
+              value={d4.bg}
+              onChange={setBg(setD4)}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
