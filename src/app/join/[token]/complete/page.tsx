@@ -251,6 +251,19 @@ async function consumePendingVouch(
     };
   }
 
+  // Self-claim guard. The DB has a `vouches_no_self_vouch` CHECK that
+  // would reject the upsert anyway, but catching it here gives a
+  // friendly message instead of a 500 — useful for admins exercising
+  // the share-link UX with their own phone.
+  if (pv.sender_id === dbUserId) {
+    return {
+      ok: false,
+      message:
+        "Test invite — sender and recipient are the same account. No real vouch was created. The pending row stays in your dashboard so you can cancel or resend it.",
+      inviterName: senderName,
+    };
+  }
+
   // Phone-match check. The webhook auto-claim already runs without
   // the token, so on the happy path this re-checks what already
   // happened. On the mismatch path, this is the only place we
