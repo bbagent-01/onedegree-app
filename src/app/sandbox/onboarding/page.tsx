@@ -15,72 +15,81 @@ import {
 // ── Slide schema ──────────────────────────────────────────────────
 
 type Slide = {
+  eyebrow: string;
   titleLines: [string, string];
   titleEmphasis?: { word: string; className: string };
   body: string;
   Visual: React.ComponentType | null;
 };
 
-// Two problem slides up front (the "why this isn't great" setup),
-// then the angle, vouching, trust detail, and visibility flow.
+// STRANGERS_OPTION_ONE — the vertical-cycling pain-points list lives
+// in PainPointsListVisual below but is intentionally NOT in SLIDES.
+// Loren is keeping it as the alternate "strangers" treatment. Bring
+// it back by inserting a slide entry with `Visual: PainPointsListVisual`.
 const SLIDES: Slide[] = [
   {
-    titleLines: ["Renting to strangers", "gets complicated."],
-    body: "A long list of small frictions you'd rather not deal with.",
-    Visual: PainPointsListVisual,
-  },
-  {
+    eyebrow: "The problem",
     titleLines: ["Renting your actual home,", "actually isn't great"],
     body: "It comes with friction you'd rather not deal with.",
     Visual: PainPointsCardsVisual,
   },
   {
+    eyebrow: "The answer",
     titleLines: ["Rent your home to", "people you can trust"],
     titleEmphasis: { word: "trust", className: "italic text-brand-300" },
     body: "Rent your primary home to friends of friends. Control who sees it on our private invite-only platform.",
     Visual: null,
   },
   {
+    eyebrow: "Vouching",
     titleLines: ["Build trust by vouching", "for people you know"],
     body: "Invite people you know. They invite people they know. The graph builds itself into a real trust network.",
     Visual: VouchPickerVisual,
   },
   {
+    eyebrow: "Trust",
     titleLines: ["Rent to people", "connected to you."],
     body: "See exactly how — through whom, and how strongly.",
     Visual: TrustDetailVisual,
   },
   {
+    eyebrow: "Privacy",
     titleLines: ["Control who sees your", "listing, or listing preview"],
     body: "Make it fully private, share a teaser only, or open it up to friends-of-friends. Your call.",
     Visual: VisibilityVisual,
   },
 ];
 
-const INTRO_DURATION_MS = 2200;
+// Phase timeline:
+//   intro    (0 → 2800 ms)        — logo draws + tagline fades up
+//   morphing (2800 → 4400 ms)     — logo translates up + shrinks; tagline fades out; slide content NOT yet rendered
+//   slides   (4400 ms → ...)      — slide content mounts and runs its word stagger
+const INTRO_DURATION_MS = 2800;
 const SWIPE_THRESHOLD_PX = 50;
 
-// Word-stagger tokens (in ≈ out, mirrored).
+// Tagline appears 700ms into the intro and stays visible until the
+// logo starts moving (when phase flips to morphing). 700ms gives the
+// logo's draw-in (~1.4s) time to feel like the lead.
+const TAGLINE_DELAY_MS = 700;
+
+// Word-stagger tokens.
 const WORD_DURATION_MS = 600;
 const WORD_EASING = "cubic-bezier(0.25, 0.46, 0.45, 0.94)"; // power2.out
 const TITLE_WORD_STAGGER_MS = 30;
 const BODY_WORD_STAGGER_MS = 12;
 const BLOCK_FADE_DURATION_MS = 500;
-// Exit animation — same shape, same stagger, slightly tighter so the
-// transition doesn't drag. Words slide UP and out (mirrors the IN
-// which slides UP from below the baseline).
 const WORD_EXIT_DURATION_MS = 400;
 
-// Logo morph — two phases. Phase 1 is the upward translation; phase 2
-// is the shrink. Both ease-in-out so the motion is deliberate, and
-// the shrink waits until the move lands.
-const LOGO_MOVE_MS = 1200;
-const LOGO_SHRINK_MS = 600;
-const LOGO_EASING = "cubic-bezier(0.65, 0, 0.35, 1)"; // ease in-out
-// Total morph time = move + shrink (used to delay slide entry).
+// Logo morph — dramatic ease-in-out, tuned to start slow, accelerate
+// through the middle, settle slowly. Drama matches the deliberate
+// pace of the slide-text rise. Move first; shrink only after the
+// move lands. Total morph = LOGO_MOVE_MS + LOGO_SHRINK_MS.
+const LOGO_MOVE_MS = 1100;
+const LOGO_SHRINK_MS = 500;
+const LOGO_EASING = "cubic-bezier(0.83, 0, 0.17, 1)"; // dramatic ease-in-out
 const LOGO_TOTAL_MORPH_MS = LOGO_MOVE_MS + LOGO_SHRINK_MS;
 
-type Phase = "intro" | "slides" | "dismissed";
+type Phase = "intro" | "morphing" | "slides" | "dismissed";
 
 export default function SandboxOnboardingPage() {
   const [phase, setPhase] = useState<Phase>("intro");
@@ -91,14 +100,18 @@ export default function SandboxOnboardingPage() {
   const isLast = index === SLIDES.length - 1;
   const isFirst = index === 0;
 
+  // Phase progression: intro → morphing → slides.
   useEffect(() => {
-    if (phase !== "intro") return;
-    const t = setTimeout(() => setPhase("slides"), INTRO_DURATION_MS);
-    return () => clearTimeout(t);
+    if (phase === "intro") {
+      const t = setTimeout(() => setPhase("morphing"), INTRO_DURATION_MS);
+      return () => clearTimeout(t);
+    }
+    if (phase === "morphing") {
+      const t = setTimeout(() => setPhase("slides"), LOGO_TOTAL_MORPH_MS);
+      return () => clearTimeout(t);
+    }
   }, [phase]);
 
-  // Click → animate current slide out, swap, animate next in. Same
-  // pattern for prev. Skip + Get-started bypass the exit animation.
   const transitionTo = (nextIdx: number) => {
     setExiting(true);
     setTimeout(() => {
@@ -121,12 +134,14 @@ export default function SandboxOnboardingPage() {
   };
 
   const skip = () => setPhase("dismissed");
+  // Skipping the intro fast-forwards the whole logo-morph window so
+  // the user lands on the first slide right away.
   const skipIntro = () => setPhase("slides");
 
   useEffect(() => {
     if (phase === "dismissed") return;
     const onKey = (e: KeyboardEvent) => {
-      if (phase === "intro") {
+      if (phase === "intro" || phase === "morphing") {
         skipIntro();
         return;
       }
@@ -151,23 +166,29 @@ export default function SandboxOnboardingPage() {
   const slide = SLIDES[index];
   const Visual = slide.Visual;
 
+  // Stagger sequencing — eyebrow lands first, then title words, then
+  // visual + body, then CTA. All paced off the title's natural end.
+  const eyebrowDelay = 0;
+  const titleStartDelay = 200;
   const titleWords = slide.titleLines.flatMap((l) => l.split(" ")).length;
   const titleEndDelay =
-    (titleWords - 1) * TITLE_WORD_STAGGER_MS + WORD_DURATION_MS;
-  const visualDelay = Math.round(titleEndDelay * 0.4);
-  const bodyStartDelay = Math.round(titleEndDelay * 0.55);
+    titleStartDelay +
+    (titleWords - 1) * TITLE_WORD_STAGGER_MS +
+    WORD_DURATION_MS;
+  const visualDelay = titleStartDelay + Math.round(titleEndDelay * 0.4);
+  const bodyStartDelay = titleStartDelay + Math.round(titleEndDelay * 0.55);
   const bodyWords = slide.body.split(/\s+/).filter(Boolean).length;
   const bodyEndDelay =
     bodyStartDelay + (bodyWords - 1) * BODY_WORD_STAGGER_MS + WORD_DURATION_MS;
   const buttonDelay = Math.round(bodyEndDelay * 0.65);
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (phase === "intro") return;
+    if (phase !== "slides") return;
     touchStartX.current = e.touches[0]?.clientX ?? null;
   };
 
   const onTouchEnd = (e: React.TouchEvent) => {
-    if (phase === "intro") {
+    if (phase === "intro" || phase === "morphing") {
       skipIntro();
       return;
     }
@@ -183,6 +204,8 @@ export default function SandboxOnboardingPage() {
     touchStartX.current = null;
   };
 
+  const introOrMorphing = phase === "intro" || phase === "morphing";
+
   return (
     <main
       className={`sandbox-onboarding-root relative flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground ${
@@ -190,20 +213,21 @@ export default function SandboxOnboardingPage() {
       }`}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
-      onClick={phase === "intro" ? skipIntro : undefined}
+      onClick={introOrMorphing ? skipIntro : undefined}
     >
       <style
         dangerouslySetInnerHTML={{
           __html: `
-            /* Word IN: rise up from below the baseline through a mask */
+            /* Word IN/OUT — implicit \`from\` in both keyframes (no
+               explicit from{}) so the browser uses the current
+               computed value as the start. Removes the snap that
+               caused flickering when the exit class was added
+               mid-rise. */
             @keyframes sb-word-rise {
-              from { opacity: 0; transform: translate3d(0, 110%, 0); }
-              to   { opacity: 1; transform: translate3d(0, 0, 0); }
+              to { opacity: 1; transform: translate3d(0, 0, 0); }
             }
-            /* Word OUT: same direction, same shape, just continued upward */
             @keyframes sb-word-exit {
-              from { opacity: 1; transform: translate3d(0, 0, 0); }
-              to   { opacity: 0; transform: translate3d(0, -110%, 0); }
+              to { opacity: 0; transform: translate3d(0, -110%, 0); }
             }
             .sandbox-onboarding-root .word-mask {
               display: inline-block;
@@ -214,6 +238,7 @@ export default function SandboxOnboardingPage() {
             .sandbox-onboarding-root .word-fill {
               display: inline-block;
               opacity: 0;
+              transform: translate3d(0, 110%, 0);
               will-change: opacity, transform;
               animation: sb-word-rise ${WORD_DURATION_MS}ms ${WORD_EASING} forwards;
             }
@@ -221,17 +246,16 @@ export default function SandboxOnboardingPage() {
               animation: sb-word-exit ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING} forwards;
             }
 
-            /* Block in/out — visual + button */
+            /* Block in/out — visual + button + eyebrow */
             @keyframes sb-block-rise {
-              from { opacity: 0; transform: translate3d(0, 24px, 0); }
-              to   { opacity: 1; transform: translate3d(0, 0, 0); }
+              to { opacity: 1; transform: translate3d(0, 0, 0); }
             }
             @keyframes sb-block-exit {
-              from { opacity: 1; transform: translate3d(0, 0, 0); }
-              to   { opacity: 0; transform: translate3d(0, -24px, 0); }
+              to { opacity: 0; transform: translate3d(0, -24px, 0); }
             }
             .sandbox-onboarding-root .block-rise {
               opacity: 0;
+              transform: translate3d(0, 24px, 0);
               will-change: opacity, transform;
               animation: sb-block-rise ${BLOCK_FADE_DURATION_MS}ms ${WORD_EASING} forwards;
             }
@@ -239,7 +263,7 @@ export default function SandboxOnboardingPage() {
               animation: sb-block-exit ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING} forwards;
             }
 
-            /* Slide 1 — vertical pain-points cycle */
+            /* Pain-points list (alt) — vertical cycle */
             @keyframes sb-pain-cycle {
               0%,  18% { transform: translate3d(0, calc(0 * var(--pain-h) * -1), 0); }
               20%, 38% { transform: translate3d(0, calc(1 * var(--pain-h) * -1), 0); }
@@ -257,7 +281,7 @@ export default function SandboxOnboardingPage() {
                       mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
             }
 
-            /* Slide 2 — horizontal pain-cards scroll, right→left */
+            /* Pain-cards horizontal scroll, right→left */
             @keyframes sb-cards-scroll {
               from { transform: translate3d(0, 0, 0); }
               to   { transform: translate3d(-50%, 0, 0); }
@@ -271,7 +295,6 @@ export default function SandboxOnboardingPage() {
                       mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
             }
 
-            /* Hide global cookie banner on this takeover surface. */
             body:has(.sandbox-onboarding-root) > div.fixed.inset-x-0.bottom-0.z-40 {
               display: none !important;
             }
@@ -290,20 +313,26 @@ export default function SandboxOnboardingPage() {
         }}
       />
 
-      {/* Persistent logo wrapper. Two-phase morph on phase change:
-          Phase A — top + transform (translateY) animate over LOGO_MOVE_MS.
-          Phase B — width animates over LOGO_SHRINK_MS, delayed until A ends.
-          Both ease-in-out (cubic-bezier(0.65, 0, 0.35, 1)) so the motion
-          feels "considered" rather than zippy. */}
+      {/* Persistent logo wrapper.
+          Phase A (intro → morphing transition): top + transform animate
+          over LOGO_MOVE_MS — the upward translate.
+          Phase B (lands at top): width animates over LOGO_SHRINK_MS,
+          delayed by LOGO_MOVE_MS so the shrink only fires after the
+          move ends. Both share the dramatic ease-in-out curve so the
+          motion is deliberate. The wrapper sits at z-40 so the slide
+          content (z-10) cannot animate behind it during morphing. */}
       <div
-        className="pointer-events-none absolute z-30 left-1/2 -translate-x-1/2"
+        className="pointer-events-none absolute z-40 left-1/2 -translate-x-1/2"
         style={{
-          top: phase === "intro" ? "50%" : "1.75rem",
+          top: introOrMorphing && phase !== "morphing" ? "50%" : "1.75rem",
           transform:
-            phase === "intro"
+            introOrMorphing && phase !== "morphing"
               ? "translate(-50%, -50%)"
               : "translate(-50%, 0)",
-          width: phase === "intro" ? "min(28rem, 92vw)" : "9rem",
+          width:
+            introOrMorphing && phase !== "morphing"
+              ? "min(28rem, 92vw)"
+              : "9rem",
           transitionProperty: "top, transform, width",
           transitionDuration: `${LOGO_MOVE_MS}ms, ${LOGO_MOVE_MS}ms, ${LOGO_SHRINK_MS}ms`,
           transitionDelay: `0ms, 0ms, ${LOGO_MOVE_MS}ms`,
@@ -317,10 +346,11 @@ export default function SandboxOnboardingPage() {
           tabIndex={-1}
           title="Trustead animated logo"
         />
-        {/* Tagline lives inside the logo wrapper so it sits centered
-            beneath the wordmark during the intro. It hides once the
-            logo starts morphing — translated up + faded — same exit
-            shape as slide-content text. */}
+        {/* Tagline — plain (no italic, no brand-300). Fades up after
+            TAGLINE_DELAY_MS while the wordmark draws, stays through
+            the rest of the intro, and fades out the moment phase
+            flips to morphing (so it disappears right as the logo
+            starts moving up). */}
         <div
           className="mt-3 text-center"
           style={{
@@ -330,33 +360,38 @@ export default function SandboxOnboardingPage() {
                 ? "translate3d(0, 0, 0)"
                 : "translate3d(0, -16px, 0)",
             transition: `opacity ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING}, transform ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING}`,
-            // Animation in: fade up after the logo finishes drawing.
             animation:
               phase === "intro"
-                ? `sb-block-rise ${BLOCK_FADE_DURATION_MS}ms ${WORD_EASING} 1.1s backwards`
+                ? `sb-block-rise ${BLOCK_FADE_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_DELAY_MS}ms backwards`
                 : "none",
           }}
         >
           <span className="text-base text-muted-foreground sm:text-lg">
-            Rent your home with{" "}
-            <span className="italic text-brand-300">trust</span>
+            Rent your home with trust
           </span>
         </div>
       </div>
 
       {phase === "slides" && (
         <>
-          {/* Centered content — heading, visual, body, CTA, then back/skip row. */}
           <div
             key={index}
-            className="flex flex-1 items-center justify-center overflow-y-auto px-6 pt-28 pb-20 sm:pt-32 sm:pb-24"
+            className="relative z-10 flex flex-1 items-center justify-center overflow-y-auto px-6 pt-32 pb-20 sm:pt-36 sm:pb-24"
           >
-            <div className="flex w-full max-w-md flex-col items-center gap-7 text-center sm:max-w-xl sm:gap-9">
+            <div className="flex w-full max-w-md flex-col items-center gap-6 text-center sm:max-w-xl sm:gap-8">
+              {/* Eyebrow pill — small uppercase tag above the heading */}
+              <span
+                className="block-rise inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
+                style={{ animationDelay: `${eyebrowDelay}ms` }}
+              >
+                {slide.eyebrow}
+              </span>
+
               <AnimatedHeading
                 titleLines={slide.titleLines}
                 emphasis={slide.titleEmphasis}
                 stagger={TITLE_WORD_STAGGER_MS}
-                baseDelay={0}
+                baseDelay={titleStartDelay}
               />
 
               {Visual && (
@@ -377,7 +412,7 @@ export default function SandboxOnboardingPage() {
               </p>
 
               <div
-                className="block-rise flex w-full flex-col items-center gap-2"
+                className="block-rise flex w-full flex-col items-center gap-3"
                 style={{ animationDelay: `${buttonDelay}ms` }}
               >
                 <button
@@ -389,14 +424,16 @@ export default function SandboxOnboardingPage() {
                   {isLast ? "Get started" : "Continue"}
                   <ArrowRight className="h-4 w-4" />
                 </button>
-                {/* Back arrow on the left of Skip, beneath the CTA. */}
-                <div className="flex items-center gap-2">
+                {/* Skip is centered under Continue; back arrow lives
+                    on the left edge so the row reads as a balanced
+                    "← center action" instead of a paired group. */}
+                <div className="relative flex w-full items-center justify-center">
                   {!isFirst && (
                     <button
                       type="button"
                       onClick={prev}
                       aria-label="Previous slide"
-                      className="grid h-8 w-8 place-items-center rounded-pill text-muted-foreground transition hover:text-foreground"
+                      className="absolute left-0 grid h-8 w-8 place-items-center rounded-pill text-muted-foreground transition hover:text-foreground"
                     >
                       <ArrowLeft className="h-4 w-4" />
                     </button>
@@ -413,7 +450,6 @@ export default function SandboxOnboardingPage() {
             </div>
           </div>
 
-          {/* Pagination dots — pinned to the bottom */}
           <div className="absolute inset-x-0 bottom-6 z-20 flex items-center justify-center gap-2 sm:bottom-8">
             {SLIDES.map((_, i) => (
               <span
@@ -448,7 +484,10 @@ function AnimatedHeading({
 }) {
   let globalWordIdx = 0;
   return (
-    <h1 className="font-serif !leading-[1.1] !tracking-tight !max-w-none !text-[26px] sm:!text-[46px] md:!text-[58px]">
+    // Mobile font size scales with viewport (clamp(34, 10.5vw, 44))
+    // so 375px → ~39px (~1.5× the prior 26px) while still fitting
+    // the longer slide-5 line. Desktop sizes unchanged.
+    <h1 className="font-serif !leading-[1.08] !tracking-tight !max-w-none !text-[clamp(34px,10.5vw,44px)] sm:!text-[50px] md:!text-[60px]">
       {titleLines.map((line, lineIdx) => (
         <span key={lineIdx} className="block">
           {line.split(" ").map((word, wordIdx, arr) => {
@@ -539,9 +578,9 @@ const PAIN_POINTS = [
   },
 ];
 
+// STRANGERS_OPTION_ONE — the vertical pain-points list. Kept in code
+// as an alternate treatment; not currently in SLIDES.
 function PainPointsListVisual() {
-  // Slide 1 — vertical-cycling list of pain points (one visible at a
-  // time through a top/bottom mask). Same as before.
   const ITEM_HEIGHT = 76;
   const items = [...PAIN_POINTS, PAIN_POINTS[0]];
   return (
@@ -582,10 +621,6 @@ function PainPointsListVisual() {
 }
 
 function PainPointsCardsVisual() {
-  // Slide 2 — horizontal scrolling row of pain-point cards lifted from
-  // the staytrustead.com landing. Two visible at a time, sliding from
-  // right to left in a continuous loop. Track is doubled so the loop
-  // wraps seamlessly when the first set scrolls fully out.
   const cards = [...PAIN_POINTS, ...PAIN_POINTS];
   return (
     <div className="cards-window relative w-full overflow-hidden">
