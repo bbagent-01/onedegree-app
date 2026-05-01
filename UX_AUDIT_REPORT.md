@@ -116,3 +116,63 @@ The live `OnboardingTakeover` is a near-identical port of the sandbox per its ow
 
 ---
 
+#### Cross-cutting — legacy color tokens from the pre-Trustead theme
+
+Background scan of `src/components`, `src/app`, `src/lib`, and `src/app/globals.css` turned up 26 hardcoded color values from the old Attio Light theme that should be Trustead `--tt-*` tokens. Highest impact:
+
+- **HIGH — `.legal-prose` body color** (`#1A1D21` navy) — fixed in commit b214d0f.
+- **HIGH — Map host location-preview pin SVG** uses `#734796` purple — fixed in commit 6e21f2e.
+- **HIGH — Map circle radius color** uses `#734796` purple — fixed in commit 6e21f2e.
+- **HIGH — `.map-pin` text color** uses `#1A1D21` navy — re-tuned to Trustead's modal-bg dark green — fixed in commit 6e21f2e.
+- **HIGH — `.map-pin-selected` background** uses `#1A1D21` navy — re-tuned — fixed in commit 6e21f2e.
+- **HIGH — Email templates (`src/lib/email.ts`, `src/lib/proposal-alerts.ts`)** — 7 hits of `#1A1D21` and `#E5E7EB` and `#F9FAFB` on transactional emails. **functional — defer to B-series** (would require sending test emails through SendGrid to verify; out of UX1 scope).
+- **MEDIUM — `.listing-popup .pp-imgs` placeholder** (`#f3f4f6` light gray) — leaflet popup, in-context-correct on light map; deferred.
+- **MEDIUM — Sonner toast `text: #ffffff`** (`src/components/ui/sonner.tsx`) — should be `var(--tt-cream)`. Deferred (cosmetic, sonner CSS may need overrides).
+- **MEDIUM — Status badges `bg-slate-100`** in `src/components/stay/IssueReportCard.tsx`, `src/components/booking/ThreadTermsCards.tsx` — light surface inside dark cards. Deferred (multiple variants, would need design pass on status semantics).
+
+---
+
+## Round 1 recap — 2026-05-01
+
+### Fixes shipped (6 commits on `feat/ux1-ux-audit`)
+
+| Commit | Surface | What landed |
+|---|---|---|
+| [`b214d0f`](https://github.com/bbagent-01/trustead/commit/b214d0f) | `/privacy`, `/terms`, `/legal-status` | `.legal-prose` body text was `#1A1D21` navy on the dark forest bg = invisible. Swap to `--tt-cream`/`--tt-mint`/`--tt-rule` so the entire legal pack is legible. Also mints replace purple `#734796` section numbers. |
+| [`201cc6b`](https://github.com/bbagent-01/trustead/commit/201cc6b) | Onboarding (sandbox + live) | Logo wordmark no longer collides with slide eyebrow + heading on mobile. Backdrop fade behind logo (z-30) catches scrolling content + orbit avatars. `items-start` on mobile, smaller heading clamp, more bottom padding so Continue + Skip + dots stop fighting for the same band. |
+| [`d6a4854`](https://github.com/bbagent-01/trustead/commit/d6a4854) | `/sign-in`, `/sign-up` | Primary CTAs no longer render in silent-disabled state. Removed `disabled={!validInput}`; replaced with click-time validation that surfaces a toast.error so empty-submit gives feedback instead of nothing. |
+| [`6e21f2e`](https://github.com/bbagent-01/trustead/commit/6e21f2e) | Host location preview map | Map pin + 750m circle were `#734796` purple (Attio holdover). Now use `--tt-degree-3` deep trust-degree green. Pin text + selected bg also flipped from generic navy to Trustead modal-bg dark-green. |
+| [`d1db735`](https://github.com/bbagent-01/trustead/commit/d1db735) | `/join/[token]` (invite-not-found / expired / consumed) | Wider card, font-serif `text-3xl` headline (no more "Invite not / found"), animated wordmark above the card for brand orientation, vertically-centered layout, lg-sized primary CTA, secondary "Sign in" promoted from plain text to outline button. |
+| [`9e4471f`](https://github.com/bbagent-01/trustead/commit/9e4471f) | `/sign-in`, `/sign-up` | Animated trustead wordmark above the H1 + serif H1 to match brand. Both pages were chromeless before. |
+
+### Findings deferred (functional / out of scope)
+
+- **Google sign-in caveat copy** — "Google sign-in only works for accounts that already added the matching email" is a Clerk account-linking quirk. *functional — defer to B-series.*
+- **`/dev` and bogus routes redirect to `accounts.trustead.app/sign-in` (Clerk hosted UI)** — middleware gates everything before `not-found.tsx` resolves, AND Clerk routes are pointed at the hosted page instead of the custom `/sign-in`. *functional — middleware + Clerk dashboard config; defer to B-series.*
+- **Email template legacy colors** — `src/lib/email.ts` + `src/lib/proposal-alerts.ts` have 7 hits of `#1A1D21` / `#E5E7EB` / `#F9FAFB`. Would need test sends through SendGrid to verify. *functional — defer to B-series.*
+- **`"Sign in with email and password instead"` link non-firing** — observed during click-test; may have been a stale screenshot or the click missed. Re-test post-deploy; if reproducible, it's a missing client-state guard.
+- **Clerk passkey + 2FA challenge** — couldn't sign back in autonomously to reach the gated surfaces (`/vouch`, `/profile/edit`, `/listings/[id]`, `/inbox`, `/settings/*`, `/alerts`, `/trips`, `/wishlists`, `/invite`, `/proposals`, `/help`). Need Loren's device biometric for that. **Surfaces gated behind sign-in NOT yet audited this round** — they're queued for round 2 once Loren is back to complete a sign-in.
+
+### Spot-check URLs once the preview deploys
+
+The Cloudflare branch deploy for `feat/ux1-ux-audit` will be at a `*.trustead.pages.dev` URL once the build finishes (~2 min after push). For each fix:
+
+- `https://feat-ux1-ux-audit.trustead.pages.dev/privacy` — body text should be cream, section numbers mint
+- `https://feat-ux1-ux-audit.trustead.pages.dev/terms` — same
+- `https://feat-ux1-ux-audit.trustead.pages.dev/legal-status` — same
+- `https://feat-ux1-ux-audit.trustead.pages.dev/sandbox/onboarding-2` — open on a phone (or Chrome devtools 390×844). Walk all 5 slides. The trustead wordmark at top should NOT collide with the eyebrow chip or first heading line. Continue + Skip + dots should fit the viewport without overlap. Heading should stay 2-3 lines, not 4.
+- `https://feat-ux1-ux-audit.trustead.pages.dev/sign-in` — trustead wordmark above headline; click "Continue with phone" with empty input → red toast "Enter your phone number" instead of nothing
+- `https://feat-ux1-ux-audit.trustead.pages.dev/sign-up` — trustead wordmark above headline; same toast behavior on empty submits at each step
+- `https://feat-ux1-ux-audit.trustead.pages.dev/join/fake-test-token-abc123` — branded dead-end card with mint primary + outline secondary CTA
+- `https://feat-ux1-ux-audit.trustead.pages.dev/listings/{any-listing}` — verify the host map preview pin renders in trust-degree green, not purple (this surface is signed-in only — Loren needs to verify)
+
+### Suggested round 2 surfaces (once auth is unblocked)
+
+- `/dashboard/network` (excluded this branch — B4 territory)
+- `/inbox` + `/inbox/[threadId]`
+- `/vouch` (the live form)
+- `/profile/[id]` + `/profile/edit`
+- `/listings/[id]` (detail page UX, not just the host preview map)
+- `/settings` sub-pages: `hosting`, `notifications`, `phone`
+- `/alerts`, `/trips`, `/wishlists`, `/invite`, `/proposals`, `/help`
+
