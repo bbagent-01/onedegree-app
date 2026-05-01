@@ -23,7 +23,6 @@ import { MobileSearchPill } from "@/components/browse/mobile-search-pill";
 import { BrowseLayout } from "@/components/browse/browse-layout";
 import { FilterSheet } from "@/components/browse/filter-sheet";
 import { ListingCardSkeleton } from "@/components/listing-card-skeleton";
-import { NavCenterPortal } from "@/components/layout/nav-center-portal";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -44,12 +43,14 @@ export default async function BrowsePage({
   const filterCount = activeFilterCount(filters);
 
   return (
-    <div className="w-full px-4 md:px-10 lg:px-20">
-      {/* Desktop: portal search + filters into the top nav's center slot.
-          Sort lives next to the "Stays" heading below so the nav cluster
-          doesn't overflow at narrow desktop widths. */}
-      <NavCenterPortal>
-        <div className="flex w-full max-w-4xl items-center gap-3">
+    <div className="w-full">
+      {/* Desktop: B4 swap — DesktopNav is hidden on this route by
+          AppChrome (the sidebar lives there instead), so the
+          NavCenterPortal target no longer mounts. Search + filters
+          render here as a full-width header row at the top of the
+          right-hand content column, per the locked direction. */}
+      <div className="sticky top-0 z-30 hidden border-b border-border/60 bg-background/95 px-6 py-4 backdrop-blur md:block lg:px-10">
+        <div className="flex w-full items-center gap-3">
           <div className="flex-1">
             <Suspense fallback={<div className="h-12" />}>
               <SuggestionsSearchBar compact />
@@ -59,17 +60,17 @@ export default async function BrowsePage({
             <FiltersSlot filters={filters} activeCount={filterCount} />
           </Suspense>
         </div>
-      </NavCenterPortal>
+      </div>
 
       {/* Mobile sticky search pill — collapsed to "Start your search",
           opens a full-height sheet with stacked sections on tap. */}
-      <div className="sticky top-0 z-40 -mx-4 border-b border-border/60 bg-white px-4 py-3 md:hidden">
+      <div className="sticky top-0 z-30 border-b border-border/60 bg-white px-4 py-3 md:hidden">
         <Suspense fallback={<div className="h-14" />}>
           <MobileSearchPillSlot />
         </Suspense>
       </div>
 
-      <div className="mt-6">
+      <div className="px-4 pt-6 md:px-10 lg:px-20">
         <Suspense fallback={<GridSkeleton />}>
           <BrowseResults
             filters={filters}
