@@ -120,12 +120,15 @@ export function ReservationSidebar({ thread, onClose }: Props) {
           <h2 className="text-sm font-semibold">Reservation</h2>
           <span
             className={cn(
-              "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+              "rounded-full border px-2 py-0.5 text-[11px] font-semibold",
               status.tone === "accepted" &&
-                "bg-emerald-100 text-emerald-800",
-              status.tone === "pending" && "bg-amber-100 text-amber-800",
-              status.tone === "declined" && "bg-zinc-200 text-zinc-700",
-              status.tone === "cancelled" && "bg-zinc-200 text-zinc-700"
+                "border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/15 text-[var(--tt-mint)]",
+              status.tone === "pending" &&
+                "border-amber-400/30 bg-amber-400/15 text-amber-200",
+              status.tone === "declined" &&
+                "border-white/10 bg-white/5 text-[var(--tt-cream-muted)]",
+              status.tone === "cancelled" &&
+                "border-white/10 bg-white/5 text-[var(--tt-cream-muted)]"
             )}
           >
             {status.label}
@@ -294,8 +297,8 @@ export function ReservationSidebar({ thread, onClose }: Props) {
             stays a scannable summary; the editor is a conversation
             step, not a separate surface. */}
         {isHostViewer && booking?.status === "pending" && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <p className="text-[11px] leading-relaxed text-amber-900">
+          <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-3">
+            <p className="text-[11px] leading-relaxed text-amber-100">
               Request pending. Scroll to the bottom of the thread on
               the left to review &amp; send terms to{" "}
               {other_user.name.split(" ")[0]}.

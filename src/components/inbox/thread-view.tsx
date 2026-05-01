@@ -362,11 +362,11 @@ export function ThreadView({
           the end of the thread so the host edits in context of the
           conversation. */}
       {isHost && pendingBookingId && thread.booking && (
-        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-3">
-          <div className="text-sm font-semibold text-amber-900">
+        <div className="shrink-0 border-b border-amber-400/30 bg-amber-400/10 px-4 py-3">
+          <div className="text-sm font-semibold text-amber-100">
             Reservation request pending · review &amp; send terms below
           </div>
-          <div className="mt-0.5 text-xs text-amber-800">
+          <div className="mt-0.5 text-xs text-amber-200/80">
             {formatStayDates(thread.booking.check_in, thread.booking.check_out)}
             {" · "}
             {thread.booking.guest_count} guest

@@ -26,14 +26,17 @@ interface Props {
 export function OriginProposalCard({ proposal }: Props) {
   const isTrip = proposal.kind === "trip_wish";
   const kindLabel = isTrip ? "Trip Wish" : "Host Offer";
+  // Trip vs Host Offer badge — translucent tinted bg + readable
+  // light text so the badge sits on the dark forest bg without
+  // creating a white island.
   const badgeClass = isTrip
-    ? "bg-sky-100 text-sky-900"
-    : "bg-emerald-100 text-emerald-900";
+    ? "border border-sky-400/30 bg-sky-400/15 text-sky-200"
+    : "border border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/15 text-[var(--tt-mint)]";
 
   // Unavailable → static row, no link. Spec wording per S9d brief.
   if (!proposal.isAvailable) {
     return (
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-zinc-50 px-4 py-2.5">
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-white/5 px-4 py-2.5">
         <span
           className={`inline-flex shrink-0 items-center gap-1 rounded-full ${badgeClass} px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide opacity-70`}
         >

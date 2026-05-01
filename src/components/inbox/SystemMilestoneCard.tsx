@@ -32,21 +32,22 @@ export function SystemMilestoneCard({
   subtitle,
   tone = "neutral",
 }: Props) {
+  // Translucent tinted bodies for each tone so milestone cards
+  // sit on the dark forest bg without becoming light-theme islands.
   const bodyClass =
     tone === "amber"
-      ? "border-amber-300 bg-amber-50"
+      ? "border-amber-400/30 bg-amber-400/10"
       : tone === "emerald"
-        ? "border-emerald-200 bg-emerald-50"
+        ? "border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10"
         : tone === "brand"
           ? "border-brand/40 bg-brand/5"
           : "border-border bg-white";
 
-  // Amber body uses high-contrast dark amber text. Other tones rely
-  // on the body's own foreground (cream on neutral via glass rules,
-  // dark on emerald/brand cream-tinted bodies via tone-fg flip).
-  const titleClass = tone === "amber" ? "text-amber-900" : "";
+  // Each tone gets a foreground that reads against its tinted body.
+  const titleClass =
+    tone === "amber" ? "text-amber-100" : "";
   const subtitleClass =
-    tone === "amber" ? "text-amber-800/80" : "text-muted-foreground";
+    tone === "amber" ? "text-amber-200/80" : "text-muted-foreground";
 
   return (
     <div className={cn("mx-auto w-full max-w-xl rounded-2xl border p-4", bodyClass)}>
@@ -54,8 +55,8 @@ export function SystemMilestoneCard({
         <div
           className={cn(
             "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-            tone === "emerald" && "bg-emerald-100 text-emerald-700",
-            tone === "amber" && "bg-amber-100 text-amber-700",
+            tone === "emerald" && "bg-[var(--tt-mint-mid)]/25 text-[var(--tt-mint)]",
+            tone === "amber" && "bg-amber-400/20 text-amber-200",
             tone === "brand" && "bg-brand/15 text-brand",
             tone === "neutral" && "bg-muted text-muted-foreground"
           )}
