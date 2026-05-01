@@ -83,13 +83,12 @@ function InviteShareContent() {
   // CTA can pass ?phone= when the search input was a phone-shaped query).
   const phonePrefill = searchParams?.get("phone") ?? "";
 
-  // Step 0 (mode) defaults to whatever the URL hints, falling back to
-  // 'phone' when the user lands without a hint. The chooser is always
-  // shown; this just primes the radio.
-  const initialMode: Mode = phonePrefill ? "phone" : "phone";
-
+  // Step 0 starts with no mode selected — sender must explicitly pick.
+  // The phone-prefill query param still works because the Mode A
+  // details step reads it via state, but we don't pre-select Mode A
+  // for them based on it.
   const [step, setStep] = useState<Step>("mode");
-  const [mode, setMode] = useState<Mode>(initialMode);
+  const [mode, setMode] = useState<Mode | null>(null);
 
   const [vouchType, setVouchType] = useState<VouchType | null>(null);
   const [yearsKnown, setYearsKnown] = useState<YearsKnownBucket | null>(null);
@@ -126,13 +125,16 @@ function InviteShareContent() {
     groupLabel.trim().length >= 2 && groupLabel.trim().length <= 80;
 
   const canProceedDetails =
-    mode === "phone"
-      ? nameOK && phoneValid
-      : mode === "open_individual"
-        ? nameOK
-        : groupLabelOK && MAX_CLAIMS_OPTIONS.includes(maxClaims as 5 | 10 | 20);
+    mode === null
+      ? false
+      : mode === "phone"
+        ? nameOK && phoneValid
+        : mode === "open_individual"
+          ? nameOK
+          : groupLabelOK && MAX_CLAIMS_OPTIONS.includes(maxClaims as 5 | 10 | 20);
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(
+    async (skipAutoSend = false) => {
     if (!vouchType || !yearsKnown || !canProceedDetails) return;
     setSubmitting(true);
     setExisting({ kind: "none" });
@@ -142,6 +144,11 @@ function InviteShareContent() {
         vouchType,
         yearsKnownBucket: yearsKnown,
         ratingStake: stakeAcknowledged,
+        // Mode A only — set true when sender picks "Send it myself"
+        // so the server creates the row without firing Twilio. The
+        // pending row still has the recipient phone, so the webhook's
+        // phone-match auto-claim still works on signup.
+        skipAutoSend,
       };
       if (mode === "phone") {
         payload.recipientName = recipientName.trim();
@@ -244,8 +251,10 @@ function InviteShareContent() {
         {step === "mode" && (
           <ModeChooser
             mode={mode}
-            onChange={setMode}
-            onContinue={() => setStep("type")}
+            onPick={(m) => {
+              setMode(m);
+              setStep("type");
+            }}
           />
         )}
 
@@ -459,18 +468,34 @@ function InviteShareContent() {
               )}
             </div>
 
-            <div className="mt-5 flex items-center justify-between">
+            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Button variant="ghost" size="lg" onClick={() => setStep("years")}>
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
-              <Button
-                size="lg"
-                disabled={!canProceedDetails || submitting}
-                onClick={handleSubmit}
-              >
-                {submitting ? "Sending..." : "Send invite"}
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {/* Secondary: skip Twilio, send the link from your own
+                    phone via the existing share-sheet flow. The pending
+                    row is still created with the recipient phone so the
+                    webhook auto-claim path still applies on signup. */}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  disabled={!canProceedDetails || submitting}
+                  onClick={() => handleSubmit(true)}
+                >
+                  Send it myself
+                </Button>
+                {/* Primary: Trustead's Twilio number sends the SMS. */}
+                <Button
+                  size="lg"
+                  disabled={!canProceedDetails || submitting}
+                  onClick={() => handleSubmit(false)}
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                >
+                  {submitting ? "Sending..." : "Send invite"}
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -514,7 +539,7 @@ function InviteShareContent() {
               <Button
                 size="lg"
                 disabled={!canProceedDetails || submitting}
-                onClick={handleSubmit}
+                onClick={() => handleSubmit(false)}
               >
                 {submitting ? "Creating..." : "Create invite link"}
               </Button>
@@ -586,7 +611,7 @@ function InviteShareContent() {
               <Button
                 size="lg"
                 disabled={!canProceedDetails || submitting}
-                onClick={handleSubmit}
+                onClick={() => handleSubmit(false)}
               >
                 {submitting ? "Creating..." : "Create group invite"}
               </Button>
@@ -614,12 +639,13 @@ function InviteShareContent() {
 
 function ModeChooser({
   mode,
-  onChange,
-  onContinue,
+  onPick,
 }: {
-  mode: Mode;
-  onChange: (m: Mode) => void;
-  onContinue: () => void;
+  mode: Mode | null;
+  /** Single click handler — selects the mode AND advances to the
+   *  next step. No separate Continue button: the choice IS the action.
+   *  Replaces the old onChange + onContinue split. */
+  onPick: (m: Mode) => void;
 }) {
   const options: {
     value: Mode;
@@ -658,7 +684,7 @@ function ModeChooser({
           <button
             key={value}
             type="button"
-            onClick={() => onChange(value)}
+            onClick={() => onPick(value)}
             className={cn(
               "w-full rounded-xl border-2 p-4 text-left transition-all",
               mode === value
@@ -679,7 +705,11 @@ function ModeChooser({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold">{label}</div>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                {/* Description uses foreground/75 (not muted-foreground)
+                    so it stays legible on the dark Trustead theme — the
+                    muted variable maps too dim against the deep-green
+                    background and was nearly unreadable. */}
+                <p className="mt-0.5 text-xs text-foreground/75">
                   {description}
                 </p>
               </div>
@@ -689,12 +719,6 @@ function ModeChooser({
             </div>
           </button>
         ))}
-      </div>
-      <div className="mt-5 flex justify-end">
-        <Button size="lg" onClick={onContinue} className="gap-1">
-          Continue
-          <ChevronRight className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );
