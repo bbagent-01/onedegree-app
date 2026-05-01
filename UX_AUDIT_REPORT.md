@@ -214,5 +214,76 @@ I couldn't sign in to walk these visually, so this round was a code audit of the
 
 ### Round 2 commit total: 4 (19 across both rounds)
 
+---
+
+## Round 3 (full dark-theme sweep across every gated component) — 2026-05-01
+
+The biggest deferred item from round 2 was "~67 light-theme color tokens scattered across gated components." This round took it down to zero.
+
+### What changed
+
+A consistent mapping was applied across every user-facing component:
+
+| Old (Attio Light) | New (Trustead dark) |
+|---|---|
+| `bg-{color}-50` | `bg-{color}-400/10` |
+| `bg-{color}-100` | `bg-{color}-400/15` (or `/20` for emerald) |
+| `border-{color}-200` | `border-{color}-400/30` |
+| `text-{color}-{700,800}` | `text-{color}-200` |
+| `text-{color}-900` | `text-{color}-100` |
+| `bg-zinc-{100,200}` | `bg-white/{5,10}` |
+| `text-zinc-{700,800,900}` | `text-[var(--tt-cream{,-muted})]` |
+
+Plus emerald gets re-mapped to `--tt-mint-mid` / `--tt-mint` so the "success" semantic uses the brand mint instead of a generic green, and blue gets folded into the sky palette.
+
+Each badge / callout / banner keeps its semantic color (mint = success, amber = warning, red = destructive, sky = info) but as a translucent border + tinted bg + readable foreground so it sits naturally on the dark forest surface instead of popping as a bright pill island.
+
+### Round 3 fixes shipped (4 commits, ~140 tokens, 40+ files)
+
+| Commit | Surface |
+|---|---|
+| [`b60c0c3`](https://github.com/bbagent-01/trustead/commit/b60c0c3) | Inbox: SystemMilestoneCard, inbox-list, origin-proposal-card, reservation-sidebar, thread-view |
+| [`fc0131b`](https://github.com/bbagent-01/trustead/commit/fc0131b) | Booking + stay: ThreadTermsCards (the worst offender, 30+ tokens), HostReviewTermsInline, AcceptTermsCheckbox, ReviewPromptCard, CancellationPolicyCard, IssueReportCard, PhotoRequestCard, cancellation-policy-form |
+| [`ba611ff`](https://github.com/bbagent-01/trustead/commit/ba611ff) | Invite, hosting, trust, dashboard, profile (21 files): invite + invite/share, trips/[bookingId], proposals/[id], hosting/{create, edit, availability-editor, listing-cancellation-override, host-review-modal, photo-uploader, reservations-section}, dashboard/my-proposals-section, profile/preview-badge, trust/{network-section, trust-gate, vouch-modal, trust-tag, trust-tag-popover, IntroRequestCard, connection-breakdown}, ui/badge primitive, invite/pending-vouches-list |
+| [`645c587`](https://github.com/bbagent-01/trustead/commit/645c587) | Final wave (10 files): trips/{trips-list, trip-detail-actions, cancel-trip-dialog}, listing/{gated-listing-cta, gated-listing-view}, proposals/{proposal-card, new-proposal-form, share-to-friend-modal, author-actions, alerts-manager}, plus pickup of remaining trust + booking stragglers |
+
+### Intentionally LEFT alone
+
+- **`LegalPageShell` AlphaBanner** uses `bg-warning-100 text-amber-900` — a cream-bg surface where dark amber text is the correct semantic. The legal pages render this on a dark page, but the banner itself is a cream island by design (warning style). Kept.
+- **`OnboardingTakeover` and `sandbox/onboarding-2` VouchPicker icon chips** use `bg-blue-100 text-blue-700` (Vouch) and `bg-amber-100 text-amber-700` (Vouch+) — small decorative icon backgrounds inside dark-forest containers, mirroring the in-app `VouchModal`. Per the locked onboarding spec these are intentional brand accent tints. Kept.
+- **Admin / dev surfaces** (`admin/ImpersonationSwitcher`, `dev/SandboxControls`, `dev/BrandEditorDrawer`, `dev/pages/listing`) are out of UX1 scope and use the older Attio palette intentionally — the brand-switcher tooling is its own dev-only world.
+
+### Round 3 deferred to round 4 (needs visual verification once Loren can sign in)
+
+- Run all the swept components through a visual pass at desktop + mobile to confirm the translucent tints read correctly. The math should work but some translucent bgs over the forest-green can feel washed out depending on local backdrop — would benefit from a side-by-side review with Loren on the live preview after the Clerk-domain config is updated.
+- A11y pass: focus-visible rings on inbox thread items + listing host links (10+ flagged in round 2 agent scan).
+- Empty-state copy polish on /wishlists root and /proposals (current copy is decent, agent flagged it as too-generic — marginal win, requires copywriting pass).
+- Disabled cursor pattern on submit buttons app-wide (the Button primitive uses `disabled:pointer-events-none` which is mutually exclusive with `cursor-not-allowed` — needs a deliberate trade-off conversation).
+- VouchButton "you've already vouched" tooltip — turns out the button isn't actually disabled (it relabels to "Update vouch for {firstName}"), so the agent's complaint was a misread. No fix needed.
+
+### Total commit count across rounds 1-3: 24
+
+```
+b214d0f  legal pages contrast (round 1)
+201cc6b  onboarding mobile overlap (round 1)
+d6a4854  sign-in/up CTAs + validation (round 1)
+6e21f2e  map markers brand greens (round 1)
+d1db735  /join/[token] dead-end polish (round 1)
+9e4471f  sign-in/up wordmark + serif H1 (round 1)
+f04078e  17 gated route H1s → font-serif (round 1)
+33b0a23  global H1/H2 !important removed (round 1)
+242cce6  iframe regression fix (round 1)
++ 6 supporting commits (CI workflow, env vars, report updates)
+19d0716  more H1s + hosting-edit badges (round 2)
+bb27ceb  status badges + amber + toggle (round 2)
+194bad1  deactivate dialog (round 2)
+40102ca  profile unverified badge (round 2)
+8c5ca96  report — round 2 entries
+b60c0c3  dark-theme sweep — inbox (round 3)
+fc0131b  dark-theme sweep — booking + stay (round 3)
+ba611ff  dark-theme sweep — invite + hosting + trust + dashboard (round 3)
+645c587  dark-theme sweep — trips + listing-gate + proposals (round 3)
+```
+
 
 
