@@ -287,7 +287,7 @@ export function AvailabilityEditor({ listingId, defaultPrice }: Props) {
                     className={cn(
                       "text-[9px] font-semibold leading-none",
                       customPx != null
-                        ? "text-emerald-700"
+                        ? "text-[var(--tt-mint)]"
                         : "text-muted-foreground"
                     )}
                   >

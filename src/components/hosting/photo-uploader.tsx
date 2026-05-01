@@ -237,7 +237,7 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
                   "absolute right-10 top-1.5 rounded-full p-1.5 shadow-sm transition-colors",
                   p.is_cover
                     ? "bg-amber-400 text-white"
-                    : "bg-white/90 text-zinc-700 opacity-0 hover:bg-white group-hover:opacity-100"
+                    : "bg-white/90 text-[var(--tt-cream-muted)] opacity-0 hover:bg-white group-hover:opacity-100"
                 )}
                 title={p.is_cover ? "Cover photo" : "Set as cover"}
                 aria-label={p.is_cover ? "Cover photo" : "Set as cover"}
@@ -255,7 +255,7 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
                   "absolute right-1.5 top-1.5 rounded-full p-1.5 shadow-sm transition-colors",
                   p.is_preview
                     ? "bg-brand text-white"
-                    : "bg-white/90 text-zinc-700 opacity-0 hover:bg-white group-hover:opacity-100"
+                    : "bg-white/90 text-[var(--tt-cream-muted)] opacity-0 hover:bg-white group-hover:opacity-100"
                 )}
                 title={p.is_preview ? "In preview — click to hide" : "Include in preview"}
                 aria-label={p.is_preview ? "In preview" : "Include in preview"}
@@ -277,7 +277,7 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
                     "absolute bottom-1.5 right-10 rounded-full p-1.5 shadow-sm transition-colors",
                     p.filter_preset
                       ? "bg-foreground text-white"
-                      : "bg-white/90 text-zinc-700 opacity-0 hover:bg-white group-hover:opacity-100"
+                      : "bg-white/90 text-[var(--tt-cream-muted)] opacity-0 hover:bg-white group-hover:opacity-100"
                   )}
                   title={p.filter_preset ? "Edit filter" : "Add filter"}
                   aria-label={p.filter_preset ? "Edit filter" : "Add filter"}
@@ -290,7 +290,7 @@ export function PhotoUploader({ photos, onChange, max = 20 }: Props) {
               <button
                 type="button"
                 onClick={() => remove(i)}
-                className="absolute bottom-1.5 right-1.5 rounded-full bg-white/90 p-1.5 text-zinc-700 opacity-0 shadow-sm transition-colors hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                className="absolute bottom-1.5 right-1.5 rounded-full bg-white/90 p-1.5 text-[var(--tt-cream-muted)] opacity-0 shadow-sm transition-colors hover:bg-red-400/10 hover:text-red-200 group-hover:opacity-100"
                 title="Remove"
                 aria-label="Remove photo"
               >

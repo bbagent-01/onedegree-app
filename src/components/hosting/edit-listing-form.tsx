@@ -1430,7 +1430,7 @@ export function EditListingForm({
             {/* Validation warning */}
             {rank(accessRules.full_listing_contact) <
               rank(accessRules.see_preview) && (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              <div className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-100">
                 Full Listing + Contact can&apos;t be more permissive than
                 See Preview — we&apos;ll clamp it to match on save.
               </div>
@@ -1460,13 +1460,13 @@ export function EditListingForm({
       {/* Danger zone — delete listing                             */}
       {/* ──────────────────────────────────────────────────────── */}
       <TabsContent value="danger" className="mt-0">
-        <div className="mb-6 overflow-hidden rounded-2xl border-2 border-red-200 bg-white shadow-sm">
-          <div className="border-b border-red-200 bg-red-50 px-6 py-5 md:px-8">
+        <div className="mb-6 overflow-hidden rounded-2xl border-2 border-red-400/30 bg-white shadow-sm">
+          <div className="border-b border-red-400/30 bg-red-400/10 px-6 py-5 md:px-8">
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
               <div>
-                <h2 className="text-lg font-bold text-red-900">Danger zone</h2>
-                <p className="mt-1 text-sm text-red-800">
+                <h2 className="text-lg font-bold text-red-100">Danger zone</h2>
+                <p className="mt-1 text-sm text-red-200">
                   Deleting a listing is permanent. Photos, availability, and
                   the listing itself will be removed. This cannot be undone.
                 </p>
@@ -1491,8 +1491,8 @@ export function EditListingForm({
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3 rounded-xl border border-red-300 bg-red-50 p-5">
-                <div className="text-sm font-semibold text-red-900">
+              <div className="space-y-3 rounded-xl border border-red-300 bg-red-400/10 p-5">
+                <div className="text-sm font-semibold text-red-100">
                   Type <span className="font-mono">DELETE</span> to confirm
                 </div>
                 <Input

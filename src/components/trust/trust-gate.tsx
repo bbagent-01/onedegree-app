@@ -33,14 +33,14 @@ export function TrustGate({
     return (
       <div
         className={cn(
-          "flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3",
+          "flex items-start gap-3 rounded-2xl border border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 px-4 py-3",
           className
         )}
       >
         <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
         <div className="text-sm">
-          <div className="font-semibold text-emerald-900">You&apos;re trusted</div>
-          <p className="mt-0.5 text-emerald-800/80">
+          <div className="font-semibold text-[var(--tt-mint)]">You&apos;re trusted</div>
+          <p className="mt-0.5 text-[var(--tt-mint)]/80">
             Your connection to this host (score {userScore}) meets their
             required trust gate of {requiredScore}. You can message them and
             request to book.
@@ -54,17 +54,17 @@ export function TrustGate({
     return (
       <div
         className={cn(
-          "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4",
+          "rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4",
           className
         )}
       >
         <div className="flex items-start gap-3">
           <Lock className="h-5 w-5 shrink-0 text-amber-600" />
           <div className="text-sm">
-            <div className="font-semibold text-amber-900">
+            <div className="font-semibold text-amber-100">
               Requires Trust Score of {requiredScore}
             </div>
-            <p className="mt-0.5 text-amber-800/80">
+            <p className="mt-0.5 text-amber-200/80">
               Yours is {userScore}. Ask one of your mutual connections below
               for an introduction or a stronger vouch.
             </p>
@@ -79,17 +79,17 @@ export function TrustGate({
     return (
       <div
         className={cn(
-          "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4",
+          "rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-4",
           className
         )}
       >
         <div className="flex items-start gap-3">
           <Lock className="h-5 w-5 shrink-0 text-amber-600" />
           <div className="text-sm">
-            <div className="font-semibold text-amber-900">
+            <div className="font-semibold text-amber-100">
               Private listing
             </div>
-            <p className="mt-0.5 text-amber-800/80">
+            <p className="mt-0.5 text-amber-200/80">
               You&apos;re not directly connected to this host, but your network
               is. Ask a mutual connection for an introduction.
             </p>
@@ -128,10 +128,10 @@ function MutualList({
 }) {
   const top = mutualConnections.slice(0, 5);
   const more = mutualConnections.length - top.length;
-  const label = tone === "amber" ? "text-amber-900" : "text-foreground";
+  const label = tone === "amber" ? "text-amber-100" : "text-foreground";
 
   return (
-    <div className="mt-4 border-t border-amber-200/60 pt-3">
+    <div className="mt-4 border-t border-amber-400/30/60 pt-3">
       <div
         className={cn(
           "flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide",

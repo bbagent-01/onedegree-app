@@ -431,7 +431,7 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
                     {p.weight.toFixed(3)}
                   </span>{" "}
                   ={" "}
-                  <span className="font-semibold text-emerald-700">
+                  <span className="font-semibold text-[var(--tt-mint)]">
                     {p.weighted_score.toFixed(2)} pts
                   </span>
                 </div>
@@ -444,7 +444,7 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
               .map((p) => p.weighted_score.toFixed(2))
               .join(" + ")}{" "}
             ={" "}
-            <span className="font-semibold text-emerald-700">
+            <span className="font-semibold text-[var(--tt-mint)]">
               {data.score} pts
             </span>
           </div>
@@ -466,9 +466,9 @@ function ColorKey() {
     range: string;
     className: string;
   }> = [
-    { label: "Weak", range: "1–14", className: "bg-emerald-100" },
+    { label: "Weak", range: "1–14", className: "bg-[var(--tt-mint-mid)]/20" },
     { label: "Modest", range: "15–29", className: "bg-emerald-300" },
-    { label: "Strong", range: "30–49", className: "bg-emerald-500" },
+    { label: "Strong", range: "30–49", className: "bg-[var(--tt-mint-mid)]/100" },
     { label: "Very strong", range: "50+", className: "bg-emerald-700" },
   ];
   return (
@@ -683,7 +683,7 @@ function MultiHopView({
   const score = bestChain
     ? Math.round(mean(bestChain.linkStrengths) * DAMPEN)
     : 0;
-  const scoreColor = data.degree === 3 ? "text-[#bf8a0d]" : "text-zinc-700";
+  const scoreColor = data.degree === 3 ? "text-[#bf8a0d]" : "text-[var(--tt-cream-muted)]";
 
   // Global path counter so labels stay unique across groups
   // ("Path 1, Path 2, Path 3" rather than restarting at each group).
@@ -950,7 +950,7 @@ function ChainSegment({
             aria-hidden
           >
             <EyeOff
-              className="h-4 w-4 text-zinc-700"
+              className="h-4 w-4 text-[var(--tt-cream-muted)]"
               strokeWidth={2.25}
             />
           </span>

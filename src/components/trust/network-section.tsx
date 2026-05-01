@@ -194,9 +194,9 @@ function PersonRow({
   const ratingDot =
     typeof gr === "number" && person.guest_review_count > 0
       ? gr < 4
-        ? { color: "bg-amber-500", title: "Below 4.0 average — pulling your vouch power down." }
+        ? { color: "bg-amber-400/100", title: "Below 4.0 average — pulling your vouch power down." }
         : gr > 4
-          ? { color: "bg-emerald-500", title: "Above 4.0 average — boosting your vouch power." }
+          ? { color: "bg-[var(--tt-mint-mid)]/100", title: "Above 4.0 average — boosting your vouch power." }
           : { color: "bg-zinc-300", title: "At the 4.0 baseline." }
       : null;
 
@@ -241,7 +241,7 @@ function PersonRow({
           // a passive flag; sender clicks through normally to revoke.
           <Link
             href={`/profile/${person.user_id}?vouch=1`}
-            className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900 hover:bg-amber-100"
+            className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-100 hover:bg-amber-400/15"
             title="This vouch came from an open invite link. Tap to review or remove."
           >
             from open link — review?
@@ -250,8 +250,8 @@ function PersonRow({
         <Badge
           className={
             isInnerCircle
-              ? "bg-amber-100 text-amber-800 hover:bg-amber-100"
-              : "bg-blue-100 text-blue-800 hover:bg-blue-100"
+              ? "bg-amber-400/15 text-amber-200 hover:bg-amber-400/15"
+              : "bg-sky-400/15 text-sky-200 hover:bg-sky-400/15"
           }
         >
           {isInnerCircle ? (
@@ -275,11 +275,11 @@ function InviteRow({ invite }: { invite: PendingInvite }) {
   const statusConfig: Record<string, { label: string; className: string }> = {
     sent: {
       label: "Sent",
-      className: "bg-blue-100 text-blue-800 hover:bg-blue-100",
+      className: "bg-sky-400/15 text-sky-200 hover:bg-sky-400/15",
     },
     clicked: {
       label: "Clicked",
-      className: "bg-amber-100 text-amber-800 hover:bg-amber-100",
+      className: "bg-amber-400/15 text-amber-200 hover:bg-amber-400/15",
     },
   };
   const config = statusConfig[invite.status] ?? statusConfig.sent;

@@ -178,7 +178,7 @@ export function TrustTag({
       {/* 2°: emerald shield + score + connector dots/avatars */}
       {is2nd && (
         <>
-          <span className="inline-flex items-center gap-0.5 font-semibold text-emerald-700">
+          <span className="inline-flex items-center gap-0.5 font-semibold text-[var(--tt-mint)]">
             <ShieldIcon
               score={score}
               size={isMedium ? "h-4 w-4" : "h-3.5 w-3.5"}
