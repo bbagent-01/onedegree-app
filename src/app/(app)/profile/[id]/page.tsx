@@ -9,10 +9,12 @@ import {
   Languages,
   Info,
   Star,
+  Sparkles,
 } from "lucide-react";
 import { getProfileById, type ProfileReview } from "@/lib/profile-data";
 import { computeTrustPath } from "@/lib/trust-data";
 import { getEffectiveUserId } from "@/lib/impersonation/session";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileReviews } from "@/components/profile/profile-reviews";
 import { VouchPrompt } from "@/components/profile/vouch-prompt";
@@ -193,7 +195,15 @@ export default async function ProfilePage({
 
       {/* Trust / vouch section — different content for own vs other */}
       {isOwn ? (
-        <OwnTrustSection user={user} />
+        <>
+          <OwnTrustSection user={user} />
+          {/* B8: training-wheels social proof. Demo-origin vouches
+              show ONLY on the user's own profile — every other-view
+              code path filters them out. The list itself is fetched
+              inline below since this is the single read site that
+              wants the demo subset. */}
+          <DemoConnectionsSelfView userId={user.id} />
+        </>
       ) : trust ? (
         <OtherTrustSection user={user} trust={trust} />
       ) : null}
@@ -509,6 +519,112 @@ function InfoChip({
     <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium text-foreground">
       <Icon className="h-3.5 w-3.5 text-muted-foreground" />
       {label}
+    </span>
+  );
+}
+
+/**
+ * B8 self-view section: lists the demo-origin vouches that the
+ * server-side auto-vouch routine in the Clerk webhook seeded for
+ * this user on signup. Renders only on the user's OWN profile.
+ *
+ * Other-view paths never load these rows because every read query
+ * in src/lib/trust-data.ts, compute-score.ts, network-data.ts,
+ * etc. now filters .eq("is_demo_origin", false) and the matching
+ * RPCs in migration 054 do the same.
+ */
+async function DemoConnectionsSelfView({ userId }: { userId: string }) {
+  const supabase = getSupabaseAdmin();
+  const { data: rows } = await supabase
+    .from("vouches")
+    .select("voucher_id, vouch_type, years_known_bucket, vouch_score, created_at")
+    .eq("vouchee_id", userId)
+    .eq("is_demo_origin", true)
+    .order("created_at", { ascending: false });
+
+  const demoVouches = (rows ?? []) as Array<{
+    voucher_id: string;
+    vouch_type: "standard" | "inner_circle";
+    years_known_bucket: string;
+    vouch_score: number | null;
+    created_at: string;
+  }>;
+  if (demoVouches.length === 0) return null;
+
+  const voucherIds = demoVouches.map((r) => r.voucher_id);
+  const { data: voucherProfiles } = await supabase
+    .from("users")
+    .select("id, name, avatar_url, bio")
+    .in("id", voucherIds);
+
+  type VoucherProfile = {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    bio: string | null;
+  };
+  const profileById = new Map<string, VoucherProfile>(
+    ((voucherProfiles ?? []) as VoucherProfile[]).map((u) => [u.id, u])
+  );
+
+  return (
+    <Section title="Welcome connections">
+      <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+        <div className="flex items-start gap-2 text-sm text-muted-foreground">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            These are demo connections so you can see what social proof
+            looks like before your real network arrives. Only you can see
+            them — they don&apos;t count toward anyone&apos;s trust score
+            and they aren&apos;t visible to other members on your profile.
+          </p>
+        </div>
+        <ul className="mt-4 flex flex-col gap-2">
+          {demoVouches.map((v) => {
+            const prof = profileById.get(v.voucher_id);
+            return (
+              <li
+                key={v.voucher_id}
+                className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-2"
+              >
+                <Avatar className="h-9 w-9 shrink-0">
+                  {prof?.avatar_url && (
+                    <AvatarImage src={prof.avatar_url} alt={prof.name} />
+                  )}
+                  <AvatarFallback className="text-xs">
+                    {prof ? initialsOf(prof.name) : "?"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-foreground">
+                    {prof?.name ?? "Demo connection"}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    Vouched for you
+                  </div>
+                </div>
+                <DemoConnectionPill />
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </Section>
+  );
+}
+
+/**
+ * "Demo connection" pill. Shape mirrors the existing PreviewBadge
+ * (rounded-full, small icon, soft tint) so the visual vocabulary
+ * stays consistent with other "this is a special row" labels.
+ * Amber tint distinguishes it from the green Phone-verified chip
+ * and the red Unverified chip in the header.
+ */
+function DemoConnectionPill() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+      <Sparkles className="h-3 w-3" />
+      Demo connection
     </span>
   );
 }

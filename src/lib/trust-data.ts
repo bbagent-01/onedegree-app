@@ -155,14 +155,18 @@ export async function computeTrustPaths(
 
   const supabase = getSupabaseAdmin();
 
-  // 1. Direct vouches from the viewer to any target.
+  // 1. Direct vouches from the viewer to any target. Demo-origin
+  // rows (B8 auto-vouch training wheels) are excluded from every
+  // real-user trust read — they only surface on the recipient's
+  // self-view profile via a separate, intentionally narrow query.
   const { data: directRows } = await supabase
     .from("vouches")
     .select(
       "voucher_id, vouchee_id, vouch_type, years_known_bucket"
     )
     .eq("voucher_id", viewerId)
-    .in("vouchee_id", unique);
+    .in("vouchee_id", unique)
+    .eq("is_demo_origin", false);
 
   // Also load the viewer's vouch_power for edge scaling.
   const { data: viewerRow } = await supabase
@@ -229,7 +233,8 @@ export async function computeTrustPaths(
   const { data: viewerEdges } = await supabase
     .from("vouches")
     .select("vouchee_id, vouch_type, years_known_bucket")
-    .eq("voucher_id", viewerId);
+    .eq("voucher_id", viewerId)
+    .eq("is_demo_origin", false);
 
   type EdgeRow = {
     vouchee_id: string;
@@ -250,6 +255,7 @@ export async function computeTrustPaths(
           .select("voucher_id, vouchee_id, vouch_type, years_known_bucket")
           .in("voucher_id", candidateIds)
           .in("vouchee_id", unique)
+          .eq("is_demo_origin", false)
       : { data: [] };
 
   type ConnRow = {
@@ -547,12 +553,14 @@ export async function computeIncomingTrustPaths(
 
   const supabase = getSupabaseAdmin();
 
-  // 1. Direct vouches from each source to the viewer.
+  // 1. Direct vouches from each source to the viewer. Demo-origin
+  // rows excluded (B8) — incoming trust math is real-side only.
   const { data: directRows } = await supabase
     .from("vouches")
     .select("voucher_id, vouchee_id, vouch_type, years_known_bucket")
     .in("voucher_id", unique)
-    .eq("vouchee_id", viewerId);
+    .eq("vouchee_id", viewerId)
+    .eq("is_demo_origin", false);
 
   type DirectRow = {
     voucher_id: string;
@@ -591,7 +599,8 @@ export async function computeIncomingTrustPaths(
   const { data: sourceEdges } = await supabase
     .from("vouches")
     .select("voucher_id, vouchee_id, vouch_type, years_known_bucket")
-    .in("voucher_id", unique);
+    .in("voucher_id", unique)
+    .eq("is_demo_origin", false);
 
   type EdgeRow = {
     voucher_id: string;
@@ -621,6 +630,7 @@ export async function computeIncomingTrustPaths(
           .select("voucher_id, vouch_type, years_known_bucket")
           .in("voucher_id", allConnectorIds)
           .eq("vouchee_id", viewerId)
+          .eq("is_demo_origin", false)
       : { data: [] };
 
   type ConnIntoViewer = {
@@ -897,7 +907,8 @@ async function findNDegreeReach(
     const { data: rows } = await supabase
       .from("vouches")
       .select(`${l1Col}, ${l1MatchCol}`)
-      .in(l1MatchCol, [...frontier]);
+      .in(l1MatchCol, [...frontier])
+      .eq("is_demo_origin", false);
     const next = new Set<string>();
     for (const r of rows ?? []) {
       const row = r as Record<string, string>;
@@ -920,7 +931,8 @@ async function findNDegreeReach(
     .from("vouches")
     .select(`${l1Col}, ${l1MatchCol}`)
     .in(l1MatchCol, [...frontier])
-    .in(l1Col, candidateIds);
+    .in(l1Col, candidateIds)
+    .eq("is_demo_origin", false);
   for (const r of finalRows ?? []) {
     const row = r as Record<string, string>;
     const candidate = row[l1Col];
@@ -1002,6 +1014,7 @@ async function applyMultiHopChains(
           .select("voucher_id, vouchee_id, vouch_type, years_known_bucket, vouch_score")
           .in("voucher_id", allNodeIds)
           .in("vouchee_id", allNodeIds)
+          .eq("is_demo_origin", false)
       : { data: [] };
   type EdgeRow = {
     voucher_id: string;
@@ -1045,7 +1058,8 @@ async function applyMultiHopChains(
   // counted in one place is counted in the other.
   const { data: allVouches } = await supabase
     .from("vouches")
-    .select("voucher_id, vouchee_id");
+    .select("voucher_id, vouchee_id")
+    .eq("is_demo_origin", false);
   const adj = new Map<string, Set<string>>();
   for (const v of (allVouches ?? []) as Array<{
     voucher_id: string;
@@ -1237,7 +1251,8 @@ async function computeIndirectFallback(
   const { data: viewerEdges } = await supabase
     .from("vouches")
     .select("vouchee_id, vouch_type, years_known_bucket")
-    .eq("voucher_id", viewerId);
+    .eq("voucher_id", viewerId)
+    .eq("is_demo_origin", false);
 
   type Edge = {
     vouchee_id: string;
@@ -1261,7 +1276,8 @@ async function computeIndirectFallback(
     .from("vouches")
     .select("voucher_id, vouchee_id, vouch_type, years_known_bucket")
     .in("voucher_id", connectorIds)
-    .in("vouchee_id", targetIds);
+    .in("vouchee_id", targetIds)
+    .eq("is_demo_origin", false);
 
   const { data: connectorProfiles } = await supabase
     .from("users")
@@ -1455,7 +1471,8 @@ export async function findAllChains(
   // swap for a recursive CTE that enumerates paths server-side.
   const { data: vouches } = await supabase
     .from("vouches")
-    .select("voucher_id, vouchee_id, vouch_type, years_known_bucket, vouch_score");
+    .select("voucher_id, vouchee_id, vouch_type, years_known_bucket, vouch_score")
+    .eq("is_demo_origin", false);
 
   type Edge = {
     voucher_id: string;

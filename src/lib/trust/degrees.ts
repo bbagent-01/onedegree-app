@@ -108,10 +108,12 @@ async function fallbackBFS(
   viewerId: string,
   targetIds: string[]
 ): Promise<BatchDegreesResult[]> {
-  // Load all vouch edges (bidirectional)
+  // Load all vouch edges (bidirectional). Demo-origin (B8) excluded
+  // — see migration 054 for the parallel filter on the RPC path.
   const { data: vouches } = await supabase
     .from("vouches")
-    .select("voucher_id, vouchee_id");
+    .select("voucher_id, vouchee_id")
+    .eq("is_demo_origin", false);
 
   if (!vouches || vouches.length === 0) {
     return targetIds.map((id) => ({

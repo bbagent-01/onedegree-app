@@ -102,11 +102,15 @@ export async function getListingsForViewer(viewerId: string): Promise<ListingWit
     photosByListing.set(p.listing_id, arr);
   }
 
-  // 2. Viewer's vouch count (how many people have vouched for this viewer)
+  // 2. Viewer's vouch count (how many people have vouched for this viewer).
+  // Demo-origin (B8 training-wheels) vouches don't count toward the
+  // listing-access "min_vouches" gate — that gate is about real
+  // social proof from other real users, not seeded presidents.
   const { count: vouchCount } = await supabase
     .from('vouches')
     .select('*', { count: 'exact', head: true })
-    .eq('vouchee_id', viewerId);
+    .eq('vouchee_id', viewerId)
+    .eq('is_demo_origin', false);
 
   // 3. Get unique host IDs and batch-calculate 1° scores
   const hostIds = [...new Set(listings.map(l => l.host_id))];
@@ -120,13 +124,18 @@ export async function getListingsForViewer(viewerId: string): Promise<ListingWit
     scoreByHost.set(s.target_id, s.score);
   }
 
-  // 4. Batch inner_circle check: which hosts have inner_circled the viewer
+  // 4. Batch inner_circle check: which hosts have inner_circled the viewer.
+  // Auto-vouches are vouch_type='standard' so this would already
+  // exclude them by type — filter is_demo_origin too as a belt-and-
+  // suspenders so a future demo-origin inner_circle (we don't write
+  // any today) would still be ignored for full-access unlocks.
   const { data: innerCircleVouches } = await supabase
     .from('vouches')
     .select('voucher_id')
     .in('voucher_id', hostIds)
     .eq('vouchee_id', viewerId)
-    .eq('vouch_type', 'inner_circle');
+    .eq('vouch_type', 'inner_circle')
+    .eq('is_demo_origin', false);
 
   const innerCircleHostSet = new Set(
     (innerCircleVouches || []).map(v => v.voucher_id)
@@ -237,11 +246,12 @@ export async function getListingForViewer(
     .eq('listing_id', listingId)
     .order('sort_order', { ascending: true });
 
-  // 3. Viewer vouch count
+  // 3. Viewer vouch count (real-only — see batch path above for why).
   const { count: vouchCount } = await supabase
     .from('vouches')
     .select('*', { count: 'exact', head: true })
-    .eq('vouchee_id', viewerId);
+    .eq('vouchee_id', viewerId)
+    .eq('is_demo_origin', false);
 
   // 4. 1° score vs this host
   const { data: scores } = await supabase.rpc('calculate_one_degree_scores', {
@@ -249,13 +259,14 @@ export async function getListingForViewer(
     p_target_ids: [listing.host_id],
   });
 
-  // 5. Inner circle check
+  // 5. Inner circle check (real-only — see batch path above for why).
   const { data: icVouch } = await supabase
     .from('vouches')
     .select('voucher_id')
     .eq('voucher_id', listing.host_id)
     .eq('vouchee_id', viewerId)
     .eq('vouch_type', 'inner_circle')
+    .eq('is_demo_origin', false)
     .maybeSingle();
 
   // Host profile

@@ -521,6 +521,7 @@ export async function getThreadDetail(
     .select("id")
     .eq("voucher_id", currentUserId)
     .eq("vouchee_id", otherId)
+    .eq("is_demo_origin", false)
     .maybeSingle();
   const viewerHasVouched = Boolean(existingVouch?.id);
 

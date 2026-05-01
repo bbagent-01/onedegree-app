@@ -138,7 +138,8 @@ export async function getNetworkData(): Promise<NetworkData | null> {
       .select("vouchee_id, from_pending_vouch_id")
       .eq("voucher_id", user.id)
       .in("vouchee_id", voucheeIds)
-      .not("from_pending_vouch_id", "is", null);
+      .not("from_pending_vouch_id", "is", null)
+      .eq("is_demo_origin", false);
 
     const pvIds = Array.from(
       new Set(
@@ -239,11 +240,13 @@ export async function getVouchBackCandidates(
   const supabase = getSupabaseAdmin();
   const { minAgeDays = 0 } = opts;
 
-  // Incoming vouches targeted at userId.
+  // Incoming vouches targeted at userId. Demo-origin (B8) excluded
+  // — auto-vouches must never trigger a "vouch back?" prompt.
   let incomingQuery = supabase
     .from("vouches")
     .select("voucher_id, created_at")
     .eq("vouchee_id", userId)
+    .eq("is_demo_origin", false)
     .order("created_at", { ascending: false });
   if (minAgeDays > 0) {
     const cutoff = new Date(Date.now() - minAgeDays * 24 * 60 * 60 * 1000);
@@ -262,7 +265,8 @@ export async function getVouchBackCandidates(
     .from("vouches")
     .select("vouchee_id")
     .eq("voucher_id", userId)
-    .in("vouchee_id", incomingVoucherIds);
+    .in("vouchee_id", incomingVoucherIds)
+    .eq("is_demo_origin", false);
   const alreadyReciprocated = new Set(
     (outgoing ?? []).map((v) => v.vouchee_id as string)
   );

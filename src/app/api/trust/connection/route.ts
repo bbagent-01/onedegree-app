@@ -62,6 +62,8 @@ export async function GET(req: Request) {
 
   // Direct vouches in either direction — same query regardless of
   // which way we're showing, we just interpret the result differently.
+  // Demo-origin (B8) excluded so the trust popover never claims a
+  // real direct connection backed by a training-wheels auto-vouch.
   const { data: directVouch } = await supabase
     .from("vouches")
     .select(
@@ -69,7 +71,8 @@ export async function GET(req: Request) {
     )
     .or(
       `and(voucher_id.eq.${currentUser.id},vouchee_id.eq.${targetId}),and(voucher_id.eq.${targetId},vouchee_id.eq.${currentUser.id})`
-    );
+    )
+    .eq("is_demo_origin", false);
 
   const viewerToTarget = directVouch?.find(
     (v) => v.voucher_id === currentUser.id && v.vouchee_id === targetId
