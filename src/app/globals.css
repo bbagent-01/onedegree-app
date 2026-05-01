@@ -652,7 +652,11 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
   scrollbar-width: none;
 }
 
-/* Leaflet map price pins (Airbnb-style bubbles) */
+/* Leaflet map price pins (Airbnb-style bubbles).
+   Pins sit on a light Carto basemap, so white-with-dark-text is
+   correct for legibility. The selected/dark text colors use
+   Trustead's modal-bg dark-green (#0B2E25) instead of the
+   pre-refactor #1A1D21 navy so the markers stay on-brand. */
 .map-pin {
   display: inline-block;
   padding: 4px 10px;
@@ -661,7 +665,7 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
   border-radius: 9999px;
   font-size: 12px;
   font-weight: 600;
-  color: #1a1d21;
+  color: #0b2e25;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   white-space: nowrap;
   transform: translate(-50%, -50%);
@@ -672,9 +676,9 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
   transform: translate(-50%, -50%) scale(1.05);
 }
 .map-pin-selected {
-  background: #1a1d21;
-  color: #fff;
-  border-color: #1a1d21;
+  background: #0b2e25;
+  color: #f5f1e6;
+  border-color: #0b2e25;
   transform: translate(-50%, -50%) scale(1.1);
 }
 
