@@ -592,6 +592,12 @@ async function handle(req: Request) {
     rows.push({
       author_id: authorId,
       kind: "trip_wish",
+      // Explicit so the heterogeneous batch-insert below doesn't end
+      // up sending NULL for these columns (Supabase JS unifies the
+      // column set across all rows in an array insert).
+      listing_id: null,
+      hook_type: "none",
+      hook_details: null,
       title: t.title,
       description: t.description,
       destinations: t.destinations,
@@ -628,13 +634,17 @@ async function handle(req: Request) {
       destinations: o.destinations,
       hook_type: o.hookType,
       hook_details: o.hookDetails,
+      // trip_wish-only fields: explicit nulls so the unified batch
+      // insert doesn't try to apply trip_wish values across rows.
+      guest_count: null,
+      thumbnail_url: null,
+      thumbnail_source: null,
+      thumbnail_attribution: null,
       start_date: o.start_date ?? null,
       end_date: o.end_date ?? null,
       flexible_month: o.flexible_month ?? null,
       visibility_mode: "inherit",
       status: "active",
-      // Host offers don't get a separate thumbnail — the feed renders
-      // them with the linked listing's cover photo.
     });
   }
 
