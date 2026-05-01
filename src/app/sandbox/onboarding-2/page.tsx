@@ -61,7 +61,7 @@ const SLIDES: Slide[] = [
     eyebrow: "The solution",
     titleLines: ["Rent only to", "friends of friends"],
     titleEmphasis: { word: "only", className: "italic text-brand-300" },
-    body: "Establish trust by connecting through friends and keeping your listing private.",
+    body: "Trust your guests, keep your stuff out, and keep your listing private.",
     Visual: null,
     orbitLayout: true,
     forceTitleBreak: true,
@@ -69,7 +69,10 @@ const SLIDES: Slide[] = [
   {
     eyebrow: "How it works",
     titleLines: ["Build trust by vouching", "for people you know"],
-    body: "Invite people you know. They invite people they know. The graph builds itself into a real trust network.",
+    body: [
+      "Invite people you know. They invite people they know.",
+      "It's quick and easy to build your network.",
+    ],
     Visual: VouchPickerVisual,
   },
   {
@@ -135,8 +138,8 @@ const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
 // up immediately on morph; the tagline waits a beat, then drifts up
 // + fades while the logo continues its journey.
 const TAGLINE_EXIT_DELAY_MS = 500;
-const TAGLINE_EXIT_DURATION_MS = 800;
-const TAGLINE_EXIT_TRANSLATE_PX = 24;
+const TAGLINE_EXIT_DURATION_MS = 300;
+const TAGLINE_EXIT_TRANSLATE_PX = 0;
 
 // Orbit avatar filenames — used both by the orbit JS (which has its
 // own copy of these paths) and by the React preloader on this page,
@@ -694,7 +697,7 @@ export default function SandboxOnboardingPage() {
               </p>
 
               <div
-                className="block-rise flex w-full flex-col items-center gap-3"
+                className="block-rise flex w-full flex-col items-center gap-3 md:w-1/2"
                 style={{ animationDelay: `${buttonDelay}ms` }}
               >
                 <button
@@ -947,7 +950,7 @@ function PainPointsListVisual() {
 // PAIN_POINTS array so the vertical-list alt isn't affected.
 const PROBLEM_CARDS = [
   {
-    title: "Putting your stuff away and taking it out",
+    title: "Putting your stuff away and taking it out every time",
     image: "/assets/onboarding-problems/problem-02-packing.webp",
   },
   {
@@ -955,15 +958,15 @@ const PROBLEM_CARDS = [
     image: "/assets/onboarding-problems/problem-03-neighbors.webp",
   },
   {
-    title: "Strangers handling your nice things",
+    title: "Exposing your nice things",
     image: "/assets/onboarding-problems/problem-01-wine.webp",
   },
   {
-    title: "Renters don't care for your home",
+    title: "Coverage doesn't mean caring",
     image: "/assets/onboarding-problems/problem-04-careless.webp",
   },
   {
-    title: "Your address goes public",
+    title: "Your listing is public",
     image: "/assets/onboarding-problems/problem-05-regulation.webp",
   },
 ];

@@ -228,8 +228,8 @@ function InvitePageContent() {
             className={cn(
               "h-1.5 w-8 rounded-full transition-colors",
               step === s || (step === "done" && i < 4)
-                ? "bg-brand"
-                : "bg-border"
+                ? "bg-brand-300"
+                : "bg-white/10"
             )}
           />
         ))}

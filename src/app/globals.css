@@ -446,11 +446,18 @@ button[class~="bg-brand"]:hover {
   background-color: var(--tt-mint-mid) !important;
 }
 
-/* ── FILTER CHIPS / TAB-LIKE PILLS ───────────────────────────── */
+/* ── FILTER CHIPS / TAB-LIKE PILLS / SELECTED CARDS ──────────────
+   Cream-on-dark surface for the selected state of any element with
+   both bg-brand and border-brand classes (filter chips, kind-of-place
+   cards, vouch-type cards, etc.). Flips --tone-fg so descendant text
+   (titles, descriptions, icons) reads dark instead of inheriting the
+   page's cream. Border kept (not transparent) so the brand-color edge
+   still reads as the selection cue. */
 [class*="bg-brand"][class*="border-brand"] {
   background-color: var(--tt-cream) !important;
   color: var(--tt-modal-bg) !important;
-  border-color: transparent !important;
+  --tone-fg: var(--tt-modal-bg);
+  --tone-fg-muted: rgba(11, 46, 37, 0.62);
 }
 
 /* ── BRAND LOGO COLOR FLIP ───────────────────────────────────── */
