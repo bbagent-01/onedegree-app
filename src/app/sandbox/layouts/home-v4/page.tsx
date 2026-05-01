@@ -287,7 +287,10 @@ export default function HomeV4() {
                 <p className="text-sm text-muted-foreground">
                   Welcome back, {USER.firstName}.
                 </p>
-                <h1 className="mt-2 whitespace-nowrap font-serif text-4xl text-foreground md:text-5xl">
+                <h1
+                  className="mt-2 whitespace-nowrap font-serif text-4xl text-foreground md:text-5xl"
+                  style={{ maxWidth: "none" }}
+                >
                   What are you looking for?
                 </h1>
                 <CondensedSearch />
@@ -588,11 +591,17 @@ function MarqueeSection({
       {/* Title row: title | divider | subtitle | divider | ghost link.
           Items align to baseline; dividers self-stretch the full row
           height; divider color is the same faint structural-line tone
-          used throughout the rest of the design. */}
+          used throughout the rest of the design.
+          Title is a div with heading role — escapes the global h2 styles
+          (which force big serif + max-width 24ch with !important). */}
       <div className="flex flex-wrap items-baseline gap-4">
-        <h2 className="whitespace-nowrap text-xl font-semibold text-foreground md:text-2xl">
+        <div
+          role="heading"
+          aria-level={2}
+          className="whitespace-nowrap font-sans text-xl font-semibold text-foreground md:text-2xl"
+        >
           {title}
-        </h2>
+        </div>
         <span className="w-px self-stretch bg-border" aria-hidden />
         <p className="whitespace-nowrap text-sm text-muted-foreground">
           {subtitle}
