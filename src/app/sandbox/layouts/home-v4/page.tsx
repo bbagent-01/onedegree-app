@@ -409,21 +409,17 @@ function SiteSidebar({
       aria-label="Site navigation"
     >
       {/* Logo — full Trustead wordmark expanded, shield mark only when
-          collapsed. The wordmark is currentColor so text-foreground
-          renders it cream on the dark sidebar. */}
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/60 px-4">
+          collapsed. Both variants render via the inline SVG so they
+          inherit currentColor (cream on the dark sidebar) — no green
+          favicon plate behind the collapsed mark. */}
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">
         <Link
           href="/sandbox/layouts/home-v4"
           className="flex min-w-0 items-center text-foreground"
           aria-label="Trustead"
         >
           {collapsed ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src="/trustead-favicon.svg"
-              alt="Trustead"
-              className="h-8 w-8"
-            />
+            <TrusteadLogo mark className="h-8 w-8 text-foreground" />
           ) : (
             <TrusteadLogo className="h-6 w-auto text-foreground" />
           )}
@@ -439,38 +435,38 @@ function SiteSidebar({
         )}
       </div>
 
-      {/* Nav — grouped (App | Host | Account) with thin dividers
-          between sections. */}
-      <nav className="shrink-0 px-2 py-3">
+      {/* Nav — grouped (App | Host | Account). Group separators are
+          full-width siblings (no horizontal padding) so they reach
+          edge-to-edge of the sidebar column, matching the structural
+          lines elsewhere (border-border, not /60). */}
+      <nav className="shrink-0 py-3">
         {NAV_GROUPS.map((group, gi) => (
-          <ul
-            key={group.id}
-            className={
-              gi === 0
-                ? "space-y-0.5"
-                : "mt-3 space-y-0.5 border-t border-border/60 pt-3"
-            }
-          >
-            {group.items.map((item) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.label}>
-                  <Link
-                    href={item.href}
-                    className={
-                      item.active
-                        ? `flex items-center gap-3 rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background ${collapsed ? "justify-center px-2" : ""}`
-                        : `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-card/60 hover:text-foreground ${collapsed ? "justify-center px-2" : ""}`
-                    }
-                    title={collapsed ? item.label : undefined}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span>{item.label}</span>}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <div key={group.id}>
+            {gi > 0 && (
+              <div className="my-3 border-t border-border" aria-hidden />
+            )}
+            <ul className="space-y-0.5 px-2">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <li key={item.label}>
+                    <Link
+                      href={item.href}
+                      className={
+                        item.active
+                          ? `flex items-center gap-3 rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background ${collapsed ? "justify-center px-2" : ""}`
+                          : `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-card/60 hover:text-foreground ${collapsed ? "justify-center px-2" : ""}`
+                      }
+                      title={collapsed ? item.label : undefined}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>{item.label}</span>}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         ))}
       </nav>
 
@@ -493,7 +489,7 @@ function SiteSidebar({
           </button>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col border-t border-border/60">
+        <div className="flex min-h-0 flex-1 flex-col border-t border-border">
           <div className="flex shrink-0 items-center justify-between px-4 py-2">
             <div className="flex items-center gap-1.5">
               <Bell className="h-3.5 w-3.5 text-muted-foreground" />
@@ -591,7 +587,7 @@ function CondensedSearch() {
           </p>
         </div>
 
-        <span className="my-3 w-px bg-border" aria-hidden />
+        <span className="w-px self-stretch bg-border" aria-hidden />
 
         {/* When */}
         <div className="flex shrink-0 flex-col justify-center px-6 text-left">
@@ -601,7 +597,7 @@ function CondensedSearch() {
           <p className="text-sm leading-tight text-muted-foreground">Any week</p>
         </div>
 
-        <span className="my-3 w-px bg-border" aria-hidden />
+        <span className="w-px self-stretch bg-border" aria-hidden />
 
         {/* Who + search circle — circle is 52px to match the Travel
             pill height, with 8px inset on the right so it lands flush
