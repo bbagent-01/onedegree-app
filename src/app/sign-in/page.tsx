@@ -199,14 +199,9 @@ function SignInInner() {
       <Link
         href="/"
         aria-label="Trustead home"
-        className="mb-8 inline-flex justify-center self-center"
+        className="mb-8 self-center font-serif text-3xl tracking-tight text-foreground"
       >
-        <iframe
-          src="/assets/logo-animation/trustead-logo-animation-white.html"
-          className="h-12 w-44 border-0"
-          tabIndex={-1}
-          title="Trustead"
-        />
+        trustead
       </Link>
       <header className="text-center">
         <h1 className="font-serif text-3xl font-bold md:text-4xl">Welcome back</h1>

@@ -210,14 +210,9 @@ function DeadEndCard({
       <Link
         href="/"
         aria-label="Trustead home"
-        className="mb-8 inline-flex items-center"
+        className="mb-8 inline-flex items-center font-serif text-3xl tracking-tight text-foreground"
       >
-        <iframe
-          src="/assets/logo-animation/trustead-logo-animation-white.html"
-          className="h-12 w-44 border-0"
-          tabIndex={-1}
-          title="Trustead"
-        />
+        trustead
       </Link>
       <div className="w-full rounded-2xl border border-border bg-white p-8 shadow-sm sm:p-10">
         <h1 className="font-serif text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
