@@ -527,11 +527,27 @@ export function OnboardingTakeover() {
               </>
             ))}
 
+          {/* Backdrop fade behind the persistent logo. Sits above the
+              orbit canvas (z-0) and slide content (z-10) but below
+              the logo (z-40). Slide-content scrolls UNDER it on
+              mobile so headings can't bleed through the wordmark and
+              orbit avatars fade out where they'd otherwise collide
+              with the logo. Forest-green at top, transparent at the
+              bottom edge. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 z-30 h-32 sm:h-28"
+            style={{
+              background:
+                "linear-gradient(to bottom, var(--tt-body-bg) 0%, var(--tt-body-bg) 55%, transparent 100%)",
+            }}
+          />
+
           <div
             key={index}
-            className="slide-content relative z-10 flex flex-1 items-center justify-center overflow-y-auto px-6 pt-32 pb-20 sm:pt-36 sm:pb-24"
+            className="slide-content relative z-10 flex flex-1 items-start justify-center overflow-y-auto px-6 pt-36 pb-32 sm:items-center sm:pt-36 sm:pb-24"
           >
-            <div className="flex w-full max-w-md flex-col items-center gap-6 text-center sm:max-w-xl sm:gap-8">
+            <div className="flex w-full max-w-md flex-col items-center gap-5 text-center sm:max-w-xl sm:gap-8">
               <span
                 className="block-rise inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
                 style={{ animationDelay: `${eyebrowDelay}ms` }}
@@ -613,7 +629,7 @@ export function OnboardingTakeover() {
             </div>
           </div>
 
-          <div className="absolute inset-x-0 bottom-6 z-20 flex items-center justify-center gap-2 sm:bottom-8">
+          <div className="absolute inset-x-0 bottom-3 z-20 flex items-center justify-center gap-2 sm:bottom-8">
             {SLIDES.map((_, i) => (
               <span
                 key={i}
@@ -649,7 +665,7 @@ function AnimatedHeading({
 }) {
   let globalWordIdx = 0;
   return (
-    <h1 className="font-serif !leading-[1.08] !tracking-tight !max-w-none !text-[clamp(34px,10.5vw,44px)] sm:!text-[50px] md:!text-[60px]">
+    <h1 className="font-serif !leading-[1.08] !tracking-tight !max-w-none !text-[clamp(28px,8vw,40px)] sm:!text-[50px] md:!text-[60px]">
       {titleLines.map((line, lineIdx) => {
         const arr = line.split(" ");
         const renderWord = (word: string, key: string) => {
