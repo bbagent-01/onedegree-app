@@ -4,6 +4,47 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { searchUnsplash } from "@/lib/unsplash";
 
 /**
+ * Wikipedia REST summary fallback. When Unsplash returns nothing
+ * (e.g. UNSPLASH_ACCESS_KEY isn't set on this env), we fall back to
+ * the destination's Wikipedia page image — same source we're using
+ * for the demo users' historic-home photos. Returns the original
+ * (non-thumb) URL to dodge Wikimedia thumbnail rate-limiting.
+ */
+async function wikipediaDestinationPhoto(
+  destination: string
+): Promise<{ url: string; attribution: string } | null> {
+  const slug = destination
+    .replace(/,.*$/, "")             // drop ", State" or ", Country"
+    .trim()
+    .replace(/\s+/g, "_");
+  try {
+    const r = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(slug)}`,
+      { headers: { accept: "application/json", "user-agent": "trustead-b7-seed/1.0" } }
+    );
+    if (!r.ok) return null;
+    const j = (await r.json()) as {
+      originalimage?: { source: string };
+      thumbnail?: { source: string };
+      content_urls?: { desktop?: { page?: string } };
+    };
+    let url = j.originalimage?.source || j.thumbnail?.source;
+    if (!url) return null;
+    // Strip /thumb/.../Npx-foo.ext → /foo.ext (the original)
+    const m = url.match(
+      /^(https:\/\/upload\.wikimedia\.org\/wikipedia\/commons)\/thumb\/([^/]+)\/([^/]+)\/[^/]+\/[^/]+$/
+    );
+    if (m) url = `${m[1]}/${m[2]}/${m[3]}/${url.split("/").slice(-2)[0]}`;
+    return {
+      url,
+      attribution: j.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${slug}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * POST /api/admin/seed-b7-proposals
  *
  * CRON_SECRET-gated reseed of the B7 demo proposals feed:
@@ -512,10 +553,42 @@ async function handle(req: Request) {
     }
     const { photos } = await searchUnsplash(t.unsplashQuery);
     const photo = photos[0];
-    if (!photo) {
-      skipped.push({ title: t.title, reason: `no Unsplash photo for "${t.unsplashQuery}"` });
-      continue;
+
+    let thumbnail_url: string;
+    let thumbnail_source: string;
+    let thumbnail_attribution: Record<string, unknown> | null;
+
+    if (photo) {
+      thumbnail_url = photo.url;
+      thumbnail_source = "unsplash_picked";
+      thumbnail_attribution = {
+        photographer_name: photo.photographer_name,
+        photographer_url: photo.photographer_url,
+        unsplash_url: photo.unsplash_url,
+        download_location: photo.download_location,
+        photo_id: photo.id,
+      };
+    } else {
+      // Fallback: Wikimedia Commons photo for the first destination.
+      // Used when UNSPLASH_ACCESS_KEY isn't set on this env. The
+      // thumbnail_source value stays inside the migration 042
+      // CHECK constraint (unsplash_auto / unsplash_picked / null /
+      // user_uploaded) — we use null here and stash the Wikipedia
+      // page URL in attribution so it's auditable.
+      const wp = await wikipediaDestinationPhoto(t.destinations[0]);
+      if (!wp) {
+        skipped.push({ title: t.title, reason: `no Unsplash key + no Wikipedia photo for "${t.destinations[0]}"` });
+        continue;
+      }
+      thumbnail_url = wp.url;
+      thumbnail_source = "user_uploaded"; // best-fit value within CHECK constraint
+      thumbnail_attribution = {
+        source: "wikimedia_commons",
+        wikipedia_page: wp.attribution,
+        original_url: wp.url,
+      };
     }
+
     rows.push({
       author_id: authorId,
       kind: "trip_wish",
@@ -528,15 +601,9 @@ async function handle(req: Request) {
       guest_count: t.guest_count,
       visibility_mode: "inherit",
       status: "active",
-      thumbnail_url: photo.url,
-      thumbnail_source: "unsplash_picked",
-      thumbnail_attribution: {
-        photographer_name: photo.photographer_name,
-        photographer_url: photo.photographer_url,
-        unsplash_url: photo.unsplash_url,
-        download_location: photo.download_location,
-        photo_id: photo.id,
-      },
+      thumbnail_url,
+      thumbnail_source,
+      thumbnail_attribution,
     });
   }
 
