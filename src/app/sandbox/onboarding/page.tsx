@@ -50,7 +50,10 @@ const SLIDES: Slide[] = [
   {
     eyebrow: "How it works",
     titleLines: ["Build trust by vouching", "for people you know"],
-    body: "Invite people you know. They invite people they know. The graph builds itself into a real trust network.",
+    body: [
+      "Invite people you know. They invite people they know.",
+      "It's quick and easy to build your network.",
+    ],
     Visual: VouchPickerVisual,
   },
   {
@@ -115,7 +118,7 @@ const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
 // the logo up rather than vanishing first. The wrapper begins moving
 // up immediately on morph; the tagline waits a beat, then drifts up
 // + fades while the logo continues its journey.
-const TAGLINE_EXIT_DELAY_MS = 500;
+const TAGLINE_EXIT_DELAY_MS = 800;
 const TAGLINE_EXIT_DURATION_MS = 800;
 const TAGLINE_EXIT_TRANSLATE_PX = 24;
 
@@ -487,7 +490,7 @@ export default function SandboxOnboardingPage() {
               </p>
 
               <div
-                className="block-rise flex w-full flex-col items-center gap-3"
+                className="block-rise flex w-full flex-col items-center gap-3 md:w-1/2"
                 style={{ animationDelay: `${buttonDelay}ms` }}
               >
                 <button
