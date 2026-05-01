@@ -191,6 +191,10 @@ async function lookupPendingVouch(token: string): Promise<InviteLookup> {
  * Render a simple card layout for the not-valid states. Keeps the
  * page self-contained (no client code unless we actually have an
  * invite to accept).
+ *
+ * Centered vertically with a Trustead wordmark above the card so
+ * recipients hitting a bad invite link have brand orientation
+ * instead of a chromeless card floating on a dark page.
  */
 function DeadEndCard({
   headline,
@@ -202,19 +206,43 @@ function DeadEndCard({
   cta?: string;
 }) {
   return (
-    <div className="mx-auto mt-16 w-full max-w-[480px] rounded-2xl border border-border bg-white p-8 shadow-sm">
-      <h1 className="text-xl font-semibold text-foreground">{headline}</h1>
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{body}</p>
-      <div className="mt-6 flex items-center gap-3">
-        <Link href="/sign-up" className={buttonVariants()}>
-          {cta}
-        </Link>
-        <Link
-          href="/sign-in"
-          className="text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          Already a member? Sign in
-        </Link>
+    <div className="mx-auto flex min-h-[80vh] w-full max-w-[560px] flex-col items-center justify-center px-4 py-10">
+      <Link
+        href="/"
+        aria-label="Trustead home"
+        className="mb-8 inline-flex items-center"
+      >
+        <iframe
+          src="/assets/logo-animation/trustead-logo-animation-white.html"
+          className="h-12 w-44 border-0"
+          tabIndex={-1}
+          title="Trustead"
+        />
+      </Link>
+      <div className="w-full rounded-2xl border border-border bg-white p-8 shadow-sm sm:p-10">
+        <h1 className="font-serif text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+          {headline}
+        </h1>
+        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+          {body}
+        </p>
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Link
+            href="/sign-up"
+            className={buttonVariants({ size: "lg" }) + " h-12 w-full sm:w-auto"}
+          >
+            {cta}
+          </Link>
+          <Link
+            href="/sign-in"
+            className={
+              buttonVariants({ variant: "outline", size: "lg" }) +
+              " h-12 w-full sm:w-auto"
+            }
+          >
+            Already a member? Sign in
+          </Link>
+        </div>
       </div>
     </div>
   );
