@@ -19,6 +19,9 @@ export interface UserProfile {
   vouch_power: number | null;
   vouch_count_given: number | null;
   vouch_count_received: number | null;
+  /** Trust v2 absolute platform-wide vouch score (mig 046, users.vouch_score, 0-10).
+   *  Feeds the TrustBadge's vouch chip. */
+  vouch_score: number | null;
 }
 
 export interface ProfileListing {
@@ -104,6 +107,7 @@ export async function getProfileById(
     vouch_power: (raw.vouch_power as number) ?? null,
     vouch_count_given: (raw.vouch_count_given as number) ?? null,
     vouch_count_received: (raw.vouch_count_received as number) ?? null,
+    vouch_score: (raw.vouch_score as number) ?? null,
   };
 
   const [listingsRes, reviewsOfRes, reviewsByRes] = await Promise.all([

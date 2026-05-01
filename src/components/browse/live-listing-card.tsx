@@ -153,6 +153,9 @@ export function LiveListingCard({
                   degree={trust.degree}
                   direct={trust.hasDirectVouch}
                   connectorPaths={trust.connectorPaths}
+                  vouchScore={listing.host?.vouch_score ?? null}
+                  hostRating={listing.host?.host_rating ?? null}
+                  hostReviewCount={listing.host?.host_review_count ?? 0}
                 />
               </div>
             )}
@@ -251,6 +254,7 @@ export function LiveListingCard({
                 degree={trust.degree}
                 direct={trust.hasDirectVouch}
                 connectorPaths={trust.connectorPaths}
+                vouchScore={listing.host?.vouch_score ?? null}
                 hostRating={listing.host?.host_rating ?? null}
                 hostReviewCount={listing.host?.host_review_count ?? 0}
               />

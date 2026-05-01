@@ -17,6 +17,9 @@ export interface ListingHost {
   created_at: string;
   host_rating: number | null;
   host_review_count: number;
+  /** Trust v2 platform-wide vouch score (users.vouch_score, 0-10).
+   *  Feeds the TrustBadge's vouch chip on the listing detail page. */
+  vouch_score: number | null;
 }
 
 export interface ListingReview {
@@ -126,7 +129,7 @@ export async function getListingDetail(
     supabase
       .from("users")
       .select(
-        "id, name, avatar_url, bio, created_at, host_rating, host_review_count, cancellation_policy, payment_methods"
+        "id, name, avatar_url, bio, created_at, host_rating, host_review_count, vouch_score, cancellation_policy, payment_methods"
       )
       .eq("id", row.host_id)
       .maybeSingle(),

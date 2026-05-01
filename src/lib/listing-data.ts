@@ -64,6 +64,7 @@ export interface ListingWithAccess extends ListingRow {
     host_rating: number | null;
     host_review_count: number;
     vouch_power: number | null;
+    vouch_score: number | null;
   };
   nextAvailable?: NextAvailableRange | null;
 }
@@ -174,7 +175,7 @@ export async function getListingsForViewer(viewerId: string): Promise<ListingWit
   // 6. Host profiles
   const { data: hosts } = await supabase
     .from('users')
-    .select('id, name, avatar_url, host_rating, host_review_count, vouch_power')
+    .select('id, name, avatar_url, host_rating, host_review_count, vouch_power, vouch_score')
     .in('id', hostIds);
 
   const hostById = new Map(
@@ -261,7 +262,7 @@ export async function getListingForViewer(
   // Host profile
   const { data: host } = await supabase
     .from('users')
-    .select('id, name, avatar_url, host_rating, host_review_count, vouch_power')
+    .select('id, name, avatar_url, host_rating, host_review_count, vouch_power, vouch_score')
     .eq('id', listing.host_id)
     .single();
 
