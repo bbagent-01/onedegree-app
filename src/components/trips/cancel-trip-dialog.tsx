@@ -77,17 +77,17 @@ export function CancelTripDialog({
         </DialogHeader>
 
         {estimate && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-900/80">
+          <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-100/80">
               Expected refund
             </div>
 
             {estimate.approach === "installments" ? (
               <div className="mt-1 space-y-1.5">
-                <p className="text-sm font-semibold text-amber-900">
+                <p className="text-sm font-semibold text-amber-100">
                   Any money already collected is nonrefundable.
                 </p>
-                <p className="text-xs leading-relaxed text-amber-900/80">
+                <p className="text-xs leading-relaxed text-amber-100/80">
                   {approachLabel(estimate.approach)} — the host treats each
                   installment as locked in once paid. You and your host can
                   still negotiate directly, but the snapshot terms say
@@ -96,10 +96,10 @@ export function CancelTripDialog({
               </div>
             ) : (
               <div className="mt-1 space-y-1.5">
-                <p className="text-lg font-bold text-amber-900">
+                <p className="text-lg font-bold text-amber-100">
                   {estimate.refund_pct ?? 0}% refund
                 </p>
-                <p className="text-xs leading-relaxed text-amber-900/80">
+                <p className="text-xs leading-relaxed text-amber-100/80">
                   {checkIn && estimate.days_until_checkin >= 0
                     ? `${estimate.days_until_checkin} day${
                         estimate.days_until_checkin === 1 ? "" : "s"
@@ -114,7 +114,7 @@ export function CancelTripDialog({
               </div>
             )}
 
-            <p className="mt-2 text-[11px] leading-relaxed text-amber-900/70">
+            <p className="mt-2 text-[11px] leading-relaxed text-amber-100/70">
               Trustead doesn&apos;t process payments or manage refunds.
               Final amount is settled directly between you and your host.
             </p>

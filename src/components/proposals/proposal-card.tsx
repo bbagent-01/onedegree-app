@@ -456,8 +456,8 @@ function KindBadge({ kind }: { kind: "trip_wish" | "host_offer" }) {
     <span
       className={
         trip
-          ? "inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-900"
-          : "inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-900"
+          ? "inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-100"
+          : "inline-flex items-center gap-1 rounded-full bg-[var(--tt-mint-mid)]/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-mint)]"
       }
     >
       {trip ? "Trip Wish" : "Host Offer"}
@@ -481,7 +481,7 @@ function HookPill({
         : Gift;
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-900"
+      className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-amber-100"
       title={hookDetails ?? undefined}
     >
       <Icon className="h-3 w-3" />

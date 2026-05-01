@@ -371,8 +371,8 @@ export function AlertsManager({
                   <span
                     className={
                       a.status === "active"
-                        ? "inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-900"
-                        : "inline-flex items-center gap-1 rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-800"
+                        ? "inline-flex items-center gap-1 rounded-full bg-[var(--tt-mint-mid)]/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-mint)]"
+                        : "inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-cream)]"
                     }
                   >
                     {a.status === "active" ? (
@@ -434,7 +434,7 @@ export function AlertsManager({
                   type="button"
                   onClick={() => requestDelete(a)}
                   disabled={busyId === a.id}
-                  className="inline-flex h-9 items-center gap-1 rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                  className="inline-flex h-9 items-center gap-1 rounded-lg border border-red-400/30 bg-white px-3 text-xs font-semibold text-red-200 hover:bg-red-400/10 disabled:opacity-60"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete

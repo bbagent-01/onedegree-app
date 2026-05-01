@@ -307,7 +307,7 @@ export function ShareToFriendModal({
             onClick={() => onOpenChange(false)}
             className="mt-2 flex items-center gap-3 rounded-lg border border-dashed border-border px-3 py-3 text-left transition-colors hover:bg-muted/40"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]">
               <Phone className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">

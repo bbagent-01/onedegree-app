@@ -348,7 +348,7 @@ export function GatedListingView({
                 what it takes to unlock. Copy adapts to the gate type
                 (min_score vs specific_people). */}
             {accessMessage && (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <div className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3">
                 <div className="flex items-start gap-2">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                   <div className="text-xs">
