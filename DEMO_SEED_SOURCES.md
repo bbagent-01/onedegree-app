@@ -184,3 +184,131 @@ npx tsx --env-file=.env.local scripts/_b7_fetch_photos.ts
 The script is idempotent (uploads use `upsert: true`), and
 `scripts/_b7_photo_results.json` is the single source of truth for the
 URLs used in migration 050.
+
+
+# DEMO_SEED_SOURCES.md (B7-051 expansion)
+
+15 additional famous historical figures, all died pre-1980 (broad
+public-domain coverage). Same sourcing model as the presidents:
+Wikipedia REST summary endpoint → Wikimedia Commons original file →
+mirrored to Supabase storage.
+
+### Albert Einstein
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/einstein.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Albert_Einstein
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/2/28/Albert_Einstein_Head_cleaned.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/einstein-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Albert_Einstein_House
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/3/31/Albert-einstein-house.JPG
+
+### Mark Twain
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/twain.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Mark_Twain
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/0/0c/Mark_Twain_by_AF_Bradley.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/twain-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Mark_Twain_House
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/3/30/House_of_Mark_Twain.jpg
+
+### Marie Curie
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/curie.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Marie_Curie
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/c/c8/Marie_Curie_c._1920s.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/curie-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Maria_Sk%C5%82odowska-Curie_Museum
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/4/40/Kamienica_%C5%81yszkiewicza_w_Warszawie_2020.jpg
+
+### Ernest Hemingway
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/hemingway.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Ernest_Hemingway
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/2/28/ErnestHemingway.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/hemingway-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Ernest_Hemingway_House
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/7/7a/Hemingwayhouse.jpg
+
+### Vincent van Gogh
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/van_gogh.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Vincent_van_Gogh
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/4/4c/Vincent_van_Gogh_-_Self-Portrait_-_Google_Art_Project_%28454045%29.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/van_gogh-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Auberge_Ravoux
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/5/5a/Auberge_ravoux.jpg
+
+### Amelia Earhart
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/earhart.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Amelia_Earhart
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/7/72/Amelia_Earhart_standing_under_nose_of_her_Lockheed_Model_10-E_Electra%2C_small_%28cropped%29.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/earhart-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Amelia_Earhart_Birthplace_Museum
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/c/c7/Amelia_Earhart_birthplace_from_NE_1.JPG
+
+### Helen Keller
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/keller.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Helen_Keller
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/7/7b/Helen_Keller_%28circa_1904%29.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/keller-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Ivy_Green
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/5/5c/Helen_Keller_Birthplace_House_in_Tuscumbia%2C_Alabama.jpg
+
+### Eleanor Roosevelt
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/e_roosevelt.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Eleanor_Roosevelt
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/7/7d/Eleanor_Roosevelt_at_the_United_Nations%2C_circa_1946-1947_%283x4_cropped%29.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/e_roosevelt-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Val-Kill
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/1/12/Stone_Cottage_Val-Kill_NY1.jpg
+
+### Winston Churchill
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/churchill.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Winston_Churchill
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/0/02/Sir_Winston_Churchill_-_19086236948_%28restored%29.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/churchill-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Chartwell
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/0/03/Chartwell_House%2C_rear.JPG
+
+### Edgar Allan Poe
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/poe.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Edgar_Allan_Poe
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/9/97/Edgar_Allan_Poe%2C_circa_1849%2C_restored%2C_squared_off.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/poe-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Edgar_Allan_Poe_House_and_Museum
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/3/38/PoeHouse-Baltimore.jpg
+
+### Beatrix Potter
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/potter.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Beatrix_Potter
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/9/93/Beatrix_Potter_by_King_cropped.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/potter-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Hill_Top,_Cumbria
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/b/b4/Hill_Top_Farm%2C_Near_Sawrey%2C_Cumbria_-_geograph.org.uk_-_43164.jpg
+
+### Charles Darwin
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/darwin.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Charles_Darwin
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/2/2e/Charles_Darwin_seated_crop.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/darwin-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Down_House
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/6/6d/Down_House.jpg
+
+### Walt Whitman
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/whitman.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Walt_Whitman
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/f/fa/Walt_Whitman_-_George_Collins_Cox.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/whitman-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Walt_Whitman_House
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/8/8b/Walt_Whitman%27s_house_Wellcome_L0010043.jpg
+
+### F. Scott Fitzgerald
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/fitzgerald.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/F._Scott_Fitzgerald
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/d/dc/F._Scott_Fitzgerald_%281921_portrait_-_crop%29_Retouched.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/fitzgerald-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/F._Scott_Fitzgerald_House
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/a/a9/F._Scott_Fitzgerald_House.jpg
+
+### Susan B. Anthony
+- **Portrait** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/famous/anthony.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Susan_B._Anthony
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/2/28/SB_Anthony_from_RoRaWW.jpg
+- **Historic home** — `https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/famous/anthony-home.jpg`
+  - Wikipedia article: https://en.wikipedia.org/wiki/Susan_B._Anthony_House
+  - Source file: https://upload.wikimedia.org/wikipedia/commons/4/4f/Susan_B_Anthony_House.jpg
