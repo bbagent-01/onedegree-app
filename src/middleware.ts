@@ -16,6 +16,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/geocode(.*)",
   "/api/cron/(.*)",
   "/api/admin/seed-trip-wishes",
+  "/api/admin/seed-b7-proposals",
   "/api/health",
   "/api/support(.*)",
   "/join",
