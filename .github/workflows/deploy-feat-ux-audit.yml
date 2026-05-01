@@ -1,0 +1,48 @@
+name: Deploy feat/ux1-ux-audit preview to Cloudflare Pages
+
+# UX1 audit branch only. Deploys to the same `trustead` Cloudflare
+# Pages project as prod, but with --branch=feat/ux1-ux-audit so the
+# resulting preview URL is:
+#   https://feat-ux1-ux-audit.trustead.pages.dev
+# Production (trustead.app) is unaffected — only the main branch
+# deploy promotes to the live custom domain.
+
+on:
+  push:
+    branches: [feat/ux1-ux-audit]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm install
+
+      - name: Generate design-system token usage counts
+        run: node scripts/generate-token-usage.mjs
+
+      - name: Build with next-on-pages
+        run: npx @cloudflare/next-on-pages
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_APP_URL: https://feat-ux1-ux-audit.trustead.pages.dev
+          NEXT_PUBLIC_ENABLE_IMPERSONATION: "true"
+          IMPERSONATION_ADMIN_USER_IDS: user_3D00SQt8dNOVzlpKeAZ2Ux7KroV
+
+      - name: Deploy preview branch to Cloudflare Pages
+        run: npx wrangler pages deploy .vercel/output/static --project-name=trustead --branch=feat/ux1-ux-audit --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
