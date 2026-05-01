@@ -42,7 +42,7 @@ export function ReviewPromptCard({
         className={cn(
           "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
           reviewedByMe
-            ? "bg-emerald-100 text-emerald-700"
+            ? "bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]"
             : "bg-violet-100 text-violet-700"
         )}
       >
@@ -89,7 +89,7 @@ export function ReviewPromptCard({
           <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
             Thanks — reviews strengthen the whole network.
           </div>
-          <div className="flex items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-900">
+          <div className="flex items-center gap-2 border-t border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 px-4 py-3 text-xs font-semibold text-[var(--tt-mint)]">
             <Check className="h-3.5 w-3.5" />
             Review submitted
           </div>

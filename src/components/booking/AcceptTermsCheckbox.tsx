@@ -71,11 +71,11 @@ export function AcceptTermsCheckbox({
     return (
       <div
         className={cn(
-          "rounded-lg border border-emerald-200 bg-emerald-50 p-3",
+          "rounded-lg border border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 p-3",
           compact ? "text-[11px]" : "text-xs"
         )}
       >
-        <div className="flex items-center gap-2 font-semibold text-emerald-900">
+        <div className="flex items-center gap-2 font-semibold text-[var(--tt-mint)]">
           <Check className="h-3.5 w-3.5" />
           You accepted these terms on {when}
         </div>
@@ -86,13 +86,13 @@ export function AcceptTermsCheckbox({
   return (
     <div
       className={cn(
-        "rounded-lg border-2 border-amber-300 bg-amber-50 p-3",
+        "rounded-lg border-2 border-amber-400/50/40 bg-amber-400/10 p-3",
         compact ? "space-y-2" : "space-y-2.5"
       )}
     >
       <p
         className={cn(
-          "font-semibold text-amber-900",
+          "font-semibold text-amber-100",
           compact ? "text-xs" : "text-sm"
         )}
       >
@@ -100,7 +100,7 @@ export function AcceptTermsCheckbox({
       </p>
       <p
         className={cn(
-          "leading-relaxed text-amber-900/80",
+          "leading-relaxed text-amber-100/80",
           compact ? "text-[11px]" : "text-xs"
         )}
       >
@@ -114,7 +114,7 @@ export function AcceptTermsCheckbox({
         onClick={accept}
         disabled={submitting}
         className={cn(
-          "inline-flex items-center gap-2 rounded-lg border border-amber-400 bg-white font-semibold text-amber-900 shadow-sm transition hover:bg-amber-100 disabled:opacity-60",
+          "inline-flex items-center gap-2 rounded-lg border border-amber-400/50 bg-white font-semibold text-amber-100 shadow-sm transition hover:bg-amber-400/15 disabled:opacity-60",
           compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"
         )}
       >
