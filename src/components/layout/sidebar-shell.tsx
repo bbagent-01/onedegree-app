@@ -39,29 +39,45 @@ type NavItem = {
   matches?: (pathname: string, sp: URLSearchParams) => boolean;
 };
 
-// Sidebar items mirror the now-removed top-of-dashboard SectionNav so
-// every link in the old top tab row (Messages / Hosting / Trips /
-// Network / Proposals) has at least a high-level entry here. Network
-// is the only one that doesn't map 1:1 to a top-level route — it
-// lives on /dashboard?tab=network — so we route to that and rely on
-// the searchParams-aware matcher below for active state.
+// Two visible groups separated by a faint divider line:
+//   1. "Front" — Home / Browse / Proposals / Vouch. These are
+//      discovery surfaces that render against DesktopNav, NOT the
+//      sidebar; they appear here so users on a sidebar surface have
+//      a one-click path back to them. Clicking any of these takes
+//      the user out of the sidebar shell (AppChrome handles that).
+//   2. "Interior" — Messages / Network / Trips / Listings /
+//      Wishlists / Host dashboard / Profile. These are the surfaces
+//      that DO render with the sidebar. Order matches Loren's spec.
+//
+// A third group (Account / Help) sits below the second divider —
+// account-keeping links Loren hasn't reordered.
+//
+// Network and Listings don't have dedicated routes in the live app
+// — both live behind /dashboard tabs (?tab=network / ?tab=hosting).
+// The searchParams-aware matchers below light up the right sidebar
+// item depending on which tab is active.
 const DASHBOARD_TAB_KEYS = ["network", "traveling", "proposals"] as const;
 
 const NAV_GROUPS: { id: string; items: NavItem[] }[] = [
   {
-    id: "app",
+    id: "front",
     items: [
       { icon: HomeIcon, label: "Home", href: "/", matches: (p) => p === "/" },
       { icon: Search, label: "Browse", href: "/browse" },
       { icon: Plane, label: "Proposals", href: "/proposals" },
       { icon: ShieldCheck, label: "Vouch", href: "/vouch" },
+    ],
+  },
+  {
+    id: "interior",
+    items: [
+      { icon: MessageCircle, label: "Messages", href: "/inbox" },
       {
         icon: Users,
         label: "Network",
         href: "/dashboard?tab=network",
         matches: (p, sp) => p === "/dashboard" && sp.get("tab") === "network",
       },
-      { icon: MessageCircle, label: "Messages", href: "/inbox" },
       {
         icon: Calendar,
         label: "Trips",
@@ -70,38 +86,31 @@ const NAV_GROUPS: { id: string; items: NavItem[] }[] = [
           p.startsWith("/trips") ||
           (p === "/dashboard" && sp.get("tab") === "traveling"),
       },
-      { icon: Heart, label: "Wishlists", href: "/wishlists" },
-      { icon: User, label: "Profile", href: "/profile" },
-    ],
-  },
-  {
-    id: "host",
-    items: [
       {
         icon: ListChecks,
         label: "Listings",
-        // The live app doesn't have a standalone /listings management
-        // page — host listings render inline on the dashboard's
-        // hosting tab. Pointing the explicit "Listings" entry at the
-        // hosting tab so the label resolves to the right view; the
-        // broader "Host dashboard" entry below covers the rollup.
+        // No standalone /listings management page in the live app —
+        // host listings render on the dashboard's hosting tab.
         href: "/dashboard?tab=hosting",
+        matches: (p, sp) =>
+          p === "/dashboard" && sp.get("tab") === "hosting",
       },
+      { icon: Heart, label: "Wishlists", href: "/wishlists" },
       {
         icon: LayoutDashboard,
         label: "Host dashboard",
         href: "/dashboard",
-        // Highlight only when on /dashboard's hosting tab — i.e.
-        // pathname is /dashboard AND tab is unset / explicitly
-        // "hosting". Other dashboard tabs (network, traveling,
-        // proposals) light up their own sidebar items above.
+        // Light up only when on /dashboard with no tab param — the
+        // tab-specific items above (Network, Trips, Listings) own
+        // their respective tab states.
         matches: (p, sp) => {
           if (p === "/hosting" || p.startsWith("/hosting/")) return true;
           if (p !== "/dashboard") return false;
           const tab = sp.get("tab");
-          return !tab || !DASHBOARD_TAB_KEYS.includes(tab as never);
+          return !tab && !DASHBOARD_TAB_KEYS.includes(tab as never);
         },
       },
+      { icon: User, label: "Profile", href: "/profile" },
     ],
   },
   {
