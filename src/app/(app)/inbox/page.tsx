@@ -37,7 +37,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
     <>
       <SectionNav />
       <div className="mx-auto w-full max-w-[1600px] px-4 py-6 md:px-6">
-        <h1 className="mb-4 text-2xl font-semibold md:text-3xl">Messages</h1>
+        <h1 className="mb-4 font-serif text-2xl font-semibold md:text-3xl">Messages</h1>
 
         {threads.length === 0 ? (
           <div className="mt-12 rounded-xl border border-dashed border-border bg-muted/30 p-12 text-center">

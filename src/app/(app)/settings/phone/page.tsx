@@ -142,7 +142,7 @@ export default function PhoneSettingsPage() {
         Settings
       </Link>
       <header className="mt-3">
-        <h1 className="text-2xl font-semibold md:text-3xl">Phone number</h1>
+        <h1 className="font-serif text-2xl font-semibold md:text-3xl">Phone number</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Your phone is how friends find you when they vouch or send an intro.
           It&rsquo;s also your primary identifier on Trustead — one account

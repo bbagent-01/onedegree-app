@@ -55,7 +55,7 @@ export default async function AlertsPage({
         <ArrowLeft className="h-4 w-4" />
         Back to proposals
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold md:text-3xl">
+      <h1 className="mt-4 font-serif text-2xl font-semibold md:text-3xl">
         Proposal alerts
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">

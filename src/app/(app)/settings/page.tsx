@@ -32,7 +32,7 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto w-full max-w-[780px] px-4 py-6 md:px-6 md:py-10">
       <header>
-        <h1 className="text-2xl font-semibold md:text-3xl">Account settings</h1>
+        <h1 className="font-serif text-2xl font-semibold md:text-3xl">Account settings</h1>
         {data?.email && (
           <p className="mt-1 text-sm text-muted-foreground">
             Signed in as{" "}
