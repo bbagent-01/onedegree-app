@@ -110,9 +110,9 @@ export function GatedListingCTA({
         // lookup; the soft copy works for both cases.
         true;
       return (
-        <div className="mt-3 rounded-lg border-2 border-zinc-200 bg-zinc-50 p-3">
+        <div className="mt-3 rounded-lg border-2 border-white/10 bg-white/5 p-3">
           <div className="flex items-start gap-2">
-            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600" />
+            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--tt-cream-muted)]" />
             <div className="min-w-0">
               <div className="text-sm font-semibold text-foreground">
                 {revoked ? "Access ended" : "Not available right now"}

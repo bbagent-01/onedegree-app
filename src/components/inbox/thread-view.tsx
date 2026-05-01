@@ -948,7 +948,7 @@ export function ThreadView({
           thread.intro_detail.sender_id === currentUserId;
         if (introSenderBlocked) {
           return (
-            <div className="shrink-0 border-t border-border bg-zinc-50 p-4 text-center text-xs text-muted-foreground">
+            <div className="shrink-0 border-t border-border bg-white/5 p-4 text-center text-xs text-muted-foreground">
               Messaging is paused in this thread. You can send a new
               intro request after 30 days.
             </div>

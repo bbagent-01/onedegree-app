@@ -52,7 +52,7 @@ export function OriginProposalCard({ proposal }: Props) {
   return (
     <Link
       href={`/proposals/${proposal.id}`}
-      className="flex shrink-0 items-center gap-3 border-b border-border bg-zinc-50/60 px-4 py-2.5 transition-colors hover:bg-zinc-50"
+      className="flex shrink-0 items-center gap-3 border-b border-border bg-white/5 px-4 py-2.5 transition-colors hover:bg-white/5"
     >
       <span
         className={`inline-flex shrink-0 items-center gap-1 rounded-full ${badgeClass} px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide`}
