@@ -217,7 +217,7 @@ const SAMPLES: Sample[] = [
     id: "theo",
     name: "Theo R.",
     initials: "TR",
-    archetype: "4°+ · distant",
+    archetype: "4°≥ · distant",
     avatarUrl: "https://i.pravatar.cc/200?img=68",
     degree: 4,
     connection: null,
@@ -304,21 +304,34 @@ const SAMPLES: Sample[] = [
 
 // ── Tokens ────────────────────────────────────────────────────────
 //
-// Inline-styled colors throughout so globals.css's !important degree-
-// pill rewrites don't blank out arbitrary-value Tailwind classes
+// Single source of truth for the degree color scale. Every pill,
+// vouch chip (whose color follows the same tier scale based on its
+// own score), neutral "no connection" pill, palette comparator
+// preview, and color picker default reads from here. Change a value
+// once — every surface on the page picks it up.
+//
+// Inline-styled throughout so globals.css's !important degree-pill
+// rewrites don't blank out arbitrary-value Tailwind classes
 // (`.bg-[#bf8a0d]` is one of several mapped to the canonical tokens).
-// The sandbox should preview with the colors I pick, not the ones
-// the global stylesheet rewrites them to.
+
+type DegreeTone = { bg: string; fg: string };
+
+export const DEGREE_COLORS = {
+  none: { bg: "#A1A1AA", fg: "#0B2E25" }, // no connection — neutral cool gray
+  d1: { bg: "#1BEAA5", fg: "#0B2E25" }, // 1° — mint
+  d2: { bg: "#39BFF8", fg: "#0B2E25" }, // 2° — sky
+  d3: { bg: "#FDD34D", fg: "#0B2E25" }, // 3° — mustard
+  d4: { bg: "#FF8F8F", fg: "#0B2E25" }, // 4°≥ — coral
+} satisfies Record<"none" | "d1" | "d2" | "d3" | "d4", DegreeTone>;
+
 const DEGREE_PILL: Record<
   1 | 2 | 3 | 4,
   { bg: string; fg: string; label: string; outlineColor: string }
 > = {
-  // 1° = white pill with dark text. The strongest trust state earns the
-  // highest contrast — pulled out of the green ramp entirely.
-  1: { bg: "#FFFFFF", fg: "#0B2E25", label: "1°", outlineColor: "#FFFFFF" },
-  2: { bg: "#2A8A6B", fg: "#FFFFFF", label: "2°", outlineColor: "#2A8A6B" },
-  3: { bg: "#BF8A0D", fg: "#FFFFFF", label: "3°", outlineColor: "#BF8A0D" },
-  4: { bg: "#525252", fg: "#FFFFFF", label: "4°+", outlineColor: "#525252" },
+  1: { ...DEGREE_COLORS.d1, label: "1°", outlineColor: DEGREE_COLORS.d1.bg },
+  2: { ...DEGREE_COLORS.d2, label: "2°", outlineColor: DEGREE_COLORS.d2.bg },
+  3: { ...DEGREE_COLORS.d3, label: "3°", outlineColor: DEGREE_COLORS.d3.bg },
+  4: { ...DEGREE_COLORS.d4, label: "4°≥", outlineColor: DEGREE_COLORS.d4.bg },
 };
 
 const METRIC_TONE: Record<
@@ -336,7 +349,7 @@ const METRIC_TONE: Record<
 
 // Connection = ● circle (blue, viewer-relative).
 // Vouch = small shield, color follows the degree color scale based on
-// the vouch score itself (≥5 → 1° tier, 4–5 → 2°, 3–4 → 3°, <3 → 4°+).
+// the vouch score itself (≥5 → 1° tier, 4–5 → 2°, 3–4 → 3°, <3 → 4°≥).
 // Rating = lucide Star (amber, locked from FT-1 spec).
 const ICON_CIRCLE = (
   <svg viewBox="0 0 24 24" fill="currentColor" className="h-full w-full">
@@ -348,14 +361,13 @@ const ICON_SHIELD = (
 );
 
 // Map a vouch score (0-10) to the same tier color as the degree pill.
-// For tier-1 we need to pick a different base color depending on the
-// surface — pure white shows on dark forest but disappears on a white
-// listing-card chip, so we swap to deep forest there.
-function vouchTierColor(score: number, onImage: boolean): string {
-  if (score >= 5) return onImage ? "#0B2E25" : "#FFFFFF"; // tier 1
-  if (score >= 4) return "#2A8A6B"; // tier 2 — emerald
-  if (score >= 3) return "#BF8A0D"; // tier 3 — mustard
-  return onImage ? "#525252" : "#B0BBB7"; // tier 4 — zinc / light slate
+// All four palette colors stand on both dark and light surfaces, so
+// no surface-specific swap is needed — single canonical color per tier.
+function vouchTierColor(score: number): string {
+  if (score >= 5) return DEGREE_COLORS.d1.bg;
+  if (score >= 4) return DEGREE_COLORS.d2.bg;
+  if (score >= 3) return DEGREE_COLORS.d3.bg;
+  return DEGREE_COLORS.d4.bg;
 }
 
 // ── Badge primitive ───────────────────────────────────────────────
@@ -389,19 +401,19 @@ function NewMemberPill({ size }: { size: BadgeSize }) {
 // Uncontained vouch indicator — no background, no border. Just the
 // shield + number, both colored by the vouch tier scale (same scale
 // as the degree pills, picked from the score itself). Sits next to
-// the rating chip the same way and behaves identically.
+// the rating chip the same way and behaves identically. Shield icon
+// is sized to match the rating star at the same badge size so the
+// two glyphs align optically.
 function VouchPill({
   score,
   size,
-  onImage,
 }: {
   score: number;
   size: "micro" | "medium";
-  onImage: boolean;
 }) {
-  const color = vouchTierColor(score, onImage);
+  const color = vouchTierColor(score);
   const sz = size === "micro" ? "gap-0.5 text-[11px]" : "gap-1 text-xs";
-  const iconSize = size === "micro" ? "h-2.5 w-2.5" : "h-3 w-3";
+  const iconSize = size === "micro" ? "h-3 w-3" : "h-3.5 w-3.5";
   return (
     <span
       className={cn(
@@ -518,7 +530,10 @@ function TrustBadgeSandboxPill({
           "inline-flex items-center rounded-full font-semibold",
           size === "nano" ? "px-1.5 py-[1px] text-[10px]" : "px-2 py-[1px] text-[11px]"
         )}
-        style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
+        style={{
+          backgroundColor: DEGREE_COLORS.none.bg,
+          color: DEGREE_COLORS.none.fg,
+        }}
       >
         No path
       </span>
@@ -619,10 +634,12 @@ function TrustBadgeSandboxPill({
       </span>
     );
   } else {
-    // Single-segment pill — 1° mutual (white), 4°+ (zinc). White 1°
-    // gets a hairline border so it shows clearly on the cream
-    // listing-card chip background.
-    const needsHairline = sample.degree === 1;
+    // Single-segment pill — used for 1° mutual and 4°≥. Both colors
+    // are saturated enough to stand on every surface (dark forest,
+    // cream listing chip, white profile card) without a hairline.
+    // Medium gets an explicit height so it lines up with the inline
+    // connector avatars next to it (22px outer matches the combo
+    // pill's natural height).
     degreeChip = (
       <span
         className={cn(
@@ -632,7 +649,7 @@ function TrustBadgeSandboxPill({
         style={{
           backgroundColor: degreeStyle.bg,
           color: degreeStyle.fg,
-          border: needsHairline ? "1px solid rgba(11,46,37,0.14)" : undefined,
+          height: size === "medium" ? 22 : undefined,
         }}
       >
         {degreeStyle.label}
@@ -688,6 +705,54 @@ function TrustBadgeSandboxPill({
     </span>
   ) : null;
 
+  // Medium-only: connector avatars rendered inline with the degree
+  // pill, the leftmost avatar tucked behind the pill's right curve so
+  // it reads as another segment of the same group. Each avatar is
+  // sized to the pill's nominal medium height (24px) with a 2px ring
+  // in the surrounding surface color so the stack punches through.
+  const medConnectorRing = onImage ? "#FFFFFF" : "#07221B";
+  const medConnectorBg = onImage ? "#F1F5F4" : "rgba(245,241,230,0.18)";
+  const medConnectorSilhouetteFill = onImage
+    ? "rgba(11,46,37,0.5)"
+    : "rgba(245,241,230,0.65)";
+  const medConnectorStrip =
+    size === "medium" && sample.connectors.length > 0 ? (
+      <span
+        className="inline-flex items-center -space-x-1.5"
+        style={{ marginLeft: -10 }}
+      >
+        {sample.connectors.slice(0, 4).map((c) => (
+          <span
+            key={c.id}
+            title={c.viewerKnows ? c.name : "Mutual connection"}
+            className="inline-flex h-[22px] w-[22px] items-center justify-center overflow-hidden rounded-full"
+            style={{
+              border: `2px solid ${medConnectorRing}`,
+              backgroundColor: medConnectorBg,
+            }}
+          >
+            {c.viewerKnows && c.avatarUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={c.avatarUrl}
+                alt={c.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                fill={medConnectorSilhouetteFill}
+                className="h-3.5 w-3.5"
+                aria-hidden
+              >
+                <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5Z" />
+              </svg>
+            )}
+          </span>
+        ))}
+      </span>
+    ) : null;
+
   return (
     <span
       className={cn(
@@ -699,17 +764,14 @@ function TrustBadgeSandboxPill({
       {degreeBlock}
       {size === "micro" && (
         <>
-          {showVouch && (
-            <VouchPill score={sample.vouch!} size="micro" onImage={onImage} />
-          )}
+          {showVouch && <VouchPill score={sample.vouch!} size="micro" />}
           {ratingNode}
         </>
       )}
       {size === "medium" && (
         <>
-          {showVouch && (
-            <VouchPill score={sample.vouch!} size="medium" onImage={onImage} />
-          )}
+          {medConnectorStrip}
+          {showVouch && <VouchPill score={sample.vouch!} size="medium" />}
           {ratingNode}
         </>
       )}
@@ -944,52 +1006,6 @@ function ListingGrid() {
 // avatar photo + medium TrustTag + the connector avatars (people who
 // connect the viewer to the host) shown alongside the badge.
 
-function ConnectorStrip({
-  connectors,
-  size = "h-6 w-6",
-}: {
-  connectors: Connector[];
-  size?: string;
-}) {
-  if (!connectors.length) return null;
-  return (
-    <span className="inline-flex items-center -space-x-1.5">
-      {connectors.slice(0, 4).map((c) => (
-        <span
-          key={c.id}
-          title={c.viewerKnows ? c.name : "Mutual connection"}
-          className={cn(
-            "inline-flex items-center justify-center overflow-hidden rounded-full",
-            size
-          )}
-          style={{
-            border: "2px solid #07221B", // ring punches through the dark surface
-            backgroundColor: "rgba(245,241,230,0.18)",
-          }}
-        >
-          {c.viewerKnows && c.avatarUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={c.avatarUrl}
-              alt={c.name}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <svg
-              viewBox="0 0 24 24"
-              fill="rgba(245,241,230,0.65)"
-              className="h-3.5 w-3.5"
-              aria-hidden
-            >
-              <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5Z" />
-            </svg>
-          )}
-        </span>
-      ))}
-    </span>
-  );
-}
-
 function HostRow({ sample }: { sample: Sample }) {
   const showConnectors = sample.connectors.length > 0;
   return (
@@ -1008,7 +1024,6 @@ function HostRow({ sample }: { sample: Sample }) {
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <TrustBadgeSandboxPill size="medium" sample={sample} />
-          {showConnectors && <ConnectorStrip connectors={sample.connectors} />}
         </div>
         <div className="mt-1.5 text-[11px] text-[rgba(245,241,230,0.55)]">
           {showConnectors
@@ -1242,7 +1257,10 @@ function MacroBlock({ sample }: { sample: Sample }) {
             ) : (
               <span
                 className="inline-flex items-center rounded-full px-3 py-0.5 text-sm font-semibold"
-                style={{ backgroundColor: "#3F3F46", color: "#F4F4F5" }}
+                style={{
+                  backgroundColor: isColdStart ? "#3F3F46" : DEGREE_COLORS.none.bg,
+                  color: isColdStart ? "#F4F4F5" : DEGREE_COLORS.none.fg,
+                }}
               >
                 {isColdStart ? "New member" : "No path"}
               </span>
@@ -1443,26 +1461,49 @@ type Palette = {
   id: string;
   name: string;
   note: string;
+  dNone: DegreeColor;
   d1: DegreeColor;
   d2: DegreeColor;
   d3: DegreeColor;
   d4: DegreeColor;
 };
 
-// Single starting palette. Loren's working values from the most recent
-// design pass — a sky-blue 1°, mint 2°, mustard 3°, neutral gray 4°+.
-// Use the row's Duplicate button to fork an iteration; the duplicate
+// Single starting palette. Mirrors the canonical DEGREE_COLORS at the
+// top of the file — change either and update the other to keep the
+// palette comparator in sync with the badges below.
+// Use a row's Duplicate button to fork an iteration; the duplicate
 // inherits the source's *current* picker values (not these defaults),
 // so refinements compound row-by-row.
 const INITIAL_PALETTES: Palette[] = [
   {
     id: "base",
     name: "Base",
-    note: "Starting palette — duplicate to iterate without losing this baseline. Each tier is editable; the vouch power chip in the preview follows the same color scale based on its score, so a 3° contact can still display a high-vouch color and vice versa.",
-    d1: { bg: "#3ABFF8", fg: "#0B2E25", outline: "#3ABFF8" },
-    d2: { bg: "#1AEAA5", fg: "#0B2E25", outline: "#1AEAA5" },
-    d3: { bg: "#FDD34D", fg: "#0B2E25", outline: "#FDD34D" },
-    d4: { bg: "#BABABA", fg: "#0B2E25", outline: "#BABABA" },
+    note: "Starting palette — duplicate to iterate without losing this baseline. Each tier is editable; the vouch power chip in the preview follows the same color scale based on its score, so a 3° contact can still display a high-vouch color and vice versa. The leftmost tier is the no-connection neutral (degree=null).",
+    dNone: {
+      bg: DEGREE_COLORS.none.bg,
+      fg: pickFg(DEGREE_COLORS.none.bg),
+      outline: DEGREE_COLORS.none.bg,
+    },
+    d1: {
+      bg: DEGREE_COLORS.d1.bg,
+      fg: pickFg(DEGREE_COLORS.d1.bg),
+      outline: DEGREE_COLORS.d1.bg,
+    },
+    d2: {
+      bg: DEGREE_COLORS.d2.bg,
+      fg: pickFg(DEGREE_COLORS.d2.bg),
+      outline: DEGREE_COLORS.d2.bg,
+    },
+    d3: {
+      bg: DEGREE_COLORS.d3.bg,
+      fg: pickFg(DEGREE_COLORS.d3.bg),
+      outline: DEGREE_COLORS.d3.bg,
+    },
+    d4: {
+      bg: DEGREE_COLORS.d4.bg,
+      fg: pickFg(DEGREE_COLORS.d4.bg),
+      outline: DEGREE_COLORS.d4.bg,
+    },
   },
 ];
 
@@ -1605,14 +1646,16 @@ function paletteVouchColor(
 
 // Sample combinations rendered in each palette's preview row. Mixes
 // degree tiers with vouch scores that don't all line up — a 3° host
-// with strong vouch power, a 4°+ host with low vouch — so the preview
+// with strong vouch power, a 4°≥ host with low vouch — so the preview
 // shows how degree and vouch coloring interact under the chosen
-// palette, not just the "everything matches" diagonal.
+// palette, not just the "everything matches" diagonal. Includes a
+// no-connection chip so the neutral picker has a live preview too.
 const PREVIEW_COMBOS: Array<{
-  tier: 1 | 2 | 3 | 4;
+  tier: "none" | 1 | 2 | 3 | 4;
   connection?: string;
-  vouch: number;
+  vouch?: number;
 }> = [
+  { tier: "none" },
   { tier: 1, vouch: 8.5 },
   { tier: 2, connection: "6.4", vouch: 4.0 },
   { tier: 3, connection: "3.2", vouch: 7.2 },
@@ -1623,22 +1666,34 @@ function PreviewCombo({
   tier,
   connection,
   vouch,
+  dNone,
   d1,
   d2,
   d3,
   d4,
 }: {
-  tier: 1 | 2 | 3 | 4;
+  tier: "none" | 1 | 2 | 3 | 4;
   connection?: string;
-  vouch: number;
+  vouch?: number;
+  dNone: DegreeColor;
   d1: DegreeColor;
   d2: DegreeColor;
   d3: DegreeColor;
   d4: DegreeColor;
 }) {
+  if (tier === "none") {
+    return (
+      <SwatchPill
+        label="—"
+        color={dNone}
+        hairline={isVeryLight(dNone.bg)}
+      />
+    );
+  }
   const tierColor = [d1, d2, d3, d4][tier - 1];
-  const tierLabel = tier === 4 ? "4°+" : `${tier}°`;
-  const vouchColor = paletteVouchColor(vouch, d1, d2, d3, d4);
+  const tierLabel = tier === 4 ? "4°≥" : `${tier}°`;
+  const vouchColor =
+    vouch !== undefined ? paletteVouchColor(vouch, d1, d2, d3, d4) : undefined;
   return (
     <span className="inline-flex items-center gap-1">
       {connection ? (
@@ -1654,20 +1709,30 @@ function PreviewCombo({
           hairline={isVeryLight(tierColor.bg)}
         />
       )}
-      <span
-        className="inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums"
-        style={{ color: vouchColor }}
-      >
-        <Shield
-          className="h-3 w-3"
-          fill="currentColor"
-          strokeWidth={0}
-        />
-        <span>{vouch.toFixed(1)}</span>
-      </span>
+      {vouch !== undefined && (
+        <span
+          className="inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums"
+          style={{ color: vouchColor }}
+        >
+          <Shield
+            className="h-3 w-3"
+            fill="currentColor"
+            strokeWidth={0}
+          />
+          <span>{vouch.toFixed(1)}</span>
+        </span>
+      )}
     </span>
   );
 }
+
+type PaletteSnapshot = {
+  dNone: DegreeColor;
+  d1: DegreeColor;
+  d2: DegreeColor;
+  d3: DegreeColor;
+  d4: DegreeColor;
+};
 
 function PaletteRow({
   initial,
@@ -1676,15 +1741,7 @@ function PaletteRow({
   canRemove,
 }: {
   initial: Palette;
-  onDuplicate: (
-    sourceId: string,
-    snapshot: {
-      d1: DegreeColor;
-      d2: DegreeColor;
-      d3: DegreeColor;
-      d4: DegreeColor;
-    }
-  ) => void;
+  onDuplicate: (sourceId: string, snapshot: PaletteSnapshot) => void;
   onRemove: (id: string) => void;
   canRemove: boolean;
 }) {
@@ -1692,6 +1749,7 @@ function PaletteRow({
   // affects another. Initial values come from the palette definition
   // (either INITIAL_PALETTES or a duplicate-snapshot). Reload page to
   // reset.
+  const [dNone, setDNone] = useState<DegreeColor>(initial.dNone);
   const [d1, setD1] = useState<DegreeColor>(initial.d1);
   const [d2, setD2] = useState<DegreeColor>(initial.d2);
   const [d3, setD3] = useState<DegreeColor>(initial.d3);
@@ -1714,8 +1772,9 @@ function PaletteRow({
         border: "1px solid rgba(245,241,230,0.12)",
       }}
     >
-      {/* Toggle row — chevron + name on the left, four sample combos
-          (degree pill + vouch chip) on the right. */}
+      {/* Toggle row — chevron + name on the left, five sample combos
+          (no-connection + four degree pills with vouch chips) on the
+          right. */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -1743,6 +1802,7 @@ function PaletteRow({
               tier={c.tier}
               connection={c.connection}
               vouch={c.vouch}
+              dNone={dNone}
               d1={d1}
               d2={d2}
               d3={d3}
@@ -1763,8 +1823,15 @@ function PaletteRow({
           >
             {initial.note}
           </p>
-          {/* 2x2 picker grid — keeps the expanded row compact. */}
+          {/* Picker grid — five tiers, one per row in a compact 2-col
+              layout. Neutral first so it reads as the baseline before
+              the four degree colors. */}
           <div className="grid gap-1.5 sm:grid-cols-2 sm:gap-x-6">
+            <ColorSwatchInput
+              label="—"
+              value={dNone.bg}
+              onChange={setBg(setDNone)}
+            />
             <ColorSwatchInput
               label="1°"
               value={d1.bg}
@@ -1781,7 +1848,7 @@ function PaletteRow({
               onChange={setBg(setD3)}
             />
             <ColorSwatchInput
-              label="4°+"
+              label="4°≥"
               value={d4.bg}
               onChange={setBg(setD4)}
             />
@@ -1793,7 +1860,7 @@ function PaletteRow({
             <button
               type="button"
               onClick={() =>
-                onDuplicate(initial.id, { d1, d2, d3, d4 })
+                onDuplicate(initial.id, { dNone, d1, d2, d3, d4 })
               }
               className="inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.08em] transition-colors hover:bg-[rgba(245,241,230,0.08)]"
               style={{
@@ -1829,15 +1896,7 @@ function PaletteOptions() {
   // edits to one row never disturb another.
   const [palettes, setPalettes] = useState<Palette[]>(INITIAL_PALETTES);
 
-  const handleDuplicate = (
-    sourceId: string,
-    snapshot: {
-      d1: DegreeColor;
-      d2: DegreeColor;
-      d3: DegreeColor;
-      d4: DegreeColor;
-    }
-  ) => {
+  const handleDuplicate = (sourceId: string, snapshot: PaletteSnapshot) => {
     setPalettes((prev) => {
       const idx = prev.findIndex((p) => p.id === sourceId);
       if (idx < 0) return prev;
@@ -1852,6 +1911,7 @@ function PaletteOptions() {
           ? `${source.name} copy`
           : `${source.name} copy ${copyCount + 1}`,
         note: source.note,
+        dNone: snapshot.dNone,
         d1: snapshot.d1,
         d2: snapshot.d2,
         d3: snapshot.d3,
@@ -1912,7 +1972,7 @@ export function TrustBadgeSandbox() {
           <SectionHeader
             eyebrow="Palette · review"
             title="Degree color scale options"
-            note="Tinker with all four tiers per palette. Each row's preview pairs a degree pill with a sample vouch chip — including asymmetric combos (3° host with high vouch, 4°+ host with low vouch) — so you can see how degree and vouch coloring interact under the chosen palette. Duplicate any row to fork an iteration; delete the ones that aren't working."
+            note="Tinker with the no-connection neutral plus all four degree tiers per palette. Each row's preview pairs a degree pill with a sample vouch chip — including asymmetric combos (3° host with high vouch, 4°≥ host with low vouch) — so you can see how degree and vouch coloring interact under the chosen palette. Duplicate any row to fork an iteration; delete the ones that aren't working."
           />
           <PaletteOptions />
         </section>
@@ -1957,7 +2017,7 @@ export function TrustBadgeSandbox() {
             <SectionHeader
               eyebrow="Size 04 · Macro"
               title="Profile page block"
-              note="The biggest size. Full-width profile-page block with avatar photo, bio, connector strip, and three labeled metric tiles. Connection collapses to '—' for 4°+; whole block collapses to a 'New member' empty state for cold-start users."
+              note="The biggest size. Full-width profile-page block with avatar photo, bio, connector strip, and three labeled metric tiles. Connection collapses to '—' for 4°≥; whole block collapses to a 'New member' empty state for cold-start users."
             />
             <MacroStack />
           </section>
