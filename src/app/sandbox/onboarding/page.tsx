@@ -733,7 +733,7 @@ function PainPointsListVisual() {
 // PAIN_POINTS array so the vertical-list alt isn't affected.
 const PROBLEM_CARDS = [
   {
-    title: "Putting your stuff away and taking it out",
+    title: "Putting your stuff away and taking it out every time",
     image: "/assets/onboarding-problems/problem-02-packing.webp",
   },
   {
@@ -741,15 +741,15 @@ const PROBLEM_CARDS = [
     image: "/assets/onboarding-problems/problem-03-neighbors.webp",
   },
   {
-    title: "Strangers handling your nice things",
+    title: "Exposing your nice things",
     image: "/assets/onboarding-problems/problem-01-wine.webp",
   },
   {
-    title: "Renters don't care for your home",
+    title: "Coverage doesn't mean caring",
     image: "/assets/onboarding-problems/problem-04-careless.webp",
   },
   {
-    title: "Your address goes public",
+    title: "Your listing is public",
     image: "/assets/onboarding-problems/problem-05-regulation.webp",
   },
 ];
