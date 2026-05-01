@@ -279,7 +279,10 @@ export default function SandboxOnboardingPage() {
       !document.querySelector<HTMLScriptElement>('script[data-sb-orbit="1"]')
     ) {
       const s = document.createElement("script");
-      s.src = "/assets/orbit-animation/orbit-lite.js";
+      // Version query string busts Cloudflare's 4-hour edge cache
+      // when we ship orbit JS changes. Bump this when you edit the
+      // script so users get the new file without a hard refresh.
+      s.src = "/assets/orbit-animation/orbit-lite.js?v=3";
       s.async = true;
       s.dataset.sbOrbit = "1";
       s.onload = () => {
