@@ -102,15 +102,15 @@ export default async function EditListingPage({ params }: PageProps) {
                 <span
                   className={
                     listing.is_active
-                      ? "inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"
-                      : "inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700"
+                      ? "inline-flex items-center gap-1.5 rounded-full border border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/15 px-2.5 py-1 text-xs font-semibold text-[var(--tt-mint)]"
+                      : "inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-[var(--tt-cream-muted)]"
                   }
                 >
                   <span
                     className={
                       listing.is_active
-                        ? "h-1.5 w-1.5 rounded-full bg-emerald-500"
-                        : "h-1.5 w-1.5 rounded-full bg-zinc-500"
+                        ? "h-1.5 w-1.5 rounded-full bg-[var(--tt-mint)]"
+                        : "h-1.5 w-1.5 rounded-full bg-[var(--tt-cream-muted)]"
                     }
                   />
                   {listing.is_active ? "Listed" : "Paused"}
@@ -119,7 +119,7 @@ export default async function EditListingPage({ params }: PageProps) {
                   {listing.area_name}
                 </span>
               </div>
-              <h1 className="mt-2 truncate text-2xl font-bold text-foreground md:text-3xl">
+              <h1 className="mt-2 truncate font-serif text-2xl font-bold text-foreground md:text-3xl">
                 {listing.title}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">

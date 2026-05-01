@@ -110,7 +110,7 @@ export default async function TripDetailPage({ params }: PageProps) {
         <div className="p-5 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold md:text-2xl">
+              <h1 className="font-serif text-xl font-semibold md:text-2xl">
                 {trip.listing?.title || "Trip"}
               </h1>
               {trip.listing?.area_name && (
