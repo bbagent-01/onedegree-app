@@ -27,6 +27,7 @@ import type { NetworkPerson } from "@/lib/network-data";
 import type { BrowseListing } from "@/lib/browse-data";
 import type { BrowseListingTrust } from "@/components/browse/browse-layout";
 import { LiveListingCard } from "@/components/browse/live-listing-card";
+import { CondensedSearch } from "./condensed-search";
 
 // ── Props ──────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ export function HomeFeed({
 
   return (
     <div className="px-6 lg:px-10">
-      <header className="flex flex-col items-center pb-[10vh] pt-[12vh] text-center md:pb-[15vh] md:pt-[20vh]">
+      <header className="flex flex-col items-center pb-[6vh] pt-[8vh] text-center md:pb-[8vh] md:pt-[12vh]">
         <p className="text-sm text-muted-foreground">
           Welcome back, {firstName}.
         </p>
@@ -69,6 +70,7 @@ export function HomeFeed({
         >
           What are you looking for?
         </h1>
+        <CondensedSearch />
       </header>
 
       <CTAStrip />

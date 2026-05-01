@@ -24,7 +24,7 @@ import {
 } from "@/lib/trust/check-access";
 import type { AccessSettings } from "@/lib/trust/types";
 import type { BrowseListingTrust } from "@/components/browse/browse-layout";
-import { SignedOutLanding } from "@/components/home/signed-out-landing";
+import { OnboardingTakeover } from "@/components/onboarding/OnboardingTakeover";
 import { HomeFeed } from "@/components/home/home-feed";
 
 export const runtime = "edge";
@@ -35,7 +35,13 @@ const MARQUEE_LIMIT = 12;
 export default async function HomePage() {
   const { userId: clerkId } = await auth();
   if (!clerkId) {
-    return <SignedOutLanding />;
+    // Loren: cold visitors at trustead.app run through the
+    // onboarding takeover (logo morph + 5 value-prop slides) and
+    // land on Create-account / Sign-in CTAs. The signed-out
+    // takeover skips the dismiss POST since there's no row to
+    // stamp; sign-up's first step is the DOB age gate, so the
+    // hand-off into Clerk is the age-verification flow.
+    return <OnboardingTakeover signedOut />;
   }
 
   const currentUser = await getCurrentUser();
