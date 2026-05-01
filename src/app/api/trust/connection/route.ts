@@ -80,13 +80,18 @@ export async function GET(req: Request) {
 
   const { data: targetUser } = await supabase
     .from("users")
-    .select("id, name, avatar_url")
+    .select("id, name, avatar_url, vouch_score, vouch_count_received")
     .eq("id", targetId)
     .single();
 
   const targetName = targetUser?.name ?? "this user";
   const targetAvatar = (targetUser as { avatar_url: string | null } | null)
     ?.avatar_url ?? null;
+  const targetVouchScore =
+    (targetUser as { vouch_score: number | null } | null)?.vouch_score ?? null;
+  const targetVouchCount =
+    (targetUser as { vouch_count_received: number | null } | null)
+      ?.vouch_count_received ?? 0;
 
   const { data: viewerUser } = await supabase
     .from("users")
@@ -107,6 +112,8 @@ export async function GET(req: Request) {
       type: "direct_forward",
       direction,
       targetName,
+      targetVouchScore,
+      targetVouchCount,
       vouch: {
         vouch_type: forward.vouch_type,
         years_known_bucket: forward.years_known_bucket,
@@ -127,6 +134,8 @@ export async function GET(req: Request) {
       type: "direct_reverse",
       direction,
       targetName,
+      targetVouchScore,
+      targetVouchCount,
       vouch: {
         vouch_type: reverse.vouch_type,
         years_known_bucket: reverse.years_known_bucket,
@@ -147,6 +156,8 @@ export async function GET(req: Request) {
       direction,
       targetName,
       targetAvatar,
+      targetVouchScore,
+      targetVouchCount,
       viewerAvatar,
       score: result.score,
       paths: result.paths.map((p) => ({
@@ -208,6 +219,8 @@ export async function GET(req: Request) {
       type: "multi_hop",
       direction,
       targetName,
+      targetVouchScore,
+      targetVouchCount,
       degree: multiHop.degree,
       // Path is already oriented per direction: incoming starts at
       // target and ends at viewer; outgoing starts at viewer and
@@ -227,5 +240,7 @@ export async function GET(req: Request) {
     type: "not_connected",
     direction,
     targetName,
+    targetVouchScore,
+    targetVouchCount,
   });
 }

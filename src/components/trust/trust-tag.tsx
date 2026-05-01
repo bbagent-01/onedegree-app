@@ -65,6 +65,10 @@ interface Props {
    *  overlay). Flips connector ring + rating text to the light
    *  variant. */
   onImage?: boolean;
+  /** Render the small `?` hint indicating the badge is hoverable.
+   *  TrustTagPopover sets this automatically; pass false on bare
+   *  TrustTags that don't open a popover. */
+  showHelpHint?: boolean;
   className?: string;
 }
 
@@ -87,6 +91,7 @@ export function TrustTag({
   vouchDirection,
   showSubtext = false,
   onImage = false,
+  showHelpHint = false,
   className,
 }: Props) {
   // Normalize direct → degree=1 so the locked-variant rules see a
@@ -116,6 +121,7 @@ export function TrustTag({
       size={size}
       data={data}
       onImage={onImage}
+      showHelpHint={showHelpHint}
       className={className}
     />
   );
