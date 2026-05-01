@@ -25,7 +25,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Search,
   ShieldCheck,
@@ -46,19 +46,55 @@ import {
   SlidersHorizontal,
   Plus,
   UserPlus,
+  LayoutDashboard,
+  Settings,
+  HelpCircle,
 } from "lucide-react";
+import { TrusteadLogo } from "@/components/layout/trustead-logo";
 
 // ── Sidebar nav items ──────────────────────────────────────────
+// Three groups separated by thin dividers in the sidebar:
+//   1. App  — main browse/social surfaces
+//   2. Host — host-side surfaces (dashboard, manage listings)
+//   3. Account — settings + help
+// Items inside each group are flat for now; submenus (e.g. Proposals
+// → "Create proposal", Host Dashboard → "Manage reservations") will
+// layer in once we settle on a disclosure pattern.
 
-const NAV_ITEMS = [
-  { icon: HomeIcon, label: "Home", href: "/sandbox/layouts/home-v4", active: true },
-  { icon: Search, label: "Browse", href: "/sandbox/layouts/browse" },
-  { icon: Plane, label: "Proposals", href: "/sandbox/layouts/proposals" },
-  { icon: ShieldCheck, label: "Vouch", href: "/sandbox/layouts/vouch" },
-  { icon: Users, label: "Network", href: "/sandbox/layouts/network" },
-  { icon: MessageCircle, label: "Messages", href: "/sandbox/layouts/messages" },
-  { icon: Calendar, label: "Trips", href: "/sandbox/layouts/trips" },
-  { icon: User, label: "Profile", href: "/sandbox/layouts/profile" },
+type NavItem = {
+  icon: typeof HomeIcon;
+  label: string;
+  href: string;
+  active?: boolean;
+};
+
+const NAV_GROUPS: { id: string; items: NavItem[] }[] = [
+  {
+    id: "app",
+    items: [
+      { icon: HomeIcon, label: "Home", href: "/sandbox/layouts/home-v4", active: true },
+      { icon: Search, label: "Browse", href: "/sandbox/layouts/browse" },
+      { icon: Plane, label: "Proposals", href: "/sandbox/layouts/proposals" },
+      { icon: ShieldCheck, label: "Vouch", href: "/sandbox/layouts/vouch" },
+      { icon: Users, label: "Network", href: "/sandbox/layouts/network" },
+      { icon: MessageCircle, label: "Messages", href: "/sandbox/layouts/messages" },
+      { icon: Calendar, label: "Trips", href: "/sandbox/layouts/trips" },
+      { icon: User, label: "Profile", href: "/sandbox/layouts/profile" },
+    ],
+  },
+  {
+    id: "host",
+    items: [
+      { icon: LayoutDashboard, label: "Host dashboard", href: "/sandbox/layouts/dashboard" },
+    ],
+  },
+  {
+    id: "account",
+    items: [
+      { icon: Settings, label: "Account settings", href: "/sandbox/layouts/profile" },
+      { icon: HelpCircle, label: "Help Center", href: "/sandbox/layouts/profile" },
+    ],
+  },
 ];
 
 // ── Sample data ────────────────────────────────────────────────
@@ -276,7 +312,6 @@ export default function HomeV4() {
   const [collapsed, setCollapsed] = useState(false);
   return (
     <>
-      <MarqueeStyles />
       <div className="flex min-h-[calc(100vh-36px)] bg-background">
         <SiteSidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         <main className="flex min-w-0 flex-1 flex-col">
@@ -373,52 +408,70 @@ function SiteSidebar({
       className={`sticky top-9 flex h-[calc(100vh-36px)] shrink-0 flex-col border-r border-border bg-card/30 transition-[width] duration-200 ${w}`}
       aria-label="Site navigation"
     >
-      {/* Logo */}
+      {/* Logo — full Trustead wordmark expanded, shield mark only when
+          collapsed. The wordmark is currentColor so text-foreground
+          renders it cream on the dark sidebar. */}
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/60 px-4">
         <Link
           href="/sandbox/layouts/home-v4"
-          className="flex items-center gap-2 font-serif text-lg text-foreground"
+          className="flex min-w-0 items-center text-foreground"
           aria-label="Trustead"
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand text-brand-foreground">
-            <ShieldCheck className="h-4 w-4" />
-          </span>
-          {!collapsed && <span>Trustead</span>}
+          {collapsed ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/trustead-favicon.svg"
+              alt="Trustead"
+              className="h-8 w-8"
+            />
+          ) : (
+            <TrusteadLogo className="h-6 w-auto text-foreground" />
+          )}
         </Link>
         {!collapsed && (
           <button
             onClick={onToggle}
             aria-label="Collapse sidebar"
-            className="rounded-md p-1 text-muted-foreground hover:bg-card/60 hover:text-foreground"
+            className="ml-2 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-card/60 hover:text-foreground"
           >
             <PanelLeftClose className="h-4 w-4" />
           </button>
         )}
       </div>
 
-      {/* Nav */}
+      {/* Nav — grouped (App | Host | Account) with thin dividers
+          between sections. */}
       <nav className="shrink-0 px-2 py-3">
-        <ul className="space-y-0.5">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={
-                    item.active
-                      ? `flex items-center gap-3 rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background ${collapsed ? "justify-center px-2" : ""}`
-                      : `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-card/60 hover:text-foreground ${collapsed ? "justify-center px-2" : ""}`
-                  }
-                  title={collapsed ? item.label : undefined}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        {NAV_GROUPS.map((group, gi) => (
+          <ul
+            key={group.id}
+            className={
+              gi === 0
+                ? "space-y-0.5"
+                : "mt-3 space-y-0.5 border-t border-border/60 pt-3"
+            }
+          >
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.label}>
+                  <Link
+                    href={item.href}
+                    className={
+                      item.active
+                        ? `flex items-center gap-3 rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background ${collapsed ? "justify-center px-2" : ""}`
+                        : `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-card/60 hover:text-foreground ${collapsed ? "justify-center px-2" : ""}`
+                    }
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        ))}
       </nav>
 
       {/* Notifications — inline below nav. Fills remaining vertical
@@ -585,23 +638,73 @@ function MarqueeSection({
   direction: "left" | "right";
   children: React.ReactNode;
 }) {
-  const animClass = direction === "right" ? "marquee-right" : "marquee-left";
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    let loopWidth = node.scrollWidth / 2;
+    const ro = new ResizeObserver(() => {
+      loopWidth = node.scrollWidth / 2;
+    });
+    ro.observe(node);
+
+    // Base speed = "px per ms". 70s for one full loop ≈ baseline pace.
+    const dir = direction === "right" ? -1 : 1;
+    let x = direction === "right" ? 0 : -loopWidth;
+    let speedFactor = 1; // 1 = full, ~0.02 = near stop
+    let targetFactor = 1;
+    let last = performance.now();
+    let raf = 0;
+
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      // Ease toward target factor (~250ms time-constant).
+      speedFactor += (targetFactor - speedFactor) * Math.min(1, dt / 250);
+      x += dir * (loopWidth / 70000) * speedFactor * dt;
+      // Wrap on the loop boundary so the duplicated children seam.
+      if (dir < 0 && x <= -loopWidth) x += loopWidth;
+      if (dir > 0 && x >= 0) x -= loopWidth;
+      node.style.transform = `translateX(${x}px)`;
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    const onEnter = () => {
+      targetFactor = 0.02;
+    };
+    const onLeave = () => {
+      targetFactor = 1;
+    };
+    node.addEventListener("mouseenter", onEnter);
+    node.addEventListener("mouseleave", onLeave);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      node.removeEventListener("mouseenter", onEnter);
+      node.removeEventListener("mouseleave", onLeave);
+    };
+  }, [direction]);
+
   return (
     <section className="mt-14">
       {/* Title row: title | divider | subtitle | divider | ghost link.
           Items align to baseline; dividers self-stretch the full row
           height; divider color is the same faint structural-line tone
           used throughout the rest of the design.
-          Title is a div with heading role — escapes the global h2 styles
-          (which force big serif + max-width 24ch with !important). */}
+          The h2 inherits the global serif treatment (DM Serif Display,
+          clamp 28-44px) — we override only max-width so the title can
+          breathe past 24ch without overflow. */}
       <div className="flex flex-wrap items-baseline gap-4">
-        <div
-          role="heading"
-          aria-level={2}
-          className="whitespace-nowrap font-sans text-xl font-semibold text-foreground md:text-2xl"
+        <h2
+          className="whitespace-nowrap"
+          style={{ maxWidth: "none" }}
         >
           {title}
-        </div>
+        </h2>
         <span className="w-px self-stretch bg-border" aria-hidden />
         <p className="whitespace-nowrap text-sm text-muted-foreground">
           {subtitle}
@@ -615,9 +718,11 @@ function MarqueeSection({
           <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
-      {/* Marquee — items run to the container edge with no fade overlays. */}
+      {/* Marquee — items run to the container edge with no fade overlays.
+          Inner row is JS-driven (see useEffect above) so hover smoothly
+          eases the speed instead of jolting to a stop. */}
       <div className="relative mt-5 overflow-hidden">
-        <div className={`flex w-max gap-4 ${animClass}`}>
+        <div ref={ref} className="flex w-max gap-4 will-change-transform">
           <div className="flex shrink-0 gap-4">{children}</div>
           <div className="flex shrink-0 gap-4" aria-hidden>
             {children}
@@ -1024,25 +1129,3 @@ function CTAStrip() {
   );
 }
 
-// ── Marquee styles ─────────────────────────────────────────────
-
-function MarqueeStyles() {
-  return (
-    <style>{`
-      @keyframes marquee-right {
-        from { transform: translateX(0); }
-        to { transform: translateX(-50%); }
-      }
-      @keyframes marquee-left {
-        from { transform: translateX(-50%); }
-        to { transform: translateX(0); }
-      }
-      .marquee-right { animation: marquee-right 70s linear infinite; }
-      .marquee-left  { animation: marquee-left 70s linear infinite; }
-      .marquee-right:hover, .marquee-left:hover { animation-play-state: paused; }
-      @media (prefers-reduced-motion: reduce) {
-        .marquee-right, .marquee-left { animation: none; }
-      }
-    `}</style>
-  );
-}
