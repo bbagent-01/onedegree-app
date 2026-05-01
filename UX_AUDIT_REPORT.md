@@ -261,7 +261,7 @@ Each badge / callout / banner keeps its semantic color (mint = success, amber = 
 - Disabled cursor pattern on submit buttons app-wide (the Button primitive uses `disabled:pointer-events-none` which is mutually exclusive with `cursor-not-allowed` — needs a deliberate trade-off conversation).
 - VouchButton "you've already vouched" tooltip — turns out the button isn't actually disabled (it relabels to "Update vouch for {firstName}"), so the agent's complaint was a misread. No fix needed.
 
-### Total commit count across rounds 1-3: 24
+### Total commit count across rounds 1-3: 26
 
 ```
 b214d0f  legal pages contrast (round 1)
@@ -283,7 +283,17 @@ b60c0c3  dark-theme sweep — inbox (round 3)
 fc0131b  dark-theme sweep — booking + stay (round 3)
 ba611ff  dark-theme sweep — invite + hosting + trust + dashboard (round 3)
 645c587  dark-theme sweep — trips + listing-gate + proposals (round 3)
+c2ad88c  report — round 3 sweep summary
+5493772  brand — font-serif on remaining gated headings
+0862618  catch the last few zinc tokens in inbox + listing-gate
 ```
+
+### Final state
+
+- **Light-theme color tokens in user-facing code:** zero (verified by repeated grep sweep across `src/app/(app)` + `src/components`, excluding `dev/`, `admin/`, `sandbox/`).
+- **TypeScript:** clean (`npx tsc --noEmit --skipLibCheck` passes).
+- **Surfaces visually verified on the preview deploy** ([feat-ux1-ux-audit.trustead.pages.dev](https://feat-ux1-ux-audit.trustead.pages.dev)): `/sandbox/onboarding-2` mobile + desktop (slide 1, 2, 5 walked); `/privacy`, `/terms`, `/legal-status` desktop + mobile; `/join/fake-test-token-abc123`.
+- **Surfaces blocked from visual verification on preview:** every Clerk-gated route — Clerk's production keys are locked to `trustead.app` only. Loren needs to add `feat-ux1-ux-audit.trustead.pages.dev` to Clerk's allowed origins to unblock visual verification of `/sign-in`, `/sign-up`, `/vouch`, `/profile/*`, `/listings/*`, `/inbox/*`, `/settings/*`, `/alerts`, `/trips`, `/wishlists`, `/invite`, `/proposals`, `/help`, `/hosting/*`. The visual fixes are live in code on the branch and will work as soon as the branch merges to `main` (production hostname is allowed) or Clerk config is updated.
 
 
 
