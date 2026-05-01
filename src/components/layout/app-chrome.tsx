@@ -2,24 +2,28 @@
 
 // B4 chrome switcher. Renders one of two outer chromes based on
 // pathname:
-//   - SidebarShell: for /browse and /dashboard (interior "backend"
-//     surfaces — Loren wants persistent left-rail nav there).
-//   - DesktopNav + plain <main>: home (/) and every other route
-//     (Loren backed off the sidebar on the homepage; the locked
-//     hero + condensed search + marquees render against the
-//     original top-nav chrome).
+//   - SidebarShell: for the "interior" surfaces — Messages, Network,
+//     Trips, Listings, Wishlists, Host dashboard, Profile. Persistent
+//     left-rail nav there per Loren.
+//   - DesktopNav + plain <main>: the "front-of-house" surfaces —
+//     Home, Browse, Proposals, Vouch. Discovery / hero pages render
+//     against the original top-nav chrome with the locked design's
+//     condensed search treatment.
 //
 // To revert to top-nav across the board: empty SIDEBAR_SURFACES
-// below (or delete the array). The sidebar surfaces immediately fall
-// back to the original DesktopNav chrome with no other code changes.
+// below (or delete the array). The sidebar surfaces immediately
+// fall back to DesktopNav with no other code changes.
 
 import { usePathname } from "next/navigation";
 import { DesktopNav } from "./desktop-nav";
 import { SidebarShell } from "./sidebar-shell";
 
 const SIDEBAR_SURFACES: Array<string | RegExp> = [
-  "/browse",
-  /^\/dashboard(\/.*)?$/,
+  /^\/dashboard(\/.*)?$/, // Network, Listings, Host dashboard live here behind tabs
+  /^\/inbox(\/.*)?$/, // Messages
+  /^\/trips(\/.*)?$/,
+  /^\/wishlists(\/.*)?$/,
+  /^\/profile(\/.*)?$/,
 ];
 
 function isSidebarSurface(pathname: string): boolean {
