@@ -164,7 +164,31 @@ export interface TrustBadgeProps {
   onImage?: boolean;
   /** Optional click handler for the asymmetric vouch-back arrow. */
   onAsymmetricClick?: (direction: "outgoing" | "incoming") => void;
+  /** Render a small `?` circle at the end of the badge to hint that
+   *  the badge expands to show trust details on click/hover. Wraps
+   *  like TrustTagPopover automatically toggle this on; bare badges
+   *  with no popover should leave it off. */
+  showHelpHint?: boolean;
   className?: string;
+}
+
+function HelpHint({ size }: { size: "micro" | "medium" }) {
+  const dim = size === "micro" ? 13 : 15;
+  return (
+    <span
+      aria-hidden
+      className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold leading-none"
+      style={{
+        width: dim,
+        height: dim,
+        backgroundColor: "rgba(245,241,230,0.18)",
+        color: "rgba(245,241,230,0.85)",
+        fontSize: size === "micro" ? 9 : 10,
+      }}
+    >
+      ?
+    </span>
+  );
 }
 
 export function TrustBadge({
@@ -172,6 +196,7 @@ export function TrustBadge({
   data,
   onImage = false,
   onAsymmetricClick,
+  showHelpHint = false,
   className,
 }: TrustBadgeProps) {
   if (size === "macro") {
@@ -352,24 +377,22 @@ export function TrustBadge({
     );
   }
 
-  // 1° suppresses the standalone vouch chip per spec.
-  const showVouch = data.vouch !== null && data.degree !== 1;
+  // 1° suppresses the standalone vouch chip per spec. Below-coral
+  // scores (< 3) also suppress — the chip is meant to validate hosts
+  // who have a lot of vouches even without a strong viewer connection,
+  // so a low score adds noise rather than signal. The full vouch
+  // value still shows in the trust-detail popover.
+  const showVouch =
+    data.vouch !== null && data.vouch >= 3 && data.degree !== 1;
   const showRating = data.rating !== null && data.reviewCount > 0;
 
-  // Rating — uncontained star + value + (count). Penalized state
-  // (rating < 3.5) flips to red. Color picks light/dark variant from
-  // the surface (onImage).
-  const ratingWarn = data.rating !== null && data.rating < 3.5;
-  const ratingTextColor = onImage
-    ? ratingWarn
-      ? "#B91C1C"
-      : "#0B2E25"
-    : ratingWarn
-      ? "#FCA5A5"
-      : "#F5F1E6";
+  // Rating — uncontained star + value + (count). Always full white
+  // on dark surfaces; deep forest on light. No penalized red flip
+  // (per Loren — the rating value already speaks for itself).
+  const ratingTextColor = onImage ? "#0B2E25" : "#FFFFFF";
   const ratingMutedColor = onImage
     ? "rgba(11,46,37,0.55)"
-    : "rgba(245,241,230,0.55)";
+    : "rgba(255,255,255,0.6)";
   const ratingDim = size === "micro" ? 12 : 14;
   const ratingTextSize = size === "micro" ? "text-[11px]" : "text-xs";
   const ratingNode = showRating ? (
@@ -407,8 +430,10 @@ export function TrustBadge({
           <span
             key={c.id}
             title={c.viewerKnows ? c.name : "Mutual connection"}
-            className="inline-flex h-[22px] w-[22px] items-center justify-center overflow-hidden rounded-full"
+            className="inline-flex items-center justify-center overflow-hidden rounded-full"
             style={{
+              width: 22,
+              height: 22,
               border: `2px solid ${medConnectorRing}`,
               backgroundColor: medConnectorBg,
             }}
@@ -449,6 +474,7 @@ export function TrustBadge({
         <>
           {showVouch && <VouchPill score={data.vouch!} size="micro" />}
           {ratingNode}
+          {showHelpHint && <HelpHint size="micro" />}
         </>
       )}
       {size === "medium" && (
@@ -456,6 +482,7 @@ export function TrustBadge({
           {medConnectorStrip}
           {showVouch && <VouchPill score={data.vouch!} size="medium" />}
           {ratingNode}
+          {showHelpHint && <HelpHint size="medium" />}
         </>
       )}
     </span>
