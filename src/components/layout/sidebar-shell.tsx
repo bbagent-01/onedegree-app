@@ -10,7 +10,7 @@
 // a one-line edit: empty SIDEBAR_SURFACES in `app-chrome.tsx`.
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   Bell,
@@ -26,16 +26,24 @@ import {
   Settings,
   ShieldCheck,
   User,
+  Users,
 } from "lucide-react";
 import { TrusteadLogo } from "./trustead-logo";
-import { AccountMenu } from "./account-menu";
 
 type NavItem = {
   icon: typeof HomeIcon;
   label: string;
   href: string;
-  matches?: (pathname: string) => boolean;
+  matches?: (pathname: string, sp: URLSearchParams) => boolean;
 };
+
+// Sidebar items mirror the now-removed top-of-dashboard SectionNav so
+// every link in the old top tab row (Messages / Hosting / Trips /
+// Network / Proposals) has at least a high-level entry here. Network
+// is the only one that doesn't map 1:1 to a top-level route — it
+// lives on /dashboard?tab=network — so we route to that and rely on
+// the searchParams-aware matcher below for active state.
+const DASHBOARD_TAB_KEYS = ["network", "traveling", "proposals"] as const;
 
 const NAV_GROUPS: { id: string; items: NavItem[] }[] = [
   {
@@ -45,15 +53,42 @@ const NAV_GROUPS: { id: string; items: NavItem[] }[] = [
       { icon: Search, label: "Browse", href: "/browse" },
       { icon: Plane, label: "Proposals", href: "/proposals" },
       { icon: ShieldCheck, label: "Vouch", href: "/vouch" },
+      {
+        icon: Users,
+        label: "Network",
+        href: "/dashboard?tab=network",
+        matches: (p, sp) => p === "/dashboard" && sp.get("tab") === "network",
+      },
       { icon: MessageCircle, label: "Messages", href: "/inbox" },
-      { icon: Calendar, label: "Trips", href: "/trips" },
+      {
+        icon: Calendar,
+        label: "Trips",
+        href: "/trips",
+        matches: (p, sp) =>
+          p.startsWith("/trips") ||
+          (p === "/dashboard" && sp.get("tab") === "traveling"),
+      },
       { icon: User, label: "Profile", href: "/profile" },
     ],
   },
   {
     id: "host",
     items: [
-      { icon: LayoutDashboard, label: "Host dashboard", href: "/dashboard" },
+      {
+        icon: LayoutDashboard,
+        label: "Host dashboard",
+        href: "/dashboard",
+        // Highlight only when on /dashboard's hosting tab — i.e.
+        // pathname is /dashboard AND tab is unset / explicitly
+        // "hosting". Other dashboard tabs (network, traveling,
+        // proposals) light up their own sidebar items above.
+        matches: (p, sp) => {
+          if (p === "/hosting" || p.startsWith("/hosting/")) return true;
+          if (p !== "/dashboard") return false;
+          const tab = sp.get("tab");
+          return !tab || !DASHBOARD_TAB_KEYS.includes(tab as never);
+        },
+      },
     ],
   },
   {
@@ -86,14 +121,15 @@ const DEMO_NOTIFICATIONS = [
   },
 ];
 
-function isActive(item: NavItem, pathname: string) {
-  if (item.matches) return item.matches(pathname);
+function isActive(item: NavItem, pathname: string, sp: URLSearchParams) {
+  if (item.matches) return item.matches(pathname, sp);
   return pathname === item.href || pathname.startsWith(item.href + "/");
 }
 
 export function SidebarShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname() ?? "/";
+  const searchParams = useSearchParams() ?? new URLSearchParams();
   const unread = DEMO_NOTIFICATIONS.filter((n) => n.actionable).length;
   const w = collapsed ? "w-[64px]" : "w-[240px]";
 
@@ -135,7 +171,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
               <ul className="space-y-0.5 px-2">
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const active = isActive(item, pathname);
+                  const active = isActive(item, pathname, searchParams);
                   return (
                     <li key={item.label}>
                       <Link
@@ -158,15 +194,10 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        {/* Account menu — pinned just below the nav so the signed-in
-            user has an obvious sign-out / settings affordance now that
-            DesktopNav is hidden on these surfaces. Uses the existing
-            AccountMenu component (Clerk-integrated). */}
-        {!collapsed && (
-          <div className="shrink-0 border-t border-border px-3 py-3">
-            <AccountMenu />
-          </div>
-        )}
+        {/* AccountMenu removed per Loren — sign-out / account links
+            still reachable via the "Account settings" item in the
+            account group below, and via DesktopNav on every non-
+            sidebar surface. */}
 
         {collapsed ? (
           <div className="mt-2 flex flex-col items-center gap-2 px-2">
