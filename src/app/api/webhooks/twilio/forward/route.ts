@@ -92,8 +92,15 @@ export async function POST(req: NextRequest) {
 
   const from = formParams["From"] || "?";
   const body = formParams["Body"] || "";
-  const forwarded = `From ${from}: ${body}`;
 
+  if (from === FORWARD_TO) {
+    return new Response(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`, {
+      status: 200,
+      headers: { "Content-Type": "text/xml; charset=utf-8" },
+    });
+  }
+
+  const forwarded = `From ${from}: ${body}`;
   const xml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message to="${FORWARD_TO}">${escapeXml(forwarded)}</Message></Response>`;
   return new Response(xml, {
     status: 200,
