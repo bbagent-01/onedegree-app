@@ -41,6 +41,19 @@ jobs:
           NEXT_PUBLIC_ENABLE_IMPERSONATION: "true"
           IMPERSONATION_ADMIN_USER_IDS: user_3D00SQt8dNOVzlpKeAZ2Ux7KroV
 
+      - name: Set preview env vars on Pages project
+        # Cloudflare Pages stores env vars per deployment_config (production
+        # vs preview). deploy-prod.yml only sets the production block, so
+        # branch deploys land at runtime with empty Supabase + Clerk vars
+        # and any server component that reads them 500s. Mirror the same
+        # vars onto preview so the branch deploy is functional.
+        run: |
+          curl -s -X PATCH \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/trustead" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"deployment_configs\":{\"preview\":{\"env_vars\":{\"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}\"},\"CLERK_SECRET_KEY\":{\"type\":\"secret_text\",\"value\":\"${{ secrets.CLERK_SECRET_KEY }}\"},\"NEXT_PUBLIC_SUPABASE_URL\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}\"},\"NEXT_PUBLIC_SUPABASE_ANON_KEY\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}\"},\"SUPABASE_SERVICE_ROLE_KEY\":{\"type\":\"secret_text\",\"value\":\"${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}\"},\"NEXT_PUBLIC_APP_URL\":{\"type\":\"plain_text\",\"value\":\"https://feat-ux1-ux-audit.trustead.pages.dev\"},\"NEXT_PUBLIC_ENABLE_IMPERSONATION\":{\"type\":\"plain_text\",\"value\":\"true\"},\"IMPERSONATION_ADMIN_USER_IDS\":{\"type\":\"secret_text\",\"value\":\"user_3D00SQt8dNOVzlpKeAZ2Ux7KroV\"}}}}}"
+
       - name: Deploy preview branch to Cloudflare Pages
         run: npx wrangler pages deploy .vercel/output/static --project-name=trustead --branch=feat/ux1-ux-audit --commit-dirty=true
         env:
