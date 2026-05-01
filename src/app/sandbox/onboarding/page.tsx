@@ -118,7 +118,7 @@ const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
 // the logo up rather than vanishing first. The wrapper begins moving
 // up immediately on morph; the tagline waits a beat, then drifts up
 // + fades while the logo continues its journey.
-const TAGLINE_EXIT_DELAY_MS = 500;
+const TAGLINE_EXIT_DELAY_MS = 750;
 const TAGLINE_EXIT_DURATION_MS = 300;
 const TAGLINE_EXIT_TRANSLATE_PX = 0;
 
@@ -424,7 +424,7 @@ export default function SandboxOnboardingPage() {
             transition: `opacity ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms, transform ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms`,
           }}
         >
-          <p className="text-lg text-muted-foreground sm:text-xl">
+          <p className="text-lg text-white sm:text-xl">
             <AnimatedWords
               text="Rent your home with trust"
               stagger={TITLE_WORD_STAGGER_MS}
