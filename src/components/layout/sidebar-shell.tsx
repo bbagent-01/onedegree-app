@@ -15,9 +15,11 @@ import { useState } from "react";
 import {
   Bell,
   Calendar,
+  Heart,
   HelpCircle,
   Home as HomeIcon,
   LayoutDashboard,
+  ListChecks,
   MessageCircle,
   PanelLeftClose,
   PanelLeftOpen,
@@ -68,12 +70,23 @@ const NAV_GROUPS: { id: string; items: NavItem[] }[] = [
           p.startsWith("/trips") ||
           (p === "/dashboard" && sp.get("tab") === "traveling"),
       },
+      { icon: Heart, label: "Wishlists", href: "/wishlists" },
       { icon: User, label: "Profile", href: "/profile" },
     ],
   },
   {
     id: "host",
     items: [
+      {
+        icon: ListChecks,
+        label: "Listings",
+        // The live app doesn't have a standalone /listings management
+        // page — host listings render inline on the dashboard's
+        // hosting tab. Pointing the explicit "Listings" entry at the
+        // hosting tab so the label resolves to the right view; the
+        // broader "Host dashboard" entry below covers the rollup.
+        href: "/dashboard?tab=hosting",
+      },
       {
         icon: LayoutDashboard,
         label: "Host dashboard",
