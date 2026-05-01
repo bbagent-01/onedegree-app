@@ -76,6 +76,10 @@ interface TripWishSpec {
   description: string;
   destinations: string[];
   unsplashQuery: string;
+  /** Optional Wikipedia article slug to use for the fallback photo when
+   *  Unsplash is unavailable. Set this when destinations[0] doesn't
+   *  resolve to a Wikipedia page with an image (e.g. small towns). */
+  wikipediaFallbackSlug?: string;
   start_date?: string;
   end_date?: string;
   flexible_month?: string;
@@ -132,6 +136,7 @@ const TRIP_WISHES: TripWishSpec[] = [
       "Same as every year — pools, the cottage, time to read and write. Two weeks at minimum. Looking for someone who knows the area and can leave us alone.",
     destinations: ["Warm Springs, GA"],
     unsplashQuery: "warm springs georgia",
+    wikipediaFallbackSlug: "Little_White_House",
     start_date: "2027-01-12", end_date: "2027-01-26",
     guest_count: 4,
   },
@@ -142,6 +147,7 @@ const TRIP_WISHES: TripWishSpec[] = [
       "Want to walk the field at dawn. Quiet inn within walking distance of the cemetery, no tour groups, plain food. Coming alone with a notebook.",
     destinations: ["Gettysburg, PA"],
     unsplashQuery: "gettysburg battlefield",
+    wikipediaFallbackSlug: "Gettysburg_National_Military_Park",
     start_date: "2026-11-17", end_date: "2026-11-20",
     guest_count: 1,
   },
@@ -282,6 +288,7 @@ const TRIP_WISHES: TripWishSpec[] = [
       "Want to walk the convention site, visit the Stanton house, sit by the lake. Quiet inn within walking distance of downtown. Going with two friends from the cause.",
     destinations: ["Seneca Falls, NY"],
     unsplashQuery: "seneca falls new york",
+    wikipediaFallbackSlug: "Seneca_Falls_Convention",
     start_date: "2026-07-17", end_date: "2026-07-20",
     guest_count: 3,
   },
@@ -569,15 +576,16 @@ async function handle(req: Request) {
         photo_id: photo.id,
       };
     } else {
-      // Fallback: Wikimedia Commons photo for the first destination.
-      // Used when UNSPLASH_ACCESS_KEY isn't set on this env. The
-      // thumbnail_source value stays inside the migration 042
-      // CHECK constraint (unsplash_auto / unsplash_picked / null /
-      // user_uploaded) — we use null here and stash the Wikipedia
-      // page URL in attribution so it's auditable.
-      const wp = await wikipediaDestinationPhoto(t.destinations[0]);
+      // Fallback: Wikimedia Commons photo. Try the explicit
+      // wikipediaFallbackSlug first (for destinations that don't have
+      // a Wikipedia page with an image at the obvious slug — small
+      // towns, multi-word place names, etc.). Otherwise derive a slug
+      // from destinations[0]. Used when UNSPLASH_ACCESS_KEY isn't set.
+      const wp =
+        (t.wikipediaFallbackSlug && (await wikipediaDestinationPhoto(t.wikipediaFallbackSlug))) ||
+        (await wikipediaDestinationPhoto(t.destinations[0]));
       if (!wp) {
-        skipped.push({ title: t.title, reason: `no Unsplash key + no Wikipedia photo for "${t.destinations[0]}"` });
+        skipped.push({ title: t.title, reason: `no Unsplash key + no Wikipedia photo for "${t.destinations[0]}" (fallback slug: ${t.wikipediaFallbackSlug ?? "none"})` });
         continue;
       }
       thumbnail_url = wp.url;
