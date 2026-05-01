@@ -43,6 +43,10 @@ interface Props {
     degree: 1 | 2 | 3 | 4 | null;
     hasDirectVouch: boolean;
     connectorPaths: ConnectorPathSummary[];
+    /** Host's platform-wide vouch score (users.vouch_score). */
+    vouchScore?: number | null;
+    hostRating?: number | null;
+    hostReviewCount?: number;
   } | null;
 }
 
@@ -268,6 +272,9 @@ export function BookingSidebar({
                 degree={trust.degree}
                 direct={trust.hasDirectVouch}
                 connectorPaths={trust.connectorPaths}
+                vouchScore={trust.vouchScore}
+                hostRating={trust.hostRating ?? null}
+                hostReviewCount={trust.hostReviewCount ?? 0}
               />
             </div>
           )}

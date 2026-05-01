@@ -51,15 +51,18 @@ export function TrustTagPopover({
   // Hover affordance — a subtle white rounded container with a soft
   // drop shadow appears on hover so viewers see the pill is
   // interactive without cluttering the tag's default rendering. The
-  // inline-flex + negative padding compensation keeps the pill's
-  // layout identical to the plain <TrustTag> when not hovered.
+  // small `?` glyph at the end of the badge is a permanent hint that
+  // the row is interactive even before hover. Wider padding gives
+  // the click target some breathing room without shifting the
+  // surrounding layout (negative margins compensate so the pill's
+  // resting position is unchanged).
   return (
     <ConnectionPopover
       targetUserId={targetUserId}
       direction={direction}
     >
-      <span className="-mx-1 -my-0.5 inline-flex cursor-pointer rounded-lg px-1 py-0.5 transition-all hover:bg-white hover:shadow-sm hover:ring-1 hover:ring-black/5">
-        <TrustTag {...tagProps} />
+      <span className="-mx-2 -my-1 inline-flex cursor-pointer rounded-xl px-2 py-1 transition-all hover:bg-white hover:shadow-sm hover:ring-1 hover:ring-black/5">
+        <TrustTag {...tagProps} showHelpHint />
       </span>
     </ConnectionPopover>
   );

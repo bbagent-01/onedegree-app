@@ -12,7 +12,6 @@ import { EarningsSection } from "@/components/hosting/earnings-section";
 import { NetworkSection } from "@/components/trust/network-section";
 import { TripsList } from "@/components/trips/trips-list";
 import { UnifiedDashboard } from "./unified-dashboard";
-import { SectionNav } from "@/components/layout/section-nav";
 import { DashboardWelcomeBanner } from "@/components/dashboard/dashboard-welcome-banner";
 import { MyProposalsSection } from "@/components/dashboard/my-proposals-section";
 import { Plus } from "lucide-react";
@@ -119,7 +118,10 @@ export async function DashboardContent({
 
   return (
     <>
-      <SectionNav />
+      {/* B4: SectionNav removed — duplicate of the new sidebar nav.
+          Every link it carried (Messages / Hosting / Trips / Network
+          / Proposals) is represented in the SidebarShell at the
+          surface level. */}
       <div className="mx-auto w-full max-w-[1600px] px-6 py-10 lg:px-10">
         <div>
           <h1 className="text-3xl font-bold text-foreground">

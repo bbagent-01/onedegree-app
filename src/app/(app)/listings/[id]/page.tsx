@@ -327,6 +327,7 @@ export default async function ListingPage({
                         degree={trust.degree}
                         direct={trust.hasDirectVouch}
                         connectorPaths={trust.connectorPaths}
+                        vouchScore={listing.host.vouch_score}
                         hostRating={listing.host.host_rating}
                         hostReviewCount={listing.host.host_review_count}
                       />
@@ -402,6 +403,9 @@ export default async function ListingPage({
                     degree: trust.degree,
                     hasDirectVouch: trust.hasDirectVouch,
                     connectorPaths: trust.connectorPaths,
+                    vouchScore: listing.host?.vouch_score ?? null,
+                    hostRating: listing.host?.host_rating ?? null,
+                    hostReviewCount: listing.host?.host_review_count ?? 0,
                   }
                 : null
             }
@@ -561,6 +565,7 @@ export default async function ListingPage({
                         degree={trust.degree}
                         direct={trust.hasDirectVouch}
                         connectorPaths={trust.connectorPaths}
+                        vouchScore={listing.host.vouch_score}
                         hostRating={listing.host.host_rating}
                         hostReviewCount={listing.host.host_review_count}
                       />

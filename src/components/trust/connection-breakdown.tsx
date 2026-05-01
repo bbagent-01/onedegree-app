@@ -9,8 +9,8 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   CheckCircle2,
-  EyeOff,
   Loader2,
+  Shield,
   User as UserIcon,
   Users,
   UserX,
@@ -39,60 +39,80 @@ interface PathInfo {
   connector_vouch_power: number;
 }
 
+// Shared vouch-score fields included on every variant so the popover
+// can always render "what does the vouch score mean" — even on
+// not_connected / direct branches.
+interface TargetVouchFields {
+  /** users.vouch_score (0–10). null when unset. */
+  targetVouchScore?: number | null;
+  /** users.vouch_count_received — feeds the math display. */
+  targetVouchCount?: number | null;
+}
+
+interface DirectForwardData extends TargetVouchFields {
+  type: "direct_forward";
+  direction?: "outgoing" | "incoming";
+  targetName: string;
+  vouch: VouchInfo;
+  reverseVouch: VouchInfo | null;
+}
+
+interface DirectReverseData extends TargetVouchFields {
+  type: "direct_reverse";
+  direction?: "outgoing" | "incoming";
+  targetName: string;
+  vouch: VouchInfo;
+}
+
+interface ConnectedData extends TargetVouchFields {
+  type: "connected";
+  direction?: "outgoing" | "incoming";
+  targetName: string;
+  targetAvatar?: string | null;
+  viewerAvatar?: string | null;
+  score: number;
+  paths: PathInfo[];
+  connection_count: number;
+}
+
+interface NotConnectedData extends TargetVouchFields {
+  type: "not_connected";
+  direction?: "outgoing" | "incoming";
+  targetName: string;
+}
+
+interface MultiHopData extends TargetVouchFields {
+  type: "multi_hop";
+  direction?: "outgoing" | "incoming";
+  targetName: string;
+  degree: 3 | 4;
+  /** Ordered chain of user profiles along the reachable path.
+   *  Incoming: [target, ..., viewer]. Outgoing: [viewer, ..., target]. */
+  path: Array<{
+    id: string;
+    name: string;
+    avatar_url: string | null;
+  }>;
+  /** Every simple path between viewer and target up to 4 hops,
+   *  oriented same as `path` (target-first for incoming,
+   *  viewer-first for outgoing). Up to 10 entries. */
+  chains?: Array<{
+    nodes: Array<{ id: string; name: string; avatar_url: string | null }>;
+    linkStrengths: number[];
+    composite: number;
+    degree: number;
+  }>;
+  /** Count of chains beyond the 10-cap returned in `chains`. */
+  chainsTruncated?: number;
+}
+
 type ConnectionData =
   | { type: "self" }
-  | {
-      type: "direct_forward";
-      direction?: "outgoing" | "incoming";
-      targetName: string;
-      vouch: VouchInfo;
-      reverseVouch: VouchInfo | null;
-    }
-  | {
-      type: "direct_reverse";
-      direction?: "outgoing" | "incoming";
-      targetName: string;
-      vouch: VouchInfo;
-    }
-  | {
-      type: "connected";
-      direction?: "outgoing" | "incoming";
-      targetName: string;
-      targetAvatar?: string | null;
-      viewerAvatar?: string | null;
-      score: number;
-      paths: PathInfo[];
-      connection_count: number;
-    }
-  | {
-      type: "not_connected";
-      direction?: "outgoing" | "incoming";
-      targetName: string;
-    }
-  | {
-      type: "multi_hop";
-      direction?: "outgoing" | "incoming";
-      targetName: string;
-      degree: 3 | 4;
-      /** Ordered chain of user profiles along the reachable path.
-       *  Incoming: [target, ..., viewer]. Outgoing: [viewer, ..., target]. */
-      path: Array<{
-        id: string;
-        name: string;
-        avatar_url: string | null;
-      }>;
-      /** Every simple path between viewer and target up to 4 hops,
-       *  oriented same as `path` (target-first for incoming,
-       *  viewer-first for outgoing). Up to 10 entries. */
-      chains?: Array<{
-        nodes: Array<{ id: string; name: string; avatar_url: string | null }>;
-        linkStrengths: number[];
-        composite: number;
-        degree: number;
-      }>;
-      /** Count of chains beyond the 10-cap returned in `chains`. */
-      chainsTruncated?: number;
-    };
+  | DirectForwardData
+  | DirectReverseData
+  | ConnectedData
+  | NotConnectedData
+  | MultiHopData;
 
 // ── Helpers ──
 
@@ -240,6 +260,14 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
         <p className="mt-1 text-xs text-muted-foreground">
           Invite mutual friends or ask for an introduction.
         </p>
+        {typeof data.targetVouchScore === "number" &&
+          data.targetVouchScore > 0 && (
+            <VouchScoreSection
+              score={data.targetVouchScore}
+              count={data.targetVouchCount ?? 0}
+              targetName={data.targetName}
+            />
+          )}
       </div>
     );
   }
@@ -306,6 +334,14 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
             </div>
           </div>
         )}
+        {typeof data.targetVouchScore === "number" &&
+          data.targetVouchScore > 0 && (
+            <VouchScoreSection
+              score={data.targetVouchScore}
+              count={data.targetVouchCount ?? 0}
+              targetName={data.targetName}
+            />
+          )}
       </div>
     );
   }
@@ -452,6 +488,111 @@ function TrustDetailView({ data }: { data: ConnectionData }) {
           <div className="text-[10px] text-muted-foreground/70">
             Numeric-only view. Vouch type and years-known stay hidden
             to protect each voucher&apos;s privacy.
+          </div>
+        </div>
+      )}
+      {typeof data.targetVouchScore === "number" &&
+        data.targetVouchScore > 0 && (
+          <VouchScoreSection
+            score={data.targetVouchScore}
+            count={data.targetVouchCount ?? 0}
+            targetName={data.targetName}
+          />
+        )}
+    </div>
+  );
+}
+
+/** Platform-wide vouch score block. Always rendered in the popover
+ *  so viewers can see what the score means even when it doesn't
+ *  appear on the badge (we suppress chips below 3 there). Includes
+ *  a tone bucket + a one-line explanation + an expandable math
+ *  breakdown. */
+function VouchScoreSection({
+  score,
+  count,
+  targetName,
+}: {
+  score: number;
+  count: number;
+  targetName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const tier =
+    score >= 5
+      ? { color: "#1BEAA5", label: "Strong" }
+      : score >= 4
+        ? { color: "#39BFF8", label: "Modest" }
+        : score >= 3
+          ? { color: "#FDD34D", label: "Light" }
+          : { color: "#FF8F8F", label: "Limited" };
+
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <div className="text-[10px] font-mono uppercase tracking-[0.12em] text-muted-foreground">
+            Vouch score
+          </div>
+          <div className="mt-0.5 flex items-baseline gap-1.5">
+            <span
+              className="inline-flex items-center gap-1 text-base font-semibold tabular-nums"
+              style={{ color: tier.color }}
+            >
+              <Shield
+                className="h-3.5 w-3.5"
+                fill="currentColor"
+                strokeWidth={0}
+              />
+              {score.toFixed(1)}
+            </span>
+            <span className="text-[11px] text-muted-foreground">/ 10</span>
+            <span
+              className="ml-1 text-[10px] font-semibold uppercase tracking-wide"
+              style={{ color: tier.color }}
+            >
+              {tier.label}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="shrink-0 rounded-md border border-border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/40"
+        >
+          {open ? "Hide math" : "Show math"}
+        </button>
+      </div>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+        Platform-wide measure of how many people have vouched for{" "}
+        {targetName} and how strong those vouches are. Independent of your
+        personal connection — useful for spotting trustworthy hosts even
+        when you don&apos;t share mutuals yet.
+      </p>
+      {open && (
+        <div className="mt-2 rounded-lg bg-muted/30 p-2.5 text-[11px] font-mono space-y-1.5 text-foreground">
+          <div>
+            <span className="font-semibold">Formula:</span>
+            <br />
+            score = 10 × (1 − e^(−signal / 30))
+          </div>
+          <div>
+            <span className="font-semibold">Signal:</span>
+            <br />
+            signal = Σ vouch_power(j) × log(2 + vouch_signal(j))
+          </div>
+          <div>
+            …summed over every inbound vouch (j → {targetName}). Stronger
+            vouchers (higher vouch_power) and vouchers who themselves have
+            high signal carry more weight, so a few well-vetted vouchers
+            beat many weak ones.
+          </div>
+          <div className="border-t border-border pt-1.5 text-muted-foreground">
+            {count} inbound{" "}
+            {count === 1 ? "vouch" : "vouches"} · current score{" "}
+            <span className="font-semibold" style={{ color: tier.color }}>
+              {score.toFixed(1)}
+            </span>
           </div>
         </div>
       )}
@@ -768,6 +909,15 @@ function MultiHopView({
           )}
         </div>
       )}
+
+      {typeof data.targetVouchScore === "number" &&
+        data.targetVouchScore > 0 && (
+          <VouchScoreSection
+            score={data.targetVouchScore}
+            count={data.targetVouchCount ?? 0}
+            targetName={data.targetName}
+          />
+        )}
     </div>
   );
 }
@@ -812,6 +962,10 @@ function ChainRow({
       <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
+      {/* Avatar row + strength pills row vertically aligned around the
+          avatar center. The `LinkStrengthPill` is sized to match the
+          avatar's vertical midpoint and the row overall is `items-center`
+          so the pill caps at the same baseline as the avatar circle. */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1">
         {displayNodes.map((node, i) => {
           const isTarget = i === 0;
@@ -843,44 +997,54 @@ function ChainRow({
 }
 
 /**
- * Compact strength chip shown between two chain nodes. Uses the
- * same trustTier palette as the rest of the app so the color
- * buckets read consistently.
- */
-/**
- * Pill rendered between two adjacent people in a chain row. Always
- * a single-edge vouch score (1° link), so it uses the purple
- * palette reserved for 1° vouches — never the emerald trust-tier
- * ramp, which is reserved for composite / multi-path scores. The
- * pill's specific shade still scales with strength so stronger
- * vouches read visibly heavier, matching the emerald ramp on 2°
- * composite pills.
+ * Pill rendered between two adjacent people in a chain row. Each
+ * link is a 1° vouch — we render that as a small "1°" pill and
+ * color-code by strength so the chain reads at a glance:
+ *
+ *   ≤ 14   → mustard (yellow) — weak vouch
+ *   15–30  → sky (blue)        — modest vouch
+ *   ≥ 31   → mint (green)      — strong vouch
+ *
+ * Numeric value is preserved in the title attribute for hover
+ * inspection. Centered vertically with the avatars so the row
+ * reads as a clean horizontal sequence.
  */
 function LinkStrengthPill({ strength }: { strength: number }) {
+  // Wrapper aligns the pill to the AVATAR center (not the segment
+  // total height — segments include the name label below the
+  // avatar). The `mt-` value matches half the avatar height (40/2=20)
+  // minus half the pill height so the pill caps at the avatar's
+  // vertical midpoint.
   if (!strength || strength <= 0) {
     return (
-      <span className="mx-0.5 h-px w-3 shrink-0 bg-zinc-300" aria-hidden />
+      <span
+        className="mx-0.5 inline-flex shrink-0 items-center"
+        style={{ height: 40 }}
+        aria-hidden
+      >
+        <span className="h-px w-3 bg-zinc-300" />
+      </span>
     );
   }
   const rounded = Math.round(strength);
-  // Purple/violet ramp mirroring trustTier's emerald buckets.
   const bucket =
-    strength >= 50
-      ? { bg: "bg-violet-700", label: "Very strong" }
-      : strength >= 30
-        ? { bg: "bg-violet-500", label: "Strong" }
-        : strength >= 15
-          ? { bg: "bg-violet-400", label: "Modest" }
-          : { bg: "bg-violet-300 text-violet-900", label: "Weak" };
+    strength >= 31
+      ? { bg: "#1BEAA5", fg: "#0B2E25", label: "Strong" }
+      : strength >= 15
+        ? { bg: "#39BFF8", fg: "#0B2E25", label: "Modest" }
+        : { bg: "#FDD34D", fg: "#0B2E25", label: "Weak" };
   return (
     <span
-      className={cn(
-        "mx-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold text-white",
-        bucket.bg
-      )}
-      title={`${bucket.label} 1° vouch · ${rounded} pts`}
+      className="mx-0.5 inline-flex shrink-0 items-center"
+      style={{ height: 40 }}
     >
-      {rounded}
+      <span
+        className="inline-flex items-center rounded-full px-1.5 py-[1px] text-[10px] font-semibold leading-none tabular-nums"
+        style={{ backgroundColor: bucket.bg, color: bucket.fg }}
+        title={`${bucket.label} 1° vouch · ${rounded} pts`}
+      >
+        1°
+      </span>
     </span>
   );
 }
@@ -929,31 +1093,22 @@ function ChainSegment({
           <div className="flex h-full w-full items-center justify-center text-xs font-semibold">
             {initials(name)}
           </div>
-        ) : avatarUrl ? (
-          // Anonymized: blur the photo, then overlay a centered
-          // outlined eye-off so the "hidden identity" cue sits on
-          // top of the avatar itself instead of a corner badge.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={avatarUrl}
-            alt={resolvedLabel}
-            className="h-full w-full scale-125 object-cover blur-md"
-          />
+        ) : anonymized ? (
+          // Anonymized intermediary — a small "incognito" cartoon
+          // face on a soft tinted circle. Friendlier than the prior
+          // blurred-photo + eye-off treatment, and doesn't tease
+          // the actual photo through a blur (privacy improvement).
+          <div
+            className="flex h-full w-full items-center justify-center text-xl"
+            style={{ backgroundColor: "rgba(245, 241, 230, 0.18)" }}
+            aria-label="Anonymous mutual connection"
+          >
+            <span aria-hidden>🥸</span>
+          </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <UserIcon className="h-4 w-4 text-muted-foreground" />
           </div>
-        )}
-        {anonymized && (
-          <span
-            className="pointer-events-none absolute inset-0 flex items-center justify-center"
-            aria-hidden
-          >
-            <EyeOff
-              className="h-4 w-4 text-zinc-700"
-              strokeWidth={2.25}
-            />
-          </span>
         )}
       </div>
       <div className="max-w-[4.5rem] truncate text-[10px] font-medium text-muted-foreground">

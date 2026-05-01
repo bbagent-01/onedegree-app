@@ -11,6 +11,9 @@ export interface BrowseHost {
   host_rating: number | null;
   /** Number of reviews the host has received. */
   host_review_count: number;
+  /** Host's platform-wide vouch score (users.vouch_score, 0-10).
+   *  Feeds the TrustBadge's vouch chip. */
+  vouch_score: number | null;
 }
 
 export interface BrowseListing {
@@ -172,7 +175,7 @@ export async function getBrowseListings(
   const hostIds = [...new Set(filtered.map((l) => l.host_id))];
   const { data: hosts } = await supabase
     .from("users")
-    .select("id, name, avatar_url, host_rating, host_review_count")
+    .select("id, name, avatar_url, host_rating, host_review_count, vouch_score")
     .in("id", hostIds);
 
   const hostById = new Map<string, BrowseHost>();
@@ -183,6 +186,7 @@ export async function getBrowseListings(
       avatar_url: string | null;
       host_rating: number | null;
       host_review_count: number | null;
+      vouch_score: number | null;
     };
     hostById.set(row.id, {
       id: row.id,
@@ -190,6 +194,7 @@ export async function getBrowseListings(
       avatar_url: row.avatar_url,
       host_rating: row.host_rating ?? null,
       host_review_count: row.host_review_count ?? 0,
+      vouch_score: row.vouch_score ?? null,
     });
   }
 
