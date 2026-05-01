@@ -430,7 +430,7 @@ function InviteShareContent() {
               </div>
 
               {existing.kind === "self" && (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   <p>That&apos;s your own number. You can&apos;t vouch for yourself.</p>
                 </div>
@@ -520,7 +520,7 @@ function InviteShareContent() {
                 </p>
               </div>
 
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
                 <p className="font-medium">Heads up</p>
                 <p className="mt-1 text-xs">
                   This link auto-vouches the first person who signs up with
@@ -592,7 +592,7 @@ function InviteShareContent() {
                 </p>
               </div>
 
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
                 <p className="font-medium">Heads up</p>
                 <p className="mt-1 text-xs">
                   Drop this link in a group chat. The first {maxClaims} people

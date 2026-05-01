@@ -313,13 +313,13 @@ function InvitePageContent() {
                 the info step so the user sees the consequence of the
                 number they just typed before moving on. */}
             {existing.kind === "self" && (
-              <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                 <div className="text-sm leading-relaxed">
-                  <p className="font-semibold text-amber-900">
+                  <p className="font-semibold text-amber-100">
                     That&apos;s your own account
                   </p>
-                  <p className="mt-1 text-amber-900/80">
+                  <p className="mt-1 text-amber-100/80">
                     You entered the phone or email on your own account. Change
                     the contact info to invite someone else.
                   </p>

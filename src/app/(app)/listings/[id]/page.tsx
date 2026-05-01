@@ -502,7 +502,7 @@ export default async function ListingPage({
                   {listing.host_payment_method_types.map((t) => (
                     <span
                       key={t}
-                      className="inline-flex items-center rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-800"
+                      className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-[var(--tt-cream)]"
                     >
                       {PAYMENT_METHOD_META.find((m) => m.key === t)?.label ?? t}
                     </span>

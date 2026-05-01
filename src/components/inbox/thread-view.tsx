@@ -96,22 +96,31 @@ function bookingBadge(
   // the guest has actually accepted the offer.
   const effective =
     status === "accepted" && !termsAcceptedAt ? "pending" : status;
+  // Status badges tuned for the dark forest bg — the previous
+  // bg-{color}-100 / text-{color}-800 pairs (light-theme defaults)
+  // rendered as bright pill islands that broke the brand. Translucent
+  // tinted backgrounds + readable foreground colors sit naturally on
+  // the dark surface while still differentiating each status.
   const map: Record<string, { label: string; className: string }> = {
     pending: {
       label: "Pending",
-      className: "bg-amber-100 text-amber-800 hover:bg-amber-100",
+      className:
+        "border border-amber-400/30 bg-amber-400/15 text-amber-200 hover:bg-amber-400/15",
     },
     accepted: {
       label: "Connected",
-      className: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+      className:
+        "border border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/15 text-[var(--tt-mint)] hover:bg-[var(--tt-mint-mid)]/15",
     },
     declined: {
       label: "Declined",
-      className: "bg-red-100 text-red-800 hover:bg-red-100",
+      className:
+        "border border-red-400/30 bg-red-400/15 text-red-200 hover:bg-red-400/15",
     },
     cancelled: {
       label: "Cancelled",
-      className: "bg-zinc-100 text-zinc-700 hover:bg-zinc-100",
+      className:
+        "border border-white/10 bg-white/5 text-[var(--tt-cream-muted)] hover:bg-white/5",
     },
   };
   const m = map[effective];
