@@ -3,6 +3,7 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { Footer } from "@/components/layout/footer";
 import { VouchBackToaster } from "@/components/trust/vouch-back-toaster";
 import SandboxApplier from "@/components/dev/SandboxApplier";
+import { OnboardingMount } from "@/components/onboarding/OnboardingMount";
 
 // ALPHA ONLY (CC-Dev1): compile-time gate. `NEXT_PUBLIC_*` env vars
 // are inlined by Next.js at build time, so when this evaluates to
@@ -71,6 +72,11 @@ export default async function AppLayout({
           {sandboxMount}
         </div>
       )}
+      {/* Show-once onboarding takeover. Server-checked: returns null
+          unless the signed-in user has users.onboarding_seen_at IS
+          NULL. Mounts last so it sits on top of nav/footer/cookie
+          banner via z-[60]. */}
+      <OnboardingMount />
     </div>
   );
 }
