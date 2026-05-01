@@ -547,63 +547,75 @@ function SiteSidebar({
 // ── Condensed search ───────────────────────────────────────────
 
 function CondensedSearch() {
+  // Outer rail height + inner-pill geometry are bound together: the
+  // 68px container has 8px of inset padding (p-2), so the inner active
+  // pill is 52px tall (= 68 − 8·2). That makes the gap from pill→top
+  // of container equal to the gap from pill→left of container —
+  // visually balanced, the way the search-circle sits inside the
+  // search bar on the right.
   return (
     <div className="mx-auto mt-8 flex w-full max-w-[1280px] flex-wrap items-center gap-3">
-      {/* Travel/Host — separate pill on the LEFT, mirroring Filters on
-          the right. White pill, active state mint, inactive plain text. */}
-      <div className="flex h-[68px] shrink-0 items-center gap-1 rounded-full bg-white px-2 shadow-search">
+      {/* Travel / Host segmented pill — same dark-on-forest treatment
+          as the search bar so the row reads as one continuous control
+          surface. Active = mint pill (brand). Inactive = cream text on
+          transparent, with a soft hover tint so "Host" is always
+          legible against the dark page bg. */}
+      <div className="flex h-[68px] shrink-0 items-center gap-1 rounded-full border border-border bg-card/40 p-2">
         <button
           type="button"
-          className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground"
+          className="inline-flex h-[52px] items-center rounded-full bg-brand px-5 text-sm font-semibold text-brand-foreground"
         >
           Travel
         </button>
         <button
           type="button"
-          className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+          className="inline-flex h-[52px] items-center rounded-full px-5 text-sm font-medium text-foreground/80 hover:bg-card/60 hover:text-foreground"
         >
           Host
         </button>
       </div>
 
-      {/* Big white search pill — flex-1 so it fills the row. Full-height
-          dividers inside, matching live /browse style. Where takes the
-          remaining space (flex-1) so the bar reads wide like the live
-          search bar. */}
-      <div className="flex h-[68px] min-w-0 flex-1 items-stretch overflow-hidden rounded-full bg-white shadow-search">
+      {/* Search pill — dark transparent bg + faint cream border so it
+          sits on the forest field the same way the Filters button does.
+          Internal dividers use bg-border (the same faint cream/green
+          line used everywhere else in the design) instead of the
+          previous bright zinc-200. */}
+      <div className="flex h-[68px] min-w-0 flex-1 items-stretch rounded-full border border-border bg-card/40">
         {/* Where — fills available width */}
-        <div className="flex min-w-0 flex-1 flex-col justify-center px-6 text-left">
-          <p className="text-[11px] font-bold leading-tight text-zinc-900">
+        <div className="flex min-w-0 flex-1 flex-col justify-center pl-6 pr-4 text-left">
+          <p className="text-[11px] font-bold leading-tight text-foreground">
             Where
           </p>
-          <p className="truncate text-sm leading-tight text-zinc-500">
+          <p className="truncate text-sm leading-tight text-muted-foreground">
             Search destinations
           </p>
         </div>
 
-        <span className="w-px bg-zinc-200" aria-hidden />
+        <span className="my-3 w-px bg-border" aria-hidden />
 
         {/* When */}
         <div className="flex shrink-0 flex-col justify-center px-6 text-left">
-          <p className="text-[11px] font-bold leading-tight text-zinc-900">
+          <p className="text-[11px] font-bold leading-tight text-foreground">
             When
           </p>
-          <p className="text-sm leading-tight text-zinc-500">Any week</p>
+          <p className="text-sm leading-tight text-muted-foreground">Any week</p>
         </div>
 
-        <span className="w-px bg-zinc-200" aria-hidden />
+        <span className="my-3 w-px bg-border" aria-hidden />
 
-        {/* Who + search circle */}
+        {/* Who + search circle — circle is 52px to match the Travel
+            pill height, with 8px inset on the right so it lands flush
+            with the container's symmetric padding. */}
         <div className="flex shrink-0 items-center pl-6 pr-2">
           <div className="mr-3 text-left">
-            <p className="text-[11px] font-bold leading-tight text-zinc-900">
+            <p className="text-[11px] font-bold leading-tight text-foreground">
               Who
             </p>
-            <p className="text-sm leading-tight text-zinc-500">Add guests</p>
+            <p className="text-sm leading-tight text-muted-foreground">Add guests</p>
           </div>
           <button
             type="button"
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-brand-foreground hover:bg-brand-300"
+            className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-brand-foreground transition-colors hover:bg-brand-300"
             aria-label="Search"
           >
             <Search className="h-4 w-4" />
@@ -611,7 +623,8 @@ function CondensedSearch() {
         </div>
       </div>
 
-      {/* Filters — separate pill */}
+      {/* Filters — same height + same border + same fill as the rest
+          of the row. */}
       <button
         type="button"
         className="inline-flex h-[68px] shrink-0 items-center gap-2 rounded-full border border-border bg-card/40 px-6 text-sm font-medium text-foreground hover:bg-card/60"
