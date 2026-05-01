@@ -118,7 +118,7 @@ const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
 // the logo up rather than vanishing first. The wrapper begins moving
 // up immediately on morph; the tagline waits a beat, then drifts up
 // + fades while the logo continues its journey.
-const TAGLINE_EXIT_DELAY_MS = 800;
+const TAGLINE_EXIT_DELAY_MS = 1300;
 const TAGLINE_EXIT_DURATION_MS = 800;
 const TAGLINE_EXIT_TRANSLATE_PX = 24;
 
