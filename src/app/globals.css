@@ -569,9 +569,13 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
    token system — they're scoped to specific page features.
 ─────────────────────────────────────────────────────────────── */
 
-/* Long-form legal documents: ToS, Privacy Policy, /legal-status. */
+/* Long-form legal documents: ToS, Privacy Policy, /legal-status.
+   Uses Trustead theme tokens so prose stays legible on the dark
+   forest body bg. The hardcoded Attio-Light values (#1A1D21 navy
+   text, #734796 purple sec-num, #E5E7EB rule, #F8F9FA code bg) made
+   the body copy invisible on the new dark theme — compliance bug. */
 .legal-prose {
-  color: #1a1d21;
+  color: var(--tt-cream);
   font-size: 15px;
   line-height: 1.65;
 }
@@ -581,8 +585,9 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
   letter-spacing: -0.01em;
   margin: 28px 0 10px 0;
   padding-top: 18px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--tt-rule);
   scroll-margin-top: 80px;
+  color: var(--tt-cream);
 }
 .legal-prose h2:first-child {
   border-top: none;
@@ -593,43 +598,47 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
   font-size: 14px;
   font-weight: 700;
   margin: 18px 0 6px 0;
+  color: var(--tt-cream);
 }
 .legal-prose .sec-num {
   font-family: "JetBrains Mono", monospace;
-  color: #734796;
+  color: var(--tt-mint);
   font-weight: 500;
   margin-right: 8px;
 }
 .legal-prose p {
   margin: 0 0 10px 0;
+  color: var(--tt-cream);
 }
 .legal-prose ul,
 .legal-prose ol {
   margin: 4px 0 12px 0;
   padding-left: 22px;
+  color: var(--tt-cream);
 }
 .legal-prose li {
   margin-bottom: 5px;
 }
 .legal-prose strong {
-  color: #1a1d21;
+  color: var(--tt-cream);
   font-weight: 700;
 }
 .legal-prose em {
   font-style: italic;
 }
 .legal-prose a {
-  color: #1a1d21;
+  color: var(--tt-mint);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 .legal-prose a:hover {
-  color: #734796;
+  color: var(--tt-cream);
 }
 .legal-prose code {
   font-family: "JetBrains Mono", monospace;
   font-size: 13px;
-  background: #f8f9fa;
+  background: rgba(245, 241, 230, 0.08);
+  color: var(--tt-cream);
   padding: 1px 5px;
   border-radius: 4px;
 }
