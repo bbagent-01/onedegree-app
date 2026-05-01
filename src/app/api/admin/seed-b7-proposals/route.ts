@@ -581,7 +581,7 @@ async function handle(req: Request) {
         continue;
       }
       thumbnail_url = wp.url;
-      thumbnail_source = "user_uploaded"; // best-fit value within CHECK constraint
+      thumbnail_source = "user_upload"; // best-fit value within CHECK constraint (allowed: unsplash_auto | unsplash_picked | user_upload)
       thumbnail_attribution = {
         source: "wikimedia_commons",
         wikipedia_page: wp.attribution,
