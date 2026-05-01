@@ -485,8 +485,20 @@ function SignUpInner() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col px-4 py-8 md:py-16">
+      <Link
+        href="/"
+        aria-label="Trustead home"
+        className="mb-8 inline-flex justify-center self-center"
+      >
+        <iframe
+          src="/assets/logo-animation/trustead-logo-animation-white.html"
+          className="h-12 w-44 border-0"
+          tabIndex={-1}
+          title="Trustead"
+        />
+      </Link>
       <header className="text-center">
-        <h1 className="text-3xl font-bold md:text-4xl">Create your account</h1>
+        <h1 className="font-serif text-3xl font-bold md:text-4xl">Create your account</h1>
         {step === "dob" && (
           <p className="mt-2 text-sm text-muted-foreground">
             Before we start, we need to confirm you&rsquo;re old enough to use

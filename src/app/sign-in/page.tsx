@@ -196,8 +196,20 @@ function SignInInner() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col px-4 py-8 md:py-16">
+      <Link
+        href="/"
+        aria-label="Trustead home"
+        className="mb-8 inline-flex justify-center self-center"
+      >
+        <iframe
+          src="/assets/logo-animation/trustead-logo-animation-white.html"
+          className="h-12 w-44 border-0"
+          tabIndex={-1}
+          title="Trustead"
+        />
+      </Link>
       <header className="text-center">
-        <h1 className="text-3xl font-bold md:text-4xl">Welcome back</h1>
+        <h1 className="font-serif text-3xl font-bold md:text-4xl">Welcome back</h1>
         {step === "phone" && (
           <p className="mt-2 text-sm text-muted-foreground">
             Sign in with your phone number.
