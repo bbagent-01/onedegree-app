@@ -18,7 +18,10 @@ type Slide = {
   eyebrow: string;
   titleLines: [string, string];
   titleEmphasis?: { word: string; className: string };
-  body: string;
+  // String body renders inline. A 2-element tuple renders the
+  // two parts on a single line on mobile (joined by a space) and on
+  // separate lines on desktop (md:block break between them).
+  body: string | [string, string];
   Visual: React.ComponentType | null;
 };
 
@@ -31,7 +34,10 @@ const SLIDES: Slide[] = [
     eyebrow: "The problem",
     titleLines: ["Renting your actual home,", "actually isn't great"],
     titleEmphasis: { word: "actually", className: "italic text-brand-300" },
-    body: "So most people just don't do it. Losing out on monetizing their empty home.",
+    body: [
+      "So most people just don't do it.",
+      "Losing out on monetizing their empty home.",
+    ],
     Visual: PainPointsCardsVisual,
   },
   {
@@ -109,7 +115,7 @@ const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
 // the logo up rather than vanishing first. The wrapper begins moving
 // up immediately on morph; the tagline waits a beat, then drifts up
 // + fades while the logo continues its journey.
-const TAGLINE_EXIT_DELAY_MS = 300;
+const TAGLINE_EXIT_DELAY_MS = 500;
 const TAGLINE_EXIT_DURATION_MS = 800;
 const TAGLINE_EXIT_TRANSLATE_PX = 24;
 
@@ -205,7 +211,17 @@ export default function SandboxOnboardingPage() {
     WORD_DURATION_MS;
   const visualDelay = titleStartDelay + Math.round(titleEndDelay * 0.4);
   const bodyStartDelay = titleStartDelay + Math.round(titleEndDelay * 0.55);
-  const bodyWords = slide.body.split(/\s+/).filter(Boolean).length;
+  // Body can be a single string or a [head, tail] tuple (rendered as
+  // two lines on desktop, one continuous run on mobile). Count + delay
+  // math treats both as one continuous word stream.
+  const bodyParts: [string, string?] = Array.isArray(slide.body)
+    ? slide.body
+    : [slide.body];
+  const bodyWordsHead = bodyParts[0].split(/\s+/).filter(Boolean).length;
+  const bodyWordsTail = bodyParts[1]
+    ? bodyParts[1].split(/\s+/).filter(Boolean).length
+    : 0;
+  const bodyWords = bodyWordsHead + bodyWordsTail;
   const bodyEndDelay =
     bodyStartDelay + (bodyWords - 1) * BODY_WORD_STAGGER_MS + WORD_DURATION_MS;
   const buttonDelay = Math.round(bodyEndDelay * 0.65);
@@ -448,10 +464,26 @@ export default function SandboxOnboardingPage() {
 
               <p className="text-base leading-relaxed text-muted-foreground sm:text-lg">
                 <AnimatedWords
-                  text={slide.body}
+                  text={bodyParts[0]}
                   stagger={BODY_WORD_STAGGER_MS}
                   baseDelay={bodyStartDelay}
                 />
+                {bodyParts[1] && (
+                  <>
+                    {/* Mobile: collapse to a single space so the two
+                        body parts flow inline. Desktop: block-display
+                        so the second part starts on a new line. */}
+                    <span className="inline md:hidden">{" "}</span>
+                    <span className="hidden md:block" aria-hidden />
+                    <AnimatedWords
+                      text={bodyParts[1]}
+                      stagger={BODY_WORD_STAGGER_MS}
+                      baseDelay={
+                        bodyStartDelay + bodyWordsHead * BODY_WORD_STAGGER_MS
+                      }
+                    />
+                  </>
+                )}
               </p>
 
               <div
@@ -697,18 +729,28 @@ function PainPointsListVisual() {
   );
 }
 
-// Loren narrowed the problem-cards copy down to just two titles.
-// Kept as a separate array (not the PAIN_POINTS list above) so the
-// `PainPointsListVisual` alt still has its full set if it gets
-// re-enabled.
+// All five problem cards. PainPointsListVisual still uses its own
+// PAIN_POINTS array so the vertical-list alt isn't affected.
 const PROBLEM_CARDS = [
+  {
+    title: "Putting your stuff away and taking it out",
+    image: "/assets/onboarding-problems/problem-02-packing.webp",
+  },
   {
     title: "Bothering your neighbors",
     image: "/assets/onboarding-problems/problem-03-neighbors.webp",
   },
   {
-    title: "Putting your stuff away and taking it out",
-    image: "/assets/onboarding-problems/problem-02-packing.webp",
+    title: "Strangers handling your nice things",
+    image: "/assets/onboarding-problems/problem-01-wine.webp",
+  },
+  {
+    title: "Renters don't care for your home",
+    image: "/assets/onboarding-problems/problem-04-careless.webp",
+  },
+  {
+    title: "Your address goes public",
+    image: "/assets/onboarding-problems/problem-05-regulation.webp",
   },
 ];
 
@@ -726,7 +768,7 @@ function PainPointsCardsVisual() {
         {cards.map((p, i) => (
           <div
             key={`${p.title}-${i}`}
-            className="mr-3 flex w-[44vw] max-w-[180px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/40 text-left sm:w-[180px]"
+            className="mr-3 flex w-[44vw] max-w-[180px] shrink-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/40 text-left sm:w-[180px] md:w-[260px] md:max-w-none"
           >
             <div
               className="aspect-[4/3] w-full bg-cover bg-center"
@@ -735,7 +777,7 @@ function PainPointsCardsVisual() {
               role="img"
             />
             <div className="px-3 py-2.5">
-              <div className="text-[12px] font-semibold leading-tight">
+              <div className="text-[12px] font-semibold leading-tight md:text-[14px]">
                 {p.title}
               </div>
             </div>

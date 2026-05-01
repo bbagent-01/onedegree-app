@@ -196,23 +196,25 @@
 
       centerFadeRadius = 0;
     } else {
-      // Desktop
+      // Desktop — fixed pixel-based geometry so the orbit keeps its
+      // intended scale on every viewport. On narrow viewports the
+      // outer rings extend past the canvas edges and avatars get
+      // clipped (intentional) instead of shrinking to fit. The
+      // inner ring is sized to clear the centered text content; the
+      // top of the inner ring sits well below the trustead header
+      // logo so avatars don't crowd it.
       cx = W / 2;
       cy = H / 2;
 
-      const base = Math.min(W * 0.38, H * 0.34);
-      const maxR = (W / 2) - (34 * dpr) - (12 * dpr);
-      ring3Radius = Math.min(base * 1.95, maxR);
-      ring2Radius = Math.min(base * 1.55, ring3Radius * 0.80);
-      ring1Radius = Math.min(base * 1.15, ring2Radius * 0.72);
+      ring1Radius = 360 * dpr;
+      ring2Radius = 470 * dpr;
+      ring3Radius = 590 * dpr;
 
-      // Scale avatar sizes proportionally when rings compress
-      const scaleFactor = ring3Radius / (base * 1.95);
-      ring1Size = Math.max(40, 78 * scaleFactor) * dpr;
-      ring2Size = Math.max(28, 42 * scaleFactor) * dpr;
-      ring3Size = Math.max(22, 34 * scaleFactor) * dpr;
+      ring1Size = 88 * dpr;
+      ring2Size = 50 * dpr;
+      ring3Size = 38 * dpr;
 
-      centerFadeRadius = ring1Radius * 0.72;
+      centerFadeRadius = 270 * dpr;
     }
   }
 
@@ -541,7 +543,11 @@
     const r1 = base * 1.15;
     const r2 = base * 1.32;
     const r3 = base * 1.50;
-    const topCy = r3 + topH - (260 * dpr); // center below canvas — pull up so inner ring isn't cut off
+    // Center sits below the canvas so we only see the top arc of
+    // each ring. Larger pull-up = orbit center moves UP = the visible
+    // arcs sit higher in the canvas, leaving more clear space at the
+    // bottom of the canvas for the slide text below it.
+    const topCy = r3 + topH - (380 * dpr);
 
     const ring1Count = RING_1_AVATARS.length;
     const pos1 = [], pos2 = [], pos3 = [];
