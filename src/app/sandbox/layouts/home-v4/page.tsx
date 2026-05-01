@@ -492,37 +492,35 @@ function SiteSidebar({
 
 function CondensedSearch() {
   return (
-    <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-      {/* Big white search pill — content-width so the centering doesn't
-          drift when Filters is rendered next to it. Full-height dividers
-          inside, matching live /browse style. */}
-      <div className="flex h-[68px] items-stretch overflow-hidden rounded-full bg-white shadow-search">
-        {/* Travel/Host segmented selector — fully white background;
-            active state is mint, inactive is plain text. */}
-        <div className="flex shrink-0 items-center gap-1 pl-2 pr-2">
-          <button
-            type="button"
-            className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground"
-          >
-            Travel
-          </button>
-          <button
-            type="button"
-            className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
-          >
-            Host
-          </button>
-        </div>
+    <div className="mx-auto mt-8 flex w-full max-w-[1280px] flex-wrap items-center gap-3">
+      {/* Travel/Host — separate pill on the LEFT, mirroring Filters on
+          the right. White pill, active state mint, inactive plain text. */}
+      <div className="flex h-[68px] shrink-0 items-center gap-1 rounded-full bg-white px-2 shadow-search">
+        <button
+          type="button"
+          className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground"
+        >
+          Travel
+        </button>
+        <button
+          type="button"
+          className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+        >
+          Host
+        </button>
+      </div>
 
-        {/* Full-height divider */}
-        <span className="w-px bg-zinc-200" aria-hidden />
-
-        {/* Where */}
-        <div className="flex shrink-0 flex-col justify-center px-6 text-left">
+      {/* Big white search pill — flex-1 so it fills the row. Full-height
+          dividers inside, matching live /browse style. Where takes the
+          remaining space (flex-1) so the bar reads wide like the live
+          search bar. */}
+      <div className="flex h-[68px] min-w-0 flex-1 items-stretch overflow-hidden rounded-full bg-white shadow-search">
+        {/* Where — fills available width */}
+        <div className="flex min-w-0 flex-1 flex-col justify-center px-6 text-left">
           <p className="text-[11px] font-bold leading-tight text-zinc-900">
             Where
           </p>
-          <p className="text-sm leading-tight text-zinc-500">
+          <p className="truncate text-sm leading-tight text-zinc-500">
             Search destinations
           </p>
         </div>
@@ -987,7 +985,7 @@ function CTAStrip() {
     },
   ];
   return (
-    <section className="mx-auto mt-12 w-full max-w-[1080px]">
+    <section className="mx-auto mt-12 w-full max-w-[1280px]">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {ctas.map((c) => {
           const Icon = c.icon;
