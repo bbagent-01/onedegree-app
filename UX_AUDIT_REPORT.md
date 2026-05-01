@@ -189,3 +189,30 @@ The Cloudflare branch deploy for `feat/ux1-ux-audit` will be at a `*.trustead.pa
 - `/settings` sub-pages: `hosting`, `notifications`, `phone`
 - `/alerts`, `/trips`, `/wishlists`, `/invite`, `/proposals`, `/help`
 
+---
+
+## Round 2 (code-level pass on gated surfaces) — 2026-05-01
+
+I couldn't sign in to walk these visually, so this round was a code audit of the gated routes + components: 40 findings surfaced across `vouch`, `profile`, `listings`, `inbox`, `settings`, `alerts`, `trips`, `wishlists`, `invite`, `proposals`, `help`, `hosting/{create,edit}`, plus the cross-cutting components.
+
+### Round 2 fixes shipped
+
+| Commit | Surface | What landed |
+|---|---|---|
+| [`19d0716`](https://github.com/bbagent-01/trustead/commit/19d0716) | hosting/edit, hosting/create, inbox/[threadId], listings/[id], trips/[bookingId] | Round 1's `font-serif` bulk patch matched only the bare `text-2xl font-bold/semibold md:text-3xl` class string — H1s with `text-foreground`, `leading-tight`, `md:block`, etc. interleaved slipped through. Sweep them up. Also re-tunes the hosting-edit hero status badges (was `bg-emerald-50` / `bg-zinc-100` light pills) to translucent `--tt-mint-mid` / `white/5`. |
+| [`bb27ceb`](https://github.com/bbagent-01/trustead/commit/bb27ceb) | inbox/thread-view, listings/[id], invite (root + share), settings/notifications | Inbox booking badges (Pending/Connected/Declined/Cancelled) flipped from `bg-{color}-100 text-{color}-800` light pills to translucent dark-tuned tints. Listings payment-method chips de-zinc'd. Invite warning callouts amber-100 → amber-400/15 (kept the amber semantic, dark-friendly). Notifications toggle off-state `bg-zinc-300` → `bg-white/15`. |
+| [`194bad1`](https://github.com/bbagent-01/trustead/commit/194bad1) | settings/deactivate-button | `window.confirm()` (browser-native, off-brand) replaced with the project's `Dialog` primitive — serif title, brand-voice copy ("We don't delete your data — email hello@trustead.app"), destructive-variant confirm button. |
+| [`40102ca`](https://github.com/bbagent-01/trustead/commit/40102ca) | profile/[id] | "Unverified" badge for users who skipped phone verification: `border-red-200 bg-red-50 text-red-700` light island → translucent `red-400/15` + readable `red-200` foreground. |
+
+### Round 2 deferred (round 3 territory)
+
+- **~67 more light-theme color tokens** across gated components — `bg-{emerald,sky,amber,blue,red,green,yellow}-{50,100}` + `text-{...}-{700,800,900}` patterns in `IssueReportCard`, `PhotoRequestCard`, `ThreadTermsCards`, `AcceptTermsCheckbox`, `SystemMilestoneCard`, `ReviewPromptCard`, `cancellation-policy-form`, `inbox-list`, `reservation-sidebar`, `proposal-bridge-actions`, `invite/share` (multiple), and the `hosting/create` wizard. Each is a per-context decision (warning vs success vs info, inside-card vs page-level) so a one-shot bulk sed isn't safe — needs a small design pass and 3-4 targeted commits. **Same root cause as round 1's legal-prose: pre-refactor Attio Light tokens that work on white but pop on the dark forest bg.**
+- **Empty-state copy polish** on `/wishlists` and `/proposals` — current copy is decent, agent flagged it as too-generic. Marginal.
+- **Disabled cursor pattern** on submit buttons across the app — the Button primitive uses `disabled:pointer-events-none` which makes `cursor-not-allowed` unreachable; would need a deliberate trade-off (clicks blocked AND cursor shown vs the current "clicks blocked, cursor inherits from parent"). Not a clear win either way.
+- **Missing `focus-visible` rings** on 10+ interactive elements across `/listings/[id]` host links and `/inbox/[threadId]` thread items — true a11y improvement, deferred for a focused a11y pass.
+- **Vouch button disabled tooltip** — when you've already vouched for someone, the button is disabled with no explanation. Add a popover/tooltip "You've already vouched for this person. Tap to update."
+
+### Round 2 commit total: 4 (19 across both rounds)
+
+
+
