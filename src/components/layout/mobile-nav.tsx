@@ -200,7 +200,7 @@ export function MobileNav() {
         <SheetTrigger className="hidden">trigger</SheetTrigger>
         <SheetContent side="right" className="w-[88%] max-w-[360px] p-6">
           <SheetHeader className="p-0">
-            <SheetTitle className="text-2xl font-semibold">Menu</SheetTitle>
+            <SheetTitle className="font-serif text-2xl font-semibold">Menu</SheetTitle>
           </SheetHeader>
 
           {!isSignedIn ? (

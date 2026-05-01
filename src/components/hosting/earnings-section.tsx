@@ -12,7 +12,7 @@ export function EarningsSection({
 }) {
   return (
     <section>
-      <h2 className="text-xl font-semibold text-foreground">Earnings</h2>
+      <h2 className="font-serif text-xl font-semibold text-foreground">Earnings</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Estimated from connected stays. Final payouts depend on your payment method.
       </p>

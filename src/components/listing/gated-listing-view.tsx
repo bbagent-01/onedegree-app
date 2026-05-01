@@ -140,7 +140,7 @@ export function GatedListingView({
               read across 1°/2°/3°/4°. */}
           <div>
             <div className="flex items-start gap-3">
-              <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
+              <h1 className="font-serif text-2xl font-semibold leading-tight md:text-3xl">
                 {showTitle && listing.title
                   ? listing.title
                   : `${propertyLabel}${
@@ -260,7 +260,7 @@ export function GatedListingView({
           {showDescription && previewDesc && (
             <>
               <section>
-                <h2 className="mb-4 text-xl font-semibold">About this place</h2>
+                <h2 className="mb-4 font-serif text-xl font-semibold">About this place</h2>
                 <p className="text-base leading-relaxed text-muted-foreground">
                   {previewDesc}
                 </p>
@@ -274,7 +274,7 @@ export function GatedListingView({
           {showAmenities && listing.amenities && listing.amenities.length > 0 && (
             <>
               <section>
-                <h2 className="mb-4 text-xl font-semibold">
+                <h2 className="mb-4 font-serif text-xl font-semibold">
                   What this place offers
                 </h2>
                 <AmenitiesSection amenities={listing.amenities} />
@@ -287,7 +287,7 @@ export function GatedListingView({
           {showHouseRules && listing.house_rules && (
             <>
               <section>
-                <h2 className="mb-4 text-xl font-semibold">House rules</h2>
+                <h2 className="mb-4 font-serif text-xl font-semibold">House rules</h2>
                 <p className="whitespace-pre-wrap text-sm text-muted-foreground">
                   {listing.house_rules}
                 </p>
@@ -303,7 +303,7 @@ export function GatedListingView({
             typeof listing.longitude === "number" && (
             <>
               <section>
-                <h2 className="mb-2 text-xl font-semibold">Location</h2>
+                <h2 className="mb-2 font-serif text-xl font-semibold">Location</h2>
                 {showNeighborhood && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <MapPin className="h-4 w-4" />
