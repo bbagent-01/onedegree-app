@@ -82,7 +82,15 @@ function SignInInner() {
   const e164 = parsed?.format("E.164") ?? "";
 
   const startPhone = async () => {
-    if (!isLoaded || !phoneValid) return;
+    if (!isLoaded) return;
+    if (!phone.trim()) {
+      toast.error("Enter your phone number");
+      return;
+    }
+    if (!phoneValid) {
+      toast.error("That phone number doesn't look right");
+      return;
+    }
     setSaving(true);
     try {
       const res = await signIn.create({ identifier: e164 });
@@ -104,7 +112,11 @@ function SignInInner() {
   };
 
   const verifyOtp = async () => {
-    if (!isLoaded || otp.length < 6) return;
+    if (!isLoaded) return;
+    if (otp.length < 6) {
+      toast.error("Enter the 6-digit code we texted you");
+      return;
+    }
     setSaving(true);
     try {
       const res = await signIn.attemptFirstFactor({
@@ -148,7 +160,14 @@ function SignInInner() {
 
   const signInWithEmail = async () => {
     if (!isLoaded) return;
-    if (!email.trim() || !password) return;
+    if (!email.trim()) {
+      toast.error("Enter your email address");
+      return;
+    }
+    if (!password) {
+      toast.error("Enter your password");
+      return;
+    }
     setSaving(true);
     try {
       const res = await signIn.create({
@@ -227,7 +246,7 @@ function SignInInner() {
             <Button
               size="lg"
               onClick={startPhone}
-              disabled={!phoneValid || saving}
+              disabled={saving}
               className="mt-6 h-14 w-full text-base"
             >
               {saving ? "Sending code\u2026" : "Continue with phone"}
@@ -303,7 +322,7 @@ function SignInInner() {
               <Button
                 size="lg"
                 onClick={verifyOtp}
-                disabled={otp.length < 6 || saving}
+                disabled={saving}
                 className="flex-1 h-14 text-base"
               >
                 {saving ? "Verifying\u2026" : "Sign in"}
@@ -351,7 +370,7 @@ function SignInInner() {
             <Button
               size="lg"
               onClick={signInWithEmail}
-              disabled={saving || !email.trim() || !password}
+              disabled={saving}
               className="mt-5 h-14 w-full text-base"
             >
               {saving ? "Signing in\u2026" : "Sign in"}
