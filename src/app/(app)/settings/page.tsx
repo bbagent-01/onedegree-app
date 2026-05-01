@@ -42,7 +42,7 @@ export default async function SettingsPage() {
       </header>
 
       <section className="mt-8">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="font-sans text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Your account
         </h2>
         <div className="mt-3 divide-y divide-border rounded-2xl border border-border bg-white">
@@ -82,7 +82,7 @@ export default async function SettingsPage() {
       </section>
 
       <section className="mt-10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 className="font-sans text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Account management
         </h2>
         <div className="mt-3 rounded-2xl border border-border bg-white p-6">

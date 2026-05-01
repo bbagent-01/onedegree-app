@@ -373,28 +373,41 @@ section .border-t {
 }
 
 /* ── BIG SERIF HEADLINES ─────────────────────────────────────── */
+/* Default brand styles for un-classed headings (CMS prose, hero
+   markdown, raw HTML drops). Components that pass their own
+   Tailwind classes — text-2xl, text-base, font-semibold, etc.
+   — should win, so the typographic defaults below are NOT marked
+   !important. They land via the bare element selector (specificity
+   0,0,1) and lose to any class-bearing selector (0,1,0+). The
+   font-family stays !important so DM Serif Display always wins
+   over Tailwind's default font stack — only size/weight/color/
+   line-height yield to component classes.
+
+   The previous all-!important rules were turning every <h2> in
+   the app into a 44px serif headline, including small section
+   eyebrows in /settings ("Your account", "Account management")
+   and similar uppercase labels everywhere — they ballooned out
+   of proportion and broke layouts. Tailwind classes now win. */
 h1 {
   font-family: var(--tt-headline-font) !important;
-  font-weight: 400 !important;
-  font-size: var(--tt-h1-size) !important;
-  letter-spacing: -0.025em !important;
-  line-height: 1.02 !important;
-  color: var(--tt-cream) !important;
-  max-width: 18ch;
+  font-weight: 400;
+  font-size: var(--tt-h1-size);
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  color: var(--tt-cream);
 }
 h2 {
   font-family: var(--tt-headline-font) !important;
-  font-weight: 400 !important;
-  font-size: var(--tt-h2-size) !important;
-  letter-spacing: -0.02em !important;
-  line-height: 1.05 !important;
-  color: var(--tt-cream) !important;
-  max-width: 24ch;
+  font-weight: 400;
+  font-size: var(--tt-h2-size);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--tt-cream);
 }
 h3 {
   font-family: "DM Sans", system-ui, sans-serif !important;
-  letter-spacing: -0.01em !important;
-  color: var(--tt-cream) !important;
+  letter-spacing: -0.01em;
+  color: var(--tt-cream);
 }
 h1 em,
 h2 em,
