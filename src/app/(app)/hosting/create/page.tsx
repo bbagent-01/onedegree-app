@@ -240,7 +240,7 @@ function Stepper({ step }: { step: number }) {
           key={n}
           className={cn(
             "h-1.5 flex-1 rounded-full transition-colors",
-            n <= step ? "bg-brand" : "bg-zinc-200"
+            n <= step ? "bg-brand-300" : "bg-white/10"
           )}
         />
       ))}

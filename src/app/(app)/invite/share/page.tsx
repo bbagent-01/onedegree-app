@@ -240,8 +240,8 @@ function InviteShareContent() {
             className={cn(
               "h-1.5 w-8 rounded-full transition-colors",
               step === s || i < stepOrder.indexOf(step)
-                ? "bg-brand"
-                : "bg-border"
+                ? "bg-brand-300"
+                : "bg-white/10"
             )}
           />
         ))}
