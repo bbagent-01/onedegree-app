@@ -156,6 +156,16 @@ Background scan of `src/components`, `src/app`, `src/lib`, and `src/app/globals.
 - **Clerk passkey + 2FA challenge** — couldn't sign back in autonomously to reach the gated surfaces (`/vouch`, `/profile/edit`, `/listings/[id]`, `/inbox`, `/settings/*`, `/alerts`, `/trips`, `/wishlists`, `/invite`, `/proposals`, `/help`). Need Loren's device biometric for that. **Surfaces gated behind sign-in NOT fully audited this round** — they're queued for round 2 once Loren is back to complete a sign-in. (Round 1 did still ship code-level brand fixes — font-serif H1s — across these surfaces.)
 - **Clerk production keys are locked to `trustead.app` only** — observed when verifying the preview URL. `/sign-in` on `feat-ux1-ux-audit.trustead.pages.dev` renders blank because Clerk rejects the origin: *"Clerk: Production Keys are only allowed for domain trustead.app. API Error: The Request HTTP Origin header must be equal to or a subdomain of the requesting URL."* Loren needs to add `feat-ux1-ux-audit.trustead.pages.dev` (and any future preview hostnames) to the Clerk dashboard's allowed origins, OR use a Clerk dev instance for previews. **functional — Loren config; sign-in functionality on preview URL won't work until this is resolved**, but the visual fixes (logo + serif H1 + always-clickable CTA + toast errors) are visible if you reach the page some other way (e.g. localhost dev or trustead.app once the branch merges).
 
+### Verified live on the preview
+
+These were spot-checked at <https://feat-ux1-ux-audit.trustead.pages.dev> after the deploy landed:
+
+- **`/sandbox/onboarding-2` mobile (iPhone 12 Pro 390×844)** — slide 1, 2, 5 walked. Logo + eyebrow chip + heading no longer overlap. Slide 2 orbit avatars no longer collide with the logo or the Continue button thanks to the backdrop fade. Slide 5 heading no longer renders through the wordmark.
+- **`/sandbox/onboarding-2` desktop (1280)** — clean rendering, dots + Skip stack vertically without collision.
+- **`/privacy` mobile + desktop** — body text fully readable in cream, section numbers in mint, bold inline labels (`Account:`, `Invitations and vouches:` etc.) visible, links in mint with underline.
+- **`/terms` desktop** — same; "IMPORTANT — ARBITRATION..." bold paragraph readable, all 22 TOC entries readable.
+- **`/legal-status` desktop** — same; full prose visible including the "Does not charge any fees..." bulleted list.
+
 ### Spot-check URLs once the preview deploys
 
 The Cloudflare branch deploy for `feat/ux1-ux-audit` will be at a `*.trustead.pages.dev` URL once the build finishes (~2 min after push). For each fix:
