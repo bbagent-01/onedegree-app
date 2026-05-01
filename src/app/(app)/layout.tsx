@@ -1,8 +1,9 @@
-import { DesktopNav } from "@/components/layout/desktop-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Footer } from "@/components/layout/footer";
 import { VouchBackToaster } from "@/components/trust/vouch-back-toaster";
 import SandboxApplier from "@/components/dev/SandboxApplier";
+import { OnboardingMount } from "@/components/onboarding/OnboardingMount";
+import { AppChrome } from "@/components/layout/app-chrome";
 
 // ALPHA ONLY (CC-Dev1): compile-time gate. `NEXT_PUBLIC_*` env vars
 // are inlined by Next.js at build time, so when this evaluates to
@@ -43,18 +44,11 @@ export default async function AppLayout({
           site's default. Admin-only editor (palette + drawer) lives
           inside SandboxMount below. */}
       <SandboxApplier />
-      <DesktopNav />
-      {/* Bottom padding reserves space for the fixed mobile nav plus the
-          iOS home-indicator safe area. Stripped on md+ where the nav
-          isn't fixed. */}
-      <main
-        className="flex-1 md:!pb-0"
-        style={{
-          paddingBottom: "calc(4rem + env(safe-area-inset-bottom))",
-        }}
-      >
-        {children}
-      </main>
+      {/* B4: chrome switcher. Renders the new SidebarShell on /,
+          /browse, /dashboard and the original DesktopNav + <main>
+          everywhere else. Pathname-driven; reverting to top-nav-
+          everywhere is a one-line change in `app-chrome.tsx`. */}
+      <AppChrome>{children}</AppChrome>
       <Footer />
       <MobileNav />
       <VouchBackToaster />
@@ -71,6 +65,11 @@ export default async function AppLayout({
           {sandboxMount}
         </div>
       )}
+      {/* Show-once onboarding takeover. Server-checked: returns null
+          unless the signed-in user has users.onboarding_seen_at IS
+          NULL. Mounts last so it sits on top of nav/footer/cookie
+          banner via z-[60]. */}
+      <OnboardingMount />
     </div>
   );
 }
