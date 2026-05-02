@@ -99,13 +99,17 @@ const BODY_WORD_STAGGER_MS = 12;
 const BLOCK_FADE_DURATION_MS = 500;
 const WORD_EXIT_DURATION_MS = 400;
 
+// Round 4 retune — shrink overlaps the move more (60% vs prev 80%)
+// so move + shrink reads as one fluid gesture, not two steps.
 const LOGO_MOVE_MS = 2000;
 const LOGO_SHRINK_MS = 1000;
-const LOGO_SHRINK_DELAY_MS = Math.round(LOGO_MOVE_MS * 0.8);
+const LOGO_SHRINK_DELAY_MS = Math.round(LOGO_MOVE_MS * 0.6);
 const LOGO_EASING = "cubic-bezier(0.83, 0, 0.17, 1)";
 const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
 
-const TAGLINE_EXIT_DELAY_MS = 750;
+// Round 4 retune — tagline starts ~550ms later so the logo's move
+// is clearly the first motion, tagline catches up after a beat.
+const TAGLINE_EXIT_DELAY_MS = 1300;
 const TAGLINE_EXIT_DURATION_MS = 300;
 const TAGLINE_EXIT_TRANSLATE_PX = 0;
 

@@ -114,13 +114,15 @@ const BODY_WORD_STAGGER_MS = 12;
 const BLOCK_FADE_DURATION_MS = 500;
 const WORD_EXIT_DURATION_MS = 400;
 
-// Logo morph — slow and deliberate. Move runs over 2000ms; shrink
-// starts at 80% of the move (1600ms) and runs another 1000ms. Reads
-// as one slow, continuous "rest into place" motion that takes ~2.6s
-// from start to settled.
+// Logo morph — Loren tuned the overlap (Round 4): the move is still
+// the dominant motion, but the shrink now starts at 60% of the move
+// instead of 80% so the two read as a single fluid gesture rather
+// than two discrete steps. Move 2000ms, shrink starts at 1200ms
+// (60% of move) and runs 1000ms so the wordmark settles ~200ms
+// after the move ends. Total morph window 2200ms.
 const LOGO_MOVE_MS = 2000;
 const LOGO_SHRINK_MS = 1000;
-const LOGO_SHRINK_DELAY_MS = Math.round(LOGO_MOVE_MS * 0.8);
+const LOGO_SHRINK_DELAY_MS = Math.round(LOGO_MOVE_MS * 0.6);
 const LOGO_EASING = "cubic-bezier(0.83, 0, 0.17, 1)"; // dramatic ease-in-out
 const LOGO_TOTAL_MORPH_MS = Math.max(
   LOGO_MOVE_MS,
@@ -133,11 +135,13 @@ const LOGO_TOTAL_MORPH_MS = Math.max(
 // we just flip the React phase early.
 const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
 
-// Tagline exit — delayed and slow so it reads as "trying to follow"
-// the logo up rather than vanishing first. The wrapper begins moving
-// up immediately on morph; the tagline waits a beat, then drifts up
-// + fades while the logo continues its journey.
-const TAGLINE_EXIT_DELAY_MS = 750;
+// Tagline exit — Loren retuned (Round 4): the logo should clearly
+// move first and the tagline follow a noticeable half-second later.
+// Bumped from 750ms → 1300ms so there's ~550ms of pure logo motion
+// before the tagline starts drifting up + fading. Reads as the logo
+// leaving and the tagline trying to catch up, instead of both
+// happening together.
+const TAGLINE_EXIT_DELAY_MS = 1300;
 const TAGLINE_EXIT_DURATION_MS = 300;
 const TAGLINE_EXIT_TRANSLATE_PX = 0;
 
