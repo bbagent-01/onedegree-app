@@ -359,7 +359,7 @@ export function OnboardingTakeover() {
 
   return (
     <main
-      className={`onboarding-takeover-root fixed inset-0 z-[60] flex flex-col overflow-hidden bg-background text-foreground ${
+      className={`onboarding-takeover-root fixed inset-0 z-[60] flex h-dvh flex-col overflow-hidden bg-background text-foreground ${
         exiting ? "is-exiting" : ""
       }`}
       onTouchStart={onTouchStart}
@@ -548,11 +548,17 @@ export function OnboardingTakeover() {
             }}
           />
 
+          {/* Adaptive vertical layout — see /sandbox/onboarding-2 for
+              the detailed write-up. min-h-full + justify-center on the
+              inner stack centers content when it fits and lets it grow
+              past the container (triggering scroll on .slide-content)
+              only when it actually overflows. h-dvh on the outer
+              wrapper tracks the visible viewport on mobile browsers. */}
           <div
             key={index}
-            className="slide-content relative z-10 flex flex-1 items-start justify-center overflow-y-auto px-6 pt-36 pb-32 sm:items-center sm:pt-36 sm:pb-24"
+            className="slide-content relative z-10 flex flex-1 justify-center overflow-y-auto px-6 pt-36 pb-32 sm:pt-36 sm:pb-24"
           >
-            <div className="flex w-full max-w-md flex-col items-center gap-5 text-center sm:max-w-xl sm:gap-8">
+            <div className="flex min-h-full w-full max-w-md flex-col items-center gap-5 text-center sm:max-w-xl sm:gap-8" style={{ justifyContent: "safe center" }}>
               <span
                 className="block-rise inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
                 style={{ animationDelay: `${eyebrowDelay}ms` }}

@@ -408,7 +408,7 @@ export default function SandboxOnboardingPage() {
 
   return (
     <main
-      className={`sandbox-onboarding-root relative flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground ${
+      className={`sandbox-onboarding-root relative flex h-dvh w-screen flex-col overflow-hidden bg-background text-foreground ${
         exiting ? "is-exiting" : ""
       }`}
       onTouchStart={onTouchStart}
@@ -663,11 +663,23 @@ export default function SandboxOnboardingPage() {
             }}
           />
 
+          {/* Adaptive vertical layout (Round 4 v2):
+              - .slide-content provides the safe-zone padding (under
+                the persistent logo at top and above the dots at
+                bottom) and is the scroll container if content can't
+                fit at very small heights.
+              - The inner stack uses min-h-full + justify-center so it
+                ALWAYS centers within the available rectangle when
+                content fits, and grows past it (triggering scroll on
+                .slide-content) only when content actually overflows.
+              - Outer wrapper uses h-dvh, not h-screen, so the layout
+                tracks the *visible* viewport on mobile Safari/Chrome
+                (where the URL bar collapses on scroll). */}
           <div
             key={index}
-            className="slide-content relative z-10 flex flex-1 items-start justify-center overflow-y-auto px-6 pt-36 pb-32 sm:items-center sm:pt-36 sm:pb-24"
+            className="slide-content relative z-10 flex flex-1 justify-center overflow-y-auto px-6 pt-36 pb-32 sm:pt-36 sm:pb-24"
           >
-            <div className="flex w-full max-w-md flex-col items-center gap-5 text-center sm:max-w-xl sm:gap-8">
+            <div className="flex min-h-full w-full max-w-md flex-col items-center gap-5 text-center sm:max-w-xl sm:gap-8" style={{ justifyContent: "safe center" }}>
               {/* Eyebrow pill — small uppercase tag above the heading */}
               <span
                 className="block-rise inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
