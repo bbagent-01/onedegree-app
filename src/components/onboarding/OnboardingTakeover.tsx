@@ -19,6 +19,7 @@ import {
   ArrowRight,
   Check,
   Eye,
+  EyeOff,
   Lock,
   Shield,
   Star,
@@ -982,81 +983,168 @@ function PickerOption({
 
 // TODO(loren): revisit this visual — placeholder mock of the in-app
 // trust-detail panel; needs a follow-up design pass before B3.
+// Slide 4 trust-detail visual — see /sandbox/onboarding-2/page.tsx
+// for the full write-up. Static replica of the live ConnectionPopover
+// output with seeded data + real demo avatars.
+const TRUST_VISUAL = {
+  target: { name: "Maya Chen", avatar: "/assets/orbit-animation/avatars/avatar-anna.jpg" },
+  viewer: { name: "You", avatar: "/assets/orbit-animation/avatars/avatar-host.jpg" },
+  paths: [
+    {
+      label: "Path 1 · via Anna",
+      nodes: [
+        { name: "You", known: true, isYou: true, avatar: "/assets/orbit-animation/avatars/avatar-host.jpg" },
+        { name: "Anna", known: true, avatar: "/assets/orbit-animation/avatars/avatar-04-white-woman.jpg" },
+        { name: "Maya Chen", known: true, isTarget: true, avatar: "/assets/orbit-animation/avatars/avatar-anna.jpg" },
+      ],
+      strengths: [42, 28],
+    },
+    {
+      label: "Path 2 · via James",
+      nodes: [
+        { name: "You", known: true, isYou: true, avatar: "/assets/orbit-animation/avatars/avatar-host.jpg" },
+        { name: "James", known: true, avatar: "/assets/orbit-animation/avatars/avatar-james.jpg" },
+        { name: "Luke", known: false, avatar: "/assets/orbit-animation/avatars/avatar-luke.jpg" },
+        { name: "Maya Chen", known: true, isTarget: true, avatar: "/assets/orbit-animation/avatars/avatar-anna.jpg" },
+      ],
+      strengths: [22, 35, 31],
+    },
+  ],
+};
+
 function TrustDetailVisual() {
   return (
-    <div className="rounded-2xl border border-border/60 bg-background/40 p-4 text-left">
+    <div className="rounded-2xl border border-border/60 bg-background/40 p-3 text-left">
       <div className="flex items-center gap-2">
         <Users className="h-4 w-4 text-muted-foreground shrink-0" />
         <div className="text-[13px] font-semibold leading-tight">
-          Hana Yoon is connected to you via 1 connection
+          {TRUST_VISUAL.target.name} is connected to you via{" "}
+          {TRUST_VISUAL.paths.length} connections
         </div>
       </div>
-      <div className="mt-1 text-[11px] text-muted-foreground">
+      <div className="mt-0.5 text-[11px] text-muted-foreground">
         Trust Score:{" "}
-        <span className="font-semibold text-foreground">9 pts (Weak)</span>
+        <span className="font-semibold text-foreground">31 pts (Strong)</span>
       </div>
 
-      <div className="mt-3 rounded-xl border border-border/60 bg-background/30 p-3">
-        <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-          Path 1 · via Cassidy
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-1">
-          <ChainNode initials="HY" label="Hana" />
-          <ChainChip value="9" />
-          <ChainNode initials="CL" label="Cassidy" />
-          <ChainChip value="9" />
-          <ChainNode initials="You" label="You" tone="self" />
-        </div>
+      <div className="mt-2.5 space-y-2">
+        {TRUST_VISUAL.paths.map((path) => (
+          <ChainRow key={path.label} path={path} />
+        ))}
       </div>
     </div>
   );
 }
 
-function ChainNode({
-  initials,
-  label,
-  tone = "neutral",
+function ChainRow({
+  path,
 }: {
-  initials: string;
-  label: string;
-  tone?: "neutral" | "self";
+  path: typeof TRUST_VISUAL.paths[number];
 }) {
-  const styles =
-    tone === "self"
-      ? "bg-brand-300 text-brand-foreground"
-      : "bg-secondary text-foreground border border-border/60";
+  const displayNodes = [...path.nodes].reverse();
+  const displayStrengths = [...path.strengths].reverse();
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div
-        className={`grid h-9 w-9 place-items-center rounded-full text-[10px] font-semibold ${styles}`}
-      >
-        {initials}
+    <div className="rounded-xl border border-border/60 bg-background/30 p-2.5">
+      <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+        {path.label}
       </div>
-      <span className="text-[10px] font-medium text-muted-foreground">
+      <div className="mt-2 flex items-center justify-center gap-1">
+        {displayNodes.map((node, i) => (
+          <span key={`${node.name}-${i}`} className="contents">
+            {i > 0 && <ChainStrengthPill strength={displayStrengths[i - 1]} />}
+            <ChainAvatar
+              name={node.name}
+              avatar={node.avatar}
+              known={node.known}
+              isYou={Boolean(node.isYou)}
+              isTarget={Boolean(node.isTarget)}
+            />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChainAvatar({
+  name,
+  avatar,
+  known,
+  isYou,
+  isTarget,
+}: {
+  name: string;
+  avatar: string;
+  known: boolean;
+  isYou: boolean;
+  isTarget: boolean;
+}) {
+  const first = name.split(" ")[0];
+  const periodedInitials = first
+    .slice(0, 2)
+    .toUpperCase()
+    .split("")
+    .map((c) => `${c}.`)
+    .join("");
+  const label = isYou ? "You" : known ? first : periodedInitials;
+  const showAnonymized = !known && !isTarget;
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1">
+      <div
+        className={`relative h-9 w-9 overflow-hidden rounded-full border-2 ${
+          isTarget ? "border-brand-300" : "border-border/60"
+        }`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatar}
+          alt={label}
+          className={`h-full w-full object-cover ${
+            showAnonymized ? "scale-125 blur-md" : ""
+          }`}
+        />
+        {showAnonymized && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <EyeOff className="h-3.5 w-3.5 text-[var(--tt-cream-muted)]" strokeWidth={2.25} />
+          </span>
+        )}
+      </div>
+      <span className="max-w-[4rem] truncate text-[10px] font-medium text-muted-foreground">
         {label}
       </span>
     </div>
   );
 }
 
-function ChainChip({ value }: { value: string }) {
+function ChainStrengthPill({ strength }: { strength: number }) {
+  const bucket =
+    strength >= 50
+      ? "bg-violet-700"
+      : strength >= 30
+        ? "bg-violet-500"
+        : strength >= 15
+          ? "bg-violet-400"
+          : "bg-violet-300 text-violet-900";
   return (
     <span
-      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
-      style={{ backgroundColor: "#FAF5FF", color: "#6B21A8" }}
+      className={`mx-0.5 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-[9px] font-semibold text-white ${bucket}`}
     >
-      {value}
+      {strength}
     </span>
   );
 }
 
-// TODO(loren): revisit this visual — placeholder mock of the listing
-// visibility settings; needs a follow-up design pass before B3.
+// Slide 5 visibility visual — see /sandbox/onboarding-2/page.tsx for
+// the rationale. Surfaces the three top-level visibility modes plus
+// a glimpse of the granular sub-controls (preview gate vs full
+// listing gate) so the "you have control" message is concrete.
 function VisibilityVisual() {
   return (
-    <div className="rounded-2xl border border-border/60 bg-background/40 p-4 text-left">
-      <p className="mb-3 text-xs text-muted-foreground">Listing visibility</p>
-      <div className="space-y-2.5">
+    <div className="rounded-2xl border border-border/60 bg-background/40 p-3 text-left">
+      <p className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+        Listing visibility
+      </p>
+      <div className="space-y-1.5">
         <ScopeRow
           icon={<Lock className="h-4 w-4" />}
           title="Private"
@@ -1066,16 +1154,54 @@ function VisibilityVisual() {
         <ScopeRow
           icon={<Eye className="h-4 w-4" />}
           title="Preview"
-          subtitle="Network sees a teaser, not the address"
+          subtitle="Network sees a teaser; you control the rest"
           active={true}
         />
         <ScopeRow
           icon={<Users className="h-4 w-4" />}
-          title="Friends of friends"
-          subtitle="Up to 2° from you"
+          title="Open"
+          subtitle="Anyone in your network can request"
           active={false}
         />
       </div>
+
+      <div className="mt-3 rounded-xl border border-brand-300/40 bg-brand-300/[0.08] p-2.5">
+        <GranularRow
+          label="Who sees the preview"
+          value="Friends of friends"
+          icon={<Eye className="h-3.5 w-3.5" />}
+        />
+        <div className="my-1.5 h-px bg-border/40" />
+        <GranularRow
+          label="Who sees the full listing"
+          value="Direct connections"
+          icon={<Users className="h-3.5 w-3.5" />}
+        />
+      </div>
+    </div>
+  );
+}
+
+function GranularRow({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-brand-300/20 text-brand-300">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <span className="shrink-0 rounded-full bg-brand-300/15 px-2 py-0.5 text-[10px] font-semibold text-brand-300">
+        {value}
+      </span>
     </div>
   );
 }
