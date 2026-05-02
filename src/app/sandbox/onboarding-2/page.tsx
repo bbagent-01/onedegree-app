@@ -8,7 +8,7 @@
 //   listing-visibility / preview-listing graphic. Replace once
 //   Loren has a better UI for it.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -197,8 +197,57 @@ export default function SandboxOnboardingPage() {
   const [exiting, setExiting] = useState(false);
   const touchStartX = useRef<number | null>(null);
 
+  // Vertical-fit refs (Round 4). The slide-content wrapper is the
+  // available rectangle; the slide-stack is the inner content that
+  // gets scaled when it would otherwise overflow.
+  const slideContainerRef = useRef<HTMLDivElement>(null);
+  const slideStackRef = useRef<HTMLDivElement>(null);
+
   const isLast = index === SLIDES.length - 1;
   const isFirst = index === 0;
+
+  // Vertical-fit safety net (Round 4). After every slide change, on
+  // window resize, and on content size change (e.g. avatar images
+  // finish loading), measure the natural height of the inner slide
+  // stack against the available height of the slide-content
+  // wrapper. If the stack overflows, write a sub-1 scale into
+  // --fit-scale so the CSS transform compresses the content to fit.
+  // The CSS @media height rules handle the bulk of the work; this
+  // hook only kicks in for the long-tail cases (landscape, a11y zoom,
+  // very narrow viewports).
+  useLayoutEffect(() => {
+    if (phase !== "slides") return;
+    const stack = slideStackRef.current;
+    const container = slideContainerRef.current;
+    if (!stack || !container) return;
+
+    const compute = () => {
+      // Reset to 1 first so the natural height read is accurate.
+      stack.style.setProperty("--fit-scale", "1");
+      const containerH = container.clientHeight;
+      const contentH = stack.scrollHeight;
+      // Only scale down when content overflows; floor at 0.65 so the
+      // worst case stays legible. If the cascade of @media rules has
+      // already done its job, this is a no-op (scale=1).
+      const scale =
+        contentH > containerH ? Math.max(0.65, containerH / contentH) : 1;
+      stack.style.setProperty("--fit-scale", String(scale));
+    };
+
+    // Initial pass.
+    compute();
+    // Re-measure on resize (rotation, devtools open, splash screen
+    // collapse, etc.) and on content size change (animated heading
+    // exit/entry, avatar image load).
+    const ro = new ResizeObserver(compute);
+    ro.observe(stack);
+    ro.observe(container);
+    window.addEventListener("resize", compute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", compute);
+    };
+  }, [phase, index]);
 
   // Phase progression: intro → morphing → slides.
   useEffect(() => {
@@ -529,6 +578,103 @@ export default function SandboxOnboardingPage() {
                 transform: none !important;
               }
             }
+
+            /* ── Vertical-fit cascade (Round 4) ──────────────────────
+               Goal: the slide must always fit within the viewport on
+               mobile — no vertical scroll. Three height breakpoints
+               progressively shrink padding, gaps, type, and the logo
+               so headings + visual + body + CTA + dots all stay
+               above the fold without needing JS measurement.
+
+               The JS scale-to-fit hook (see useFitScale below) then
+               catches any remaining edge cases (very narrow phones in
+               landscape, accessibility zoom, etc.) by applying a
+               proportional transform when content STILL overflows. */
+
+            /* Soft compress (~iPhone 13 mini, larger fold phones) */
+            @media (max-height: 800px) {
+              .sandbox-onboarding-root .slide-content {
+                padding-top: 6.5rem;
+                padding-bottom: 5.5rem;
+              }
+              .sandbox-onboarding-root .slide-stack {
+                gap: 0.875rem;
+              }
+              .sandbox-onboarding-root .logo-wrapper {
+                width: 11rem !important;
+              }
+            }
+
+            /* Mid compress (small phones, big-banner browsers) */
+            @media (max-height: 720px) {
+              .sandbox-onboarding-root .slide-content {
+                padding-top: 5.5rem;
+                padding-bottom: 4.5rem;
+              }
+              .sandbox-onboarding-root .slide-stack {
+                gap: 0.625rem;
+              }
+              .sandbox-onboarding-root .logo-wrapper {
+                width: 10rem !important;
+              }
+              .sandbox-onboarding-root h1 {
+                font-size: clamp(22px, 6.5vw, 32px) !important;
+              }
+              .sandbox-onboarding-root .slide-content > div > p {
+                font-size: 0.875rem !important;
+                line-height: 1.45 !important;
+              }
+              /* Side-by-side CTAs: Continue + Skip on the same row to
+                 reclaim ~50px of vertical space. The back arrow stays
+                 absolute on the left edge of the row. */
+              .sandbox-onboarding-root .cta-stack {
+                flex-direction: row !important;
+                gap: 0.5rem !important;
+              }
+              .sandbox-onboarding-root .cta-stack > button:first-of-type {
+                flex: 1;
+                padding-top: 0.625rem !important;
+                padding-bottom: 0.625rem !important;
+              }
+              .sandbox-onboarding-root .cta-stack > .cta-skip-row {
+                width: auto !important;
+              }
+            }
+
+            /* Hard compress (iPhone SE landscape, very small phones) */
+            @media (max-height: 620px) {
+              .sandbox-onboarding-root .slide-content {
+                padding-top: 4.5rem;
+                padding-bottom: 3.75rem;
+              }
+              .sandbox-onboarding-root .slide-stack {
+                gap: 0.5rem;
+              }
+              .sandbox-onboarding-root .logo-wrapper {
+                width: 8.5rem !important;
+              }
+              .sandbox-onboarding-root h1 {
+                font-size: clamp(18px, 5.5vw, 26px) !important;
+              }
+              .sandbox-onboarding-root .eyebrow-pill {
+                padding: 0.125rem 0.625rem !important;
+                font-size: 9px !important;
+              }
+            }
+
+            /* JS scale-to-fit safety net.
+               When content is still taller than the viewport after the
+               above @media rules fire, useFitScale() computes a scale
+               factor and writes it to --fit-scale. The transform here
+               applies it from the top-center so the eyebrow + heading
+               stay anchored under the logo zone. transform-origin top
+               keeps the visual top stationary; only excess at the
+               bottom gets compressed. */
+            .sandbox-onboarding-root .slide-stack {
+              transform: scale(var(--fit-scale, 1));
+              transform-origin: top center;
+              transition: transform 220ms ${WORD_EASING};
+            }
           `,
         }}
       />
@@ -542,7 +688,7 @@ export default function SandboxOnboardingPage() {
           motion is deliberate. The wrapper sits at z-40 so the slide
           content (z-10) cannot animate behind it during morphing. */}
       <div
-        className="pointer-events-none absolute z-40 left-1/2 -translate-x-1/2"
+        className="logo-wrapper pointer-events-none absolute z-40 left-1/2 -translate-x-1/2"
         style={{
           top: introOrMorphing && phase !== "morphing" ? "50%" : "1.75rem",
           transform:
@@ -664,12 +810,16 @@ export default function SandboxOnboardingPage() {
 
           <div
             key={index}
-            className="slide-content relative z-10 flex flex-1 items-start justify-center overflow-y-auto px-6 pt-36 pb-32 sm:items-center sm:pt-36 sm:pb-24"
+            ref={slideContainerRef}
+            className="slide-content relative z-10 flex flex-1 items-start justify-center overflow-hidden px-6 pt-36 pb-32 sm:items-center sm:pt-36 sm:pb-24"
           >
-            <div className="flex w-full max-w-md flex-col items-center gap-5 text-center sm:max-w-xl sm:gap-8">
+            <div
+              ref={slideStackRef}
+              className="slide-stack flex w-full max-w-md flex-col items-center gap-5 text-center sm:max-w-xl sm:gap-8"
+            >
               {/* Eyebrow pill — small uppercase tag above the heading */}
               <span
-                className="block-rise inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
+                className="block-rise eyebrow-pill inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
                 style={{ animationDelay: `${eyebrowDelay}ms` }}
               >
                 {slide.eyebrow}
@@ -717,7 +867,7 @@ export default function SandboxOnboardingPage() {
               </p>
 
               <div
-                className="block-rise flex w-full flex-col items-center gap-3 md:w-1/2"
+                className="block-rise cta-stack flex w-full flex-col items-center gap-3 md:w-1/2"
                 style={{ animationDelay: `${buttonDelay}ms` }}
               >
                 <button
@@ -731,8 +881,11 @@ export default function SandboxOnboardingPage() {
                 </button>
                 {/* Skip is centered under Continue; back arrow lives
                     on the left edge so the row reads as a balanced
-                    "← center action" instead of a paired group. */}
-                <div className="relative flex w-full items-center justify-center">
+                    "← center action" instead of a paired group. At
+                    short heights (max-height: 720px) the cta-stack
+                    flips to flex-row, putting Continue + Skip on the
+                    same line to reclaim ~50px of vertical space. */}
+                <div className="cta-skip-row relative flex w-full items-center justify-center">
                   {!isFirst && (
                     <button
                       type="button"

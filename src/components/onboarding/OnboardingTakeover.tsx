@@ -13,7 +13,7 @@
 // - VisibilityVisual (slide 5): placeholder mock of the listing-
 //   visibility panel. Replace once Loren has the real UI.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -157,6 +157,11 @@ export function OnboardingTakeover() {
   // mashes Skip + Get-started, or if React re-renders during exit).
   const dismissedRef = useRef(false);
 
+  // Vertical-fit refs (Round 4). See sandbox/onboarding-2 for the
+  // detailed write-up — same setup mirrored here for the live takeover.
+  const slideContainerRef = useRef<HTMLDivElement>(null);
+  const slideStackRef = useRef<HTMLDivElement>(null);
+
   const isLast = index === SLIDES.length - 1;
   const isFirst = index === 0;
 
@@ -170,6 +175,36 @@ export function OnboardingTakeover() {
       return () => clearTimeout(t);
     }
   }, [phase]);
+
+  // Vertical-fit safety net (Round 4) — measure inner stack vs the
+  // available container height after every slide change + on resize,
+  // and write a sub-1 scale into --fit-scale when content overflows.
+  // Floor at 0.65 to keep the worst case legible.
+  useLayoutEffect(() => {
+    if (phase !== "slides") return;
+    const stack = slideStackRef.current;
+    const container = slideContainerRef.current;
+    if (!stack || !container) return;
+
+    const compute = () => {
+      stack.style.setProperty("--fit-scale", "1");
+      const containerH = container.clientHeight;
+      const contentH = stack.scrollHeight;
+      const scale =
+        contentH > containerH ? Math.max(0.65, containerH / contentH) : 1;
+      stack.style.setProperty("--fit-scale", String(scale));
+    };
+
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(stack);
+    ro.observe(container);
+    window.addEventListener("resize", compute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", compute);
+    };
+  }, [phase, index]);
 
   // Lock body scroll while the takeover is mounted so the underlying
   // app can't scroll behind it. Restored on dismiss.
@@ -441,12 +476,89 @@ export function OnboardingTakeover() {
                 transform: none !important;
               }
             }
+
+            /* ── Vertical-fit cascade (Round 4) ──────────────────────
+               Mirrored from /sandbox/onboarding-2 — see that file for
+               the full write-up. Three height breakpoints + a JS
+               scale-to-fit safety net keep slides from overflowing
+               the viewport on any phone, no scroll needed. */
+
+            @media (max-height: 800px) {
+              .onboarding-takeover-root .slide-content {
+                padding-top: 6.5rem;
+                padding-bottom: 5.5rem;
+              }
+              .onboarding-takeover-root .slide-stack {
+                gap: 0.875rem;
+              }
+              .onboarding-takeover-root .logo-wrapper {
+                width: 11rem !important;
+              }
+            }
+
+            @media (max-height: 720px) {
+              .onboarding-takeover-root .slide-content {
+                padding-top: 5.5rem;
+                padding-bottom: 4.5rem;
+              }
+              .onboarding-takeover-root .slide-stack {
+                gap: 0.625rem;
+              }
+              .onboarding-takeover-root .logo-wrapper {
+                width: 10rem !important;
+              }
+              .onboarding-takeover-root h1 {
+                font-size: clamp(22px, 6.5vw, 32px) !important;
+              }
+              .onboarding-takeover-root .slide-content > div > p {
+                font-size: 0.875rem !important;
+                line-height: 1.45 !important;
+              }
+              .onboarding-takeover-root .cta-stack {
+                flex-direction: row !important;
+                gap: 0.5rem !important;
+              }
+              .onboarding-takeover-root .cta-stack > button:first-of-type {
+                flex: 1;
+                padding-top: 0.625rem !important;
+                padding-bottom: 0.625rem !important;
+              }
+              .onboarding-takeover-root .cta-stack > .cta-skip-row {
+                width: auto !important;
+              }
+            }
+
+            @media (max-height: 620px) {
+              .onboarding-takeover-root .slide-content {
+                padding-top: 4.5rem;
+                padding-bottom: 3.75rem;
+              }
+              .onboarding-takeover-root .slide-stack {
+                gap: 0.5rem;
+              }
+              .onboarding-takeover-root .logo-wrapper {
+                width: 8.5rem !important;
+              }
+              .onboarding-takeover-root h1 {
+                font-size: clamp(18px, 5.5vw, 26px) !important;
+              }
+              .onboarding-takeover-root .eyebrow-pill {
+                padding: 0.125rem 0.625rem !important;
+                font-size: 9px !important;
+              }
+            }
+
+            .onboarding-takeover-root .slide-stack {
+              transform: scale(var(--fit-scale, 1));
+              transform-origin: top center;
+              transition: transform 220ms ${WORD_EASING};
+            }
           `,
         }}
       />
 
       <div
-        className="pointer-events-none absolute z-40 left-1/2 -translate-x-1/2"
+        className="logo-wrapper pointer-events-none absolute z-40 left-1/2 -translate-x-1/2"
         style={{
           top: introOrMorphing && phase !== "morphing" ? "50%" : "1.75rem",
           transform:
@@ -549,11 +661,15 @@ export function OnboardingTakeover() {
 
           <div
             key={index}
-            className="slide-content relative z-10 flex flex-1 items-start justify-center overflow-y-auto px-6 pt-36 pb-32 sm:items-center sm:pt-36 sm:pb-24"
+            ref={slideContainerRef}
+            className="slide-content relative z-10 flex flex-1 items-start justify-center overflow-hidden px-6 pt-36 pb-32 sm:items-center sm:pt-36 sm:pb-24"
           >
-            <div className="flex w-full max-w-md flex-col items-center gap-5 text-center sm:max-w-xl sm:gap-8">
+            <div
+              ref={slideStackRef}
+              className="slide-stack flex w-full max-w-md flex-col items-center gap-5 text-center sm:max-w-xl sm:gap-8"
+            >
               <span
-                className="block-rise inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
+                className="block-rise eyebrow-pill inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
                 style={{ animationDelay: `${eyebrowDelay}ms` }}
               >
                 {slide.eyebrow}
@@ -598,7 +714,7 @@ export function OnboardingTakeover() {
               </p>
 
               <div
-                className="block-rise flex w-full flex-col items-center gap-3 md:w-1/2"
+                className="block-rise cta-stack flex w-full flex-col items-center gap-3 md:w-1/2"
                 style={{ animationDelay: `${buttonDelay}ms` }}
               >
                 <button
@@ -610,7 +726,7 @@ export function OnboardingTakeover() {
                   {isLast ? "Get started" : "Continue"}
                   <ArrowRight className="h-4 w-4" />
                 </button>
-                <div className="relative flex w-full items-center justify-center">
+                <div className="cta-skip-row relative flex w-full items-center justify-center">
                   {!isFirst && (
                     <button
                       type="button"
