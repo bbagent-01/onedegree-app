@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Check,
   Eye,
+  EyeOff,
   Lock,
   Shield,
   Star,
