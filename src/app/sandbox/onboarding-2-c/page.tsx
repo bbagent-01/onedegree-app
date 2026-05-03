@@ -90,15 +90,20 @@ const SLIDES: Slide[] = [
   },
 ];
 
-// Phase timeline:
-//   intro     (0 → 3400 ms)       — logo draws + tagline rises;
-//                                   both visible together for ~1.5s
-//   morphing  (3400 → ~6400 ms)   — logo translates up + shrinks
-//                                   slowly; tagline fades out;
-//                                   slide content NOT yet rendered
-//   slides    (~6400 ms → ...)    — slide content mounts and runs
-//                                   its word stagger
-const INTRO_DURATION_MS = 3400;
+// Phase timeline (variant C, 2026-05-03 retune):
+//   intro     (0 → 2400 ms)       — logo draws + tagline rises;
+//                                   both visible together for ~1s
+//   morphing  (2400 → ~4000 ms)   — logo translates up AND shrinks
+//                                   simultaneously; shrink uses a
+//                                   strong ease-in so the wordmark
+//                                   stays at intro size for most of
+//                                   the move and only collapses near
+//                                   the end. Tagline fades + drifts.
+//   slides    (~4000 ms → ...)    — slide content mounts AFTER the
+//                                   logo has finished morphing so it
+//                                   can't overlap the wordmark in
+//                                   transit.
+const INTRO_DURATION_MS = 2400; // was 3400 — start morph 1s earlier
 const SWIPE_THRESHOLD_PX = 50;
 
 // Tagline starts BEFORE the wordmark finishes drawing, so they
@@ -115,36 +120,38 @@ const BODY_WORD_STAGGER_MS = 12;
 const BLOCK_FADE_DURATION_MS = 500;
 const WORD_EXIT_DURATION_MS = 400;
 
-// Logo morph — Loren tuned the overlap (Round 4): the move is still
-// the dominant motion, but the shrink now starts at 60% of the move
-// instead of 80% so the two read as a single fluid gesture rather
-// than two discrete steps. Move 2000ms, shrink starts at 1200ms
-// (60% of move) and runs 1000ms so the wordmark settles ~200ms
-// after the move ends. Total morph window 2200ms.
-const LOGO_MOVE_MS = 2000;
-const LOGO_SHRINK_MS = 1000;
-const LOGO_SHRINK_DELAY_MS = Math.round(LOGO_MOVE_MS * 0.6);
-const LOGO_EASING = "cubic-bezier(0.83, 0, 0.17, 1)"; // dramatic ease-in-out
+// Logo morph (variant C retune):
+//   - Move + shrink start at the SAME TIME (no separation).
+//   - Both run for 1500ms total — slightly faster than the old
+//     2000ms move so the whole gesture is snappier.
+//   - Move uses a balanced ease-in-out so the lift feels confident.
+//   - SHRINK uses a strong ease-in: the wordmark stays at full
+//     intro size for most of the journey upward and only collapses
+//     to its settled size in the last ~30% of the morph. Reads as
+//     "the logo flies up, then *snap* into the header."
+const LOGO_MOVE_MS = 1500;
+const LOGO_SHRINK_MS = 1500;
+const LOGO_SHRINK_DELAY_MS = 0; // shrink and move kick off together
+const LOGO_EASING = "cubic-bezier(0.83, 0, 0.17, 1)"; // move: dramatic ease-in-out
+const LOGO_SHRINK_EASING = "cubic-bezier(0.85, 0, 0.95, 0.4)"; // shrink: strong ease-in (stays large until end)
 const LOGO_TOTAL_MORPH_MS = Math.max(
   LOGO_MOVE_MS,
   LOGO_SHRINK_DELAY_MS + LOGO_SHRINK_MS
 );
-// Slide content mounts during morphing — a bit before the logo
-// shrink fires — so the eyebrow + first title words are already
-// rising into place by the time the logo settles. The CSS
-// transitions on the logo wrapper continue running independently;
-// we just flip the React phase early.
-const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
+// Slide content waits until the logo has finished morphing so it
+// never overlaps the in-transit wordmark. Mount 200ms before morph
+// completes to give the eyebrow + first words a head-start while
+// the logo is settling its last few pixels.
+const SLIDES_MOUNT_OFFSET_MS = LOGO_TOTAL_MORPH_MS - 200;
 
-// Tagline exit — Loren retuned (Round 4): the logo should clearly
-// move first and the tagline follow a noticeable half-second later.
-// Bumped from 750ms → 1300ms so there's ~550ms of pure logo motion
-// before the tagline starts drifting up + fading. Reads as the logo
-// leaving and the tagline trying to catch up, instead of both
-// happening together.
-const TAGLINE_EXIT_DELAY_MS = 1300;
-const TAGLINE_EXIT_DURATION_MS = 300;
-const TAGLINE_EXIT_TRANSLATE_PX = 0;
+// Tagline exit — Loren wants the gap closer (~500ms after logo
+// starts moving). Tagline is rendered OUTSIDE the logo wrapper
+// (see JSX below) so the wrapper's top/transform morph doesn't
+// carry the tagline along — TAGLINE_EXIT_DELAY_MS truly controls
+// the gap between "logo starts" and "tagline starts."
+const TAGLINE_EXIT_DELAY_MS = 500;
+const TAGLINE_EXIT_DURATION_MS = 500;
+const TAGLINE_EXIT_TRANSLATE_PX = 100;
 
 // Orbit avatar filenames — used both by the orbit JS (which has its
 // own copy of these paths) and by the React preloader on this page,
@@ -225,14 +232,37 @@ export default function SandboxOnboardingPageC() {
       return () => clearTimeout(t);
     }
     if (phase === "morphing") {
-      // Mount slide content early (just before the logo begins
-      // shrinking) so its word-stagger overlaps the tail of the logo
-      // morph — the next slide is already rising as the wordmark
-      // settles into the header.
+      // Slide content waits for the logo morph to (almost) finish
+      // — see SLIDES_MOUNT_OFFSET_MS comment up top.
       const t = setTimeout(() => setPhase("slides"), SLIDES_MOUNT_OFFSET_MS);
       return () => clearTimeout(t);
     }
   }, [phase]);
+
+  // Force the intro animation to play on EVERY page load — including
+  // bfcache restores (back/forward navigation in the browser) and
+  // dev-mode HMR/Fast-Refresh that preserve component state across
+  // edits. Without this, the page can end up rendered at phase ===
+  // "slides" with the logo already settled and no animation triggered
+  // — the bug Loren reported as "sometimes when I'm going to the page
+  // the logo doesn't animate, it just loads."
+  useEffect(() => {
+    // On mount, hard-reset to the intro phase. If we're already at
+    // intro, the setState is a no-op (React bails on identical value).
+    setPhase("intro");
+    setIndex(0);
+    // Listen for the bfcache restore event so back/forward nav re-
+    // triggers the animation. event.persisted === true means the
+    // page was restored from the browser's back/forward cache.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setPhase("intro");
+        setIndex(0);
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   const transitionTo = (nextIdx: number) => {
     setExiting(true);
@@ -537,6 +567,22 @@ export default function SandboxOnboardingPageC() {
               display: none !important;
             }
 
+            /* Hide Clerk's keyless-mode dev widget on this sandbox.
+               Appears when no NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is set
+               in .env.local. The widget's iframe uses src*="clerk" and
+               its host wrapper carries class names with the cl- prefix. */
+            body:has(.sandbox-onboarding-root) iframe[src*="clerk"],
+            body:has(.sandbox-onboarding-root) [class*="cl-internal"],
+            body:has(.sandbox-onboarding-root) [data-clerk-component],
+            body:has(.sandbox-onboarding-root) > [class*="cl-"],
+            /* Next.js dev mode indicator (the round N badge at the
+               bottom-left in dev). Not present in production. */
+            body:has(.sandbox-onboarding-root) nextjs-portal,
+            body:has(.sandbox-onboarding-root) [data-next-mark-loading],
+            body:has(.sandbox-onboarding-root) #__next-build-watcher {
+              display: none !important;
+            }
+
             @media (prefers-reduced-motion: reduce) {
               .sandbox-onboarding-root .word-fill,
               .sandbox-onboarding-root .block-rise,
@@ -545,6 +591,19 @@ export default function SandboxOnboardingPageC() {
                 animation: none !important;
                 opacity: 1 !important;
                 transform: none !important;
+              }
+            }
+
+            /* Short-screen content drops (variant C).
+               First casualty when the viewport is short: the eyebrow
+               pill. It's reinforcing context, not load-bearing — the
+               heading + body + CTA can carry the slide alone. Hides
+               the element completely (display:none, not visibility)
+               so the stack's gap collapses too and reclaims real
+               vertical space. */
+            @media (max-height: 700px) {
+              .sandbox-onboarding-root .eyebrow-pill {
+                display: none !important;
               }
             }
           `,
@@ -567,14 +626,22 @@ export default function SandboxOnboardingPageC() {
             introOrMorphing && phase !== "morphing"
               ? "translate(-50%, -50%)"
               : "translate(-50%, 0)",
+          // Settled width — variant C 2026-05-03 retune.
+          // clamp(8rem, 32vw, 13.5rem) — smaller on phones (8-12rem
+          // depending on width), full 13.5rem at sm breakpoint and up
+          // (≥640px width). Same desktop size as before; mobile is
+          // ~30% smaller per Loren's brief.
           width:
             introOrMorphing && phase !== "morphing"
               ? "min(28rem, 92vw)"
-              : "clamp(9rem, 22vh, 15rem)",
+              : "clamp(8rem, 32vw, 13.5rem)",
           transitionProperty: "top, transform, width",
           transitionDuration: `${LOGO_MOVE_MS}ms, ${LOGO_MOVE_MS}ms, ${LOGO_SHRINK_MS}ms`,
           transitionDelay: `0ms, 0ms, ${LOGO_SHRINK_DELAY_MS}ms`,
-          transitionTimingFunction: `${LOGO_EASING}, ${LOGO_EASING}, ${LOGO_EASING}`,
+          // Move uses the dramatic ease-in-out; shrink uses a strong
+          // ease-in so the wordmark stays at intro size most of the
+          // way up and only collapses near the end of the journey.
+          transitionTimingFunction: `${LOGO_EASING}, ${LOGO_EASING}, ${LOGO_SHRINK_EASING}`,
         }}
       >
         <iframe
@@ -584,32 +651,49 @@ export default function SandboxOnboardingPageC() {
           tabIndex={-1}
           title="Trustead animated logo"
         />
-        {/* Tagline — animates in word-by-word like the slide text
-            (same rise-from-baseline mask). Waits until the wordmark
-            has mostly drawn before its first word lifts. On morph,
-            the logo wrapper carries the tagline up; the tagline
-            ALSO fades + drifts up extra after a short delay so it
-            reads as "trying to follow the logo, then dissolving"
-            — instead of disappearing before the logo moves. */}
-        <div
-          className="mt-4 text-center"
-          style={{
-            opacity: phase === "intro" ? 1 : 0,
-            transform:
-              phase === "intro"
-                ? "translate3d(0, 0, 0)"
-                : `translate3d(0, -${TAGLINE_EXIT_TRANSLATE_PX}px, 0)`,
-            transition: `opacity ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms, transform ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms`,
-          }}
-        >
-          <p className="text-lg text-white sm:text-xl">
-            <AnimatedWords
-              text="Rent your home with trust"
-              stagger={TITLE_WORD_STAGGER_MS}
-              baseDelay={TAGLINE_DELAY_MS}
-            />
-          </p>
-        </div>
+      </div>
+
+      {/* Tagline — INDEPENDENT of the logo wrapper.
+          Previous architecture nested the tagline inside the wrapper
+          so the wrapper's top/transform morph carried the tagline
+          along, defeating any delay applied to the tagline's own
+          transition. Now the tagline is its own absolutely-positioned
+          element pinned just below the centered logo during intro
+          (top: 50% + 80px). It animates ONLY its own opacity + a
+          small translateY (~100px) — independent of the logo's full
+          journey to the header. The TAGLINE_EXIT_DELAY_MS now truly
+          controls "logo moves first, tagline follows".
+
+          NOTE: must NOT unmount on phase === "slides". The
+          intro→morphing→slides transitions happen quickly (slides
+          mounts at SLIDES_MOUNT_OFFSET_MS = ~1000ms after morph
+          starts), which is exactly when this tagline's exit
+          animation is scheduled to begin via TAGLINE_EXIT_DELAY_MS.
+          If we unmount on "slides" we rip it from the DOM before
+          its animation can play. So we keep it mounted (it's
+          pointer-events-none anyway) and just leave opacity at 0. */}
+      <div
+        className="pointer-events-none absolute z-40 left-1/2 text-center"
+        style={{
+          top: "50%",
+          // Translate puts the tagline 80px below viewport center —
+          // sits just under the centered logo iframe during intro.
+          // On morph + slides, also translate up by TAGLINE_EXIT_TRANSLATE_PX.
+          transform:
+            phase === "intro"
+              ? "translate(-50%, calc(-50% + 80px))"
+              : `translate(-50%, calc(-50% + 80px - ${TAGLINE_EXIT_TRANSLATE_PX}px))`,
+          opacity: phase === "intro" ? 1 : 0,
+          transition: `opacity ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms, transform ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms`,
+        }}
+      >
+        <p className="text-lg text-white sm:text-xl whitespace-nowrap">
+          <AnimatedWords
+            text="Rent your home with trust"
+            stagger={TITLE_WORD_STAGGER_MS}
+            baseDelay={TAGLINE_DELAY_MS}
+          />
+        </p>
       </div>
 
       {phase === "slides" && (
@@ -713,9 +797,13 @@ export default function SandboxOnboardingPageC() {
                 gap: "clamp(0.5rem, 1.8vh, 1.5rem)",
               }}
             >
-              {/* Eyebrow pill — small uppercase tag above the heading */}
+              {/* Eyebrow pill — small uppercase tag above the heading.
+                  On short screens (< 700px viewport height) this is
+                  the FIRST thing to drop — it's reinforcing context,
+                  not load-bearing. The heading + body + visual + CTA
+                  carry the slide on their own. */}
               <span
-                className="block-rise inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
+                className="block-rise eyebrow-pill inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
                 style={{ animationDelay: `${eyebrowDelay}ms` }}
               >
                 {slide.eyebrow}
@@ -766,37 +854,44 @@ export default function SandboxOnboardingPageC() {
                 className="block-rise flex w-full flex-col items-center gap-3 md:w-1/2"
                 style={{ animationDelay: `${buttonDelay}ms` }}
               >
-                <button
-                  type="button"
-                  onClick={next}
-                  aria-label={isLast ? "Get started" : "Continue"}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 py-3.5 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
-                >
-                  {isLast ? "Get started" : "Continue"}
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-                {/* Skip is centered under Continue; back arrow lives
-                    on the left edge so the row reads as a balanced
-                    "← center action" instead of a paired group. */}
-                <div className="relative flex w-full items-center justify-center">
+                {/* Primary action row: small ghost-circle Back button
+                    on the LEFT (only after slide 1), and Continue
+                    filling the rest of the available width. The back
+                    button is the same height as Continue so the row
+                    reads cleanly. */}
+                <div className="flex w-full items-stretch gap-2">
                   {!isFirst && (
                     <button
                       type="button"
                       onClick={prev}
                       aria-label="Previous slide"
-                      className="absolute left-0 grid h-8 w-8 place-items-center rounded-pill text-muted-foreground transition hover:text-foreground"
+                      className="grid aspect-square h-12 shrink-0 place-items-center rounded-full border border-border/60 bg-transparent text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
                     >
                       <ArrowLeft className="h-4 w-4" />
                     </button>
                   )}
                   <button
                     type="button"
-                    onClick={skip}
-                    className="rounded-pill px-3 py-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+                    onClick={next}
+                    aria-label={isLast ? "Get started" : "Continue"}
+                    className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
                   >
-                    Skip
+                    {isLast ? "Get started" : "Continue"}
+                    <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
+                {/* Secondary action: "Sign up" in ghost-button style
+                    (full width, thin outline, transparent fill). Used
+                    to be a tiny "Skip" link — Loren wants this
+                    promoted because signing up is the actual goal of
+                    the takeover. Tap target hits the 44×44 minimum. */}
+                <button
+                  type="button"
+                  onClick={skip}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-pill border border-border/60 bg-transparent px-6 text-sm font-medium text-foreground transition hover:bg-foreground/5"
+                >
+                  Sign up
+                </button>
               </div>
             </div>
           </div>
