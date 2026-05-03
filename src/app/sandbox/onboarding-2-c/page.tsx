@@ -729,9 +729,17 @@ export default function SandboxOnboardingPageC() {
               </div>
             ) : (
               <>
+                {/* Orbit arcs (mobile) — extended to h-[60%] each so
+                    the canvases overlap by 20% in the central band.
+                    The orbit JS draws arcs near the bottom of the top
+                    canvas / top of the bottom canvas, so extending
+                    the canvas height pulls the avatar arcs INWARD
+                    toward the text band. Outer rings end up in the
+                    CTA region — pointer-events-none + z-0 means they
+                    sit harmlessly behind the buttons. */}
                 <div
                   key="orbit-mobile-top"
-                  className="sandbox-orbit-fade-in absolute top-0 left-0 right-0 h-1/2 z-0 pointer-events-none"
+                  className="sandbox-orbit-fade-in absolute top-0 left-0 right-0 h-[60%] z-0 pointer-events-none"
                 >
                   <div className="mx-auto h-full w-full max-w-[680px]">
                     <canvas
@@ -742,7 +750,7 @@ export default function SandboxOnboardingPageC() {
                 </div>
                 <div
                   key="orbit-mobile-bottom"
-                  className="sandbox-orbit-fade-in absolute bottom-0 left-0 right-0 h-1/2 z-0 pointer-events-none"
+                  className="sandbox-orbit-fade-in absolute bottom-0 left-0 right-0 h-[60%] z-0 pointer-events-none"
                 >
                   <div className="mx-auto h-full w-full max-w-[680px]">
                     <canvas
@@ -795,14 +803,26 @@ export default function SandboxOnboardingPageC() {
           >
             <div
               className="flex min-h-full w-full max-w-md flex-col items-center text-center sm:max-w-xl"
-              style={{
-                justifyContent: "safe center",
-                // Adaptive gap between stack children (eyebrow,
-                // heading, visual, body, CTA). Tight on short phones,
-                // generous on tall phones.
-                gap: "clamp(0.5rem, 1.8vh, 1.5rem)",
-              }}
             >
+              {/* Content region — eyebrow + heading + visual + body.
+                  Takes flex-1 so the CTA below gets pushed to the
+                  bottom of the slide regardless of how much content
+                  this region has. justify-center keeps the content
+                  vertically centered within the available space when
+                  it fits; safe-center falls back to flex-start when
+                  it overflows so the heading never collides with the
+                  persistent logo. The result: CTAs sit at the same
+                  y-position on every slide. */}
+              <div
+                className="flex w-full flex-1 flex-col items-center text-center"
+                style={{
+                  justifyContent: "safe center",
+                  // Adaptive gap between content children (eyebrow,
+                  // heading, visual, body). Tight on short phones,
+                  // generous on tall phones.
+                  gap: "clamp(0.5rem, 1.8vh, 1.5rem)",
+                }}
+              >
               {/* Eyebrow pill — small uppercase tag above the heading.
                   On short screens (< 700px viewport height) this is
                   the FIRST thing to drop — it's reinforcing context,
@@ -855,9 +875,13 @@ export default function SandboxOnboardingPageC() {
                   </>
                 )}
               </p>
-
+              </div>
+              {/* CTA region — sibling of the content region, NOT inside
+                  it. Pushed to the bottom by the content region's
+                  flex-1. Stays at the same y-position on every slide
+                  so users don't have to track moving buttons. */}
               <div
-                className="block-rise flex w-full flex-col items-center gap-3 md:w-1/2"
+                className="block-rise mt-4 flex w-full flex-col items-center gap-3 md:w-1/2"
                 style={{ animationDelay: `${buttonDelay}ms` }}
               >
                 {/* Primary action row: small ghost-circle Back button
@@ -1323,7 +1347,7 @@ function TrustDetailVisual() {
   const t = TRUST_VISUAL;
   return (
     <div className="rounded-2xl border border-border/60 bg-background/40 p-3 text-left">
-      {/* Header row: avatar + name + HOST OFFER pill + degree/score chip */}
+      {/* Header row: avatar + name + dual-tone degree/score chip */}
       <div className="flex items-center gap-3">
         <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-border/60">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1334,18 +1358,10 @@ function TrustDetailVisual() {
           />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-[15px] font-semibold leading-tight text-foreground">
-              {t.target.name}
-            </span>
-            <span className="rounded-full bg-brand-300/20 px-2 py-0.5 text-[9px] font-mono uppercase tracking-[0.18em] text-brand-300">
-              Host offer
-            </span>
-          </div>
-          {/* Dual-tone degree + trust-score chip — left half lighter
-              cyan with the degree badge, right half darker cyan with
-              the numeric trust score. Mirrors the production score
-              pill on listings/profiles. */}
+          <span className="text-[15px] font-semibold leading-tight text-foreground">
+            {t.target.name}
+          </span>
+          {/* Dual-tone degree + trust-score chip */}
           <div className="mt-1.5 inline-flex overflow-hidden rounded-full text-[11px] font-semibold">
             <span className="bg-cyan-400/30 px-2 py-0.5 text-cyan-200">
               {t.degreeLabel}
@@ -1357,69 +1373,80 @@ function TrustDetailVisual() {
         </div>
       </div>
 
-      {/* Connection summary + Trust Score */}
-      <div className="mt-3 flex items-center gap-2">
-        <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <div className="text-[13px] font-semibold leading-tight">
-          Connected to {t.target.name} via {t.totalConnections} connections
-        </div>
-      </div>
-      <div className="mt-0.5 text-[11px] text-muted-foreground">
-        Trust Score:{" "}
-        <span className="font-semibold text-foreground">
-          {t.totalPoints} pts ({t.totalLabel})
+      {/* Single-line summary — no icon, no separate Trust Score line.
+          Compresses two facts into one scannable sentence. */}
+      <div className="mt-3 text-[13px] font-semibold leading-tight">
+        Connected via {t.paths.length} paths
+        <span className="font-normal text-muted-foreground">
+          {" · "}Score{" "}
+          <span className="font-semibold text-foreground">
+            {t.trustScore} ({t.totalLabel})
+          </span>
         </span>
       </div>
 
-      {/* Path rows */}
-      <div className="mt-2.5 space-y-2">
-        {t.paths.map((path) => (
-          <ChainRow key={path.label} path={path} />
+      {/* Single combined path container. Both paths live in one rounded
+          box separated by a thin horizontal divider. No "PATH N · VIA
+          NAME" labels — the avatars + degree pills carry the meaning. */}
+      <div className="mt-2.5 rounded-xl border border-border/60 bg-background/30 p-2.5">
+        {t.paths.map((path, pathIdx) => (
+          <div key={path.label}>
+            {pathIdx > 0 && <div className="my-2 h-px bg-border/40" />}
+            <ChainRow path={path} />
+          </div>
         ))}
       </div>
     </div>
   );
 }
 
-// Path row: target on the LEFT, You on the right, with degree pills
-// (1°, 2°, etc.) between each pair of avatars. Matches the host-card
-// layout Loren provided in the screenshot.
+// Path row: target on the LEFT, You on the right, with a thin
+// horizontal connection LINE between avatars and a small degree
+// pill (1°, 2°) sitting on top of the midpoint of each line.
 function ChainRow({
   path,
 }: {
   path: typeof TRUST_VISUAL.paths[number];
 }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-background/30 p-2.5">
-      <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-        {path.label}
-      </div>
-      <div className="mt-2 flex items-center justify-center gap-1">
-        {path.nodes.map((node, i) => (
-          <span key={`${node.name}-${i}`} className="contents">
-            {i > 0 && <DegreePill label={path.degrees[i - 1]} />}
-            <ChainAvatar
-              name={node.name}
-              avatar={node.avatar}
-              known={node.known}
-              isYou={Boolean(node.isYou)}
-              isTarget={Boolean(node.isTarget)}
-            />
-          </span>
-        ))}
-      </div>
+    <div className="flex items-center justify-center">
+      {path.nodes.map((node, i) => (
+        <span key={`${node.name}-${i}`} className="contents">
+          {i > 0 && <ChainConnector label={path.degrees[i - 1]} index={i - 1} />}
+          <ChainAvatar
+            name={node.name}
+            avatar={node.avatar}
+            known={node.known}
+            isYou={Boolean(node.isYou)}
+            isTarget={Boolean(node.isTarget)}
+          />
+        </span>
+      ))}
     </div>
   );
 }
 
-// Small degree-badge pill ("1°", "2°", "3°") that sits BETWEEN
-// avatars in a path row. Cyan to match the degree-label convention
-// used in the dual-tone score chip above.
-function DegreePill({ label }: { label: string }) {
+// Connector between two avatars in a path row. Renders a thin
+// horizontal line with a degree pill sitting on its midpoint.
+// flex-1 + min-w-0 lets the connector absorb extra horizontal space
+// so the avatars space evenly across the available width.
+function ChainConnector({ label, index }: { label: string; index: number }) {
+  // Alternate the pill color so the row reads as varied edges (mirrors
+  // the screenshot where the first segment is brand-green and the
+  // second is cyan-blue).
+  const pillColors =
+    index === 0
+      ? "bg-brand-300/40 text-brand-100"
+      : "bg-cyan-500/40 text-cyan-50";
   return (
-    <span className="mx-0.5 inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-cyan-500/30 px-1.5 text-[9px] font-semibold text-cyan-100">
-      {label}
-    </span>
+    <div className="relative flex min-w-0 flex-1 items-center justify-center">
+      <span className="block h-px w-full bg-border/60" />
+      <span
+        className={`absolute inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${pillColors}`}
+      >
+        {label}
+      </span>
+    </div>
   );
 }
 
