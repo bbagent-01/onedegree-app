@@ -7,12 +7,19 @@
 // here writes users.onboarding_seen_at via POST
 // /api/onboarding/dismiss instead of the sandbox's in-memory state.
 //
+// B4: a `signedOut` prop swaps the last-slide CTA from a single
+// "Get started" button to a "Create an account" / "Sign in" pair
+// and skips the dismiss POST (which would 401 anyway). Used by the
+// new home page so cold visitors at trustead.app run through the
+// full onboarding flow before hitting Clerk's sign-up.
+//
 // Pending revisits (Loren):
 // - TrustDetailVisual (slide 4): placeholder mock of the in-app
 //   trust-detail panel. Replace once Loren has the real UI.
 // - VisibilityVisual (slide 5): placeholder mock of the listing-
 //   visibility panel. Replace once Loren has the real UI.
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -144,7 +151,21 @@ const ORBIT_DESKTOP_BREAKPOINT_PX = 768;
 
 type Phase = "intro" | "morphing" | "slides" | "dismissed";
 
-export function OnboardingTakeover() {
+interface OnboardingTakeoverProps {
+  /**
+   * When true: skip the /api/onboarding/dismiss POST (no DB row to
+   * stamp), and on the last slide show "Create an account" + "Sign
+   * in" buttons instead of the single "Get started". Used by the
+   * signed-out home page so visitors run through the value-prop
+   * slides before hitting Clerk.
+   */
+  signedOut?: boolean;
+}
+
+export function OnboardingTakeover({
+  signedOut = false,
+}: OnboardingTakeoverProps = {}) {
+  const router = useRouter();
   const [phase, setPhase] = useState<Phase>("intro");
   const [index, setIndex] = useState(0);
   const [exiting, setExiting] = useState(false);
@@ -185,11 +206,29 @@ export function OnboardingTakeover() {
     // a failed write means the takeover shows again on next sign-in
     // (acceptable — show-once is best-effort, not a hard guarantee).
     setPhase("dismissed");
+    if (signedOut) {
+      // No DB row to stamp; skip the POST entirely.
+      return;
+    }
     fetch("/api/onboarding/dismiss", { method: "POST", keepalive: true }).catch(
       (err) => {
         console.error("[onboarding] dismiss failed:", err);
       }
     );
+  };
+
+  // Signed-out CTAs from the final slide. Both navigate via the
+  // Next.js router so the slot bounce-back stays in the SPA shell;
+  // we still call dismiss() so the takeover unmounts cleanly.
+  const goSignUp = () => {
+    if (dismissedRef.current) return;
+    dismiss();
+    router.push("/sign-up?redirect_url=/");
+  };
+  const goSignIn = () => {
+    if (dismissedRef.current) return;
+    dismiss();
+    router.push("/sign-in?redirect_url=/");
   };
 
   const transitionTo = (nextIdx: number) => {
@@ -581,15 +620,43 @@ export function OnboardingTakeover() {
                 className="block-rise flex w-full flex-col items-center gap-3 md:w-1/2"
                 style={{ animationDelay: `${buttonDelay}ms` }}
               >
-                <button
-                  type="button"
-                  onClick={next}
-                  aria-label={isLast ? "Get started" : "Continue"}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 py-3.5 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
-                >
-                  {isLast ? "Get started" : "Continue"}
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+                {signedOut && isLast ? (
+                  // Signed-out final CTA cluster: replace the lone
+                  // "Get started" with explicit Create-account / Sign-in
+                  // routes. The sign-up flow's first step is the
+                  // age-verification DOB gate, so handing the user off
+                  // there satisfies Loren's "after onboarding → age
+                  // verification → app" sequence.
+                  <>
+                    <button
+                      type="button"
+                      onClick={goSignUp}
+                      aria-label="Create an account"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 py-3.5 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
+                    >
+                      Create an account
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={goSignIn}
+                      aria-label="Sign in"
+                      className="inline-flex w-full items-center justify-center rounded-pill border border-border bg-card/40 px-6 py-3 text-sm font-medium text-foreground transition hover:bg-card/60"
+                    >
+                      Sign in
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={next}
+                    aria-label={isLast ? "Get started" : "Continue"}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 py-3.5 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
+                  >
+                    {isLast ? "Get started" : "Continue"}
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                )}
                 <div className="relative flex w-full items-center justify-center">
                   {!isFirst && (
                     <button
@@ -601,13 +668,20 @@ export function OnboardingTakeover() {
                       <ArrowLeft className="h-4 w-4" />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={skip}
-                    className="rounded-pill px-3 py-1.5 text-sm text-muted-foreground transition hover:text-foreground"
-                  >
-                    Skip
-                  </button>
+                  {/* Hide the Skip text-button on the final signed-out
+                      slide — the Sign-in button above already serves
+                      that role and a third Skip option here just adds
+                      noise. Skip stays for slides 1–4 so users can
+                      bail to /sign-in without slogging through. */}
+                  {!(signedOut && isLast) && (
+                    <button
+                      type="button"
+                      onClick={signedOut ? goSignIn : skip}
+                      className="rounded-pill px-3 py-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+                    >
+                      {signedOut ? "Sign in" : "Skip"}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

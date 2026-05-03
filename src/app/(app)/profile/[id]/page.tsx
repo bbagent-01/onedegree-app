@@ -23,6 +23,12 @@ import { ContactButton } from "@/components/profile/contact-button";
 import { ConnectionPopover } from "@/components/trust/connection-breakdown";
 import { ConnectionPath } from "@/components/trust/connection-path";
 import { TrustTag } from "@/components/trust/trust-tag";
+import {
+  TrustBadge,
+  MacroDegreePill,
+  MacroConnectorStrip,
+} from "@/components/trust/trust-badge";
+import { toTrustBadgeData } from "@/lib/trust/badge";
 import { ReportUserButton } from "@/components/safety/report-user-button";
 import { PreviewBadge } from "@/components/profile/preview-badge";
 import { fetchVisibleProposals } from "@/lib/proposals-data";
@@ -113,6 +119,23 @@ export default async function ProfilePage({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold md:text-3xl">{user.name}</h1>
+            {trust && !isOwn && (
+              <MacroDegreePill
+                data={toTrustBadgeData(
+                  {
+                    degree: trust.degree,
+                    score: trust.score,
+                    hasDirectVouch: trust.hasDirectVouch,
+                    connectorPaths: trust.connectorPaths,
+                  },
+                  {
+                    vouch_score: user.vouch_score,
+                    host_rating: user.host_rating,
+                    host_review_count: user.host_review_count ?? 0,
+                  }
+                )}
+              />
+            )}
             {isPreview && <PreviewBadge />}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -205,7 +228,17 @@ export default async function ProfilePage({
           <DemoConnectionsSelfView userId={user.id} />
         </>
       ) : trust ? (
-        <OtherTrustSection user={user} trust={trust} />
+        <OtherTrustSection
+          user={{
+            id: user.id,
+            name: user.name,
+            avatar_url: user.avatar_url,
+            vouch_score: user.vouch_score,
+            host_rating: user.host_rating,
+            host_review_count: user.host_review_count,
+          }}
+          trust={trust}
+        />
       ) : null}
 
       {/* About */}
@@ -414,46 +447,39 @@ function OtherTrustSection({
   user,
   trust,
 }: {
-  user: { id: string; name: string };
+  user: {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    vouch_score: number | null;
+    host_rating: number | null;
+    host_review_count: number | null;
+  };
   trust: NonNullable<Awaited<ReturnType<typeof computeTrustPath>>>;
 }) {
   const first = user.name.split(" ")[0];
-  const tierLabel = (() => {
-    if (trust.hasDirectVouch) return "Direct vouch";
-    const s = trust.score;
-    if (s >= 75) return "Extremely strong";
-    if (s >= 50) return "Very strong";
-    if (s >= 30) return "Strong";
-    if (s >= 15) return "Modest";
-    if (s >= 1) return "Weak";
-    return "Not connected";
-  })();
+  const badgeData = toTrustBadgeData(
+    {
+      degree: trust.degree,
+      score: trust.score,
+      hasDirectVouch: trust.hasDirectVouch,
+      connectorPaths: trust.connectorPaths,
+    },
+    {
+      vouch_score: user.vouch_score,
+      host_rating: user.host_rating,
+      host_review_count: user.host_review_count ?? 0,
+    }
+  );
   return (
     <Section title={`Your connection to ${first}`}>
-      <div className="grid gap-4 md:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">
-        <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Trust Score
-          </div>
-          <div className="mt-1">
-            <TrustTag
-              size="medium"
-              score={trust.score}
-              degree={trust.degree}
-              direct={trust.hasDirectVouch}
-              connectorPaths={trust.connectorPaths}
-            />
-          </div>
-          <div className="mt-3 text-sm font-medium text-foreground">
-            {tierLabel}
-          </div>
-          {trust.connectionCount > 0 && (
-            <div className="mt-1 text-xs text-muted-foreground">
-              Based on {trust.connectionCount} connection
-              {trust.connectionCount !== 1 ? "s" : ""}
-            </div>
-          )}
+      <TrustBadge size="macro" data={badgeData} />
+      {badgeData.connectors.length > 0 && (
+        <div className="mt-4">
+          <MacroConnectorStrip connectors={badgeData.connectors} />
         </div>
+      )}
+      <div className="mt-6">
         <div className="rounded-2xl border border-border bg-white p-5">
           {trust.path.length >= 2 ? (
             <>

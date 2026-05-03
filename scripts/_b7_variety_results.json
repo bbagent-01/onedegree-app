@@ -1,0 +1,80 @@
+[
+  {
+    "key": "lafayette",
+    "display": "Marquis de Lafayette",
+    "archetype": "far",
+    "portraitSlug": "Gilbert_du_Motier,_Marquis_de_Lafayette",
+    "homeName": "La Grange-Bléneau — Lafayette's Country Château",
+    "homeArea": "Courpalay, France",
+    "homeSlug": "Ch%C3%A2teau_de_la_Grange-Bl%C3%A9neau",
+    "portraitSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3f/Gilbert_du_Motier_Marquis_de_Lafayette.PNG",
+    "portraitPublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/variety/lafayette.png",
+    "homeSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/4/46/La_grange_blesneau_IX.jpg",
+    "homePublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/variety/lafayette-home.jpg"
+  },
+  {
+    "key": "john_marshall",
+    "display": "John Marshall",
+    "archetype": "far",
+    "portraitSlug": "John_Marshall",
+    "homeName": "Marshall House — Federal-Era Brick Townhouse",
+    "homeArea": "Richmond, VA",
+    "homeSlug": "John_Marshall_House",
+    "portraitSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/f/fe/John_Marshall_by_Henry_Inman%2C_1832.jpg",
+    "portraitPublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/variety/john_marshall.jpg",
+    "homeSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/d/dd/John_Marshall_House_%28Richmond%2C_Virginia%29.jpg",
+    "homePublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/variety/john_marshall-home.jpg"
+  },
+  {
+    "key": "chopin",
+    "display": "Frédéric Chopin",
+    "archetype": "no_conn",
+    "portraitSlug": "Fr%C3%A9d%C3%A9ric_Chopin",
+    "homeName": "Żelazowa Wola — Chopin's Birthplace Manor",
+    "homeArea": "Żelazowa Wola, Poland",
+    "homeSlug": "%C5%BBelazowa_Wola",
+    "portraitSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e8/Frederic_Chopin_photo.jpeg",
+    "portraitPublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/variety/chopin.jpeg",
+    "homeSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/4/46/Poland_Zelazowa_Wola.jpg",
+    "homePublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/variety/chopin-home.jpg"
+  },
+  {
+    "key": "andersen",
+    "display": "Hans Christian Andersen",
+    "archetype": "no_conn",
+    "portraitSlug": "Hans_Christian_Andersen",
+    "homeName": "H.C. Andersens Hus — Yellow Cottage in Odense",
+    "homeArea": "Odense, Denmark",
+    "homeSlug": "Hans_Christian_Andersen_Museum",
+    "portraitSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1c/HCA_by_Thora_Hallager_1869_crop.jpg",
+    "portraitPublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/variety/andersen.jpg",
+    "homeSourceUrl": "https://upload.wikimedia.org/wikipedia/en/5/5e/Hans_Christian_Andersen_House_Odense.jpg",
+    "homePublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/variety/andersen-home.jpg"
+  },
+  {
+    "key": "nightingale",
+    "display": "Florence Nightingale",
+    "archetype": "new_member",
+    "portraitSlug": "Florence_Nightingale",
+    "homeName": "Embley Park — Hampshire Country Estate",
+    "homeArea": "Romsey, UK",
+    "homeSlug": "Embley_Park",
+    "portraitSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Florence_Nightingale_%28H_Hering_NPG_x82368%29.jpg",
+    "portraitPublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/variety/nightingale.jpg",
+    "homeSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a1/Embley_Park.jpg",
+    "homePublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/variety/nightingale-home.jpg"
+  },
+  {
+    "key": "thoreau",
+    "display": "Henry David Thoreau",
+    "archetype": "new_member",
+    "portraitSlug": "Henry_David_Thoreau",
+    "homeName": "Thoreau's Cabin — Replica on the Walden Shore",
+    "homeArea": "Concord, MA",
+    "homeSlug": "Walden_Pond",
+    "portraitSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f0/Benjamin_D._Maxham_-_Henry_David_Thoreau_-_Restored.jpg",
+    "portraitPublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/profile-photos/variety/thoreau.jpg",
+    "homeSourceUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c7/Walden_Pond_outlook.jpg",
+    "homePublicUrl": "https://ldoueidykjeglqndbaev.supabase.co/storage/v1/object/public/listing-photos/variety/thoreau-home.jpg"
+  }
+]
