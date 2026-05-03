@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
   Eye,
   EyeOff,
   Lock,
@@ -57,6 +58,10 @@ const SLIDES: Slide[] = [
       "Losing out on monetizing their empty home.",
     ],
     Visual: PainPointsCardsVisual,
+    // Force the authored 2-line break on mobile too — combined with
+    // the smaller heading clamp this keeps slide 1 to 2 lines max
+    // even on iPhone SE-class phones.
+    forceTitleBreak: true,
   },
   {
     eyebrow: "The solution",
@@ -84,9 +89,10 @@ const SLIDES: Slide[] = [
   },
   {
     eyebrow: "Privacy",
-    titleLines: ["Control who sees your", "listing, or listing preview"],
-    body: "Make it fully private, share a teaser only, or open it up to friends-of-friends. Your call.",
+    titleLines: ["Control exactly", "who sees what"],
+    body: "Set a trust-score floor for the preview, and a degree limit for the full listing.",
     Visual: VisibilityVisual,
+    forceTitleBreak: true,
   },
 ];
 
@@ -938,7 +944,7 @@ function AnimatedHeading({
     // pushed slides 3 + 5 to 4 lines on small phones and put the
     // Continue button below the visible viewport. Desktop sizes
     // unchanged at sm: 50px / md: 60px.
-    <h1 className="font-serif !leading-[1.08] !tracking-tight !max-w-none !text-[clamp(22px,5.5vh,40px)] sm:!text-[50px] md:!text-[60px]">
+    <h1 className="font-serif !leading-[1.08] !tracking-tight !max-w-none !text-[clamp(22px,6.2vw,38px)] sm:!text-[50px] md:!text-[60px]">
       {titleLines.map((line, lineIdx) => {
         const arr = line.split(" ");
         const renderWord = (word: string, key: string) => {
@@ -1241,52 +1247,133 @@ function PickerOption({
 // Avatars are pre-loaded by the page-level <Image> preloader so this
 // renders without a flash. If /assets/orbit-animation/avatars/ is
 // ever moved, only this constant needs updating.
+// Host-offer card data (variant C 2026-05-03 rebuild). Matches the
+// production host-offer + connection-breakdown layout Loren shared:
+// avatar + name + HOST OFFER pill + dual-tone degree/score chip,
+// then a "connected via N connections" line, Trust Score, then the
+// path rows. Avatars use the existing orbit-animation set since the
+// historical-portraits seed Loren screenshotted from isn't in this
+// repo — the visual structure is what matters here.
 const TRUST_VISUAL = {
-  target: { name: "Maya Chen", avatar: "/assets/orbit-animation/avatars/avatar-anna.jpg" },
-  viewer: { name: "You", avatar: "/assets/orbit-animation/avatars/avatar-host.jpg" },
+  target: {
+    name: "Charles Darwin",
+    avatar: "/assets/orbit-animation/avatars/avatar-james.jpg",
+  },
+  viewer: {
+    name: "You",
+    avatar: "/assets/orbit-animation/avatars/avatar-host.jpg",
+  },
+  degreeLabel: "2°",
+  trustScore: "5.6",
+  totalConnections: 4,
+  totalPoints: 56,
+  totalLabel: "Very strong",
   paths: [
     {
-      label: "Path 1 · via Anna",
-      // viewer-first: You → Anna → Maya
+      label: "Path 1 · via Albert",
+      // target-first: Charles → Albert → You
       nodes: [
-        { name: "You", known: true, isYou: true, avatar: "/assets/orbit-animation/avatars/avatar-host.jpg" },
-        { name: "Anna", known: true, avatar: "/assets/orbit-animation/avatars/avatar-04-white-woman.jpg" },
-        { name: "Maya Chen", known: true, isTarget: true, avatar: "/assets/orbit-animation/avatars/avatar-anna.jpg" },
+        {
+          name: "Charles",
+          known: true,
+          isTarget: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-james.jpg",
+        },
+        {
+          name: "Albert",
+          known: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-luke.jpg",
+        },
+        {
+          name: "You",
+          known: true,
+          isYou: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-host.jpg",
+        },
       ],
-      // Strengths target → connector → you (UI reverses for display)
-      strengths: [42, 28],
+      degrees: ["1°", "1°"],
     },
     {
-      label: "Path 2 · via James",
-      // viewer-first: You → James → ??? → Maya (3° path; middle hop anonymized)
+      label: "Path 2 · via Abraham",
       nodes: [
-        { name: "You", known: true, isYou: true, avatar: "/assets/orbit-animation/avatars/avatar-host.jpg" },
-        { name: "James", known: true, avatar: "/assets/orbit-animation/avatars/avatar-james.jpg" },
-        { name: "Luke", known: false, avatar: "/assets/orbit-animation/avatars/avatar-luke.jpg" },
-        { name: "Maya Chen", known: true, isTarget: true, avatar: "/assets/orbit-animation/avatars/avatar-anna.jpg" },
+        {
+          name: "Charles",
+          known: true,
+          isTarget: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-james.jpg",
+        },
+        {
+          name: "Abraham",
+          known: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-04-white-woman.jpg",
+        },
+        {
+          name: "You",
+          known: true,
+          isYou: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-host.jpg",
+        },
       ],
-      strengths: [22, 35, 31],
+      degrees: ["1°", "1°"],
     },
   ],
 };
 
 function TrustDetailVisual() {
+  const t = TRUST_VISUAL;
   return (
     <div className="rounded-2xl border border-border/60 bg-background/40 p-3 text-left">
-      <div className="flex items-center gap-2">
-        <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+      {/* Header row: avatar + name + HOST OFFER pill + degree/score chip */}
+      <div className="flex items-center gap-3">
+        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-border/60">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={t.target.avatar}
+            alt={t.target.name}
+            className="h-full w-full object-cover"
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-[15px] font-semibold leading-tight text-foreground">
+              {t.target.name}
+            </span>
+            <span className="rounded-full bg-brand-300/20 px-2 py-0.5 text-[9px] font-mono uppercase tracking-[0.18em] text-brand-300">
+              Host offer
+            </span>
+          </div>
+          {/* Dual-tone degree + trust-score chip — left half lighter
+              cyan with the degree badge, right half darker cyan with
+              the numeric trust score. Mirrors the production score
+              pill on listings/profiles. */}
+          <div className="mt-1.5 inline-flex overflow-hidden rounded-full text-[11px] font-semibold">
+            <span className="bg-cyan-400/30 px-2 py-0.5 text-cyan-200">
+              {t.degreeLabel}
+            </span>
+            <span className="bg-cyan-500/50 px-2 py-0.5 text-cyan-50">
+              {t.trustScore}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Connection summary + Trust Score */}
+      <div className="mt-3 flex items-center gap-2">
+        <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="text-[13px] font-semibold leading-tight">
-          {TRUST_VISUAL.target.name} is connected to you via{" "}
-          {TRUST_VISUAL.paths.length} connections
+          Connected to {t.target.name} via {t.totalConnections} connections
         </div>
       </div>
       <div className="mt-0.5 text-[11px] text-muted-foreground">
         Trust Score:{" "}
-        <span className="font-semibold text-foreground">31 pts (Strong)</span>
+        <span className="font-semibold text-foreground">
+          {t.totalPoints} pts ({t.totalLabel})
+        </span>
       </div>
 
+      {/* Path rows */}
       <div className="mt-2.5 space-y-2">
-        {TRUST_VISUAL.paths.map((path) => (
+        {t.paths.map((path) => (
           <ChainRow key={path.label} path={path} />
         ))}
       </div>
@@ -1294,29 +1381,23 @@ function TrustDetailVisual() {
   );
 }
 
-// Mirrors the live ChainRow visual: nodes flow target-on-left →
-// You-on-right with a strength pill between each pair. Anonymized
-// nodes (deeper than the first connector) blur their avatar and
-// overlay an EyeOff so the "hidden identity" treatment matches
-// the live popover.
+// Path row: target on the LEFT, You on the right, with degree pills
+// (1°, 2°, etc.) between each pair of avatars. Matches the host-card
+// layout Loren provided in the screenshot.
 function ChainRow({
   path,
 }: {
   path: typeof TRUST_VISUAL.paths[number];
 }) {
-  // Reverse: target on the left, You on the right. Strengths flip
-  // to align with adjacent pairs.
-  const displayNodes = [...path.nodes].reverse();
-  const displayStrengths = [...path.strengths].reverse();
   return (
     <div className="rounded-xl border border-border/60 bg-background/30 p-2.5">
       <div className="text-[9px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
         {path.label}
       </div>
       <div className="mt-2 flex items-center justify-center gap-1">
-        {displayNodes.map((node, i) => (
+        {path.nodes.map((node, i) => (
           <span key={`${node.name}-${i}`} className="contents">
-            {i > 0 && <ChainStrengthPill strength={displayStrengths[i - 1]} />}
+            {i > 0 && <DegreePill label={path.degrees[i - 1]} />}
             <ChainAvatar
               name={node.name}
               avatar={node.avatar}
@@ -1328,6 +1409,17 @@ function ChainRow({
         ))}
       </div>
     </div>
+  );
+}
+
+// Small degree-badge pill ("1°", "2°", "3°") that sits BETWEEN
+// avatars in a path row. Cyan to match the degree-label convention
+// used in the dual-tone score chip above.
+function DegreePill({ label }: { label: string }) {
+  return (
+    <span className="mx-0.5 inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-cyan-500/30 px-1.5 text-[9px] font-semibold text-cyan-100">
+      {label}
+    </span>
   );
 }
 
@@ -1411,74 +1503,78 @@ function ChainStrengthPill({ strength }: { strength: number }) {
 // The compact layout favors clarity over completeness — a 2-row
 // granular block hints at deeper config without trying to surface
 // the full picker matrix on a phone-sized slide.
+// Variant C 2026-05-03 rebuild — matches the production access-rules
+// 2-row layout Loren shared. Two cards stacked: one for the preview
+// gate (min trust score), one for the full listing + contact gate
+// (max degree of separation). Significantly shorter than the old
+// 3-mode + nested-granular layout — Loren wants to convey the two
+// distinct controls without surfacing the full picker matrix.
 function VisibilityVisual() {
   return (
-    <div className="rounded-2xl border border-border/60 bg-background/40 p-3 text-left">
-      <p className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-        Listing visibility
-      </p>
-      <div className="space-y-1.5">
-        <ScopeRow
-          icon={<Lock className="h-4 w-4" />}
-          title="Private"
-          subtitle="Only people you invite"
-          active={false}
-        />
-        <ScopeRow
-          icon={<Eye className="h-4 w-4" />}
-          title="Preview"
-          subtitle="Network sees a teaser; you control the rest"
-          active={true}
-        />
-        <ScopeRow
-          icon={<Users className="h-4 w-4" />}
-          title="Open"
-          subtitle="Anyone in your network can request"
-          active={false}
-        />
+    <div className="space-y-2 text-left">
+      {/* Row 1: Preview gate (trust-score floor) */}
+      <div className="rounded-2xl border border-border/60 bg-background/40 p-3">
+        <div className="flex items-center gap-2">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-300/15 text-brand-300">
+            <Eye className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-[14px] font-semibold leading-tight text-foreground">
+              See Preview
+            </div>
+            <div className="text-[11px] leading-snug text-muted-foreground">
+              Who can see the preview card
+            </div>
+          </div>
+        </div>
+        <div className="mt-2.5 flex items-center gap-2">
+          <PickerChip label="Min trust score" />
+          <NumberChip value="15" />
+        </div>
       </div>
 
-      {/* Granular sub-controls — only the active mode (Preview) reveals
-          this section in the live form. Two gates: who sees the
-          teaser, and who sees the full address + contact. */}
-      <div className="mt-3 rounded-xl border border-brand-300/40 bg-brand-300/[0.08] p-2.5">
-        <GranularRow
-          label="Who sees the preview"
-          value="Friends of friends"
-          icon={<Eye className="h-3.5 w-3.5" />}
-        />
-        <div className="my-1.5 h-px bg-border/40" />
-        <GranularRow
-          label="Who sees the full listing"
-          value="Direct connections"
-          icon={<Users className="h-3.5 w-3.5" />}
-        />
+      {/* Row 2: Full listing + contact gate (degrees) */}
+      <div className="rounded-2xl border border-border/60 bg-background/40 p-3">
+        <div className="flex items-center gap-2">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-300/15 text-brand-300">
+            <Users className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-[14px] font-semibold leading-tight text-foreground">
+              Full Listing + Contact
+            </div>
+            <div className="text-[11px] leading-snug text-muted-foreground">
+              Who can view + message you
+            </div>
+          </div>
+        </div>
+        <div className="mt-2.5 flex items-center gap-2">
+          <PickerChip label="Within degrees of you" />
+          <PickerChip label="2°" />
+        </div>
       </div>
     </div>
   );
 }
 
-function GranularRow({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-}) {
+// Picker-style chip — looks like a select dropdown with a chevron
+// suffix. Used in the visibility visual to convey "this is a
+// selectable control" without rendering a real native select.
+function PickerChip({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-brand-300/20 text-brand-300">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-[10px] uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <span className="shrink-0 rounded-full bg-brand-300/15 px-2 py-0.5 text-[10px] font-semibold text-brand-300">
-        {value}
-      </span>
-    </div>
+    <span className="inline-flex min-w-0 items-center gap-1.5 rounded-lg border border-border/60 bg-background/60 px-2.5 py-1.5 text-[11px] font-medium text-foreground">
+      <span className="truncate">{label}</span>
+      <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+    </span>
+  );
+}
+
+// Compact numeric chip used for the trust-score threshold value.
+function NumberChip({ value }: { value: string }) {
+  return (
+    <span className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background/60 px-2.5 py-1.5 text-[11px] font-semibold text-foreground">
+      {value}
+    </span>
   );
 }
 
