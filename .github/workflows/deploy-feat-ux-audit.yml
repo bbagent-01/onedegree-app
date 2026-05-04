@@ -1,9 +1,13 @@
 name: Deploy feat/ux1-ux-audit preview to Cloudflare Pages
 
 # UX1 audit branch only. Deploys to the same `trustead` Cloudflare
-# Pages project as prod, but with --branch=feat/ux1-ux-audit so the
-# resulting preview URL is:
-#   https://feat-ux1-ux-audit.trustead.pages.dev
+# Pages project as prod, but with --branch=feat/ux1-ux-audit and
+# served through a custom subdomain:
+#   https://preview.trustead.app
+# (CNAME chains preview.trustead.app → feat-ux1-ux-audit.trustead
+# .pages.dev → the branch deploy.) The custom subdomain on a domain
+# we own is required for Clerk satellite-domain DNS verification —
+# *.pages.dev is Cloudflare-managed and rejects user CNAME edits.
 # Production (trustead.app) is unaffected — only the main branch
 # deploy promotes to the live custom domain.
 
@@ -37,7 +41,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NEXT_PUBLIC_APP_URL: https://feat-ux1-ux-audit.trustead.pages.dev
+          NEXT_PUBLIC_APP_URL: https://preview.trustead.app
           NEXT_PUBLIC_ENABLE_IMPERSONATION: "true"
           IMPERSONATION_ADMIN_USER_IDS: user_3D00SQt8dNOVzlpKeAZ2Ux7KroV
 
@@ -52,7 +56,7 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/trustead" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"deployment_configs\":{\"preview\":{\"env_vars\":{\"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}\"},\"CLERK_SECRET_KEY\":{\"type\":\"secret_text\",\"value\":\"${{ secrets.CLERK_SECRET_KEY }}\"},\"NEXT_PUBLIC_SUPABASE_URL\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}\"},\"NEXT_PUBLIC_SUPABASE_ANON_KEY\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}\"},\"SUPABASE_SERVICE_ROLE_KEY\":{\"type\":\"secret_text\",\"value\":\"${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}\"},\"NEXT_PUBLIC_APP_URL\":{\"type\":\"plain_text\",\"value\":\"https://feat-ux1-ux-audit.trustead.pages.dev\"},\"NEXT_PUBLIC_ENABLE_IMPERSONATION\":{\"type\":\"plain_text\",\"value\":\"true\"},\"IMPERSONATION_ADMIN_USER_IDS\":{\"type\":\"secret_text\",\"value\":\"user_3D00SQt8dNOVzlpKeAZ2Ux7KroV\"}}}}}"
+            -d "{\"deployment_configs\":{\"preview\":{\"env_vars\":{\"NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}\"},\"CLERK_SECRET_KEY\":{\"type\":\"secret_text\",\"value\":\"${{ secrets.CLERK_SECRET_KEY }}\"},\"NEXT_PUBLIC_SUPABASE_URL\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}\"},\"NEXT_PUBLIC_SUPABASE_ANON_KEY\":{\"type\":\"plain_text\",\"value\":\"${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}\"},\"SUPABASE_SERVICE_ROLE_KEY\":{\"type\":\"secret_text\",\"value\":\"${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}\"},\"NEXT_PUBLIC_APP_URL\":{\"type\":\"plain_text\",\"value\":\"https://preview.trustead.app\"},\"NEXT_PUBLIC_ENABLE_IMPERSONATION\":{\"type\":\"plain_text\",\"value\":\"true\"},\"IMPERSONATION_ADMIN_USER_IDS\":{\"type\":\"secret_text\",\"value\":\"user_3D00SQt8dNOVzlpKeAZ2Ux7KroV\"}}}}}"
 
       - name: Deploy preview branch to Cloudflare Pages
         run: npx wrangler pages deploy .vercel/output/static --project-name=trustead --branch=feat/ux1-ux-audit --commit-dirty=true
