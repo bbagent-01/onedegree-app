@@ -824,7 +824,7 @@ function AnimatedHeading({
     // pushed slides 3 + 5 to 4 lines on small phones and put the
     // Continue button below the visible viewport. Desktop sizes
     // unchanged at sm: 50px / md: 60px.
-    <h1 className="font-serif !leading-[1.08] !tracking-tight !max-w-none !text-[clamp(28px,8vw,40px)] sm:!text-[50px] md:!text-[60px]">
+    <h1 className="!leading-[1.08] !tracking-tight !max-w-none !text-[clamp(28px,8vw,40px)] sm:!text-[50px] md:!text-[60px]">
       {titleLines.map((line, lineIdx) => {
         const arr = line.split(" ");
         const renderWord = (word: string, key: string) => {

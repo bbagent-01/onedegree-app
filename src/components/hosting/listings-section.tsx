@@ -173,7 +173,7 @@ export function ListingsSection({ listings }: { listings: HostingListing[] }) {
   return (
     <section>
       <div className="flex items-center justify-between">
-        <h2 className="font-serif text-xl font-semibold text-foreground">Your listings</h2>
+        <h2 className="text-xl font-semibold text-foreground">Your listings</h2>
         <Link
           href="/hosting/create"
           className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-600"

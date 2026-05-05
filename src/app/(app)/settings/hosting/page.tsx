@@ -36,7 +36,7 @@ export default async function HostingSettingsPage() {
       </Link>
 
       <header className="mt-4">
-        <h1 className="font-serif text-2xl font-semibold md:text-3xl">Hosting policies</h1>
+        <h1 className="text-2xl font-semibold md:text-3xl">Hosting policies</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Default terms that apply to all your listings. You can override
           any setting on a specific listing or reservation later.

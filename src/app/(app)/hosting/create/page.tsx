@@ -703,7 +703,7 @@ function StepHeading({
 }) {
   return (
     <div className="mb-6">
-      <h1 className="font-serif text-2xl font-bold text-foreground">{title}</h1>
+      <h1 className="text-2xl font-bold text-foreground">{title}</h1>
       {subtitle && (
         <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
       )}
@@ -2031,7 +2031,7 @@ function ListingDetailMock({
         {/* Title row */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="font-serif text-2xl font-semibold leading-tight md:text-3xl">
+            <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
               {displayTitle}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">

@@ -53,7 +53,7 @@ export default async function NewProposalPage() {
 
   return (
     <div className="mx-auto w-full max-w-[720px] px-4 py-6 md:px-6 md:py-10">
-      <h1 className="font-serif text-2xl font-semibold md:text-3xl">Create a proposal</h1>
+      <h1 className="text-2xl font-semibold md:text-3xl">Create a proposal</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Trip Wishes tell hosts where you want to go. Host Offers surface
         availability for people in your preview network.

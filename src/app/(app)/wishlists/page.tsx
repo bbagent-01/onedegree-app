@@ -31,7 +31,7 @@ export default async function WishlistsPage() {
   return (
     <div className="w-full px-4 py-6 md:px-10 md:py-10 lg:px-20">
       <div className="mb-6">
-        <h1 className="font-serif text-2xl font-semibold md:text-3xl">Wishlists</h1>
+        <h1 className="text-2xl font-semibold md:text-3xl">Wishlists</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {lists.length} {lists.length === 1 ? "list" : "lists"}
         </p>
@@ -143,7 +143,7 @@ function CoverMosaic({ covers, alt }: { covers: string[]; alt: string }) {
 function EmptyState() {
   return (
     <div className="w-full px-4 py-10 md:px-10 lg:px-20">
-      <h1 className="font-serif text-2xl font-semibold md:text-3xl">Wishlists</h1>
+      <h1 className="text-2xl font-semibold md:text-3xl">Wishlists</h1>
       <div className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-white py-16 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
           <Heart className="h-6 w-6 text-muted-foreground" />

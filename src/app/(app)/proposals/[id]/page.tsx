@@ -177,7 +177,7 @@ export default async function ProposalDetailPage({
           </div>
         </div>
 
-        <h1 className="mt-6 font-serif text-2xl font-semibold md:text-3xl">{row.title}</h1>
+        <h1 className="mt-6 text-2xl font-semibold md:text-3xl">{row.title}</h1>
 
         <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
           {row.destinations.length > 0 && (

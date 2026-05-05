@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Phone, ShieldCheck } from "lucide-react";
+import { TrusteadLogo } from "@/components/layout/trustead-logo";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 
@@ -199,12 +200,12 @@ function SignInInner() {
       <Link
         href="/"
         aria-label="Trustead home"
-        className="mb-8 self-center font-serif text-3xl tracking-tight text-foreground"
+        className="mb-8 self-center text-foreground"
       >
-        trustead
+        <TrusteadLogo className="h-7 w-auto" />
       </Link>
       <header className="text-center">
-        <h1 className="font-serif text-3xl font-bold md:text-4xl">Welcome back</h1>
+        <h1 className="text-3xl font-bold md:text-4xl">Welcome back</h1>
         {step === "phone" && (
           <p className="mt-2 text-sm text-muted-foreground">
             Sign in with your phone number.

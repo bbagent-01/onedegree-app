@@ -215,7 +215,7 @@ function DeadEndCard({
         trustead
       </Link>
       <div className="w-full rounded-2xl border border-border bg-white p-8 shadow-sm sm:p-10">
-        <h1 className="font-serif text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+        <h1 className="text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
           {headline}
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">

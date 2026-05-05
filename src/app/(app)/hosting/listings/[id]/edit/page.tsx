@@ -119,7 +119,7 @@ export default async function EditListingPage({ params }: PageProps) {
                   {listing.area_name}
                 </span>
               </div>
-              <h1 className="mt-2 truncate font-serif text-2xl font-bold text-foreground md:text-3xl">
+              <h1 className="mt-2 truncate text-2xl font-bold text-foreground md:text-3xl">
                 {listing.title}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">

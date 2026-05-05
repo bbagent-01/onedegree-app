@@ -40,7 +40,7 @@ export default async function ThreadPage({ params }: PageProps) {
     <>
       <SectionNav />
       <div className="mx-auto w-full max-w-[1600px] md:px-6 md:py-6">
-        <h1 className="mb-4 hidden font-serif text-2xl font-semibold md:block md:text-3xl">
+        <h1 className="mb-4 hidden text-2xl font-semibold md:block md:text-3xl">
           Messages
         </h1>
 

@@ -30,7 +30,7 @@ export default async function ProfileEditPage() {
     // instead of redirecting away from the page the user asked for.
     return (
       <div className="mx-auto w-full max-w-[680px] px-4 py-10 md:px-6">
-        <h1 className="font-serif text-3xl font-semibold md:text-4xl">Edit profile</h1>
+        <h1 className="text-2xl font-semibold md:text-3xl">Edit profile</h1>
         <p className="mt-3 text-sm text-muted-foreground">
           We&apos;re still finishing setting up your account. Give it a few
           seconds and reload this page.
@@ -50,7 +50,7 @@ export default async function ProfileEditPage() {
         <ArrowLeft className="h-4 w-4" />
         Account settings
       </Link>
-      <h1 className="font-serif text-3xl font-semibold md:text-4xl">Edit profile</h1>
+      <h1 className="text-2xl font-semibold md:text-3xl">Edit profile</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         This info appears on your public profile. Avatar and email are managed
         through your account settings.

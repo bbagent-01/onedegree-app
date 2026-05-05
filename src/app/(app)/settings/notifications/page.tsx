@@ -42,7 +42,7 @@ export default async function NotificationsSettingsPage() {
         <ArrowLeft className="h-4 w-4" />
         Account settings
       </Link>
-      <h1 className="font-serif text-2xl font-semibold md:text-3xl">Email notifications</h1>
+      <h1 className="text-2xl font-semibold md:text-3xl">Email notifications</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Choose which transactional emails Trustead sends you.
       </p>

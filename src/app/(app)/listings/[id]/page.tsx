@@ -217,7 +217,7 @@ export default async function ListingPage({
       {/* Title (mobile: below photos, desktop: above). Trust info
           lives with the host, not the listing — see host card below. */}
       <div className="mt-4 hidden md:block">
-        <h1 className="font-serif text-2xl font-semibold leading-tight md:text-3xl">
+        <h1 className="text-2xl font-semibold leading-tight md:text-3xl">
           {listing.title}
         </h1>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
@@ -249,7 +249,7 @@ export default async function ListingPage({
 
       {/* Mobile title (below photos) */}
       <div className="mt-4 md:hidden">
-        <h1 className="font-serif text-2xl font-semibold leading-tight">
+        <h1 className="text-2xl font-semibold leading-tight">
           {listing.title}
         </h1>
       </div>

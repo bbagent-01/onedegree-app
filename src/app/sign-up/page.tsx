@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ShieldCheck, LockKeyhole, Phone, Cake } from "lucide-react";
+import { TrusteadLogo } from "@/components/layout/trustead-logo";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { computeAge } from "@/lib/age";
@@ -488,12 +489,12 @@ function SignUpInner() {
       <Link
         href="/"
         aria-label="Trustead home"
-        className="mb-8 self-center font-serif text-3xl tracking-tight text-foreground"
+        className="mb-8 self-center text-foreground"
       >
-        trustead
+        <TrusteadLogo className="h-7 w-auto" />
       </Link>
       <header className="text-center">
-        <h1 className="font-serif text-3xl font-bold md:text-4xl">Create your account</h1>
+        <h1 className="text-3xl font-bold md:text-4xl">Create your account</h1>
         {step === "dob" && (
           <p className="mt-2 text-sm text-muted-foreground">
             Before we start, we need to confirm you&rsquo;re old enough to use

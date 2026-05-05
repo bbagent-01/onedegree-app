@@ -285,7 +285,7 @@ export function ReservationsSection({
 
   return (
     <section>
-      <h2 className="font-serif text-xl font-semibold text-foreground">Reservations</h2>
+      <h2 className="text-xl font-semibold text-foreground">Reservations</h2>
       <Tabs value={tab} onValueChange={setTab} className="mt-4 !flex-col">
         <TabsList
           variant="line"

@@ -35,7 +35,7 @@ export default async function EditProposalPage({
         <ArrowLeft className="h-4 w-4" />
         Back
       </Link>
-      <h1 className="mt-4 font-serif text-2xl font-semibold md:text-3xl">
+      <h1 className="mt-4 text-2xl font-semibold md:text-3xl">
         Edit proposal
       </h1>
       <EditProposalForm initial={proposal.row} />

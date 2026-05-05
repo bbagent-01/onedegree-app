@@ -55,7 +55,7 @@ export default async function ProposalsFeedPage({
     <div className="mx-auto w-full max-w-[960px] px-4 py-6 md:px-6 md:py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-2xl font-semibold md:text-3xl">
+          <h1 className="text-2xl font-semibold md:text-3xl">
             {authorParam === viewerId
               ? "Your proposals"
               : authorParam

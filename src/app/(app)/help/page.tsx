@@ -7,7 +7,7 @@ export default function HelpPage() {
   return (
     <div className="mx-auto w-full max-w-[880px] px-4 py-6 md:px-6 md:py-10">
       <header>
-        <h1 className="font-serif text-2xl font-semibold md:text-3xl">Help Center</h1>
+        <h1 className="text-2xl font-semibold md:text-3xl">Help Center</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Answers to common questions, or send us a note and we&apos;ll get back
           to you within 24 hours.
