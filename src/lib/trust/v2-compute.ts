@@ -77,7 +77,8 @@ export async function computeVouchSignalForUser(
   const { data: vouches } = await supabase
     .from("vouches")
     .select("voucher_id")
-    .eq("vouchee_id", userId);
+    .eq("vouchee_id", userId)
+    .eq("is_demo_origin", false);
   if (!vouches || vouches.length === 0) return 0;
 
   const voucherIds = vouches.map((v) => v.voucher_id as string);
@@ -116,7 +117,8 @@ export async function computeVouchPowerForUser(
   const { data: vouchees } = await supabase
     .from("vouches")
     .select("vouchee_id")
-    .eq("voucher_id", userId);
+    .eq("voucher_id", userId)
+    .eq("is_demo_origin", false);
   if (!vouchees || vouchees.length === 0) return TRUST_VOUCH_POWER_DEFAULT;
 
   const voucheeIds = vouchees.map((v) => v.vouchee_id as string);
@@ -161,7 +163,8 @@ export async function recomputeAllTrustV2(): Promise<RecomputeAllResult> {
 
   const { data: vouchesRaw, error: vErr } = await supabase
     .from("vouches")
-    .select("voucher_id, vouchee_id");
+    .select("voucher_id, vouchee_id")
+    .eq("is_demo_origin", false);
   if (vErr) throw vErr;
   const vouches = (vouchesRaw ?? []) as VouchEdge[];
 

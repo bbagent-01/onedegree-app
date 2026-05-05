@@ -39,12 +39,15 @@ export async function POST(req: Request) {
   }
 
   // Sanity check: the voucher must actually have vouched the current
-  // user. Prevents arbitrary row insertion.
+  // user. Prevents arbitrary row insertion. Demo-origin (B8) excluded
+  // — auto-vouches don't surface in the vouch-back section so a
+  // dismissal request for one is malformed.
   const { data: vouch } = await supabase
     .from("vouches")
     .select("id")
     .eq("voucher_id", voucherId)
     .eq("vouchee_id", currentUser.id)
+    .eq("is_demo_origin", false)
     .maybeSingle();
   if (!vouch) {
     return new Response("No incoming vouch from that user", { status: 400 });

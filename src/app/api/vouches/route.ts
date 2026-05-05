@@ -30,11 +30,16 @@ export async function GET(req: Request) {
     return new Response("User not found", { status: 404 });
   }
 
+  // Demo-origin rows (B8) are not editable through the user-facing
+  // vouch dialog — they only exist as recipient-incoming. Excluding
+  // here means the dialog can't accidentally surface a demo-origin
+  // row as the viewer's own existing vouch.
   const { data } = await supabase
     .from("vouches")
     .select("vouch_type, years_known_bucket, vouch_score, is_post_stay, is_staked")
     .eq("voucher_id", currentUser.id)
     .eq("vouchee_id", targetId)
+    .eq("is_demo_origin", false)
     .maybeSingle();
 
   return Response.json({ vouch: data, currentUserId: currentUser.id });
@@ -94,12 +99,13 @@ export async function POST(req: Request) {
   // Capture prior vouch state (used for close-the-loop detection below).
   // If there's no outgoing vouch yet AND the target has already vouched
   // the current user, this upsert is a "vouch-back" and we should write
-  // a notification row for the original voucher.
+  // a notification row for the original voucher. Real-only.
   const { data: priorOutgoing } = await supabase
     .from("vouches")
     .select("id")
     .eq("voucher_id", currentUser.id)
     .eq("vouchee_id", targetUserId)
+    .eq("is_demo_origin", false)
     .maybeSingle();
 
   const { data: vouch, error: upsertError } = await supabase
@@ -132,6 +138,7 @@ export async function POST(req: Request) {
       .select("id")
       .eq("voucher_id", targetUserId)
       .eq("vouchee_id", currentUser.id)
+      .eq("is_demo_origin", false)
       .maybeSingle();
 
     if (reciprocal) {
@@ -191,28 +198,36 @@ export async function DELETE(req: Request) {
     return new Response("User not found", { status: 404 });
   }
 
-  // Delete the vouch
+  // Delete the vouch. Scoped to is_demo_origin=false so a UI-driven
+  // delete can never accidentally clear an auto-vouch row (those
+  // are removed only by the post-alpha cleanup statement in
+  // migration 054).
   const { error } = await supabase
     .from("vouches")
     .delete()
     .eq("voucher_id", currentUser.id)
-    .eq("vouchee_id", targetUserId);
+    .eq("vouchee_id", targetUserId)
+    .eq("is_demo_origin", false);
 
   if (error) {
     console.error("Vouch delete error:", error);
     return new Response("Failed to remove vouch", { status: 500 });
   }
 
-  // Recount vouches for both users
+  // Recount vouches for both users — must mirror the trigger's
+  // real-only counter (see migration 054) so the stored counts
+  // stay consistent after a UI delete.
   const { count: givenCount } = await supabase
     .from("vouches")
     .select("*", { count: "exact", head: true })
-    .eq("voucher_id", currentUser.id);
+    .eq("voucher_id", currentUser.id)
+    .eq("is_demo_origin", false);
 
   const { count: receivedCount } = await supabase
     .from("vouches")
     .select("*", { count: "exact", head: true })
-    .eq("vouchee_id", targetUserId);
+    .eq("vouchee_id", targetUserId)
+    .eq("is_demo_origin", false);
 
   await supabase
     .from("users")

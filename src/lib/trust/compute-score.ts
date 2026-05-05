@@ -135,11 +135,13 @@ async function incomingFallbackQuery(
     connector_vouch_power: number;
   }>
 > {
-  // Source's outgoing vouches (potential connectors).
+  // Source's outgoing vouches (potential connectors). Demo-origin
+  // rows excluded (B8) — incoming trust math is real-side only.
   const { data: sourceVouches } = await supabase
     .from("vouches")
     .select("vouchee_id, vouch_score")
-    .eq("voucher_id", sourceId);
+    .eq("voucher_id", sourceId)
+    .eq("is_demo_origin", false);
 
   if (!sourceVouches || sourceVouches.length === 0) return [];
 
@@ -161,7 +163,8 @@ async function incomingFallbackQuery(
     .from("vouches")
     .select("voucher_id, vouchee_id, vouch_score")
     .in("voucher_id", connectorIds)
-    .eq("vouchee_id", viewerId);
+    .eq("vouchee_id", viewerId)
+    .eq("is_demo_origin", false);
 
   if (!connIntoViewer || connIntoViewer.length === 0) return [];
 
@@ -269,11 +272,13 @@ async function fallbackQuery(
   connector_vouch_score: number;
   connector_vouch_power: number;
 }>> {
-  // Get all vouches FROM viewer (viewer → connector)
+  // Get all vouches FROM viewer (viewer → connector). Demo-origin
+  // excluded (B8) so the JS fallback matches the RPC's filter.
   const { data: viewerVouches } = await supabase
     .from("vouches")
     .select("vouchee_id, vouch_score")
-    .eq("voucher_id", viewerId);
+    .eq("voucher_id", viewerId)
+    .eq("is_demo_origin", false);
 
   if (!viewerVouches || viewerVouches.length === 0) return [];
 
@@ -292,7 +297,8 @@ async function fallbackQuery(
     .from("vouches")
     .select("voucher_id, vouchee_id, vouch_score")
     .in("voucher_id", connectorIds)
-    .in("vouchee_id", targetIds);
+    .in("vouchee_id", targetIds)
+    .eq("is_demo_origin", false);
 
   if (!connectorVouches || connectorVouches.length === 0) return [];
 

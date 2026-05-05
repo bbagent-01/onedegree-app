@@ -19,11 +19,14 @@ export async function computeVouchPower(
 ): Promise<VouchPowerResult> {
   const supabase = getSupabaseAdmin();
 
-  // Get all vouchees with guest ratings
+  // Get all vouchees with guest ratings. Demo-origin outgoing rows
+  // (B8) are excluded so vouch_power reflects only the real vouchees
+  // a user has put their reputation behind.
   const { data: vouchees } = await supabase
     .from("vouches")
     .select("vouchee_id")
-    .eq("voucher_id", userId);
+    .eq("voucher_id", userId)
+    .eq("is_demo_origin", false);
 
   if (!vouchees || vouchees.length === 0) {
     return { vouch_power: 1.0, vouchee_count: 0, avg_guest_rating: null };

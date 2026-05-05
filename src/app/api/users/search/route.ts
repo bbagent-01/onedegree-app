@@ -70,7 +70,8 @@ export async function GET(req: Request) {
       .from("vouches")
       .select("vouchee_id")
       .eq("voucher_id", currentUser.id)
-      .in("vouchee_id", userIds);
+      .in("vouchee_id", userIds)
+      .eq("is_demo_origin", false);
 
     const vouchedIds = new Set(existingVouches?.map((v) => v.vouchee_id) || []);
     const results = users.map((u: Record<string, unknown>) => ({

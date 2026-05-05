@@ -370,6 +370,7 @@ async function consumePendingVouch(
       .select("id")
       .eq("voucher_id", pv.sender_id)
       .eq("vouchee_id", dbUserId)
+      .eq("is_demo_origin", false)
       .maybeSingle();
 
     if (!existingVouch && claimCount >= maxClaims) {

@@ -21,6 +21,7 @@
 //   once the production listing-visibility picker is final.
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -33,6 +34,17 @@ import {
   Star,
   Users,
 } from "lucide-react";
+
+// B4 home-page integration:
+//   When `signedOut` is true the takeover skips the dismiss POST
+//   (no DB row to stamp for an unauthenticated visitor) and the
+//   final slide swaps the lone "Get started" CTA for an explicit
+//   "Create an account" / "Sign in" pair. Used by the new home
+//   page so cold visitors run through the same onboarding flow
+//   and exit into the right entry point.
+interface OnboardingTakeoverProps {
+  signedOut?: boolean;
+}
 
 // ── Slide schema ──────────────────────────────────────────────────
 
@@ -234,7 +246,10 @@ type Phase = "intro" | "morphing" | "slides" | "dismissed";
 // On a 1000px phone height: logo ≈ 13.75rem, heading ≈ 40px, gaps wide.
 // The morph from intro size (28rem / 92vw) interpolates to whatever
 // clamp resolves to at that height — no animation regression.
-export function OnboardingTakeover() {
+export function OnboardingTakeover({
+  signedOut = false,
+}: OnboardingTakeoverProps = {}) {
+  const router = useRouter();
   const [phase, setPhase] = useState<Phase>("intro");
   const [index, setIndex] = useState(0);
   const [exiting, setExiting] = useState(false);
@@ -261,15 +276,29 @@ export function OnboardingTakeover() {
   // instantly so the user never feels a network round-trip; if the
   // POST fails the takeover may show again on next sign-in (acceptable —
   // show-once is best-effort, not a hard guarantee).
+  // For signed-out visitors there's no DB row to stamp; skip the POST.
   const dismiss = () => {
     if (dismissedRef.current) return;
     dismissedRef.current = true;
     setPhase("dismissed");
+    if (signedOut) return;
     fetch("/api/onboarding/dismiss", { method: "POST", keepalive: true }).catch(
       (err) => {
         console.error("[onboarding] dismiss failed:", err);
       },
     );
+  };
+
+  // Hand-offs from the signed-out final slide. redirect_url=/ keeps
+  // the post-auth landing as the home page so users come back here
+  // (now signed in, takeover dismisses normally).
+  const goSignUp = () => {
+    setPhase("dismissed");
+    router.push("/sign-up?redirect_url=/");
+  };
+  const goSignIn = () => {
+    setPhase("dismissed");
+    router.push("/sign-in?redirect_url=/");
   };
 
   // Phase progression: intro → morphing → slides.
@@ -910,10 +939,12 @@ export function OnboardingTakeover() {
                 style={{ animationDelay: `${buttonDelay}ms` }}
               >
                 {/* Primary action row: small ghost-circle Back button
-                    on the LEFT (only after slide 1), and Continue
-                    filling the rest of the available width. The back
-                    button is the same height as Continue so the row
-                    reads cleanly. */}
+                    on the LEFT (only after slide 1), and the primary
+                    CTA filling the rest of the available width.
+                    Signed-out final slide swaps "Get started" for
+                    "Create an account" (routes to /sign-up); all
+                    other slides keep the "Continue" / "Get started"
+                    Continue handler. */}
                 <div className="flex w-full items-stretch gap-2">
                   {!isFirst && (
                     <button
@@ -925,27 +956,36 @@ export function OnboardingTakeover() {
                       <ArrowLeft className="h-4 w-4" />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={next}
-                    aria-label={isLast ? "Get started" : "Continue"}
-                    className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
-                  >
-                    {isLast ? "Get started" : "Continue"}
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
+                  {signedOut && isLast ? (
+                    <button
+                      type="button"
+                      onClick={goSignUp}
+                      aria-label="Create an account"
+                      className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
+                    >
+                      Create an account
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={next}
+                      aria-label={isLast ? "Get started" : "Continue"}
+                      className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
+                    >
+                      {isLast ? "Get started" : "Continue"}
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
-                {/* Secondary action: "Sign up" in ghost-button style
-                    (full width, thin outline, transparent fill). Used
-                    to be a tiny "Skip" link — Loren wants this
-                    promoted because signing up is the actual goal of
-                    the takeover. Tap target hits the 44×44 minimum. */}
+                {/* Secondary action below: "Sign up" / "Sign in"
+                    depending on signed-in state. Ghost-button style. */}
                 <button
                   type="button"
-                  onClick={skip}
+                  onClick={signedOut ? goSignIn : skip}
                   className="inline-flex h-11 w-full items-center justify-center rounded-pill border border-border/60 bg-transparent px-6 text-sm font-medium text-foreground transition hover:bg-foreground/5"
                 >
-                  Sign up
+                  {signedOut ? "Sign in" : "Sign up"}
                 </button>
               </div>
             </div>

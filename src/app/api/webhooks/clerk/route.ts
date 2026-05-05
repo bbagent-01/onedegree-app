@@ -185,6 +185,11 @@ export async function POST(req: Request) {
       // phone, both can produce vouch rows. Order doesn't matter
       // because vouches.upsert is keyed on (voucher_id, vouchee_id).
       await claimPendingVouches(supabase, user.id, phone);
+      // B8: alpha-only social-proof training wheels. Pick 3-4 random
+      // demo presidents and have them auto-vouch FOR the new user
+      // so the cold-start /profile is populated before they invite
+      // anyone real. Always non-fatal — never blocks signup.
+      await autoVouchFromDemoPresidents(supabase, user.id);
     }
   }
 
@@ -271,6 +276,109 @@ async function claimPendingInvites(
  *     URL token, the webhook does not). This function only fires the
  *     happy-path phone match.
  */
+/**
+ * B8: alpha-only social-proof training wheels.
+ *
+ * On every brand-new real-user signup, pick 3–4 random demo
+ * presidents (B7 seed users where is_test_user = true) and create
+ * a vouch FROM each picked president TO the new user, flagged
+ * is_demo_origin = true. Visible only to the recipient on their
+ * own profile (with a "Demo connection" pill); excluded from every
+ * real-user-to-real-user trust read by the migration-054 RPC
+ * filters and the .eq("is_demo_origin", false) filters in
+ * src/lib/trust*.
+ *
+ * Skipped when:
+ *   - the new user is themselves a test/demo user (impersonation
+ *     spawn, seeded test account) — the test/real isolation rules
+ *     already keep these populations apart and we don't want to
+ *     mix test → test demo-origin rows into the demo subgraph
+ *   - there are fewer than 3 demo presidents available (B7 hasn't
+ *     shipped to this DB or was rolled back); a zero-vouch cold
+ *     start is the safer default than a thin one
+ *
+ * Never throws. Failure to auto-vouch is logged but the signup
+ * webhook still returns 200 — the worst-case is the new user
+ * lands on an empty network (the existing pre-B8 behavior).
+ */
+async function autoVouchFromDemoPresidents(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  newUserId: string
+): Promise<void> {
+  try {
+    // Confirm the new user isn't a test user themselves. Test-to-
+    // test vouches must keep flowing through the normal seed scripts
+    // (and the isolation trigger), not this auto-routine.
+    const { data: newUser } = await supabase
+      .from("users")
+      .select("is_test_user")
+      .eq("id", newUserId)
+      .maybeSingle();
+    if (!newUser || newUser.is_test_user === true) {
+      return;
+    }
+
+    // Pull a slightly-larger pool than we need so a small skew or
+    // a deleted president doesn't leave us under the floor. The
+    // alpha demo population is 12–15 users so an in-memory shuffle
+    // of the full set is cheap.
+    const { data: demoUsers } = await supabase
+      .from("users")
+      .select("id")
+      .eq("is_test_user", true);
+
+    const pool = (demoUsers ?? []).map((u) => u.id as string);
+    if (pool.length < 3) {
+      console.warn(
+        `[clerk-webhook] B8 auto-vouch skipped for ${newUserId}: only ${pool.length} demo users available (need 3+)`
+      );
+      return;
+    }
+
+    // Fisher–Yates pick of 3 or 4 distinct ids (50/50 either count
+    // — the spec asks for "3-4 random", we randomize the count too
+    // so two adjacent signups don't land on identical-shaped graphs).
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const pickCount = Math.random() < 0.5 ? 3 : 4;
+    const picked = pool.slice(0, Math.min(pickCount, pool.length));
+
+    // Build the rows. years_known_bucket=platform_met is the
+    // "met through Trustead" bucket from migration 035a (0.4×
+    // multiplier — the smallest possible weight) which honestly
+    // represents the relationship: the demo president has not
+    // actually known this user for any length of time. vouch_type
+    // stays standard — inner_circle would imply close friendship.
+    const rows = picked.map((presidentId) => ({
+      voucher_id: presidentId,
+      vouchee_id: newUserId,
+      vouch_type: "standard" as const,
+      years_known_bucket: "platform_met" as const,
+      is_post_stay: false,
+      is_staked: false,
+      is_demo_origin: true,
+    }));
+
+    const { error } = await supabase
+      .from("vouches")
+      .upsert(rows, { onConflict: "voucher_id,vouchee_id" });
+
+    if (error) {
+      console.error(
+        `[clerk-webhook] B8 auto-vouch failed for ${newUserId}:`,
+        error
+      );
+    }
+  } catch (e) {
+    console.error(
+      `[clerk-webhook] B8 auto-vouch threw for ${newUserId}:`,
+      e
+    );
+  }
+}
+
 async function claimPendingVouches(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   newUserId: string,
