@@ -22,7 +22,7 @@ const badgeVariants = cva(
         warning:
           "border-transparent bg-orange-100 text-orange-700",
         success:
-          "border-transparent bg-green-100 text-green-700",
+          "border-transparent bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]",
         purple:
           "border-transparent bg-purple-100 text-purple-700",
       },

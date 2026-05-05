@@ -89,11 +89,11 @@ export function ListingCancellationOverride({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <p className="text-sm font-semibold text-amber-900">
+      <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
+        <p className="text-sm font-semibold text-amber-100">
           Trustead doesn&apos;t process payments or manage refunds.
         </p>
-        <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
+        <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
           This listing can use your host default, or an override that
           only applies to this place. Either way, payment and refunds
           happen directly between you and your guest.

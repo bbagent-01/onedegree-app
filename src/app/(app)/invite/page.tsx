@@ -313,13 +313,13 @@ function InvitePageContent() {
                 the info step so the user sees the consequence of the
                 number they just typed before moving on. */}
             {existing.kind === "self" && (
-              <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                 <div className="text-sm leading-relaxed">
-                  <p className="font-semibold text-amber-900">
+                  <p className="font-semibold text-amber-100">
                     That&apos;s your own account
                   </p>
-                  <p className="mt-1 text-amber-900/80">
+                  <p className="mt-1 text-amber-100/80">
                     You entered the phone or email on your own account. Change
                     the contact info to invite someone else.
                   </p>
@@ -327,7 +327,7 @@ function InvitePageContent() {
               </div>
             )}
             {existing.kind === "existing" && (
-              <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="mt-5 rounded-xl border border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 p-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
                     {existing.user.avatar_url ? (
@@ -341,10 +341,10 @@ function InvitePageContent() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-emerald-900">
+                    <p className="text-sm font-semibold text-[var(--tt-mint)]">
                       {existing.user.name} is already on Trustead
                     </p>
-                    <p className="mt-0.5 text-xs text-emerald-900/80">
+                    <p className="mt-0.5 text-xs text-[var(--tt-mint)]/80">
                       Vouch for them directly — no invite needed.
                     </p>
                   </div>
@@ -411,8 +411,8 @@ function InvitePageContent() {
                       className={cn(
                         "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
                         t.value === "inner_circle"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-blue-100 text-blue-700"
+                          ? "bg-amber-400/15 text-amber-200"
+                          : "bg-sky-400/15 text-sky-200"
                       )}
                     >
                       {t.value === "inner_circle" ? (
@@ -601,7 +601,7 @@ function InvitePageContent() {
         {/* Step 5: Done */}
         {step === "done" && (
           <div className="py-4 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 animate-in zoom-in-50 duration-300">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)] animate-in zoom-in-50 duration-300">
               <Check className="h-7 w-7" />
             </div>
             <h2 className="mt-4 text-lg font-semibold">Invitation sent!</h2>

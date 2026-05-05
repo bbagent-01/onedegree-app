@@ -279,8 +279,8 @@ function InviteShareContent() {
                       className={cn(
                         "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
                         t.value === "inner_circle"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-blue-100 text-blue-700"
+                          ? "bg-amber-400/15 text-amber-200"
+                          : "bg-sky-400/15 text-sky-200"
                       )}
                     >
                       {t.value === "inner_circle" ? (
@@ -430,13 +430,13 @@ function InviteShareContent() {
               </div>
 
               {existing.kind === "self" && (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   <p>That&apos;s your own number. You can&apos;t vouch for yourself.</p>
                 </div>
               )}
               {existing.kind === "existing" && (
-                <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="flex items-start gap-3 rounded-lg border border-sky-400/30 bg-sky-400/10 p-3">
                   <Avatar className="h-8 w-8">
                     {existing.user.avatar_url && (
                       <AvatarImage
@@ -453,7 +453,7 @@ function InviteShareContent() {
                         .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="min-w-0 flex-1 text-sm text-blue-900">
+                  <div className="min-w-0 flex-1 text-sm text-sky-100">
                     <p className="font-medium">
                       {existing.user.name} is already on Trustead.
                     </p>
@@ -520,7 +520,7 @@ function InviteShareContent() {
                 </p>
               </div>
 
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
                 <p className="font-medium">Heads up</p>
                 <p className="mt-1 text-xs">
                   This link auto-vouches the first person who signs up with
@@ -592,7 +592,7 @@ function InviteShareContent() {
                 </p>
               </div>
 
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
                 <p className="font-medium">Heads up</p>
                 <p className="mt-1 text-xs">
                   Drop this link in a group chat. The first {maxClaims} people
@@ -822,7 +822,7 @@ function ShareStep({
     return (
       <div>
         <div className="text-center">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]">
             <Check className="h-5 w-5" />
           </div>
           <h2 className="mt-3 text-base font-semibold">Sent</h2>
@@ -881,7 +881,7 @@ function ShareStep({
   return (
     <div>
       <div className="text-center">
-        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]">
           <Check className="h-5 w-5" />
         </div>
         <h2 className="mt-3 text-base font-semibold">

@@ -242,11 +242,11 @@ export function NewProposalForm({
           the form. Trip Wishes stay uncapped so the banner only shows on
           that specific cap. */}
       {hostOfferCapReached && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
-          <div className="text-sm font-semibold text-amber-900">
+        <div className="rounded-xl border border-amber-300 bg-amber-400/10 p-4">
+          <div className="text-sm font-semibold text-amber-100">
             You&apos;re at the Host Offer cap
           </div>
-          <p className="mt-1 text-xs text-amber-900/80">
+          <p className="mt-1 text-xs text-amber-100/80">
             You already have {hostOfferActiveCount} active Host Offers
             (max {hostOfferCap}). Close or delete one from{" "}
             <Link

@@ -29,10 +29,10 @@ interface PageProps {
 
 function statusBadge(status: string) {
   const map: Record<string, { label: string; className: string }> = {
-    pending: { label: "Pending", className: "bg-amber-100 text-amber-800 hover:bg-amber-100" },
-    accepted: { label: "Connected", className: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100" },
-    declined: { label: "Declined", className: "bg-red-100 text-red-800 hover:bg-red-100" },
-    cancelled: { label: "Cancelled", className: "bg-zinc-100 text-zinc-700 hover:bg-zinc-100" },
+    pending: { label: "Pending", className: "bg-amber-400/15 text-amber-200 hover:bg-amber-400/15" },
+    accepted: { label: "Connected", className: "bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)] hover:bg-[var(--tt-mint-mid)]/20" },
+    declined: { label: "Declined", className: "bg-red-400/15 text-red-200 hover:bg-red-400/15" },
+    cancelled: { label: "Cancelled", className: "bg-white/5 text-[var(--tt-cream-muted)] hover:bg-white/5" },
   };
   const m = map[status] || map.pending;
   return <Badge className={m.className}>{m.label}</Badge>;

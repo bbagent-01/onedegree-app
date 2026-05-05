@@ -188,8 +188,8 @@ function KindPill({ kind }: { kind: ProposalKind }) {
     <span
       className={
         trip
-          ? "inline-flex shrink-0 items-center rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-900"
-          : "inline-flex shrink-0 items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-900"
+          ? "inline-flex shrink-0 items-center rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-100"
+          : "inline-flex shrink-0 items-center rounded-full bg-[var(--tt-mint-mid)]/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-mint)]"
       }
     >
       {trip ? "Trip Wish" : "Host Offer"}
@@ -200,10 +200,10 @@ function KindPill({ kind }: { kind: ProposalKind }) {
 function StatusPill({ status }: { status: ProposalStatus }) {
   const cls =
     status === "active"
-      ? "bg-emerald-100 text-emerald-900"
+      ? "bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]"
       : status === "expired"
-        ? "bg-amber-100 text-amber-900"
-        : "bg-zinc-200 text-zinc-800";
+        ? "bg-amber-400/15 text-amber-100"
+        : "bg-white/10 text-[var(--tt-cream)]";
   return (
     <span
       className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cls}`}

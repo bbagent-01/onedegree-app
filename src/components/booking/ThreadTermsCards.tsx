@@ -313,8 +313,8 @@ export function TermsOfferedCard({
   // collapsible behaviour, just an alarm-flavoured icon chip so the
   // declined state reads at a glance from the timeline.
   const headerIconClasses = declinedAt
-    ? "bg-red-100 text-red-700"
-    : "bg-emerald-100 text-emerald-700";
+    ? "bg-red-400/15 text-red-200"
+    : "bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]";
 
   // Once the guest has accepted (or either party has declined), the
   // big middle (dates tiles, total breakdown, policy block, payment
@@ -342,7 +342,7 @@ export function TermsOfferedCard({
               sides so the host knows an edit was asked for and the
               guest sees their own ask acknowledged. */}
           {pending && hasEditsRequest && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
               <MessageSquare className="h-3 w-3" />
               Edits requested
             </span>
@@ -443,17 +443,17 @@ export function TermsOfferedCard({
   // consistently. Wording branches on who declined to avoid
   // shaming either side — soft language only.
   const declinedFooter = declinedAt && (
-    <div className="flex items-center gap-3 border-t border-red-200 bg-red-50 px-4 py-4">
+    <div className="flex items-center gap-3 border-t border-red-400/30 bg-red-400/10 px-4 py-4">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow-sm">
         <X className="h-5 w-5" />
       </div>
       <div className="min-w-0">
-        <div className="text-sm font-semibold text-red-900">
+        <div className="text-sm font-semibold text-red-100">
           {declinedBy === "host"
             ? "Reservation withdrawn"
             : "Terms declined"}
         </div>
-        <div className="text-xs text-red-800/80">
+        <div className="text-xs text-red-200/80">
           {(() => {
             const who =
               declinedBy === "guest"
@@ -502,15 +502,15 @@ export function TermsOfferedCard({
       {!declinedAt &&
         viewerRole === "guest" &&
         (acceptedAt ? (
-          <div className="flex items-center gap-3 border-t border-emerald-200 bg-emerald-50 px-4 py-4">
+          <div className="flex items-center gap-3 border-t border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 px-4 py-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
               <Check className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-emerald-900">
+              <div className="text-sm font-semibold text-[var(--tt-mint)]">
                 You&rsquo;re connected
               </div>
-              <div className="text-xs text-emerald-800/80">
+              <div className="text-xs text-[var(--tt-mint)]/80">
                 You accepted these terms on{" "}
                 {new Date(acceptedAt).toLocaleDateString(undefined, {
                   month: "short",
@@ -539,7 +539,7 @@ export function TermsOfferedCard({
                   type="button"
                   onClick={() => setDeclineOpen(true)}
                   disabled={submitting}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-red-400/10 disabled:opacity-60"
                 >
                   <X className="h-4 w-4" />
                   Decline
@@ -549,7 +549,7 @@ export function TermsOfferedCard({
                   type="button"
                   onClick={requestEdits}
                   disabled={submitting || requestingEdits}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-amber-300 bg-white px-4 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-50 disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-amber-400/50/40 bg-white px-4 py-2.5 text-sm font-semibold text-amber-100 transition hover:bg-amber-400/10 disabled:opacity-60"
                 >
                   {requestingEdits ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -599,7 +599,7 @@ export function TermsOfferedCard({
               className={cn(
                 "inline-flex items-center justify-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-xs font-semibold shadow-sm transition disabled:opacity-60",
                 hasEditsRequest
-                  ? "border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                  ? "border-amber-400/50 bg-amber-400/10 text-amber-100 hover:bg-amber-400/15"
                   : "border-border bg-white text-foreground hover:bg-muted"
               )}
             >
@@ -610,7 +610,7 @@ export function TermsOfferedCard({
               type="button"
               onClick={() => setDeclineOpen(true)}
               disabled={submitting}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-400/10 disabled:opacity-60"
             >
               <X className="h-3.5 w-3.5" />
               Withdraw offer
@@ -619,15 +619,15 @@ export function TermsOfferedCard({
         </div>
       )}
       {!declinedAt && viewerRole === "host" && acceptedAt && (
-        <div className="flex items-center gap-3 border-t border-emerald-200 bg-emerald-50 px-4 py-4">
+        <div className="flex items-center gap-3 border-t border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 px-4 py-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
             <Check className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-emerald-900">
+            <div className="text-sm font-semibold text-[var(--tt-mint)]">
               You&rsquo;re connected
             </div>
-            <div className="text-xs text-emerald-800/80">
+            <div className="text-xs text-[var(--tt-mint)]/80">
               {guestFirstName} accepted these terms on{" "}
               {new Date(acceptedAt).toLocaleDateString(undefined, {
                 month: "short",
@@ -780,16 +780,16 @@ export function TermsAcceptedCard({
   guestFirstName,
 }: TermsAcceptedProps) {
   return (
-    <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-emerald-200 bg-emerald-50 shadow-sm">
-      <div className="flex items-start gap-3 border-b border-emerald-200 p-4">
+    <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 shadow-sm">
+      <div className="flex items-start gap-3 border-b border-[var(--tt-mint-mid)]/40 p-4">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
           <Check className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-emerald-900">
+          <div className="text-sm font-semibold text-[var(--tt-mint)]">
             You&rsquo;re connected
           </div>
-          <div className="mt-0.5 text-xs text-emerald-800/80">
+          <div className="mt-0.5 text-xs text-[var(--tt-mint)]/80">
             {guestFirstName} accepted the terms on{" "}
             {new Date(acceptedAt).toLocaleDateString(undefined, {
               month: "short",
@@ -802,7 +802,7 @@ export function TermsAcceptedCard({
       </div>
 
       {typeof totalEstimate === "number" && totalEstimate > 0 && (
-        <div className="border-b border-emerald-200">
+        <div className="border-b border-[var(--tt-mint-mid)]/40">
           <PriceBreakdown
             checkIn={checkIn}
             checkOut={checkOut}
@@ -819,8 +819,8 @@ export function TermsAcceptedCard({
       </div>
 
       {viewerRole === "guest" && paymentMethods.length > 0 && (
-        <div className="border-t border-emerald-200 px-4 py-3">
-          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-900/70">
+        <div className="border-t border-[var(--tt-mint-mid)]/40 px-4 py-3">
+          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-mint)]/70">
             <Wallet className="h-3 w-3" />
             How to pay {hostFirstName}
           </div>
@@ -914,10 +914,10 @@ function PriceBreakdown({
     : 0;
 
   const labelTone =
-    tone === "emerald" ? "text-emerald-900/70" : "text-muted-foreground";
-  const valueTone = tone === "emerald" ? "text-emerald-900" : "";
+    tone === "emerald" ? "text-[var(--tt-mint)]/70" : "text-muted-foreground";
+  const valueTone = tone === "emerald" ? "text-[var(--tt-mint)]" : "";
   const totalTone =
-    tone === "emerald" ? "text-emerald-900" : "text-foreground";
+    tone === "emerald" ? "text-[var(--tt-mint)]" : "text-foreground";
 
   return (
     <div className="px-4 py-3">
@@ -980,7 +980,7 @@ function PriceBreakdown({
       <div
         className={cn(
           "mt-1 flex items-center justify-between gap-3 border-t pt-2 text-sm",
-          tone === "emerald" ? "border-emerald-200" : "border-border"
+          tone === "emerald" ? "border-[var(--tt-mint-mid)]/40" : "border-border"
         )}
       >
         <span
@@ -1039,7 +1039,7 @@ function SectionHeader({
         {label}
       </div>
       {changed && (
-        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-800">
+        <span className="inline-flex items-center rounded-full bg-red-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
           Host updated
         </span>
       )}
@@ -1247,7 +1247,7 @@ export function PaymentDueCard({
   const iconBg =
     isUpcoming && !pastScheduled
       ? "bg-slate-100 text-slate-600"
-      : "bg-amber-100 text-amber-700";
+      : "bg-amber-400/15 text-amber-200";
 
   const canPayNow =
     viewerRole === "guest" && !pastScheduled;
@@ -1465,20 +1465,20 @@ export function PaymentClaimedCard({
   };
 
   return (
-    <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-sky-200 bg-sky-50 shadow-sm">
-      <div className="flex items-start gap-3 border-b border-sky-200 p-4">
+    <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-sky-400/30 bg-sky-400/10 shadow-sm">
+      <div className="flex items-start gap-3 border-b border-sky-400/30 p-4">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-600 text-white">
           <DollarSign className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold uppercase tracking-wide text-sky-900/70">
+          <div className="text-xs font-semibold uppercase tracking-wide text-sky-100/70">
             {paymentOrdinal(event.schedule_index, totalEvents)}
           </div>
-          <div className="mt-0.5 text-sm font-semibold text-sky-900">
+          <div className="mt-0.5 text-sm font-semibold text-sky-100">
             {guestFirstName} sent {formatCentsDisplay(event.amount_cents)}
             {methodLabel ? ` via ${methodLabel}` : ""}
           </div>
-          <div className="mt-0.5 text-xs text-sky-800/80">
+          <div className="mt-0.5 text-xs text-sky-200/80">
             {event.claimed_at
               ? `Marked paid on ${new Date(event.claimed_at).toLocaleDateString(undefined, {
                   month: "short",
@@ -1491,7 +1491,7 @@ export function PaymentClaimedCard({
       </div>
 
       {viewerRole === "host" && !confirmed && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-sky-200 bg-white/40 p-4">
+        <div className="flex flex-wrap items-center gap-2 border-t border-sky-400/30 bg-white/40 p-4">
           <button
             type="button"
             onClick={confirmReceived}
@@ -1515,8 +1515,8 @@ export function PaymentClaimedCard({
       )}
 
       {viewerRole === "guest" && !confirmed && (
-        <div className="flex items-center justify-between gap-2 border-t border-sky-200 bg-white/40 px-4 py-3">
-          <div className="text-xs text-sky-900/80">
+        <div className="flex items-center justify-between gap-2 border-t border-sky-400/30 bg-white/40 px-4 py-3">
+          <div className="text-xs text-sky-100/80">
             {hostFirstName} will confirm once it lands.
           </div>
           <button
@@ -1524,7 +1524,7 @@ export function PaymentClaimedCard({
             onClick={unmarkPaid}
             disabled={unmarking}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-sky-900 shadow-sm transition hover:bg-sky-50 disabled:opacity-60"
+              "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-sky-400/30 bg-white px-2.5 py-1 text-[11px] font-semibold text-sky-100 shadow-sm transition hover:bg-sky-400/10 disabled:opacity-60"
             )}
           >
             {unmarking ? (
@@ -1539,7 +1539,7 @@ export function PaymentClaimedCard({
       )}
 
       {confirmed && (
-        <div className="flex items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-900">
+        <div className="flex items-center gap-2 border-t border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 px-4 py-3 text-xs font-semibold text-[var(--tt-mint)]">
           <Check className="h-3.5 w-3.5" />
           {hostFirstName} confirmed this payment
           {event.confirmed_at
@@ -1594,7 +1594,7 @@ export function PaymentConfirmedCard({
   return (
     <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-border bg-white shadow-sm">
       <div className="flex items-start gap-3 p-4">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-400/15 text-sky-200">
           <DollarSign className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
@@ -1611,15 +1611,15 @@ export function PaymentConfirmedCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 border-t border-sky-200 bg-sky-50 px-4 py-4">
+      <div className="flex items-center gap-3 border-t border-sky-400/30 bg-sky-400/10 px-4 py-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 text-white shadow-sm">
           <Check className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-sky-900">
+          <div className="text-sm font-semibold text-sky-100">
             Payment completed
           </div>
-          <div className="text-xs text-sky-800/80">
+          <div className="text-xs text-sky-200/80">
             {viewerRole === "host"
               ? `You confirmed ${guestFirstName}'s payment${confirmedOn ? ` on ${confirmedOn}` : ""}.`
               : `${hostFirstName} confirmed your payment${confirmedOn ? ` on ${confirmedOn}` : ""}.`}

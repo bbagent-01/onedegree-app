@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ShieldCheck, LockKeyhole, Phone, Cake } from "lucide-react";
+import { TrusteadLogo } from "@/components/layout/trustead-logo";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { computeAge } from "@/lib/age";
@@ -116,7 +117,10 @@ function SignUpInner() {
   // age, so the data model stays consistent even if a determined
   // attacker bypasses the client gate.
   const proceedFromDob = () => {
-    if (!dobMetadata) return;
+    if (!dobMetadata) {
+      toast.error("Pick a month and year to continue");
+      return;
+    }
     const age = computeAge(dobYearNum, dobMonthNum);
     if (age < 13) {
       setBlocked("under13");
@@ -130,7 +134,20 @@ function SignUpInner() {
   };
 
   const startPhone = async () => {
-    if (!isLoaded || !phoneValid || !dobMetadata) return;
+    if (!isLoaded) return;
+    if (!dobMetadata) {
+      toast.error("Add your month + year of birth first");
+      setStep("dob");
+      return;
+    }
+    if (!phone.trim()) {
+      toast.error("Enter your phone number");
+      return;
+    }
+    if (!phoneValid) {
+      toast.error("That phone number doesn't look right");
+      return;
+    }
     setSaving(true);
     try {
       await signUp.create({
@@ -155,7 +172,11 @@ function SignUpInner() {
   };
 
   const verifyPhone = async () => {
-    if (!isLoaded || otp.length < 6) return;
+    if (!isLoaded) return;
+    if (otp.length < 6) {
+      toast.error("Enter the 6-digit code we texted you");
+      return;
+    }
     setSaving(true);
     try {
       const res = await signUp.attemptPhoneNumberVerification({ code: otp });
@@ -177,7 +198,14 @@ function SignUpInner() {
 
   const completeAccount = async () => {
     if (!isLoaded) return;
-    if (!firstName.trim() || !password || password.length < 8) return;
+    if (!firstName.trim()) {
+      toast.error("Add your first name");
+      return;
+    }
+    if (!password || password.length < 8) {
+      toast.error("Password needs at least 8 characters");
+      return;
+    }
     setSaving(true);
     try {
       const res = await signUp.update({
@@ -272,8 +300,19 @@ function SignUpInner() {
 
   const startEmailSignup = async () => {
     if (!isLoaded) return;
-    if (!email.trim() || password.length < 8) return;
-    if (!dobMetadata) return;
+    if (!dobMetadata) {
+      toast.error("Add your month + year of birth first");
+      setStep("dob");
+      return;
+    }
+    if (!email.trim()) {
+      toast.error("Enter your email address");
+      return;
+    }
+    if (password.length < 8) {
+      toast.error("Password needs at least 8 characters");
+      return;
+    }
     setSaving(true);
     try {
       await signUp.create({
@@ -303,7 +342,11 @@ function SignUpInner() {
   };
 
   const verifyEmail = async () => {
-    if (!isLoaded || otp.length < 6) return;
+    if (!isLoaded) return;
+    if (otp.length < 6) {
+      toast.error("Enter the 6-digit code we emailed you");
+      return;
+    }
     setSaving(true);
     try {
       const res = await signUp.attemptEmailAddressVerification({ code: otp });
@@ -375,7 +418,15 @@ function SignUpInner() {
   // Final step of the email-fallback path: add phone + verify it so
   // the signUp can flip to complete.
   const submitEmailPhone = async () => {
-    if (!isLoaded || !phoneValid) return;
+    if (!isLoaded) return;
+    if (!phone.trim()) {
+      toast.error("Enter your phone number");
+      return;
+    }
+    if (!phoneValid) {
+      toast.error("That phone number doesn't look right");
+      return;
+    }
     setSaving(true);
     try {
       await signUp.update({ phoneNumber: e164 });
@@ -397,7 +448,11 @@ function SignUpInner() {
   };
 
   const verifyEmailPhoneOtp = async () => {
-    if (!isLoaded || otp.length < 6) return;
+    if (!isLoaded) return;
+    if (otp.length < 6) {
+      toast.error("Enter the 6-digit code we texted you");
+      return;
+    }
     setSaving(true);
     try {
       const res = await signUp.attemptPhoneNumberVerification({ code: otp });
@@ -431,6 +486,13 @@ function SignUpInner() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col px-4 py-8 md:py-16">
+      <Link
+        href="/"
+        aria-label="Trustead home"
+        className="mb-8 self-center text-foreground"
+      >
+        <TrusteadLogo className="h-7 w-auto" />
+      </Link>
       <header className="text-center">
         <h1 className="text-3xl font-bold md:text-4xl">Create your account</h1>
         {step === "dob" && (
@@ -500,7 +562,6 @@ function SignUpInner() {
             <Button
               size="lg"
               onClick={proceedFromDob}
-              disabled={!dobMetadata}
               className="mt-6 h-14 w-full text-base"
             >
               Continue
@@ -559,7 +620,7 @@ function SignUpInner() {
               <Button
                 size="lg"
                 onClick={startPhone}
-                disabled={!phoneValid || saving}
+                disabled={saving}
                 className="w-full h-14 text-base"
               >
                 {saving ? "Sending code\u2026" : "Continue with phone"}
@@ -615,7 +676,7 @@ function SignUpInner() {
               <Button
                 size="lg"
                 onClick={verifyPhone}
-                disabled={otp.length < 6 || saving}
+                disabled={saving}
                 className="flex-1 h-14 text-base"
               >
                 {saving ? "Verifying\u2026" : "Verify code"}
@@ -685,11 +746,7 @@ function SignUpInner() {
             <Button
               size="lg"
               onClick={completeAccount}
-              disabled={
-                saving ||
-                !firstName.trim() ||
-                password.length < 8
-              }
+              disabled={saving}
               className="mt-5 h-14 w-full text-base"
             >
               {saving ? "Creating account\u2026" : "Finish sign up"}
@@ -782,11 +839,7 @@ function SignUpInner() {
             <Button
               size="lg"
               onClick={startEmailSignup}
-              disabled={
-                saving ||
-                !email.trim() ||
-                password.length < 8
-              }
+              disabled={saving}
               className="mt-5 h-14 w-full text-base"
             >
               {saving ? "Sending code\u2026" : "Continue"}
@@ -828,7 +881,7 @@ function SignUpInner() {
               <Button
                 size="lg"
                 onClick={verifyEmail}
-                disabled={otp.length < 6 || saving}
+                disabled={saving}
                 className="flex-1 h-14 text-base"
               >
                 {saving ? "Verifying\u2026" : "Continue"}
@@ -889,7 +942,7 @@ function SignUpInner() {
             <Button
               size="lg"
               onClick={submitEmailPhone}
-              disabled={!phoneValid || saving}
+              disabled={saving}
               className="mt-5 h-14 w-full text-base"
             >
               {saving ? "Sending code\u2026" : "Send code"}
@@ -942,7 +995,7 @@ function SignUpInner() {
               <Button
                 size="lg"
                 onClick={verifyEmailPhoneOtp}
-                disabled={otp.length < 6 || saving}
+                disabled={saving}
                 className="flex-1 h-14 text-base"
               >
                 {saving ? "Verifying\u2026" : "Finish sign up"}

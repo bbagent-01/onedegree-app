@@ -173,11 +173,11 @@ export function CancellationPolicyForm({
           Suppressed when this editor renders nested inside a listing
           edit form where the banner would duplicate one already on screen. */}
       {!suppressPlatformBanner && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-semibold text-amber-900">
+        <div className="rounded-xl border border-amber-400/50/30 bg-amber-400/10 p-4">
+          <p className="text-sm font-semibold text-amber-100">
             Trustead doesn&apos;t process payments or manage refunds.
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
+          <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
             This is guidance hosts and guests share to set expectations.
             Every payment and refund happens directly between you — no
             money ever touches the platform.
@@ -250,7 +250,7 @@ export function CancellationPolicyForm({
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Payment schedule</h3>
           {preset === "custom" && (
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">
+            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] font-medium text-[var(--tt-cream-muted)]">
               Custom
             </span>
           )}

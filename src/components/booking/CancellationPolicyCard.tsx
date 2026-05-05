@@ -260,9 +260,9 @@ function RefundTable({
               className={cn(
                 "shrink-0 font-semibold",
                 r.refund_pct >= 100
-                  ? "text-emerald-700"
+                  ? "text-[var(--tt-mint)]"
                   : r.refund_pct > 0
-                    ? "text-amber-700"
+                    ? "text-amber-200"
                     : "text-muted-foreground"
               )}
             >

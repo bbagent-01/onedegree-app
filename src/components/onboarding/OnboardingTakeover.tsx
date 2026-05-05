@@ -1,36 +1,50 @@
 "use client";
 
-// Ported from /sandbox/onboarding-2 (locked design — see
-// `locked-onboarding.md` on feat/d1-onboarding-sandbox). The full
-// sequence (intro logo morph → 5 slides → dismiss) is identical to
-// the sandbox version; the only behavioral change is that dismiss
-// here writes users.onboarding_seen_at via POST
-// /api/onboarding/dismiss instead of the sandbox's in-memory state.
-//
-// B4: a `signedOut` prop swaps the last-slide CTA from a single
-// "Get started" button to a "Create an account" / "Sign in" pair
-// and skips the dismiss POST (which would 401 anyway). Used by the
-// new home page so cold visitors at trustead.app run through the
-// full onboarding flow before hitting Clerk's sign-up.
+// Live onboarding takeover — promoted from /sandbox/onboarding-2-c
+// (variant C). The full intro morph + 5-slide flow is identical to
+// the sandbox version; the only behavioral additions here are:
+//   - dismiss() POSTs /api/onboarding/dismiss so the takeover
+//     records "user has seen this" and won't re-show on next sign-in.
+//   - body scroll lock while mounted so the underlying app can't
+//     scroll behind the takeover.
+//   - dismissedRef guard against double-firing the POST when the
+//     user mashes Skip + Get-started or React re-renders mid-exit.
+// All other variant-C polish (adaptive fit, logo morph retune,
+// tagline timing, slide 4 host card, slide 5 access rules, ghost-
+// circle Back + filled Continue + Sign-up secondary CTA, eyebrow
+// hide on short screens) is preserved.
 //
 // Pending revisits (Loren):
-// - TrustDetailVisual (slide 4): placeholder mock of the in-app
-//   trust-detail panel. Replace once Loren has the real UI.
-// - VisibilityVisual (slide 5): placeholder mock of the listing-
-//   visibility panel. Replace once Loren has the real UI.
+// - TrustDetailVisual (slide 4): placeholder host card. Swap once
+//   the production trust-badge / connection-breakdown panel is final.
+// - VisibilityVisual (slide 5): placeholder access-rules card. Swap
+//   once the production listing-visibility picker is final.
 
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
   Eye,
+  EyeOff,
   Lock,
   Shield,
   Star,
   Users,
 } from "lucide-react";
+
+// B4 home-page integration:
+//   When `signedOut` is true the takeover skips the dismiss POST
+//   (no DB row to stamp for an unauthenticated visitor) and the
+//   final slide swaps the lone "Get started" CTA for an explicit
+//   "Create an account" / "Sign in" pair. Used by the new home
+//   page so cold visitors run through the same onboarding flow
+//   and exit into the right entry point.
+interface OnboardingTakeoverProps {
+  signedOut?: boolean;
+}
 
 // ── Slide schema ──────────────────────────────────────────────────
 
@@ -38,12 +52,26 @@ type Slide = {
   eyebrow: string;
   titleLines: [string, string];
   titleEmphasis?: { word: string; className: string };
+  // String body renders inline. A 2-element tuple renders the
+  // two parts on a single line on mobile (joined by a space) and on
+  // separate lines on desktop (md:block break between them).
   body: string | [string, string];
   Visual: React.ComponentType | null;
+  // When true, the slide renders with the orbit canvases bookending
+  // the text content (top arcs above eyebrow, bottom arcs below CTA).
+  // The inline Visual slot is skipped on this layout.
   orbitLayout?: boolean;
+  // When true, the heading keeps its authored line break on mobile
+  // too (rather than collapsing to inline flow and re-wrapping based
+  // on viewport width). Use for slides where the line break is part
+  // of the visual rhythm.
   forceTitleBreak?: boolean;
 };
 
+// STRANGERS_OPTION_ONE — the vertical-cycling pain-points list lives
+// in PainPointsListVisual below but is intentionally NOT in SLIDES.
+// Loren is keeping it as the alternate "strangers" treatment. Bring
+// it back by inserting a slide entry with `Visual: PainPointsListVisual`.
 const SLIDES: Slide[] = [
   {
     eyebrow: "The problem",
@@ -54,6 +82,10 @@ const SLIDES: Slide[] = [
       "Losing out on monetizing their empty home.",
     ],
     Visual: PainPointsCardsVisual,
+    // Force the authored 2-line break on mobile too — combined with
+    // the smaller heading clamp this keeps slide 1 to 2 lines max
+    // even on iPhone SE-class phones.
+    forceTitleBreak: true,
   },
   {
     eyebrow: "The solution",
@@ -81,41 +113,80 @@ const SLIDES: Slide[] = [
   },
   {
     eyebrow: "Privacy",
-    titleLines: ["Control who sees your", "listing, or listing preview"],
-    body: "Make it fully private, share a teaser only, or open it up to friends-of-friends. Your call.",
+    titleLines: ["Control exactly", "who sees what"],
+    body: "Set a trust-score floor for the preview, and a degree limit for the full listing.",
     Visual: VisibilityVisual,
+    forceTitleBreak: true,
   },
 ];
 
-// Phase timeline:
-//   intro     (0 → 3400 ms)       — logo draws + tagline rises;
-//                                   both visible together for ~1.5s
-//   morphing  (3400 → ~6400 ms)   — logo translates up + shrinks
-//                                   slowly; tagline fades out
-//   slides    (~6400 ms → ...)    — slide content mounts and runs
-//                                   its word stagger
-const INTRO_DURATION_MS = 3400;
+// Phase timeline (variant C, 2026-05-03 retune):
+//   intro     (0 → 2400 ms)       — logo draws + tagline rises;
+//                                   both visible together for ~1s
+//   morphing  (2400 → ~4000 ms)   — logo translates up AND shrinks
+//                                   simultaneously; shrink uses a
+//                                   strong ease-in so the wordmark
+//                                   stays at intro size for most of
+//                                   the move and only collapses near
+//                                   the end. Tagline fades + drifts.
+//   slides    (~4000 ms → ...)    — slide content mounts AFTER the
+//                                   logo has finished morphing so it
+//                                   can't overlap the wordmark in
+//                                   transit.
+const INTRO_DURATION_MS = 2400; // was 3400 — start morph 1s earlier
 const SWIPE_THRESHOLD_PX = 50;
 
+// Tagline starts BEFORE the wordmark finishes drawing, so they
+// resolve together. Logo draw-in lands at ~1.374s; a 900ms tagline
+// start means the first word of the tagline begins lifting while
+// the logo is still drawing.
 const TAGLINE_DELAY_MS = 900;
 
+// Word-stagger tokens.
 const WORD_DURATION_MS = 600;
-const WORD_EASING = "cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+const WORD_EASING = "cubic-bezier(0.25, 0.46, 0.45, 0.94)"; // power2.out
 const TITLE_WORD_STAGGER_MS = 30;
 const BODY_WORD_STAGGER_MS = 12;
 const BLOCK_FADE_DURATION_MS = 500;
 const WORD_EXIT_DURATION_MS = 400;
 
-const LOGO_MOVE_MS = 2000;
-const LOGO_SHRINK_MS = 1000;
-const LOGO_SHRINK_DELAY_MS = Math.round(LOGO_MOVE_MS * 0.8);
-const LOGO_EASING = "cubic-bezier(0.83, 0, 0.17, 1)";
-const SLIDES_MOUNT_OFFSET_MS = LOGO_SHRINK_DELAY_MS - 200;
+// Logo morph (variant C retune):
+//   - Move + shrink start at the SAME TIME (no separation).
+//   - Both run for 1500ms total — slightly faster than the old
+//     2000ms move so the whole gesture is snappier.
+//   - Move uses a balanced ease-in-out so the lift feels confident.
+//   - SHRINK uses a strong ease-in: the wordmark stays at full
+//     intro size for most of the journey upward and only collapses
+//     to its settled size in the last ~30% of the morph. Reads as
+//     "the logo flies up, then *snap* into the header."
+const LOGO_MOVE_MS = 1500;
+const LOGO_SHRINK_MS = 1500;
+const LOGO_SHRINK_DELAY_MS = 0; // shrink and move kick off together
+const LOGO_EASING = "cubic-bezier(0.83, 0, 0.17, 1)"; // move: dramatic ease-in-out
+const LOGO_SHRINK_EASING = "cubic-bezier(0.85, 0, 0.95, 0.4)"; // shrink: strong ease-in (stays large until end)
+const LOGO_TOTAL_MORPH_MS = Math.max(
+  LOGO_MOVE_MS,
+  LOGO_SHRINK_DELAY_MS + LOGO_SHRINK_MS
+);
+// Slide content waits until the logo has finished morphing so it
+// never overlaps the in-transit wordmark. Mount 200ms before morph
+// completes to give the eyebrow + first words a head-start while
+// the logo is settling its last few pixels.
+const SLIDES_MOUNT_OFFSET_MS = LOGO_TOTAL_MORPH_MS - 200;
 
-const TAGLINE_EXIT_DELAY_MS = 750;
-const TAGLINE_EXIT_DURATION_MS = 300;
-const TAGLINE_EXIT_TRANSLATE_PX = 0;
+// Tagline exit — Loren wants the gap closer (~500ms after logo
+// starts moving). Tagline is rendered OUTSIDE the logo wrapper
+// (see JSX below) so the wrapper's top/transform morph doesn't
+// carry the tagline along — TAGLINE_EXIT_DELAY_MS truly controls
+// the gap between "logo starts" and "tagline starts."
+const TAGLINE_EXIT_DELAY_MS = 500;
+const TAGLINE_EXIT_DURATION_MS = 500;
+const TAGLINE_EXIT_TRANSLATE_PX = 100;
 
+// Orbit avatar filenames — used both by the orbit JS (which has its
+// own copy of these paths) and by the React preloader on this page,
+// which fires `new Image()` for each on mount so the orbit slide can
+// init from cache instead of waiting on the network.
 const ORBIT_AVATAR_FILES = [
   "avatar-03-black-woman.jpg",
   "avatar-04-white-woman.jpg",
@@ -147,21 +218,34 @@ const ORBIT_AVATAR_FILES = [
   "avatar-og-2.jpg",
 ];
 
+// Breakpoint for desktop orbit — above this width, render ONE
+// full-bleed canvas (full circular orbit around centered text, like
+// the v7 landing page hero). Below it, dual-canvas top + bottom arcs.
+// 768px matches Tailwind's `md` so the layout switch lines up with
+// the rest of the responsive system. The orbit JS internally goes
+// into "desktop mode" at canvas widths > 680, so any breakpoint
+// above 680 does the right thing.
 const ORBIT_DESKTOP_BREAKPOINT_PX = 768;
 
 type Phase = "intro" | "morphing" | "slides" | "dismissed";
 
-interface OnboardingTakeoverProps {
-  /**
-   * When true: skip the /api/onboarding/dismiss POST (no DB row to
-   * stamp), and on the last slide show "Create an account" + "Sign
-   * in" buttons instead of the single "Get started". Used by the
-   * signed-out home page so visitors run through the value-prop
-   * slides before hitting Clerk.
-   */
-  signedOut?: boolean;
-}
-
+// VARIANT C — Adaptive scaling.
+// Goal: every slide ALWAYS fits on every phone, no scroll ever.
+// Achieved purely via CSS clamp() driven by viewport height (vh)
+// — no JS measurement, no @media breakpoints, no !important. The
+// logo morph still plays normally because the settled width is
+// just a different (vh-relative) number, not a forced override.
+// Adaptive sizing applies to:
+//   - Logo settled width:  clamp(9rem, 22vh, 15rem)
+//   - Heading clamp size:  clamp(22px, 5.5vh, 40px)
+//   - Body text size:      clamp(14px, 2.2vh, 18px)
+//   - Stack gap:           clamp(0.5rem, 1.8vh, 1.5rem)
+//   - Top safe zone:       clamp(5rem, 13vh, 9rem)
+//   - Bottom safe zone:    clamp(4rem, 11vh, 8rem)
+// On a 600px phone height: logo ≈ 9rem, heading ≈ 22-33px, gaps tight.
+// On a 1000px phone height: logo ≈ 13.75rem, heading ≈ 40px, gaps wide.
+// The morph from intro size (28rem / 92vw) interpolates to whatever
+// clamp resolves to at that height — no animation regression.
 export function OnboardingTakeover({
   signedOut = false,
 }: OnboardingTakeoverProps = {}) {
@@ -171,25 +255,14 @@ export function OnboardingTakeover({
   const [exiting, setExiting] = useState(false);
   const touchStartX = useRef<number | null>(null);
   // Guards against double-firing the dismiss POST (e.g. if a user
-  // mashes Skip + Get-started, or if React re-renders during exit).
+  // mashes Skip + Get-started, or React re-renders during exit).
   const dismissedRef = useRef(false);
 
   const isLast = index === SLIDES.length - 1;
   const isFirst = index === 0;
 
-  useEffect(() => {
-    if (phase === "intro") {
-      const t = setTimeout(() => setPhase("morphing"), INTRO_DURATION_MS);
-      return () => clearTimeout(t);
-    }
-    if (phase === "morphing") {
-      const t = setTimeout(() => setPhase("slides"), SLIDES_MOUNT_OFFSET_MS);
-      return () => clearTimeout(t);
-    }
-  }, [phase]);
-
   // Lock body scroll while the takeover is mounted so the underlying
-  // app can't scroll behind it. Restored on dismiss.
+  // app can't scroll behind it. Restored on dismiss/unmount.
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -198,38 +271,74 @@ export function OnboardingTakeover({
     };
   }, []);
 
+  // Dismiss writes users.onboarding_seen_at via POST so the takeover
+  // doesn't re-show on next sign-in. Optimistic — phase flips
+  // instantly so the user never feels a network round-trip; if the
+  // POST fails the takeover may show again on next sign-in (acceptable —
+  // show-once is best-effort, not a hard guarantee).
+  // For signed-out visitors there's no DB row to stamp; skip the POST.
   const dismiss = () => {
     if (dismissedRef.current) return;
     dismissedRef.current = true;
-    // Optimistic — hide takeover instantly so the user never feels
-    // a network round-trip on Skip / Get-started. Fire-and-forget;
-    // a failed write means the takeover shows again on next sign-in
-    // (acceptable — show-once is best-effort, not a hard guarantee).
     setPhase("dismissed");
-    if (signedOut) {
-      // No DB row to stamp; skip the POST entirely.
-      return;
-    }
+    if (signedOut) return;
     fetch("/api/onboarding/dismiss", { method: "POST", keepalive: true }).catch(
       (err) => {
         console.error("[onboarding] dismiss failed:", err);
-      }
+      },
     );
   };
 
-  // Signed-out CTAs from the final slide. Both navigate via the
-  // Next.js router so the slot bounce-back stays in the SPA shell;
-  // we still call dismiss() so the takeover unmounts cleanly.
+  // Hand-offs from the signed-out final slide. redirect_url=/ keeps
+  // the post-auth landing as the home page so users come back here
+  // (now signed in, takeover dismisses normally).
   const goSignUp = () => {
-    if (dismissedRef.current) return;
-    dismiss();
+    setPhase("dismissed");
     router.push("/sign-up?redirect_url=/");
   };
   const goSignIn = () => {
-    if (dismissedRef.current) return;
-    dismiss();
+    setPhase("dismissed");
     router.push("/sign-in?redirect_url=/");
   };
+
+  // Phase progression: intro → morphing → slides.
+  useEffect(() => {
+    if (phase === "intro") {
+      const t = setTimeout(() => setPhase("morphing"), INTRO_DURATION_MS);
+      return () => clearTimeout(t);
+    }
+    if (phase === "morphing") {
+      // Slide content waits for the logo morph to (almost) finish
+      // — see SLIDES_MOUNT_OFFSET_MS comment up top.
+      const t = setTimeout(() => setPhase("slides"), SLIDES_MOUNT_OFFSET_MS);
+      return () => clearTimeout(t);
+    }
+  }, [phase]);
+
+  // Force the intro animation to play on EVERY page load — including
+  // bfcache restores (back/forward navigation in the browser) and
+  // dev-mode HMR/Fast-Refresh that preserve component state across
+  // edits. Without this, the page can end up rendered at phase ===
+  // "slides" with the logo already settled and no animation triggered
+  // — the bug Loren reported as "sometimes when I'm going to the page
+  // the logo doesn't animate, it just loads."
+  useEffect(() => {
+    // On mount, hard-reset to the intro phase. If we're already at
+    // intro, the setState is a no-op (React bails on identical value).
+    setPhase("intro");
+    setIndex(0);
+    // Listen for the bfcache restore event so back/forward nav re-
+    // triggers the animation. event.persisted === true means the
+    // page was restored from the browser's back/forward cache.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setPhase("intro");
+        setIndex(0);
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   const transitionTo = (nextIdx: number) => {
     setExiting(true);
@@ -253,6 +362,8 @@ export function OnboardingTakeover({
   };
 
   const skip = () => dismiss();
+  // Skipping the intro fast-forwards the whole logo-morph window so
+  // the user lands on the first slide right away.
   const skipIntro = () => setPhase("slides");
 
   useEffect(() => {
@@ -268,9 +379,11 @@ export function OnboardingTakeover({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, isLast, isFirst, index]);
 
+  // Track viewport so we can render either the desktop full-bleed
+  // single canvas (full circular orbit around centered text) or the
+  // mobile dual-canvas bookend layout (top arc + bottom arc).
   const [isOrbitDesktop, setIsOrbitDesktop] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia(
@@ -282,6 +395,11 @@ export function OnboardingTakeover({
     return () => mq.removeEventListener("change", sync);
   }, []);
 
+  // Preload — kick off avatar image fetches and inject the orbit
+  // script as soon as the page mounts. By the time the user lands on
+  // slide 2, both are warm in cache: the orbit JS is parsed, and its
+  // Promise.all over `new Image()` resolves immediately, so init →
+  // first frame is effectively instant.
   const orbitScriptLoadedRef = useRef(false);
   useEffect(() => {
     ORBIT_AVATAR_FILES.forEach((name) => {
@@ -289,12 +407,15 @@ export function OnboardingTakeover({
       img.src = `/assets/orbit-animation/avatars/${name}`;
     });
     if (
-      !document.querySelector<HTMLScriptElement>('script[data-ob-orbit="1"]')
+      !document.querySelector<HTMLScriptElement>('script[data-sb-orbit="1"]')
     ) {
       const s = document.createElement("script");
+      // Version query string busts Cloudflare's 4-hour edge cache
+      // when we ship orbit JS changes. Bump this when you edit the
+      // script so users get the new file without a hard refresh.
       s.src = "/assets/orbit-animation/orbit-lite.js?v=3";
       s.async = true;
-      s.dataset.obOrbit = "1";
+      s.dataset.sbOrbit = "1";
       s.onload = () => {
         orbitScriptLoadedRef.current = true;
       };
@@ -304,6 +425,9 @@ export function OnboardingTakeover({
     }
   }, []);
 
+  // Init the orbit each time the orbit slide becomes active. Picks
+  // the right canvas IDs based on viewport: one big canvas on
+  // desktop, top + bottom arc canvases on mobile.
   useEffect(() => {
     if (phase !== "slides") return;
     const s = SLIDES[index];
@@ -317,13 +441,13 @@ export function OnboardingTakeover({
       requestAnimationFrame(() => {
         try {
           if (isOrbitDesktop) {
-            w.initOrbitHero?.("ob-orbit-canvas-desktop");
+            w.initOrbitHero?.("sb-orbit-canvas-desktop");
           } else {
-            w.initOrbitHero?.("ob-orbit-canvas");
-            w.initOrbitTop?.("ob-orbit-canvas-top");
+            w.initOrbitHero?.("sb-orbit-canvas");
+            w.initOrbitTop?.("sb-orbit-canvas-top");
           }
         } catch {
-          // swallow — best-effort init
+          // swallow — sandbox iteration; worst case is no orbit
         }
       });
     };
@@ -332,6 +456,7 @@ export function OnboardingTakeover({
       tryInit();
       return;
     }
+    // Script still loading — poll briefly for it to finish, then init.
     const id = window.setInterval(() => {
       if (orbitScriptLoadedRef.current) {
         window.clearInterval(id);
@@ -341,11 +466,21 @@ export function OnboardingTakeover({
     return () => window.clearInterval(id);
   }, [phase, index, isOrbitDesktop]);
 
-  if (phase === "dismissed") return null;
+  if (phase === "dismissed") {
+    return (
+      <main className="flex h-screen w-screen items-center justify-center bg-background px-6 text-center text-foreground">
+        <p className="font-mono text-sm text-muted-foreground">
+          Sandbox dismissed (in-memory only — refresh to reset)
+        </p>
+      </main>
+    );
+  }
 
   const slide = SLIDES[index];
   const Visual = slide.Visual;
 
+  // Stagger sequencing — eyebrow lands first, then title words, then
+  // visual + body, then CTA. All paced off the title's natural end.
   const eyebrowDelay = 0;
   const titleStartDelay = 200;
   const titleWords = slide.titleLines.flatMap((l) => l.split(" ")).length;
@@ -355,6 +490,9 @@ export function OnboardingTakeover({
     WORD_DURATION_MS;
   const visualDelay = titleStartDelay + Math.round(titleEndDelay * 0.4);
   const bodyStartDelay = titleStartDelay + Math.round(titleEndDelay * 0.55);
+  // Body can be a single string or a [head, tail] tuple (rendered as
+  // two lines on desktop, one continuous run on mobile). Count + delay
+  // math treats both as one continuous word stream.
   const bodyParts: [string, string?] = Array.isArray(slide.body)
     ? slide.body
     : [slide.body];
@@ -393,23 +531,25 @@ export function OnboardingTakeover({
 
   return (
     <main
-      className={`onboarding-takeover-root fixed inset-0 z-[60] flex flex-col overflow-hidden bg-background text-foreground ${
+      className={`onboarding-takeover-root relative flex h-dvh w-screen flex-col overflow-hidden bg-background text-foreground ${
         exiting ? "is-exiting" : ""
       }`}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       onClick={introOrMorphing ? skipIntro : undefined}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Welcome to Trustead"
     >
       <style
         dangerouslySetInnerHTML={{
           __html: `
-            @keyframes ob-word-rise {
+            /* Word IN/OUT — implicit \`from\` in both keyframes (no
+               explicit from{}) so the browser uses the current
+               computed value as the start. Removes the snap that
+               caused flickering when the exit class was added
+               mid-rise. */
+            @keyframes sb-word-rise {
               to { opacity: 1; transform: translate3d(0, 0, 0); }
             }
-            @keyframes ob-word-exit {
+            @keyframes sb-word-exit {
               to { opacity: 0; transform: translate3d(0, -110%, 0); }
             }
             .onboarding-takeover-root .word-mask {
@@ -423,43 +563,75 @@ export function OnboardingTakeover({
               opacity: 0;
               transform: translate3d(0, 110%, 0);
               will-change: opacity, transform;
-              animation: ob-word-rise ${WORD_DURATION_MS}ms ${WORD_EASING} forwards;
+              animation: sb-word-rise ${WORD_DURATION_MS}ms ${WORD_EASING} forwards;
             }
+            /* Per-word exit was causing flicker when words at later
+               delays hadn't started their entry yet — the new
+               animation would still honor the inline animation-delay
+               and snap. Replaced with a single uniform fade on the
+               .slide-content wrapper below, which is smooth from any
+               mid-entry state. */
 
-            @keyframes ob-block-rise {
+            /* Block in/out — visual + button + eyebrow */
+            @keyframes sb-block-rise {
               to { opacity: 1; transform: translate3d(0, 0, 0); }
             }
-            @keyframes ob-block-exit {
+            @keyframes sb-block-exit {
               to { opacity: 0; transform: translate3d(0, -24px, 0); }
             }
             .onboarding-takeover-root .block-rise {
               opacity: 0;
               transform: translate3d(0, 24px, 0);
               will-change: opacity, transform;
-              animation: ob-block-rise ${BLOCK_FADE_DURATION_MS}ms ${WORD_EASING} forwards;
+              animation: sb-block-rise ${BLOCK_FADE_DURATION_MS}ms ${WORD_EASING} forwards;
             }
+            /* Same reasoning as above — block exits also handled by
+               the .slide-content uniform fade. */
 
-            @keyframes ob-content-exit {
+            /* Uniform exit on the slide-content wrapper. Whatever
+               state the words/blocks are in mid-entry, the parent
+               just fades + lifts a few px and disappears. Snappy
+               enough that nothing feels held up. */
+            @keyframes sb-content-exit {
               to { opacity: 0; transform: translate3d(0, -12px, 0); }
             }
             .onboarding-takeover-root.is-exiting .slide-content {
-              animation: ob-content-exit ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING} forwards;
+              animation: sb-content-exit ${WORD_EXIT_DURATION_MS}ms ${WORD_EASING} forwards;
             }
 
-            .onboarding-orbit-fade-in {
-              animation: ob-orbit-fade-in 700ms ${WORD_EASING} forwards;
+            /* Pain-points list (alt) — vertical cycle */
+            @keyframes sb-pain-cycle {
+              0%,  18% { transform: translate3d(0, calc(0 * var(--pain-h) * -1), 0); }
+              20%, 38% { transform: translate3d(0, calc(1 * var(--pain-h) * -1), 0); }
+              40%, 58% { transform: translate3d(0, calc(2 * var(--pain-h) * -1), 0); }
+              60%, 78% { transform: translate3d(0, calc(3 * var(--pain-h) * -1), 0); }
+              80%, 98% { transform: translate3d(0, calc(4 * var(--pain-h) * -1), 0); }
+              100%     { transform: translate3d(0, calc(5 * var(--pain-h) * -1), 0); }
+            }
+            .onboarding-takeover-root .pain-track {
+              animation: sb-pain-cycle 18s linear infinite;
+              will-change: transform;
+            }
+            .sandbox-orbit-fade-in {
+              animation: sb-orbit-fade-in 700ms ${WORD_EASING} forwards;
               opacity: 0;
             }
-            @keyframes ob-orbit-fade-in {
+            @keyframes sb-orbit-fade-in {
               to { opacity: 1; }
             }
 
-            @keyframes ob-cards-scroll {
+            .onboarding-takeover-root .pain-window {
+              -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
+                      mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%);
+            }
+
+            /* Pain-cards horizontal scroll, right→left */
+            @keyframes sb-cards-scroll {
               from { transform: translate3d(0, 0, 0); }
               to   { transform: translate3d(-50%, 0, 0); }
             }
             .onboarding-takeover-root .cards-track {
-              animation: ob-cards-scroll 28s linear infinite;
+              animation: sb-cards-scroll 28s linear infinite;
               will-change: transform;
             }
             .onboarding-takeover-root .cards-window {
@@ -467,19 +639,45 @@ export function OnboardingTakeover({
                       mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
             }
 
+            body:has(.onboarding-takeover-root) > div.fixed.inset-x-0.bottom-0.z-40 {
+              display: none !important;
+            }
+
             @media (prefers-reduced-motion: reduce) {
               .onboarding-takeover-root .word-fill,
               .onboarding-takeover-root .block-rise,
+              .onboarding-takeover-root .pain-track,
               .onboarding-takeover-root .cards-track {
                 animation: none !important;
                 opacity: 1 !important;
                 transform: none !important;
               }
             }
+
+            /* Short-screen content drops (variant C).
+               First casualty when the viewport is short: the eyebrow
+               pill. It's reinforcing context, not load-bearing — the
+               heading + body + CTA can carry the slide alone. Hides
+               the element completely (display:none, not visibility)
+               so the stack's gap collapses too and reclaims real
+               vertical space. */
+            @media (max-height: 700px) {
+              .onboarding-takeover-root .eyebrow-pill {
+                display: none !important;
+              }
+            }
           `,
         }}
       />
 
+      {/* Persistent logo wrapper.
+          Phase A (intro → morphing transition): top + transform animate
+          over LOGO_MOVE_MS — the upward translate.
+          Phase B (lands at top): width animates over LOGO_SHRINK_MS,
+          delayed by LOGO_MOVE_MS so the shrink only fires after the
+          move ends. Both share the dramatic ease-in-out curve so the
+          motion is deliberate. The wrapper sits at z-40 so the slide
+          content (z-10) cannot animate behind it during morphing. */}
       <div
         className="pointer-events-none absolute z-40 left-1/2 -translate-x-1/2"
         style={{
@@ -488,14 +686,22 @@ export function OnboardingTakeover({
             introOrMorphing && phase !== "morphing"
               ? "translate(-50%, -50%)"
               : "translate(-50%, 0)",
+          // Settled width — variant C 2026-05-03 retune.
+          // clamp(8rem, 32vw, 13.5rem) — smaller on phones (8-12rem
+          // depending on width), full 13.5rem at sm breakpoint and up
+          // (≥640px width). Same desktop size as before; mobile is
+          // ~30% smaller per Loren's brief.
           width:
             introOrMorphing && phase !== "morphing"
               ? "min(28rem, 92vw)"
-              : "13.5rem",
+              : "clamp(8rem, 32vw, 13.5rem)",
           transitionProperty: "top, transform, width",
           transitionDuration: `${LOGO_MOVE_MS}ms, ${LOGO_MOVE_MS}ms, ${LOGO_SHRINK_MS}ms`,
           transitionDelay: `0ms, 0ms, ${LOGO_SHRINK_DELAY_MS}ms`,
-          transitionTimingFunction: `${LOGO_EASING}, ${LOGO_EASING}, ${LOGO_EASING}`,
+          // Move uses the dramatic ease-in-out; shrink uses a strong
+          // ease-in so the wordmark stays at intro size most of the
+          // way up and only collapses near the end of the journey.
+          transitionTimingFunction: `${LOGO_EASING}, ${LOGO_EASING}, ${LOGO_SHRINK_EASING}`,
         }}
       >
         <iframe
@@ -505,60 +711,104 @@ export function OnboardingTakeover({
           tabIndex={-1}
           title="Trustead animated logo"
         />
-        <div
-          className="mt-4 text-center"
-          style={{
-            opacity: phase === "intro" ? 1 : 0,
-            transform:
-              phase === "intro"
-                ? "translate3d(0, 0, 0)"
-                : `translate3d(0, -${TAGLINE_EXIT_TRANSLATE_PX}px, 0)`,
-            transition: `opacity ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms, transform ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms`,
-          }}
-        >
-          <p className="text-lg text-white sm:text-xl">
-            <AnimatedWords
-              text="Rent your home with trust"
-              stagger={TITLE_WORD_STAGGER_MS}
-              baseDelay={TAGLINE_DELAY_MS}
-            />
-          </p>
-        </div>
+      </div>
+
+      {/* Tagline — INDEPENDENT of the logo wrapper.
+          Previous architecture nested the tagline inside the wrapper
+          so the wrapper's top/transform morph carried the tagline
+          along, defeating any delay applied to the tagline's own
+          transition. Now the tagline is its own absolutely-positioned
+          element pinned just below the centered logo during intro
+          (top: 50% + 80px). It animates ONLY its own opacity + a
+          small translateY (~100px) — independent of the logo's full
+          journey to the header. The TAGLINE_EXIT_DELAY_MS now truly
+          controls "logo moves first, tagline follows".
+
+          NOTE: must NOT unmount on phase === "slides". The
+          intro→morphing→slides transitions happen quickly (slides
+          mounts at SLIDES_MOUNT_OFFSET_MS = ~1000ms after morph
+          starts), which is exactly when this tagline's exit
+          animation is scheduled to begin via TAGLINE_EXIT_DELAY_MS.
+          If we unmount on "slides" we rip it from the DOM before
+          its animation can play. So we keep it mounted (it's
+          pointer-events-none anyway) and just leave opacity at 0. */}
+      <div
+        className="pointer-events-none absolute z-40 left-1/2 text-center"
+        style={{
+          top: "50%",
+          // Translate puts the tagline 80px below viewport center —
+          // sits just under the centered logo iframe during intro.
+          // On morph + slides, also translate up by TAGLINE_EXIT_TRANSLATE_PX.
+          transform:
+            phase === "intro"
+              ? "translate(-50%, calc(-50% + 80px))"
+              : `translate(-50%, calc(-50% + 80px - ${TAGLINE_EXIT_TRANSLATE_PX}px))`,
+          opacity: phase === "intro" ? 1 : 0,
+          transition: `opacity ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms, transform ${TAGLINE_EXIT_DURATION_MS}ms ${WORD_EASING} ${TAGLINE_EXIT_DELAY_MS}ms`,
+        }}
+      >
+        <p className="text-lg text-white sm:text-xl whitespace-nowrap">
+          <AnimatedWords
+            text="Rent your home with trust"
+            stagger={TITLE_WORD_STAGGER_MS}
+            baseDelay={TAGLINE_DELAY_MS}
+          />
+        </p>
       </div>
 
       {phase === "slides" && (
         <>
+          {/* Orbit canvases — two layouts:
+              - Desktop (≥ md): one full-bleed canvas, the orbit JS
+                renders a full circle centered on the canvas with a
+                radial fade in the middle so the text reads cleanly.
+                Mirrors the v7 landing-page hero exactly.
+              - Mobile (< md): two stacked canvases (top half + bottom
+                half). The orbit JS pushes the orbit center off the
+                canvas on mobile so each renders just an arc — text
+                sits in the empty middle band where they meet.
+              Both layouts fade in (opacity 0 → 1) when the orbit slide
+              is active so the canvas appears smoothly after init
+              instead of popping in. */}
           {slide.orbitLayout &&
             (isOrbitDesktop ? (
               <div
                 key="orbit-desktop"
-                className="onboarding-orbit-fade-in absolute inset-0 z-0 pointer-events-none"
+                className="sandbox-orbit-fade-in absolute inset-0 z-0 pointer-events-none"
               >
                 <canvas
-                  id="ob-orbit-canvas-desktop"
+                  id="sb-orbit-canvas-desktop"
                   className="block h-full w-full"
                 />
               </div>
             ) : (
               <>
+                {/* Orbit arcs (mobile) — extended to h-[60%] each so
+                    the canvases overlap by 20% in the central band.
+                    The orbit JS draws arcs near the bottom of the top
+                    canvas / top of the bottom canvas, so extending
+                    the canvas height pulls the avatar arcs INWARD
+                    toward the text band. Outer rings end up in the
+                    CTA region — pointer-events-none + z-0 means they
+                    sit harmlessly behind the buttons. */}
                 <div
                   key="orbit-mobile-top"
-                  className="onboarding-orbit-fade-in absolute top-0 left-0 right-0 h-1/2 z-0 pointer-events-none"
+                  className="sandbox-orbit-fade-in absolute top-0 left-0 right-0 h-[60%] z-0 pointer-events-none"
                 >
                   <div className="mx-auto h-full w-full max-w-[680px]">
                     <canvas
-                      id="ob-orbit-canvas-top"
+                      id="sb-orbit-canvas-top"
                       className="block h-full w-full"
                     />
                   </div>
                 </div>
                 <div
                   key="orbit-mobile-bottom"
-                  className="onboarding-orbit-fade-in absolute bottom-0 left-0 right-0 h-1/2 z-0 pointer-events-none"
+                  className="sandbox-orbit-fade-in absolute bottom-0 left-0 right-0 h-[60%] z-0 pointer-events-none"
                 >
                   <div className="mx-auto h-full w-full max-w-[680px]">
                     <canvas
-                      id="ob-orbit-canvas"
+                      id="sb-orbit-canvas"
                       className="block h-full w-full"
                     />
                   </div>
@@ -566,13 +816,74 @@ export function OnboardingTakeover({
               </>
             ))}
 
+          {/* Backdrop fade behind the persistent logo. Sits above the
+              orbit canvas (z-0) and slide content (z-10) but below
+              the logo (z-40). Slide-content scrolls UNDER it on
+              mobile so headings can't bleed through the wordmark and
+              orbit avatars fade out where they'd otherwise collide
+              with the logo. Forest-green at top, transparent at the
+              bottom edge. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 z-30 h-32 sm:h-28"
+            style={{
+              background:
+                "linear-gradient(to bottom, var(--tt-body-bg) 0%, var(--tt-body-bg) 55%, transparent 100%)",
+            }}
+          />
+
+          {/* Adaptive vertical layout (Round 4 v2):
+              - .slide-content provides the safe-zone padding (under
+                the persistent logo at top and above the dots at
+                bottom) and is the scroll container if content can't
+                fit at very small heights.
+              - The inner stack uses min-h-full + justify-center so it
+                ALWAYS centers within the available rectangle when
+                content fits, and grows past it (triggering scroll on
+                .slide-content) only when content actually overflows.
+              - Outer wrapper uses h-dvh, not h-screen, so the layout
+                tracks the *visible* viewport on mobile Safari/Chrome
+                (where the URL bar collapses on scroll). */}
           <div
             key={index}
-            className="slide-content relative z-10 flex flex-1 items-center justify-center overflow-y-auto px-6 pt-32 pb-20 sm:pt-36 sm:pb-24"
+            className="slide-content relative z-10 flex flex-1 justify-center overflow-y-auto px-6 sm:pt-36 sm:pb-24"
+            style={{
+              // Adaptive vertical safe zones — scale with viewport
+              // height. On a 600px phone the top zone is 78px (vs
+              // pt-36 = 144px) which reclaims 66px for content.
+              paddingTop: "clamp(5rem, 13vh, 9rem)",
+              paddingBottom: "clamp(4rem, 11vh, 8rem)",
+            }}
           >
-            <div className="flex w-full max-w-md flex-col items-center gap-6 text-center sm:max-w-xl sm:gap-8">
+            <div
+              className="flex min-h-full w-full max-w-md flex-col items-center text-center sm:max-w-xl"
+            >
+              {/* Content region — eyebrow + heading + visual + body.
+                  Takes flex-1 so the CTA below gets pushed to the
+                  bottom of the slide regardless of how much content
+                  this region has. justify-center keeps the content
+                  vertically centered within the available space when
+                  it fits; safe-center falls back to flex-start when
+                  it overflows so the heading never collides with the
+                  persistent logo. The result: CTAs sit at the same
+                  y-position on every slide. */}
+              <div
+                className="flex w-full flex-1 flex-col items-center text-center"
+                style={{
+                  justifyContent: "safe center",
+                  // Adaptive gap between content children (eyebrow,
+                  // heading, visual, body). Tight on short phones,
+                  // generous on tall phones.
+                  gap: "clamp(0.5rem, 1.8vh, 1.5rem)",
+                }}
+              >
+              {/* Eyebrow pill — small uppercase tag above the heading.
+                  On short screens (< 700px viewport height) this is
+                  the FIRST thing to drop — it's reinforcing context,
+                  not load-bearing. The heading + body + visual + CTA
+                  carry the slide on their own. */}
               <span
-                className="block-rise inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
+                className="block-rise eyebrow-pill inline-flex items-center rounded-pill border border-border/60 bg-background/40 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground"
                 style={{ animationDelay: `${eyebrowDelay}ms` }}
               >
                 {slide.eyebrow}
@@ -595,7 +906,7 @@ export function OnboardingTakeover({
                 </div>
               )}
 
-              <p className="text-base leading-relaxed text-muted-foreground sm:text-lg">
+              <p className="leading-relaxed text-muted-foreground sm:text-lg" style={{ fontSize: "clamp(14px, 2.2vh, 18px)" }}>
                 <AnimatedWords
                   text={bodyParts[0]}
                   stagger={BODY_WORD_STAGGER_MS}
@@ -603,6 +914,9 @@ export function OnboardingTakeover({
                 />
                 {bodyParts[1] && (
                   <>
+                    {/* Mobile: collapse to a single space so the two
+                        body parts flow inline. Desktop: block-display
+                        so the second part starts on a new line. */}
                     <span className="inline md:hidden">{" "}</span>
                     <span className="hidden md:block" aria-hidden />
                     <AnimatedWords
@@ -615,79 +929,69 @@ export function OnboardingTakeover({
                   </>
                 )}
               </p>
-
+              </div>
+              {/* CTA region — sibling of the content region, NOT inside
+                  it. Pushed to the bottom by the content region's
+                  flex-1. Stays at the same y-position on every slide
+                  so users don't have to track moving buttons. */}
               <div
-                className="block-rise flex w-full flex-col items-center gap-3 md:w-1/2"
+                className="block-rise mt-4 flex w-full flex-col items-center gap-3 md:w-1/2"
                 style={{ animationDelay: `${buttonDelay}ms` }}
               >
-                {signedOut && isLast ? (
-                  // Signed-out final CTA cluster: replace the lone
-                  // "Get started" with explicit Create-account / Sign-in
-                  // routes. The sign-up flow's first step is the
-                  // age-verification DOB gate, so handing the user off
-                  // there satisfies Loren's "after onboarding → age
-                  // verification → app" sequence.
-                  <>
-                    <button
-                      type="button"
-                      onClick={goSignUp}
-                      aria-label="Create an account"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 py-3.5 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
-                    >
-                      Create an account
-                      <ArrowRight className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={goSignIn}
-                      aria-label="Sign in"
-                      className="inline-flex w-full items-center justify-center rounded-pill border border-border bg-card/40 px-6 py-3 text-sm font-medium text-foreground transition hover:bg-card/60"
-                    >
-                      Sign in
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={next}
-                    aria-label={isLast ? "Get started" : "Continue"}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 py-3.5 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
-                  >
-                    {isLast ? "Get started" : "Continue"}
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                )}
-                <div className="relative flex w-full items-center justify-center">
+                {/* Primary action row: small ghost-circle Back button
+                    on the LEFT (only after slide 1), and the primary
+                    CTA filling the rest of the available width.
+                    Signed-out final slide swaps "Get started" for
+                    "Create an account" (routes to /sign-up); all
+                    other slides keep the "Continue" / "Get started"
+                    Continue handler. */}
+                <div className="flex w-full items-stretch gap-2">
                   {!isFirst && (
                     <button
                       type="button"
                       onClick={prev}
                       aria-label="Previous slide"
-                      className="absolute left-0 grid h-8 w-8 place-items-center rounded-pill text-muted-foreground transition hover:text-foreground"
+                      className="grid aspect-square h-12 shrink-0 place-items-center rounded-full border border-border/60 bg-transparent text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
                     >
                       <ArrowLeft className="h-4 w-4" />
                     </button>
                   )}
-                  {/* Hide the Skip text-button on the final signed-out
-                      slide — the Sign-in button above already serves
-                      that role and a third Skip option here just adds
-                      noise. Skip stays for slides 1–4 so users can
-                      bail to /sign-in without slogging through. */}
-                  {!(signedOut && isLast) && (
+                  {signedOut && isLast ? (
                     <button
                       type="button"
-                      onClick={signedOut ? goSignIn : skip}
-                      className="rounded-pill px-3 py-1.5 text-sm text-muted-foreground transition hover:text-foreground"
+                      onClick={goSignUp}
+                      aria-label="Create an account"
+                      className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
                     >
-                      {signedOut ? "Sign in" : "Skip"}
+                      Create an account
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={next}
+                      aria-label={isLast ? "Get started" : "Continue"}
+                      className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-pill bg-brand-300 px-6 text-sm font-semibold text-brand-foreground shadow-card transition hover:bg-brand-400"
+                    >
+                      {isLast ? "Get started" : "Continue"}
+                      <ArrowRight className="h-4 w-4" />
                     </button>
                   )}
                 </div>
+                {/* Secondary action below: "Sign up" / "Sign in"
+                    depending on signed-in state. Ghost-button style. */}
+                <button
+                  type="button"
+                  onClick={signedOut ? goSignIn : skip}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-pill border border-border/60 bg-transparent px-6 text-sm font-medium text-foreground transition hover:bg-foreground/5"
+                >
+                  {signedOut ? "Sign in" : "Sign up"}
+                </button>
               </div>
             </div>
           </div>
 
-          <div className="absolute inset-x-0 bottom-6 z-20 flex items-center justify-center gap-2 sm:bottom-8">
+          <div className="absolute inset-x-0 bottom-3 z-20 flex items-center justify-center gap-2 sm:bottom-8">
             {SLIDES.map((_, i) => (
               <span
                 key={i}
@@ -723,7 +1027,13 @@ function AnimatedHeading({
 }) {
   let globalWordIdx = 0;
   return (
-    <h1 className="font-serif !leading-[1.08] !tracking-tight !max-w-none !text-[clamp(34px,10.5vw,44px)] sm:!text-[50px] md:!text-[60px]">
+    // Mobile heading sized to keep 2-line headings on a 390px phone
+    // and 3-line headings (slide 5) within reach without forcing the
+    // CTA below the fold. Tightened from clamp(34,10.5vw,44) which
+    // pushed slides 3 + 5 to 4 lines on small phones and put the
+    // Continue button below the visible viewport. Desktop sizes
+    // unchanged at sm: 50px / md: 60px.
+    <h1 className="!leading-[1.08] !tracking-tight !max-w-none !text-[clamp(22px,6.2vw,38px)] sm:!text-[50px] md:!text-[60px]">
       {titleLines.map((line, lineIdx) => {
         const arr = line.split(" ");
         const renderWord = (word: string, key: string) => {
@@ -742,10 +1052,19 @@ function AnimatedHeading({
             </span>
           );
         };
+        // Bind the last two words in a single white-space: nowrap
+        // span so the browser CAN'T break between them on any wrap —
+        // including the mobile inline flow where the two authored
+        // lines collapse and re-wrap based on viewport width.
         const splitAt = Math.max(0, arr.length - 2);
         const headWords = arr.slice(0, splitAt);
         const tailWords = arr.slice(splitAt);
         return (
+          // Default mobile: lines flow inline so the heading wraps
+          // naturally (no forced break). sm+: each line gets its own
+          // block so the heading reads exactly as `titleLines` was
+          // authored. When forceTitleBreak is set, mobile keeps the
+          // authored break too.
           <span
             key={lineIdx}
             className={forceTitleBreak ? "block" : "inline sm:block"}
@@ -768,6 +1087,9 @@ function AnimatedHeading({
                 })}
               </span>
             )}
+            {/* Trailing space so adjacent inline lines don't run
+                together on mobile. Hidden on sm+ where each line is
+                its own block and a trailing space is meaningless. */}
             {lineIdx < titleLines.length - 1 && !forceTitleBreak && (
               <span className="inline sm:hidden"> </span>
             )}
@@ -813,6 +1135,78 @@ function stripPunct(s: string) {
 
 // ── Visuals ───────────────────────────────────────────────────────
 
+const PAIN_POINTS = [
+  {
+    title: "Putting your stuff away",
+    subtitle: "Every time you rent. Out again every time you return.",
+    image: "/assets/onboarding-problems/problem-02-packing.webp",
+  },
+  {
+    title: "Neighbor issues",
+    subtitle: "A new household every weekend. Not everyone is thrilled.",
+    image: "/assets/onboarding-problems/problem-03-neighbors.webp",
+  },
+  {
+    title: "Exposing your nice things",
+    subtitle: "Glasses, couches, art — left to strangers' wear and tear.",
+    image: "/assets/onboarding-problems/problem-01-wine.webp",
+  },
+  {
+    title: "Coverage doesn't mean caring",
+    subtitle: "Insurance pays out. It doesn't fix how renters treat your home.",
+    image: "/assets/onboarding-problems/problem-04-careless.webp",
+  },
+  {
+    title: "Public listings are searchable",
+    subtitle: "Anyone can find your address attached to a listing.",
+    image: "/assets/onboarding-problems/problem-05-regulation.webp",
+  },
+];
+
+// STRANGERS_OPTION_ONE — the vertical pain-points list. Kept in code
+// as an alternate treatment; not currently in SLIDES.
+function PainPointsListVisual() {
+  const ITEM_HEIGHT = 76;
+  const items = [...PAIN_POINTS, PAIN_POINTS[0]];
+  return (
+    <div
+      className="pain-window relative w-full overflow-hidden"
+      style={
+        {
+          height: `${ITEM_HEIGHT}px`,
+          ["--pain-h" as string]: `${ITEM_HEIGHT}px`,
+        } as React.CSSProperties
+      }
+    >
+      <div className="pain-track">
+        {items.map((p, i) => (
+          <div
+            key={`${p.title}-${i}`}
+            className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/40 px-4 text-left"
+            style={{ height: `${ITEM_HEIGHT}px` }}
+          >
+            <span
+              aria-hidden
+              className="grid h-2 w-2 shrink-0 place-items-center rounded-full"
+              style={{ backgroundColor: "#B45309" }}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold leading-tight">
+                {p.title}
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
+                {p.subtitle}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// All five problem cards. PainPointsListVisual still uses its own
+// PAIN_POINTS array so the vertical-list alt isn't affected.
 const PROBLEM_CARDS = [
   {
     title: "Putting your stuff away and taking it out every time",
@@ -837,6 +1231,12 @@ const PROBLEM_CARDS = [
 ];
 
 function PainPointsCardsVisual() {
+  // Track is the cards duplicated so the right→left scroll wraps
+  // seamlessly when the first set scrolls fully out. Uses mr-3 on
+  // every card (rather than flex gap) so each card occupies an
+  // identical "slot" of card_width + 12px and the keyframe's -50%
+  // translation lands exactly one set's slot-width over — no gap
+  // arithmetic mismatch at the seam, no blank-space hiccup.
   const cards = [...PROBLEM_CARDS, ...PROBLEM_CARDS];
   return (
     <div className="cards-window relative w-full overflow-hidden">
@@ -920,101 +1320,353 @@ function PickerOption({
 
 // TODO(loren): revisit this visual — placeholder mock of the in-app
 // trust-detail panel; needs a follow-up design pass before B3.
+// Slide 4 trust-detail visual (Round 4 rebuild). Static replica of
+// the live ConnectionPopover / ChainRow output (see
+// src/components/trust/connection-breakdown.tsx) with seeded data
+// and real avatar portraits from /assets/orbit-animation/avatars/.
+//
+// Shows TWO paths to the target so the "multiple connections" idea
+// reads at a glance — one 2° path (1 connector) and one 3° path (2
+// connectors), the same pattern the real popover renders for users
+// with multiple routes to the host. The first connector in each
+// path is "known" (avatar + first name visible); deeper hops are
+// anonymized (blurred avatar + initials with periods + EyeOff
+// overlay), matching the privacy treatment in the live component.
+//
+// Avatars are pre-loaded by the page-level <Image> preloader so this
+// renders without a flash. If /assets/orbit-animation/avatars/ is
+// ever moved, only this constant needs updating.
+// Host-offer card data (variant C 2026-05-03 rebuild). Matches the
+// production host-offer + connection-breakdown layout Loren shared:
+// avatar + name + HOST OFFER pill + dual-tone degree/score chip,
+// then a "connected via N connections" line, Trust Score, then the
+// path rows. Avatars use the existing orbit-animation set since the
+// historical-portraits seed Loren screenshotted from isn't in this
+// repo — the visual structure is what matters here.
+const TRUST_VISUAL = {
+  target: {
+    name: "Charles Darwin",
+    avatar: "/assets/orbit-animation/avatars/avatar-james.jpg",
+  },
+  viewer: {
+    name: "You",
+    avatar: "/assets/orbit-animation/avatars/avatar-host.jpg",
+  },
+  degreeLabel: "2°",
+  trustScore: "5.6",
+  totalConnections: 4,
+  totalPoints: 56,
+  totalLabel: "Very strong",
+  paths: [
+    {
+      label: "Path 1 · via Albert",
+      // target-first: Charles → Albert → You
+      nodes: [
+        {
+          name: "Charles",
+          known: true,
+          isTarget: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-james.jpg",
+        },
+        {
+          name: "Albert",
+          known: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-luke.jpg",
+        },
+        {
+          name: "You",
+          known: true,
+          isYou: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-host.jpg",
+        },
+      ],
+      degrees: ["1°", "1°"],
+    },
+    {
+      label: "Path 2 · via Abraham",
+      nodes: [
+        {
+          name: "Charles",
+          known: true,
+          isTarget: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-james.jpg",
+        },
+        {
+          name: "Abraham",
+          known: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-04-white-woman.jpg",
+        },
+        {
+          name: "You",
+          known: true,
+          isYou: true,
+          avatar: "/assets/orbit-animation/avatars/avatar-host.jpg",
+        },
+      ],
+      degrees: ["1°", "1°"],
+    },
+  ],
+};
+
 function TrustDetailVisual() {
+  const t = TRUST_VISUAL;
   return (
-    <div className="rounded-2xl border border-border/60 bg-background/40 p-4 text-left">
-      <div className="flex items-center gap-2">
-        <Users className="h-4 w-4 text-muted-foreground shrink-0" />
-        <div className="text-[13px] font-semibold leading-tight">
-          Hana Yoon is connected to you via 1 connection
+    <div className="rounded-2xl border border-border/60 bg-background/40 p-3 text-left">
+      {/* Header row: avatar + name + dual-tone degree/score chip */}
+      <div className="flex items-center gap-3">
+        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-border/60">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={t.target.avatar}
+            alt={t.target.name}
+            className="h-full w-full object-cover"
+          />
         </div>
-      </div>
-      <div className="mt-1 text-[11px] text-muted-foreground">
-        Trust Score:{" "}
-        <span className="font-semibold text-foreground">9 pts (Weak)</span>
+        <div className="min-w-0 flex-1">
+          <span className="text-[15px] font-semibold leading-tight text-foreground">
+            {t.target.name}
+          </span>
+          {/* Dual-tone degree + trust-score chip */}
+          <div className="mt-1.5 inline-flex overflow-hidden rounded-full text-[11px] font-semibold">
+            <span className="bg-cyan-400/30 px-2 py-0.5 text-cyan-200">
+              {t.degreeLabel}
+            </span>
+            <span className="bg-cyan-500/50 px-2 py-0.5 text-cyan-50">
+              {t.trustScore}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-border/60 bg-background/30 p-3">
-        <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-          Path 1 · via Cassidy
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-1">
-          <ChainNode initials="HY" label="Hana" />
-          <ChainChip value="9" />
-          <ChainNode initials="CL" label="Cassidy" />
-          <ChainChip value="9" />
-          <ChainNode initials="You" label="You" tone="self" />
-        </div>
+      {/* Single-line summary — no icon, no separate Trust Score line.
+          Compresses two facts into one scannable sentence. */}
+      <div className="mt-3 text-[13px] font-semibold leading-tight">
+        Connected via {t.paths.length} paths
+        <span className="font-normal text-muted-foreground">
+          {" · "}Score{" "}
+          <span className="font-semibold text-foreground">
+            {t.trustScore} ({t.totalLabel})
+          </span>
+        </span>
+      </div>
+
+      {/* Single combined path container. Both paths live in one rounded
+          box separated by a thin horizontal divider. No "PATH N · VIA
+          NAME" labels — the avatars + degree pills carry the meaning. */}
+      <div className="mt-2.5 rounded-xl border border-border/60 bg-background/30 p-2.5">
+        {t.paths.map((path, pathIdx) => (
+          <div key={path.label}>
+            {pathIdx > 0 && <div className="my-2 h-px bg-border/40" />}
+            <ChainRow path={path} />
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function ChainNode({
-  initials,
-  label,
-  tone = "neutral",
+// Path row: target on the LEFT, You on the right, with a thin
+// horizontal connection LINE between avatars and a small degree
+// pill (1°, 2°) sitting on top of the midpoint of each line.
+function ChainRow({
+  path,
 }: {
-  initials: string;
-  label: string;
-  tone?: "neutral" | "self";
+  path: typeof TRUST_VISUAL.paths[number];
 }) {
-  const styles =
-    tone === "self"
-      ? "bg-brand-300 text-brand-foreground"
-      : "bg-secondary text-foreground border border-border/60";
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div
-        className={`grid h-9 w-9 place-items-center rounded-full text-[10px] font-semibold ${styles}`}
+    <div className="flex items-center justify-center">
+      {path.nodes.map((node, i) => (
+        <span key={`${node.name}-${i}`} className="contents">
+          {i > 0 && <ChainConnector label={path.degrees[i - 1]} index={i - 1} />}
+          <ChainAvatar
+            name={node.name}
+            avatar={node.avatar}
+            known={node.known}
+            isYou={Boolean(node.isYou)}
+            isTarget={Boolean(node.isTarget)}
+          />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// Connector between two avatars in a path row. Renders a thin
+// horizontal line with a degree pill sitting on its midpoint.
+// flex-1 + min-w-0 lets the connector absorb extra horizontal space
+// so the avatars space evenly across the available width.
+function ChainConnector({ label, index }: { label: string; index: number }) {
+  // Alternate the pill color so the row reads as varied edges (mirrors
+  // the screenshot where the first segment is brand-green and the
+  // second is cyan-blue).
+  const pillColors =
+    index === 0
+      ? "bg-brand-300/40 text-brand-100"
+      : "bg-cyan-500/40 text-cyan-50";
+  return (
+    <div className="relative flex min-w-0 flex-1 items-center justify-center">
+      <span className="block h-px w-full bg-border/60" />
+      <span
+        className={`absolute inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${pillColors}`}
       >
-        {initials}
-      </div>
-      <span className="text-[10px] font-medium text-muted-foreground">
         {label}
       </span>
     </div>
   );
 }
 
-function ChainChip({ value }: { value: string }) {
+function ChainAvatar({
+  name,
+  avatar,
+  known,
+  isYou,
+  isTarget,
+}: {
+  name: string;
+  avatar: string;
+  known: boolean;
+  isYou: boolean;
+  isTarget: boolean;
+}) {
+  const first = name.split(" ")[0];
+  const periodedInitials = first
+    .slice(0, 2)
+    .toUpperCase()
+    .split("")
+    .map((c) => `${c}.`)
+    .join("");
+  const label = isYou ? "You" : known ? first : periodedInitials;
+  const showAnonymized = !known && !isTarget;
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1">
+      <div
+        className={`relative h-9 w-9 overflow-hidden rounded-full border-2 ${
+          isTarget ? "border-brand-300" : "border-border/60"
+        }`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatar}
+          alt={label}
+          className={`h-full w-full object-cover ${
+            showAnonymized ? "scale-125 blur-md" : ""
+          }`}
+        />
+        {showAnonymized && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <EyeOff className="h-3.5 w-3.5 text-[var(--tt-cream-muted)]" strokeWidth={2.25} />
+          </span>
+        )}
+      </div>
+      <span className="max-w-[4rem] truncate text-[10px] font-medium text-muted-foreground">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function ChainStrengthPill({ strength }: { strength: number }) {
+  // Same violet-by-strength buckets as the live LinkStrengthPill.
+  const bucket =
+    strength >= 50
+      ? "bg-violet-700"
+      : strength >= 30
+        ? "bg-violet-500"
+        : strength >= 15
+          ? "bg-violet-400"
+          : "bg-violet-300 text-violet-900";
   return (
     <span
-      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
-      style={{ backgroundColor: "#FAF5FF", color: "#6B21A8" }}
+      className={`mx-0.5 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 text-[9px] font-semibold text-white ${bucket}`}
     >
-      {value}
+      {strength}
     </span>
   );
 }
 
-// TODO(loren): revisit this visual — placeholder mock of the listing
-// visibility settings; needs a follow-up design pass before B3.
+// Slide 5 visibility visual (Round 4 rebuild). Shows the three top-
+// level visibility modes AND a glimpse of the granular sub-controls
+// for "who sees the preview" + "who sees the full listing." Pulls
+// from the live edit-listing-form access-rules pattern: each gate
+// has a degree threshold (1°, 2°, 3°, anyone) so hosts can dial
+// audiences independently — preview can be more permissive than
+// full listing, never less.
+//
+// The compact layout favors clarity over completeness — a 2-row
+// granular block hints at deeper config without trying to surface
+// the full picker matrix on a phone-sized slide.
+// Variant C 2026-05-03 rebuild — matches the production access-rules
+// 2-row layout Loren shared. Two cards stacked: one for the preview
+// gate (min trust score), one for the full listing + contact gate
+// (max degree of separation). Significantly shorter than the old
+// 3-mode + nested-granular layout — Loren wants to convey the two
+// distinct controls without surfacing the full picker matrix.
 function VisibilityVisual() {
   return (
-    <div className="rounded-2xl border border-border/60 bg-background/40 p-4 text-left">
-      <p className="mb-3 text-xs text-muted-foreground">Listing visibility</p>
-      <div className="space-y-2.5">
-        <ScopeRow
-          icon={<Lock className="h-4 w-4" />}
-          title="Private"
-          subtitle="Only people you invite"
-          active={false}
-        />
-        <ScopeRow
-          icon={<Eye className="h-4 w-4" />}
-          title="Preview"
-          subtitle="Network sees a teaser, not the address"
-          active={true}
-        />
-        <ScopeRow
-          icon={<Users className="h-4 w-4" />}
-          title="Friends of friends"
-          subtitle="Up to 2° from you"
-          active={false}
-        />
+    <div className="space-y-2 text-left">
+      {/* Row 1: Preview gate (trust-score floor) */}
+      <div className="rounded-2xl border border-border/60 bg-background/40 p-3">
+        <div className="flex items-center gap-2">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-300/15 text-brand-300">
+            <Eye className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-[14px] font-semibold leading-tight text-foreground">
+              See Preview
+            </div>
+            <div className="text-[11px] leading-snug text-muted-foreground">
+              Who can see the preview card
+            </div>
+          </div>
+        </div>
+        <div className="mt-2.5 flex items-center gap-2">
+          <PickerChip label="Min trust score" />
+          <NumberChip value="15" />
+        </div>
+      </div>
+
+      {/* Row 2: Full listing + contact gate (degrees) */}
+      <div className="rounded-2xl border border-border/60 bg-background/40 p-3">
+        <div className="flex items-center gap-2">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-300/15 text-brand-300">
+            <Users className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-[14px] font-semibold leading-tight text-foreground">
+              Full Listing + Contact
+            </div>
+            <div className="text-[11px] leading-snug text-muted-foreground">
+              Who can view + message you
+            </div>
+          </div>
+        </div>
+        <div className="mt-2.5 flex items-center gap-2">
+          <PickerChip label="Within degrees of you" />
+          <PickerChip label="2°" />
+        </div>
       </div>
     </div>
+  );
+}
+
+// Picker-style chip — looks like a select dropdown with a chevron
+// suffix. Used in the visibility visual to convey "this is a
+// selectable control" without rendering a real native select.
+function PickerChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5 rounded-lg border border-border/60 bg-background/60 px-2.5 py-1.5 text-[11px] font-medium text-foreground">
+      <span className="truncate">{label}</span>
+      <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+    </span>
+  );
+}
+
+// Compact numeric chip used for the trust-score threshold value.
+function NumberChip({ value }: { value: string }) {
+  return (
+    <span className="inline-flex shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background/60 px-2.5 py-1.5 text-[11px] font-semibold text-foreground">
+      {value}
+    </span>
   );
 }
 

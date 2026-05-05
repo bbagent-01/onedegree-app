@@ -822,16 +822,16 @@ export function IntroRequestCard({
   const canSendStayTerms = isRecipient && !hasExistingBooking;
 
   const acceptedFooter = (
-    <div className="flex flex-col gap-3 border-t border-emerald-200 bg-emerald-50 px-4 py-4">
+    <div className="flex flex-col gap-3 border-t border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 px-4 py-4">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
           <Check className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-emerald-900">
+          <div className="text-sm font-semibold text-[var(--tt-mint)]">
             Intro accepted
           </div>
-          <div className="text-xs text-emerald-800/80">
+          <div className="text-xs text-[var(--tt-mint)]/80">
             {isRecipient
               ? `You and ${senderFirst} can see each other's full listings.`
               : `You and ${recipientFirst} can see each other's full listings.`}
@@ -839,13 +839,13 @@ export function IntroRequestCard({
         </div>
         {isRecipient && (
           <DropdownMenu>
-            <DropdownMenuTrigger className="shrink-0 rounded-full p-1 hover:bg-emerald-100">
-              <MoreHorizontal className="h-4 w-4 text-emerald-900/70" />
+            <DropdownMenuTrigger className="shrink-0 rounded-full p-1 hover:bg-[var(--tt-mint-mid)]/20">
+              <MoreHorizontal className="h-4 w-4 text-[var(--tt-mint)]/70" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem
                 onClick={() => setRevokeDialogOpen(true)}
-                className="text-red-600 focus:text-red-600"
+                className="text-red-200 focus:text-red-200"
               >
                 <UserMinus className="mr-2 h-4 w-4" />
                 Revoke access
@@ -873,17 +873,17 @@ export function IntroRequestCard({
   );
 
   const declinedFooter = (
-    <div className="flex items-center gap-3 border-t border-red-200 bg-red-50 px-4 py-4">
+    <div className="flex items-center gap-3 border-t border-red-400/30 bg-red-400/10 px-4 py-4">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow-sm">
         <XIcon className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-red-900">
+        <div className="text-sm font-semibold text-red-100">
           {isRecipient
             ? `You declined ${senderFirst}'s intro`
             : `${recipientFirst} has declined your intro`}
         </div>
-        <div className="text-xs text-red-800/80">
+        <div className="text-xs text-red-200/80">
           {isRecipient
             ? `${senderFirst} can't post until you reopen.`
             : "You can't send more messages in this thread. Try again in 30 days."}
@@ -894,7 +894,7 @@ export function IntroRequestCard({
           type="button"
           onClick={() => call("reopen")}
           disabled={!!pendingAction}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-900 hover:bg-red-100 disabled:opacity-60"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold text-red-100 hover:bg-red-400/15 disabled:opacity-60"
         >
           {pendingAction === "reopen" ? (
             <Loader2 className="h-3 w-3 animate-spin" />

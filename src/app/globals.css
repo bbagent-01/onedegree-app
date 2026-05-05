@@ -373,28 +373,53 @@ section .border-t {
 }
 
 /* ── BIG SERIF HEADLINES ─────────────────────────────────────── */
+/* Default brand styles for un-classed headings (CMS prose, hero
+   markdown, raw HTML drops). Components that pass their own
+   Tailwind classes — text-2xl, text-base, font-semibold, etc.
+   — should win, so the typographic defaults below are NOT marked
+   !important. They land via the bare element selector (specificity
+   0,0,1) and lose to any class-bearing selector (0,1,0+). The
+   font-family stays !important so DM Serif Display always wins
+   over Tailwind's default font stack — only size/weight/color/
+   line-height yield to component classes.
+
+   The previous all-!important rules were turning every <h2> in
+   the app into a 44px serif headline, including small section
+   eyebrows in /settings ("Your account", "Account management")
+   and similar uppercase labels everywhere — they ballooned out
+   of proportion and broke layouts. Tailwind classes now win. */
+/* Heading defaults (audit r6 retune):
+   - font-family is NOT !important so explicit `font-sans` on small
+     all-caps eyebrows (e.g. settings page section labels) can win.
+     Without a font class, h1/h2 still default to DM Serif Display.
+   - font-weight IS !important at 400. DM Serif Display ships with
+     only a 400 weight; if a component className adds `font-bold`
+     or `font-semibold`, the browser would fake-bold the glyph and
+     it looks ugly. Forcing 400 keeps serif headlines clean. The
+     eyebrow case still renders fine — DM Sans at 400 is legible
+     even without semibold.
+   - size + letter-spacing + line-height + color are NOT !important
+     so component classes (text-2xl, etc.) can win normally. */
 h1 {
-  font-family: var(--tt-headline-font) !important;
+  font-family: var(--tt-headline-font);
   font-weight: 400 !important;
-  font-size: var(--tt-h1-size) !important;
-  letter-spacing: -0.025em !important;
-  line-height: 1.02 !important;
-  color: var(--tt-cream) !important;
-  max-width: 18ch;
+  font-size: var(--tt-h1-size);
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  color: var(--tt-cream);
 }
 h2 {
-  font-family: var(--tt-headline-font) !important;
+  font-family: var(--tt-headline-font);
   font-weight: 400 !important;
-  font-size: var(--tt-h2-size) !important;
-  letter-spacing: -0.02em !important;
-  line-height: 1.05 !important;
-  color: var(--tt-cream) !important;
-  max-width: 24ch;
+  font-size: var(--tt-h2-size);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--tt-cream);
 }
 h3 {
   font-family: "DM Sans", system-ui, sans-serif !important;
-  letter-spacing: -0.01em !important;
-  color: var(--tt-cream) !important;
+  letter-spacing: -0.01em;
+  color: var(--tt-cream);
 }
 h1 em,
 h2 em,
@@ -569,9 +594,13 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
    token system — they're scoped to specific page features.
 ─────────────────────────────────────────────────────────────── */
 
-/* Long-form legal documents: ToS, Privacy Policy, /legal-status. */
+/* Long-form legal documents: ToS, Privacy Policy, /legal-status.
+   Uses Trustead theme tokens so prose stays legible on the dark
+   forest body bg. The hardcoded Attio-Light values (#1A1D21 navy
+   text, #734796 purple sec-num, #E5E7EB rule, #F8F9FA code bg) made
+   the body copy invisible on the new dark theme — compliance bug. */
 .legal-prose {
-  color: #1a1d21;
+  color: var(--tt-cream);
   font-size: 15px;
   line-height: 1.65;
 }
@@ -581,8 +610,9 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
   letter-spacing: -0.01em;
   margin: 28px 0 10px 0;
   padding-top: 18px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--tt-rule);
   scroll-margin-top: 80px;
+  color: var(--tt-cream);
 }
 .legal-prose h2:first-child {
   border-top: none;
@@ -593,43 +623,47 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
   font-size: 14px;
   font-weight: 700;
   margin: 18px 0 6px 0;
+  color: var(--tt-cream);
 }
 .legal-prose .sec-num {
   font-family: "JetBrains Mono", monospace;
-  color: #734796;
+  color: var(--tt-mint);
   font-weight: 500;
   margin-right: 8px;
 }
 .legal-prose p {
   margin: 0 0 10px 0;
+  color: var(--tt-cream);
 }
 .legal-prose ul,
 .legal-prose ol {
   margin: 4px 0 12px 0;
   padding-left: 22px;
+  color: var(--tt-cream);
 }
 .legal-prose li {
   margin-bottom: 5px;
 }
 .legal-prose strong {
-  color: #1a1d21;
+  color: var(--tt-cream);
   font-weight: 700;
 }
 .legal-prose em {
   font-style: italic;
 }
 .legal-prose a {
-  color: #1a1d21;
+  color: var(--tt-mint);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 .legal-prose a:hover {
-  color: #734796;
+  color: var(--tt-cream);
 }
 .legal-prose code {
   font-family: "JetBrains Mono", monospace;
   font-size: 13px;
-  background: #f8f9fa;
+  background: rgba(245, 241, 230, 0.08);
+  color: var(--tt-cream);
   padding: 1px 5px;
   border-radius: 4px;
 }
@@ -643,7 +677,11 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
   scrollbar-width: none;
 }
 
-/* Leaflet map price pins (Airbnb-style bubbles) */
+/* Leaflet map price pins (Airbnb-style bubbles).
+   Pins sit on a light Carto basemap, so white-with-dark-text is
+   correct for legibility. The selected/dark text colors use
+   Trustead's modal-bg dark-green (#0B2E25) instead of the
+   pre-refactor #1A1D21 navy so the markers stay on-brand. */
 .map-pin {
   display: inline-block;
   padding: 4px 10px;
@@ -652,7 +690,7 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
   border-radius: 9999px;
   font-size: 12px;
   font-weight: 600;
-  color: #1a1d21;
+  color: #0b2e25;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   white-space: nowrap;
   transform: translate(-50%, -50%);
@@ -663,9 +701,9 @@ button[class*="border"]:not([class*="bg-brand"]):not([class*="bg-danger"]):not([
   transform: translate(-50%, -50%) scale(1.05);
 }
 .map-pin-selected {
-  background: #1a1d21;
-  color: #fff;
-  border-color: #1a1d21;
+  background: #0b2e25;
+  color: #f5f1e6;
+  border-color: #0b2e25;
   transform: translate(-50%, -50%) scale(1.1);
 }
 

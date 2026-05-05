@@ -61,11 +61,11 @@ const SEVERITY_META: Record<
   },
   medium: {
     label: "Medium",
-    cls: "bg-amber-100 text-amber-800",
+    cls: "bg-amber-400/15 text-amber-200",
   },
   high: {
     label: "High",
-    cls: "bg-red-100 text-red-800",
+    cls: "bg-red-400/15 text-red-200",
   },
 };
 
@@ -101,13 +101,13 @@ export function IssueReportCard({ report, viewerId }: Props) {
     if (isResolved) {
       return {
         label: "Resolved",
-        cls: "bg-emerald-100 text-emerald-800",
+        cls: "bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]",
       };
     }
     if (isAck) {
-      return { label: "Acknowledged", cls: "bg-sky-100 text-sky-800" };
+      return { label: "Acknowledged", cls: "bg-sky-400/15 text-sky-200" };
     }
-    return { label: "Open", cls: "bg-red-100 text-red-800" };
+    return { label: "Open", cls: "bg-red-400/15 text-red-200" };
   })();
 
   const acknowledge = async () => {
@@ -163,10 +163,10 @@ export function IssueReportCard({ report, viewerId }: Props) {
     : description;
 
   const iconBgCls = isResolved
-    ? "bg-emerald-100 text-emerald-700"
+    ? "bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]"
     : isAck
-      ? "bg-sky-100 text-sky-700"
-      : "bg-red-100 text-red-700";
+      ? "bg-sky-400/15 text-sky-200"
+      : "bg-red-400/15 text-red-200";
 
   return (
     <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border-2 border-border bg-white shadow-sm">
@@ -233,7 +233,7 @@ export function IssueReportCard({ report, viewerId }: Props) {
         )}
 
         {isResolved && report.resolution_note && (
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          <div className="mt-3 rounded-lg border border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 px-3 py-2 text-xs text-[var(--tt-mint)]">
             <div className="font-semibold">Resolution note</div>
             <p className="mt-0.5 whitespace-pre-wrap leading-relaxed">
               {report.resolution_note}
@@ -244,7 +244,7 @@ export function IssueReportCard({ report, viewerId }: Props) {
 
       {/* Footer actions */}
       {isResolved ? (
-        <div className="flex items-center gap-2 border-t border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-900">
+        <div className="flex items-center gap-2 border-t border-[var(--tt-mint-mid)]/40 bg-[var(--tt-mint-mid)]/10 px-4 py-3 text-xs font-medium text-[var(--tt-mint)]">
           <Check className="h-3.5 w-3.5" />
           Resolved{" "}
           {report.resolved_at ? `on ${fmtDate(report.resolved_at)}` : ""}.

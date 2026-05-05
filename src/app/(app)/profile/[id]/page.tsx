@@ -166,8 +166,8 @@ export default async function ProfilePage({
               // so hosts can see at a glance that this account is not
               // phone-verified yet. They regain the green badge by
               // adding + verifying a number from /profile/edit.
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
-                <AlertCircle className="h-3.5 w-3.5 text-red-600" />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-red-400/30 bg-red-400/15 px-3 py-1 text-xs font-semibold text-red-200">
+                <AlertCircle className="h-3.5 w-3.5 text-red-300" />
                 Unverified
               </span>
             )}

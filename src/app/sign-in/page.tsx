@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Phone, ShieldCheck } from "lucide-react";
+import { TrusteadLogo } from "@/components/layout/trustead-logo";
 import { toast } from "sonner";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 
@@ -82,7 +83,15 @@ function SignInInner() {
   const e164 = parsed?.format("E.164") ?? "";
 
   const startPhone = async () => {
-    if (!isLoaded || !phoneValid) return;
+    if (!isLoaded) return;
+    if (!phone.trim()) {
+      toast.error("Enter your phone number");
+      return;
+    }
+    if (!phoneValid) {
+      toast.error("That phone number doesn't look right");
+      return;
+    }
     setSaving(true);
     try {
       const res = await signIn.create({ identifier: e164 });
@@ -104,7 +113,11 @@ function SignInInner() {
   };
 
   const verifyOtp = async () => {
-    if (!isLoaded || otp.length < 6) return;
+    if (!isLoaded) return;
+    if (otp.length < 6) {
+      toast.error("Enter the 6-digit code we texted you");
+      return;
+    }
     setSaving(true);
     try {
       const res = await signIn.attemptFirstFactor({
@@ -148,7 +161,14 @@ function SignInInner() {
 
   const signInWithEmail = async () => {
     if (!isLoaded) return;
-    if (!email.trim() || !password) return;
+    if (!email.trim()) {
+      toast.error("Enter your email address");
+      return;
+    }
+    if (!password) {
+      toast.error("Enter your password");
+      return;
+    }
     setSaving(true);
     try {
       const res = await signIn.create({
@@ -177,6 +197,13 @@ function SignInInner() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col px-4 py-8 md:py-16">
+      <Link
+        href="/"
+        aria-label="Trustead home"
+        className="mb-8 self-center text-foreground"
+      >
+        <TrusteadLogo className="h-7 w-auto" />
+      </Link>
       <header className="text-center">
         <h1 className="text-3xl font-bold md:text-4xl">Welcome back</h1>
         {step === "phone" && (
@@ -227,7 +254,7 @@ function SignInInner() {
             <Button
               size="lg"
               onClick={startPhone}
-              disabled={!phoneValid || saving}
+              disabled={saving}
               className="mt-6 h-14 w-full text-base"
             >
               {saving ? "Sending code\u2026" : "Continue with phone"}
@@ -303,7 +330,7 @@ function SignInInner() {
               <Button
                 size="lg"
                 onClick={verifyOtp}
-                disabled={otp.length < 6 || saving}
+                disabled={saving}
                 className="flex-1 h-14 text-base"
               >
                 {saving ? "Verifying\u2026" : "Sign in"}
@@ -351,7 +378,7 @@ function SignInInner() {
             <Button
               size="lg"
               onClick={signInWithEmail}
-              disabled={saving || !email.trim() || !password}
+              disabled={saving}
               className="mt-5 h-14 w-full text-base"
             >
               {saving ? "Signing in\u2026" : "Sign in"}

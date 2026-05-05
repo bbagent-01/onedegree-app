@@ -111,17 +111,17 @@ export function PhotoRequestCard({ request, photoUrl, viewerId }: Props) {
   };
 
   const iconBg = isSubmitted
-    ? "bg-emerald-100 text-emerald-700"
+    ? "bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]"
     : isDismissed
-      ? "bg-zinc-100 text-zinc-600"
-      : "bg-sky-100 text-sky-700";
+      ? "bg-white/5 text-zinc-600"
+      : "bg-sky-400/15 text-sky-200";
 
   const statusPill = (() => {
     if (isSubmitted)
-      return { label: "Photo sent", cls: "bg-emerald-100 text-emerald-800" };
+      return { label: "Photo sent", cls: "bg-[var(--tt-mint-mid)]/20 text-[var(--tt-mint)]" };
     if (isDismissed)
-      return { label: "Cancelled", cls: "bg-zinc-200 text-zinc-700" };
-    return { label: "Pending", cls: "bg-sky-100 text-sky-800" };
+      return { label: "Cancelled", cls: "bg-white/10 text-[var(--tt-cream-muted)]" };
+    return { label: "Pending", cls: "bg-sky-400/15 text-sky-200" };
   })();
 
   return (
@@ -178,7 +178,7 @@ export function PhotoRequestCard({ request, photoUrl, viewerId }: Props) {
           </button>
           {request.submitted_at && (
             <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Check className="h-3 w-3 text-emerald-700" />
+              <Check className="h-3 w-3 text-[var(--tt-mint)]" />
               Sent {fmtDate(request.submitted_at)}
             </div>
           )}
@@ -187,8 +187,8 @@ export function PhotoRequestCard({ request, photoUrl, viewerId }: Props) {
 
       {/* Footer actions */}
       {isPending && isResponder && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-sky-200 bg-sky-50 px-4 py-3">
-          <div className="text-xs text-sky-900">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-sky-400/30 bg-sky-400/10 px-4 py-3">
+          <div className="text-xs text-sky-100">
             Take a photo or pick one from your camera roll.
           </div>
           <input

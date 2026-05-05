@@ -125,14 +125,14 @@ export default async function ProposalDetailPage({
               <span
                 className={
                   isTrip
-                    ? "inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-900"
-                    : "inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-900"
+                    ? "inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-100"
+                    : "inline-flex items-center gap-1 rounded-full bg-[var(--tt-mint-mid)]/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-mint)]"
                 }
               >
                 {kindLabel}
               </span>
               {row.status !== "active" && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-800">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-cream)]">
                   {row.status}
                 </span>
               )}

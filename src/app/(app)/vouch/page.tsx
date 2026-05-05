@@ -115,7 +115,7 @@ export default function VouchPage() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
           <Shield className="h-6 w-6" />
         </div>
-        <h1 className="mt-4 text-2xl font-bold md:text-3xl">
+        <h1 className="mt-4 text-3xl font-bold md:text-4xl">
           Vouch for someone
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">

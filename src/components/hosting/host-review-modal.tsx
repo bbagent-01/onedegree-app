@@ -146,7 +146,7 @@ export function HostReviewModal({
             />
           </div>
 
-          <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <div className="flex gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-100">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
               Your rating affects vouch power. It factors into the trust

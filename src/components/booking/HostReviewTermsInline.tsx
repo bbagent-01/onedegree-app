@@ -366,18 +366,18 @@ export function HostReviewTermsInline({
   };
 
   return (
-    <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-amber-300 bg-white shadow-sm">
-      <div className="flex items-start gap-3 border-b border-amber-200 bg-amber-50 p-4">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
+    <div className="mx-auto w-full max-w-xl rounded-2xl border-2 border-amber-400/50/40 bg-white shadow-sm">
+      <div className="flex items-start gap-3 border-b border-amber-400/50/30 bg-amber-400/10 p-4">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-400/15 text-amber-200">
           <Check className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-amber-900">
+          <div className="text-sm font-semibold text-amber-100">
             {isEditMode
               ? `Edit terms for ${guestFirstName}`
               : `Review & send terms to ${guestFirstName}`}
           </div>
-          <p className="mt-0.5 text-xs leading-relaxed text-amber-900/80">
+          <p className="mt-0.5 text-xs leading-relaxed text-amber-100/80">
             {isEditMode
               ? `${guestFirstName} hasn't accepted yet, so you can still update any section. Saving reposts the terms with a note about what changed.`
               : `Each section has its own Edit. These numbers lock when ${guestFirstName} confirms — the reservation isn't final until they accept.`}
@@ -596,7 +596,7 @@ export function HostReviewTermsInline({
               <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
                 Preset
                 {preset === "custom" && (
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-700">
+                  <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--tt-cream-muted)]">
                     Custom
                   </span>
                 )}
@@ -715,7 +715,7 @@ export function HostReviewTermsInline({
             type="button"
             onClick={() => send("declined")}
             disabled={submitting !== null}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-400/10 disabled:opacity-60"
           >
             <X className="h-4 w-4" />
             {submitting === "decline" ? "Declining…" : "Decline request"}

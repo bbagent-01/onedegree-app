@@ -106,7 +106,7 @@ export function NotificationsForm({ initialPrefs }: Props) {
               aria-checked={enabled}
               className={cn(
                 "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
-                enabled ? "bg-brand" : "bg-zinc-300",
+                enabled ? "bg-brand" : "bg-white/15",
                 savingKey === item.key && "opacity-60"
               )}
             >

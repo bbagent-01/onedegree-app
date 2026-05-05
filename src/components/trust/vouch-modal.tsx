@@ -223,8 +223,8 @@ export function VouchModal({
                   className={cn(
                     "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
                     t.value === "inner_circle"
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-blue-100 text-blue-700"
+                      ? "bg-amber-400/15 text-amber-200"
+                      : "bg-sky-400/15 text-sky-200"
                   )}
                 >
                   {t.value === "inner_circle" ? (
@@ -441,7 +441,7 @@ export function VouchModal({
                 {initials(target.name)}
               </AvatarFallback>
             </Avatar>
-            <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm animate-in zoom-in-50 duration-300">
+            <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--tt-mint-mid)]/100 text-white shadow-sm animate-in zoom-in-50 duration-300">
               <Check className="h-4 w-4" />
             </div>
           </Link>
@@ -478,13 +478,13 @@ export function VouchModal({
                 trust connections.
               </p>
               {savedVouchPower < 1 && (
-                <p className="mt-2 text-amber-700">
+                <p className="mt-2 text-amber-200">
                   Your recent vouchees&rsquo; guest ratings have reduced your
                   vouch power. Ratings 4.0+ bring it back up.
                 </p>
               )}
               {savedVouchPower > 1 && (
-                <p className="mt-2 text-emerald-700">
+                <p className="mt-2 text-[var(--tt-mint)]">
                   Your vouchees consistently earn high guest ratings &mdash;
                   your endorsements carry more weight.
                 </p>

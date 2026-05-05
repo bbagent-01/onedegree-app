@@ -326,7 +326,7 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                       // shadow on top of neighboring rows.
                       "group relative flex w-full cursor-pointer items-start gap-3 border-b border-border px-3 py-3 text-left transition-all hover:z-10 hover:bg-white hover:shadow-lg hover:ring-1 hover:ring-black/5",
                       isSelected && "bg-muted",
-                      t.is_intro_request && "bg-amber-50/40"
+                      t.is_intro_request && "bg-amber-400/10"
                     )}
                   >
                     {/* Avatar → /profile/[id], with a soft drop-shadow
@@ -381,7 +381,7 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                             <span
                               aria-label="Pending photo request"
                               title="Pending photo request"
-                              className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700"
+                              className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-sky-400/20 text-sky-200"
                             >
                               <Camera className="h-2.5 w-2.5" />
                             </span>
@@ -392,7 +392,7 @@ export function InboxList({ threads, selectedId, onSelectThread }: Props) {
                         </span>
                       </div>
                       {t.is_intro_request && t.intro && (
-                        <div className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                        <div className="mt-0.5 inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
                           {/* Role-neutral intro label — uses the
                               sender/recipient identity from the
                               intro row rather than guest/host. */}

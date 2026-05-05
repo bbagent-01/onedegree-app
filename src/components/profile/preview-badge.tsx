@@ -15,7 +15,7 @@ import { Eye } from "lucide-react";
 export function PreviewBadge() {
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800"
+      className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-xs font-semibold text-amber-200"
       title="You're seeing a limited view. Request an intro to see their full profile and listings."
     >
       <Eye className="h-3 w-3" />

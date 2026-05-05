@@ -1005,7 +1005,7 @@ function Step2({ state, update }: { state: WizardState; update: UpdateFn }) {
             to fine-tune.
           </span>
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-foreground">
+        <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-xs text-foreground">
           Currently only serving the US market. If you live outside the US,{" "}
           <a
             href="mailto:hello@trustead.app?subject=Add%20my%20region%20to%20Trustead"
@@ -2639,7 +2639,7 @@ function Step8Visibility({
 
           {accessRuleRank(state.accessFullListingContact) <
             accessRuleRank(state.accessSeePreview) && (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <div className="mt-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-100">
               Full Listing + Contact is looser than See Preview —
               we&apos;ll clamp it to match on save.
             </div>

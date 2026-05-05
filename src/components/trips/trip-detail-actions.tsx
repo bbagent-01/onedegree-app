@@ -62,7 +62,7 @@ export function TripDetailActions({ trip, canReview }: Props) {
           </Button>
         )}
         {trip.guest_left_review && (
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--tt-mint-mid)]/10 px-4 py-2 text-sm font-semibold text-[var(--tt-mint)]">
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
             Reviewed
           </span>
@@ -71,7 +71,7 @@ export function TripDetailActions({ trip, canReview }: Props) {
           <button
             type="button"
             onClick={() => setCancelOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-400/10"
           >
             <X className="h-4 w-4" />
             Cancel reservation
